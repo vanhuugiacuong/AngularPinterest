@@ -355,7 +355,11 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
             aspectRatio
           };
         });
-        this.relatedPins.update(current => [...current, ...mappedRelated]);
+        this.relatedPins.update(current => {
+          const existingIds = new Set(current.map(p => p.id));
+          const uniqueNew = mappedRelated.filter(p => !existingIds.has(p.id));
+          return [...current, ...uniqueNew];
+        });
         if (related.length < this.limit) {
           this.hasMore = false;
         }

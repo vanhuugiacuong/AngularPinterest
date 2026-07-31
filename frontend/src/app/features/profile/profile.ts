@@ -15,15 +15,15 @@ import { FormsModule } from '@angular/forms';
   styleUrl: './profile.css'
 })
 export class Profile implements OnInit {
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
-  private userService = inject(UserService);
+  public route = inject(ActivatedRoute);
+  public router = inject(Router);
+  public userService = inject(UserService);
   private boardService = inject(BoardService);
   public supabaseService = inject(SupabaseService);
 
   public userProfile = signal<any | null>(null);
   public isLoading = signal<boolean>(true);
-  public activeTab = signal<'boards' | 'created'>('boards');
+  public activeTab = signal<'created' | 'saved' | 'boards'>('created');
 
   // New board modal properties
   public showCreateBoardModal = signal<boolean>(false);
@@ -106,7 +106,7 @@ export class Profile implements OnInit {
     return Array.from(savedMap.values());
   }
 
-  setTab(tab: 'boards' | 'created') {
+  setTab(tab: 'created' | 'saved' | 'boards') {
     this.activeTab.set(tab);
   }
 
@@ -116,6 +116,10 @@ export class Profile implements OnInit {
 
   navigateToPin(pinId: string) {
     this.router.navigate(['/pin', pinId]);
+  }
+
+  navigateToCreate() {
+    this.router.navigate(['/create']);
   }
 
   openCreateBoardModal() {

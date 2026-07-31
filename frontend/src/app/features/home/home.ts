@@ -223,7 +223,11 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       const apiPins = await this.pinService.getPins(this.currentPage, this.limit, token, this.feedSeed);
       if (apiPins && apiPins.length > 0) {
         const mapped = this.mapPins(apiPins);
-        this.pins.update(current => [...current, ...mapped]);
+        this.pins.update(current => {
+          const existingIds = new Set(current.map(p => p.id));
+          const uniqueNew = mapped.filter(p => !existingIds.has(p.id));
+          return [...current, ...uniqueNew];
+        });
         if (apiPins.length < this.limit) {
           this.hasMore = false;
         }

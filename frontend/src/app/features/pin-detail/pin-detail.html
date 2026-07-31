@@ -252,21 +252,20 @@
                 <div class="flex gap-3.5 w-full">
                   @for (colIndex of getBottomColumnsArray(); track colIndex) {
                     <div class="flex flex-col gap-3.5 flex-1 min-w-0">
-                      @for (rel of getBottomRelatedPinsForColumn(colIndex); track rel.id) {
+                      @for (rel of getBottomRelatedPinsForColumn(colIndex); track rel.id + '-' + $index) {
                         <div 
                           (click)="navigateToPin(rel.id)"
                           class="group cursor-pointer flex flex-col mb-1"
                         >
                           <div 
                             class="relative overflow-hidden rounded-[24px] bg-[#f6f6f3] shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-300"
-                            [style.aspect-ratio]="rel.aspectRatio || '0.75'"
                           >
                             <img 
                               [src]="rel.image" 
                               [alt]="rel.title" 
                               loading="lazy"
                               fetchpriority="low"
-                              class="w-full h-full object-cover rounded-[24px] block transition-transform duration-300 group-hover:scale-102"
+                              class="w-full h-auto block rounded-[24px] transition-transform duration-300 group-hover:scale-102"
                             />
                             <!-- Hover overlay -->
                             <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3.5 text-white z-10">
@@ -333,21 +332,20 @@
               <div class="flex gap-3.5 w-full">
                 @for (colIndex of getSideColumnsArray(); track colIndex) {
                   <div class="flex flex-col gap-3.5 flex-1 min-w-0">
-                    @for (rel of getSideRelatedPinsForColumn(colIndex); track rel.id) {
+                    @for (rel of getSideRelatedPinsForColumn(colIndex); track rel.id + '-' + $index) {
                       <div 
                         (click)="navigateToPin(rel.id)"
                         class="group cursor-pointer flex flex-col mb-1"
                       >
                         <div 
                           class="relative overflow-hidden rounded-[24px] bg-[#f6f6f3] shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-300"
-                          [style.aspect-ratio]="rel.aspectRatio || '0.75'"
                         >
                           <img 
                             [src]="rel.image" 
                             [alt]="rel.title" 
                             loading="lazy"
                             fetchpriority="low"
-                            class="w-full h-full object-cover rounded-[24px] block transition-transform duration-300 group-hover:scale-102"
+                            class="w-full h-auto block rounded-[24px] transition-transform duration-300 group-hover:scale-102"
                           />
                           <!-- Hover overlay -->
                           <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3.5 text-white z-10">

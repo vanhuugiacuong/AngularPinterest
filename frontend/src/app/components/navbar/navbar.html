@@ -27,14 +27,6 @@
       <span class="material-symbols-outlined text-xl font-bold">home</span>
     </div>
 
-    <!-- Explore Icon -->
-    <div
-      class="w-10 h-10 rounded-full text-black hover:bg-[#f6f6f3] flex items-center justify-center cursor-pointer transition-colors"
-      title="Khám phá"
-    >
-      <span class="material-symbols-outlined text-xl">explore</span>
-    </div>
-
     <!-- Plus/Create Icon -->
     <div
       (click)="navigateToCreate()"
@@ -127,12 +119,13 @@
   <!-- Right Profile Section / Login Button -->
   <div class="flex items-center gap-3">
     <!-- Logged in state -->
-    <div class="relative flex items-center" *ngIf="supabaseService.user() as user">
-      <!-- Trigger button: avatar + chevron down -->
+    <div class="relative flex items-center gap-0.5" *ngIf="supabaseService.user() as user">
+      <!-- 1. Avatar button: Navigates directly to user profile -->
       <button
-        (click)="toggleProfilePopup($event)"
-        class="flex items-center gap-1 p-1 hover:bg-[#f6f6f3] rounded-full transition-all duration-200 cursor-pointer select-none border-none outline-none focus:outline-none"
-        aria-label="Menu tài khoản"
+        (click)="navigateToMyProfile()"
+        class="p-1 hover:bg-[#f6f6f3] rounded-full transition-all duration-200 cursor-pointer select-none border-none outline-none focus:outline-none flex items-center justify-center"
+        title="Trang cá nhân của bạn"
+        aria-label="Trang cá nhân"
       >
         <img
           [src]="
@@ -143,6 +136,15 @@
           alt="Avatar"
           class="w-8 h-8 rounded-full border border-[#dadad3] object-cover"
         />
+      </button>
+
+      <!-- 2. Chevron Down Arrow button: Toggles dropdown popup -->
+      <button
+        (click)="toggleProfilePopup($event)"
+        class="w-6 h-6 hover:bg-[#f6f6f3] rounded-full transition-all duration-200 cursor-pointer select-none border-none outline-none focus:outline-none flex items-center justify-center"
+        title="Menu tài khoản"
+        aria-label="Menu tài khoản"
+      >
         <span
           class="material-symbols-outlined text-[20px] text-[#211922] font-semibold leading-none select-none"
           >keyboard_arrow_down</span
@@ -159,8 +161,11 @@
           Đang đăng nhập
         </span>
 
-        <!-- User Card -->
-        <div class="flex items-center gap-3.5 rounded-3xl bg-white select-none">
+        <!-- User Card: Click to navigate directly to user profile -->
+        <div 
+          (click)="navigateToMyProfile()"
+          class="flex items-center gap-3.5 p-2 rounded-2xl bg-white hover:bg-[#f6f6f3] cursor-pointer transition-colors select-none"
+        >
           <img
             [src]="
               user.user_metadata['avatar_url'] ||

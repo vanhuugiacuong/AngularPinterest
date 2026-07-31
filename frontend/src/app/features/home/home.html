@@ -42,20 +42,19 @@
             <div class="flex flex-col gap-3 flex-1 min-w-0">
               
               <!-- Pin Card -->
-              @for (pin of getPinsForColumn(colIndex); track pin.id) {
+              @for (pin of getPinsForColumn(colIndex); track pin.id + '-' + $index) {
                 <div class="group cursor-pointer flex flex-col mb-1">
                   <!-- Image Container with Hover Overlay -->
                   <div 
                     (click)="navigateToPin(pin.id)"
                     class="relative overflow-hidden rounded-[24px] bg-[#f6f6f3] shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-300"
-                    [style.aspect-ratio]="pin.aspectRatio || '0.75'"
                   >
                     <img
                       [src]="pin.image"
                       [alt]="pin.title"
                       loading="lazy"
                       fetchpriority="low"
-                      class="w-full h-full object-cover rounded-[24px] block transition-transform duration-300 group-hover:scale-102"
+                      class="w-full h-auto block rounded-[24px] transition-transform duration-300 group-hover:scale-102"
                     />
                     
                     <!-- Hover Overlay -->

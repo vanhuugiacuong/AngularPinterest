@@ -51,6 +51,16 @@ export class UsersService {
         },
         boards: {
           where: { isSecret: false },
+          include: {
+            boardPins: {
+              include: {
+                pin: true,
+              },
+              orderBy: {
+                addedAt: 'desc',
+              },
+            },
+          },
           orderBy: { createdAt: 'desc' },
         },
         _count: {
