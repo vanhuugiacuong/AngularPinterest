@@ -1,0 +1,164 @@
+<div class="min-h-screen bg-white text-black flex flex-col font-sans relative pt-16">
+  <!-- Header (Primary Nav) -->
+  <app-navbar (loginClick)="openLoginModal()"></app-navbar>
+
+  <!-- Hero Section -->
+  <main
+    class="flex-1 max-w-6xl w-full mx-auto px-6 py-12 md:py-20 flex flex-col md:flex-row items-center justify-between gap-12 z-10"
+  >
+    <!-- Left Hero Column -->
+    <div class="flex-1 text-center md:text-left">
+      <!-- display-xl typography tracking tight -->
+      <h1
+        class="text-4xl sm:text-5xl lg:text-[60px] font-extrabold text-[#211922] leading-[1.1] tracking-tight mb-8"
+      >
+        Tạo ra cuộc sống bạn yêu thích trên <span class="text-[#e60023]">Pinterest AI</span>
+      </h1>
+
+      <!-- Hero CTAs -->
+      <div class="flex flex-col sm:flex-row items-center justify-center md:justify-start gap-4">
+        <!-- Join button -->
+        <button
+          (click)="openLoginModal()"
+          class="h-12 px-6 bg-[#e60023] hover:bg-[#cc001f] text-white font-bold rounded-full transition-all duration-200 cursor-pointer text-base shadow-md"
+        >
+          Bắt đầu
+        </button>
+        <!-- Already member button -->
+      </div>
+    </div>
+
+    <!-- Right Hero Collage Column (Pinterest grid collage) -->
+    <div class="flex-1 w-full flex justify-center items-center relative">
+      <div class="grid grid-cols-3 gap-3 max-w-[420px] w-full">
+        <!-- Col 1 -->
+        <div class="flex flex-col gap-3 pt-8">
+          <div
+            class="h-32 bg-amber-50 rounded-[16px] border border-[#e5e5e0] shadow-sm flex items-center justify-center"
+          >
+            <span class="text-3xl select-none">🎨</span>
+          </div>
+          <div
+            class="h-44 bg-indigo-50 rounded-[16px] border border-[#e5e5e0] shadow-sm flex items-center justify-center"
+          >
+            <span class="text-3xl select-none">💻</span>
+          </div>
+        </div>
+        <!-- Col 2 -->
+        <div class="flex flex-col gap-3">
+          <div
+            class="h-48 bg-rose-50 rounded-[16px] border border-[#e5e5e0] shadow-md flex flex-col items-center justify-center p-4 text-center"
+          >
+            <span class="text-4xl mb-2 select-none">✨</span>
+            <span class="text-[10px] font-extrabold tracking-wider uppercase text-rose-800"
+              >AI Studio</span
+            >
+          </div>
+          <div
+            class="h-36 bg-emerald-50 rounded-[16px] border border-[#e5e5e0] shadow-sm flex items-center justify-center"
+          >
+            <span class="text-3xl select-none">📸</span>
+          </div>
+        </div>
+        <!-- Col 3 -->
+        <div class="flex flex-col gap-3 pt-12">
+          <div
+            class="h-40 bg-blue-50 rounded-[16px] border border-[#e5e5e0] shadow-sm flex items-center justify-center"
+          >
+            <span class="text-3xl select-none">🚀</span>
+          </div>
+          <div
+            class="h-28 bg-purple-50 rounded-[16px] border border-[#e5e5e0] shadow-sm flex items-center justify-center"
+          >
+            <span class="text-3xl select-none">📌</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Login Modal Dialog Overlay (Scrim) -->
+  <div
+    *ngIf="showLoginModal()"
+    class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
+  >
+    <!-- Modal Card (modal-card specs: rounded-lg 32px, white canvas, padding 32px) -->
+    <div
+      class="max-w-[440px] w-full bg-white rounded-[32px] p-10 relative shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-[#e5e5e0] text-center"
+    >
+      <!-- Close button on top-right -->
+      <button
+        (click)="closeLoginModal()"
+        class="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#f6f6f3] text-black hover:bg-[#e5e5e0] transition-colors flex items-center justify-center cursor-pointer"
+        title="Đóng"
+      >
+        <span class="material-symbols-outlined text-lg leading-none font-semibold">close</span>
+      </button>
+
+      <!-- Red Pin Logo -->
+      <div
+        class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#e60023] text-white mb-4"
+      >
+        <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24">
+          <path
+            d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.966 1.406-5.966s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.993-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.162 0 7.398 2.965 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.631-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146 1.124.347 2.317.535 3.554.535 6.621 0 11.988-5.367 11.988-11.987C24 5.367 18.633 0 12.017 0z"
+          />
+        </svg>
+      </div>
+
+      <!-- Title & Description inside modal -->
+      <h2 class="text-[22px] font-semibold text-[#211922] tracking-tight mb-2">
+        Đăng nhập vào Pinterest AI
+      </h2>
+      <p class="text-[#62625b] text-sm mb-8 leading-relaxed px-4">
+        Tiếp tục bằng tài khoản Google để bắt đầu sáng tạo hình ảnh.
+      </p>
+
+      <!-- Google Login Button -->
+      <button
+        (click)="login()"
+        class="w-full h-11 flex items-center justify-center gap-3 px-4 bg-[#e5e5e0] hover:bg-[#c8c8c1] text-black font-bold rounded-[16px] transition-all duration-200 cursor-pointer active:scale-95 group"
+      >
+        <svg
+          class="w-5 h-5 transition-transform duration-300 group-hover:scale-105"
+          viewBox="0 0 24 24"
+          fill="none"
+        >
+          <path
+            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+            fill="#4285F4"
+          />
+          <path
+            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+            fill="#34A853"
+          />
+          <path
+            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+            fill="#FBBC05"
+          />
+          <path
+            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+            fill="#EA4335"
+          />
+        </svg>
+        Đăng nhập bằng Google
+      </button>
+
+      <!-- Error message rendering in modal -->
+      @if (errorMsg()) {
+        <div
+          class="mt-4 p-3 rounded-[16px] bg-[#cc001f]/10 border border-[#cc001f]/20 text-[#9e0a0a] text-xs font-semibold text-left animate-fade-in"
+        >
+          ⚠️ Lỗi đăng nhập: {{ errorMsg() }}
+        </div>
+      }
+
+      <div class="mt-8 text-[12px] text-[#62625b] leading-normal px-4">
+        Bằng việc tiếp tục, bạn đồng ý với
+        <a href="#" class="font-semibold text-[#211922] hover:underline">Điều khoản Dịch vụ</a> và
+        <a href="#" class="font-semibold text-[#211922] hover:underline">Chính sách Bảo mật</a> của
+        chúng tôi.
+      </div>
+    </div>
+  </div>
+</div>

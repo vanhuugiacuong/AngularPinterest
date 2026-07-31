@@ -1,0 +1,113 @@
+<div class="min-h-screen bg-white text-black flex flex-col font-sans relative">
+  <!-- Navbar handles top header and left vertical sidebar -->
+  <app-navbar></app-navbar>
+
+  <!-- Main Content Area: Shifted right to clear fixed sidebar, shifted down to clear fixed header -->
+  <div class="flex-1 pl-16 pt-16 flex flex-col min-w-0">
+    <main class="flex-1 w-full mx-auto px-8 py-8 flex flex-col max-w-none items-center">
+      
+      <!-- Back to Profile Button -->
+      <div class="w-full flex justify-start mb-6">
+        <button 
+          (click)="goBackToProfile()" 
+          class="w-10 h-10 rounded-full bg-white hover:bg-gray-100 flex items-center justify-center border border-gray-200 cursor-pointer shadow-sm active:scale-95 transition-all select-none border-none outline-none text-[#211922]"
+          title="Quay lại trang cá nhân"
+        >
+          <span class="material-symbols-outlined text-xl font-semibold">arrow_back</span>
+        </button>
+      </div>
+
+      <!-- Loading State -->
+      <div *ngIf="isLoading()" class="flex-1 flex flex-col items-center justify-center py-20">
+        <div class="w-10 h-10 border-4 border-[#e60023] border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-xs text-[#62625b] mt-4 font-semibold">Đang tải chi tiết bảng...</p>
+      </div>
+
+      <ng-container *ngIf="!isLoading() && board() as b">
+        <!-- Board Header -->
+        <div class="flex flex-col items-center gap-2 max-w-[600px] mb-12 text-center">
+          <div class="flex items-center gap-2.5">
+            <h1 class="text-3xl font-extrabold text-[#211922] tracking-tight">{{ b.name }}</h1>
+            <span 
+              *ngIf="b.isSecret" 
+              class="material-symbols-outlined text-xl text-gray-500 font-bold"
+              title="Bảng bí mật (chỉ bạn xem được)"
+            >
+              lock
+            </span>
+          </div>
+          <p class="text-sm text-[#62625b] font-medium max-w-[450px] leading-relaxed mt-1" *ngIf="b.description">
+            {{ b.description }}
+          </p>
+          <span class="text-xs font-bold text-gray-400 mt-2 uppercase tracking-wide">
+            {{ pins().length }} ý tưởng / hình ảnh
+          </span>
+        </div>
+
+        <!-- Pins Masonry Grid inside the Board -->
+        <div class="w-full">
+          <div class="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-4 w-full">
+            <div 
+              *ngFor="let pin of pins()" 
+              (click)="navigateToPin(pin.id)"
+              class="break-inside-avoid mb-4 group cursor-pointer flex flex-col"
+            >
+              <!-- Card container -->
+              <div class="relative overflow-hidden rounded-[24px] bg-[#f6f6f3] shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-300">
+                <img 
+                  [src]="pin.image" 
+                  [alt]="pin.title" 
+                  class="w-full object-cover rounded-[24px] block transition-transform duration-300 group-hover:scale-102"
+                />
+                
+                <!-- Hover Overlay -->
+                <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 text-white z-10">
+                  <!-- Remove from Board action -->
+                  <div class="flex justify-end">
+                    <button 
+                      (click)="removePin(pin.id, $event)"
+                      class="bg-black/60 hover:bg-black text-white font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer transition-colors border-none outline-none"
+                      title="Gỡ ảnh này khỏi bảng"
+                    >
+                      Gỡ khỏi bảng
+                    </button>
+                  </div>
+                  
+                  <!-- Bottom Info -->
+                  <div class="flex items-center justify-end w-full min-w-0">
+                    <button 
+                      (click)="$event.stopPropagation()"
+                      class="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-100 cursor-pointer border-none outline-none animate-fade-in"
+                    >
+                      <span class="material-symbols-outlined text-sm font-bold">more_horiz</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Metadata title -->
+              <span class="mt-2 px-1 text-xs font-bold text-[#211922] truncate block">
+                {{ pin.title }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Empty Board State -->
+          <div 
+            *ngIf="pins().length === 0" 
+            class="py-20 flex flex-col items-center justify-center text-center gap-3 bg-gray-50 rounded-[32px] border border-dashed border-[#dadad3] w-full"
+          >
+            <span class="material-symbols-outlined text-4xl text-gray-400">photo_library</span>
+            <p class="text-xs font-semibold text-gray-500">Bảng này hiện chưa lưu hình ảnh nào.</p>
+            <a 
+              href="/feed"
+              class="mt-2 h-9 px-4 bg-black text-white hover:bg-gray-800 rounded-full text-xs font-bold flex items-center justify-center cursor-pointer transition-colors border-none outline-none decoration-none"
+            >
+              Khám phá ảnh trên Feed
+            </a>
+          </div>
+        </div>
+      </ng-container>
+    </main>
+  </div>
+</div>

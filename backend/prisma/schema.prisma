@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Bảng User đồng bộ với id từ auth.users của Supabase
+model User {
+  id           String    @id // Trùng với ID UUID do Supabase Auth cấp
+  username     String    @unique
+  email        String    @unique
+  avatarUrl    String?
+  bio          String?
+  createdAt    DateTime  @default(now())
+  
+  pins         Pin[]
+  boards       Board[]
+  likes        Like[]
+  comments     Comment[]
+  
+  followers    Follow[]  @relation("UserFollowers")
+  following    Follow[]  @relation("UserFollowing")
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower    User     @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+}
+
+model Pin {
+  id              String      @id @default(uuid())
+  title           String
+  description     String?
+  imageUrl        String      // CDN URL từ Supabase Storage Bucket ("pins")
+  sourceUrl       String?
+  userId          String
+  createdAt       DateTime    @default(now())
+
+  isAiGenerated   Boolean     @default(false)
+  promptUsed      String?
+  negativePrompt  String?
+  generationModel String?
+  category        String      @default("other")
+
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  boardPins       BoardPin[]
+  likes           Like[]
+  comments        Comment[]
+}
+
+model Board {
+  id          String      @id @default(uuid())
+  name        String
+  description String?
+  isSecret    Boolean     @default(false)
+  userId      String
+  createdAt   DateTime    @default(now())
+
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  boardPins       BoardPin[]
+}
+
+model BoardPin {
+  boardId   String
+  pinId     String
+  addedAt   DateTime @default(now())
+
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  pin       Pin      @relation(fields: [pinId], references: [id], onDelete: Cascade)
+
+  @@id([boardId, pinId])
+}
+
+model Like {
+  userId    String
+  pinId     String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pin       Pin      @relation(fields: [pinId], references: [id], onDelete: Cascade)
+
+  @@id([userId, pinId])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  userId    String
+  pinId     String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pin       Pin      @relation(fields: [pinId], references: [id], onDelete: Cascade)
+}
