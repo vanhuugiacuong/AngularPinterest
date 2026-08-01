@@ -128,14 +128,18 @@
                 <div class="flex-1 py-6 flex flex-col gap-6 min-h-0 overflow-y-auto">
                   
                   <!-- Author profile info -->
-                  <div class="flex items-center gap-3">
+                  <div 
+                    (click)="navigateToUserProfile(p.user?.username)"
+                    class="flex items-center gap-3 cursor-pointer group/author select-none w-fit"
+                    title="Xem trang cá nhân của {{ p.user?.username }}"
+                  >
                     <img 
                       [src]="p.user?.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'" 
                       alt="Avatar" 
-                      class="w-11 h-11 rounded-full border border-gray-200 object-cover"
+                      class="w-11 h-11 rounded-full border border-gray-200 object-cover transition-transform duration-200 group-hover/author:scale-105"
                     />
                     <div class="flex flex-col text-left">
-                      <span class="text-sm font-bold text-black">{{ p.user?.username }}</span>
+                      <span class="text-sm font-bold text-black group-hover/author:underline">{{ p.user?.username }}</span>
                       <span class="text-[11px] text-[#62625b] font-medium">Người đăng tải</span>
                     </div>
                   </div>
@@ -179,12 +183,18 @@
                       @for (comment of p.comments; track comment.id) {
                         <div class="flex gap-2.5 items-start text-left">
                           <img 
+                            (click)="navigateToUserProfile(comment.user?.username)"
                             [src]="comment.user?.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'" 
                             alt="Avatar" 
-                            class="w-8 h-8 rounded-full border border-gray-200 object-cover shrink-0"
+                            class="w-8 h-8 rounded-full border border-gray-200 object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                            title="Xem trang cá nhân của {{ comment.user?.username }}"
                           />
                           <div class="flex flex-col bg-gray-50 rounded-2xl px-3 py-2 flex-1 min-w-0">
-                            <span class="text-xs font-bold text-black truncate">{{ comment.user?.username }}</span>
+                            <span 
+                              (click)="navigateToUserProfile(comment.user?.username)"
+                              class="text-xs font-bold text-black truncate cursor-pointer hover:underline w-fit"
+                              title="Xem trang cá nhân của {{ comment.user?.username }}"
+                            >{{ comment.user?.username }}</span>
                             <p class="text-xs text-[#211922] mt-0.5 leading-relaxed break-words whitespace-pre-line">{{ comment.content }}</p>
                           </div>
                         </div>

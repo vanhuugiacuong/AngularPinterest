@@ -5,93 +5,108 @@
   <!-- Main Content Area: Shifted right to clear fixed sidebar, shifted down to clear fixed header -->
   <!-- Set to full-width (w-full max-w-none px-8) to look spacious and zoomed out exactly like the reference -->
   <div class="flex-1 pl-16 pt-16 flex flex-col min-w-0">
-    <main class="flex-1 w-full mx-auto px-6 py-8 flex flex-col max-w-[1200px] items-center text-center">
+    <main class="flex-1 w-full mx-auto px-6 sm:px-10 py-6 flex flex-col max-w-[1700px]">
       
-      <!-- Loading State -->
-      <div *ngIf="isLoading()" class="flex-1 flex flex-col items-center justify-center py-20">
-        <div class="w-10 h-10 border-4 border-[#e60023] border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-xs text-[#62625b] mt-4 font-semibold">Đang tải trang cá nhân...</p>
+      <!-- Loading Skeleton Shimmer State -->
+      <div *ngIf="isLoading()" class="w-full flex flex-col gap-6 py-4 animate-fade-in">
+        <!-- Header skeleton -->
+        <div class="w-full flex items-center justify-between">
+          <div class="flex flex-col gap-2">
+            <div class="h-8 w-64 bg-[#e9e9e9] rounded-full animate-pulse"></div>
+            <div class="h-10 w-48 bg-[#e9e9e9] rounded-full animate-pulse mt-2"></div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-full bg-[#e9e9e9] animate-pulse"></div>
+            <div class="h-4 w-32 bg-[#e9e9e9] rounded-full animate-pulse"></div>
+          </div>
+        </div>
+
+        <!-- Pins Masonry Skeleton Grid -->
+        <div class="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 2xl:columns-7 gap-3.5 w-full mt-4">
+          @for (dummy of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; track $index) {
+            <div class="break-inside-avoid mb-3.5 flex flex-col">
+              <div 
+                class="w-full rounded-[24px] bg-[#e9e9e9] animate-pulse" 
+                [ngStyle]="{'height': (dummy % 3 === 0 ? '280px' : dummy % 3 === 1 ? '340px' : '220px')}"
+              ></div>
+              <div class="mt-2 h-3 w-3/4 bg-[#e9e9e9] rounded-full animate-pulse"></div>
+            </div>
+          }
+        </div>
       </div>
 
       <ng-container *ngIf="!isLoading() && userProfile() as p">
         
-        <!-- Header Section: Left (Title + Tabs) & Right (User info + Actions) -->
-        <div class="w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-4 mt-2 text-left">
+        <!-- Top Section Header matching Image 2 -->
+        <div class="w-full flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-6 select-none">
           
-          <!-- Left: Page Title & Navigation Tabs -->
-          <div class="flex flex-col gap-4">
-            <h1 class="text-[32px] font-extrabold text-[#211922] tracking-tight leading-tight select-none">
-              {{ activeTab() === 'created' ? 'Ghim bạn đã tạo' : (activeTab() === 'saved' ? 'Ghim bạn đã lưu' : 'Bảng của bạn') }}
+          <!-- Left: Big Title + Pill Tabs -->
+          <div class="flex flex-col gap-4 text-left">
+            <h1 class="text-3xl font-extrabold text-[#211922] tracking-tight">
+              {{ activeTab() === 'created' ? 'Ý tưởng bạn đã tạo' : (activeTab() === 'saved' ? 'Ý tưởng bạn đã lưu' : 'Bảng của bạn') }}
             </h1>
-            
-            <!-- Navigation Tabs -->
-            <div class="flex items-center gap-6 select-none border-b border-transparent">
-              <!-- Tab 1: Đã tạo -->
-              <div 
+
+            <!-- Pill Navigation Tabs Container (Matching Image 2 rounded pill border) -->
+            <div class="flex items-center gap-1.5 bg-[#f6f6f3] p-1.5 rounded-full border border-gray-200 w-fit">
+              <!-- Tab: Ghim -->
+              <button 
                 (click)="setTab('created')"
-                class="relative pb-2 cursor-pointer transition-all"
-                [class.opacity-100]="activeTab() === 'created'"
-                [class.opacity-60]="activeTab() !== 'created'"
+                class="px-5 py-2 rounded-full text-sm font-bold transition-all cursor-pointer border-none outline-none"
+                [class.bg-white]="activeTab() === 'created' || activeTab() === 'saved'"
+                [class.shadow-sm]="activeTab() === 'created' || activeTab() === 'saved'"
+                [class.text-black]="activeTab() === 'created' || activeTab() === 'saved'"
+                [class.text-gray-600]="activeTab() !== 'created' && activeTab() !== 'saved'"
               >
-                <span class="text-sm font-bold text-black">Đã tạo</span>
-                <div *ngIf="activeTab() === 'created'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-black rounded-full"></div>
-              </div>
+                Ghim
+              </button>
 
-              <!-- Tab 2: Đã lưu -->
-              <div 
-                (click)="setTab('saved')"
-                class="relative pb-2 cursor-pointer transition-all"
-                [class.opacity-100]="activeTab() === 'saved'"
-                [class.opacity-60]="activeTab() !== 'saved'"
-              >
-                <span class="text-sm font-bold text-black">Đã lưu</span>
-                <div *ngIf="activeTab() === 'saved'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-black rounded-full"></div>
-              </div>
-
-              <!-- Tab 3: Bảng -->
-              <div 
+              <!-- Tab: Bảng -->
+              <button 
                 (click)="setTab('boards')"
-                class="relative pb-2 cursor-pointer transition-all"
-                [class.opacity-100]="activeTab() === 'boards'"
-                [class.opacity-60]="activeTab() !== 'boards'"
+                class="px-5 py-2 rounded-full text-sm font-bold transition-all cursor-pointer border-none outline-none"
+                [class.bg-white]="activeTab() === 'boards'"
+                [class.shadow-sm]="activeTab() === 'boards'"
+                [class.text-black]="activeTab() === 'boards'"
+                [class.text-gray-600]="activeTab() !== 'boards'"
               >
-                <span class="text-sm font-bold text-black">Bảng</span>
-                <div *ngIf="activeTab() === 'boards'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-black rounded-full"></div>
-              </div>
+                Bảng
+              </button>
 
-              <div class="relative opacity-40 cursor-not-allowed pb-2">
-                <span class="text-sm font-bold text-black">Ảnh ghép</span>
-              </div>
+              <!-- Tab: Ảnh ghép (Mock) -->
+              <button 
+                class="px-5 py-2 rounded-full text-sm font-bold text-gray-400 cursor-not-allowed border-none outline-none bg-transparent"
+              >
+                Ảnh ghép
+              </button>
             </div>
           </div>
 
-          <!-- Right: Profile Info Card & Share CTA -->
-          <div class="flex items-center gap-4 shrink-0 ml-auto md:ml-0">
-            <!-- User Info: Avatar next to Name and followers -->
-            <div class="flex items-center gap-3 select-none">
+          <!-- Right: Profile Info Card (Matching Image 2) -->
+          <div class="flex items-center gap-5 shrink-0">
+            <div class="flex items-center gap-3">
               <img 
                 [src]="p.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'" 
                 alt="Avatar" 
-                class="w-[80px] h-[80px] rounded-full border border-[#dadad3] object-cover shadow-sm"
+                class="w-12 h-12 rounded-full border border-[#dadad3] object-cover shadow-sm select-none"
               />
-              <div class="flex flex-col text-left justify-center gap-0.5">
-                <span class="text-xl font-extrabold text-black leading-tight">{{ p.username }}</span>
-                <span class="text-xs text-[#62625b] font-medium">
+              <div class="flex flex-col text-left justify-center">
+                <span class="text-base font-extrabold text-black leading-tight">{{ p.username }}</span>
+                <span class="text-xs text-[#62625b] font-medium mt-0.5">
                   {{ p._count?.followers || 0 }} người đang theo dõi
                 </span>
               </div>
             </div>
 
-            <!-- Share Profile / Follow action -->
+            <!-- Share Profile / Follow CTA -->
             <div class="flex items-center gap-2">
               <button 
                 *ngIf="!isMyProfile()"
                 (click)="toggleFollow()"
-                class="h-10 px-4 bg-[#e60023] hover:bg-[#cc001f] text-white rounded-full text-xs font-bold cursor-pointer transition-colors"
+                class="h-10 px-5 bg-[#e60023] hover:bg-[#cc001f] text-white rounded-full text-xs font-extrabold cursor-pointer transition-all active:scale-95 border-none outline-none shadow-sm"
               >
                 Theo dõi
               </button>
-              <button class="h-10 px-5 rounded-full bg-[#f0f0f0] hover:bg-[#e1e1da] text-black font-extrabold text-xs cursor-pointer active:scale-95 border-none outline-none select-none transition-all">
+              <button class="h-10 px-5 rounded-full bg-[#e9e9e9] hover:bg-[#dadad3] text-black font-extrabold text-xs cursor-pointer active:scale-95 border-none outline-none select-none transition-all">
                 Chia sẻ hồ sơ
               </button>
             </div>
@@ -104,57 +119,67 @@
         <!-- ======================================= -->
         <div *ngIf="activeTab() === 'created'" class="w-full flex flex-col animate-fade-in">
           
-          <!-- Action Bar for Created Tab -->
-          <div class="w-full flex items-center justify-between mb-8 mt-2 select-none">
-            <div class="flex items-center gap-2">
-              <button class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center cursor-pointer border-none outline-none text-black transition-colors">
-                <span class="material-symbols-outlined text-[20px] font-semibold">tune</span>
-              </button>
-              <button class="h-9 px-4 rounded-full bg-[#f0f0f0] hover:bg-[#e1e1da] text-black font-extrabold text-xs flex items-center justify-center border-none outline-none cursor-pointer transition-colors">
-                Do bạn tải lên ({{ p.pins?.length || 0 }})
-              </button>
-            </div>
+              <!-- Action Bar for Created Tab -->
+              <div class="w-full flex items-center justify-between mb-8 mt-2 select-none">
+                <div class="flex items-center gap-2">
+                  <button class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center cursor-pointer border-none outline-none text-black transition-colors">
+                    <span class="material-symbols-outlined text-[20px] font-semibold">tune</span>
+                  </button>
+                  <button class="h-9 px-4 rounded-full bg-[#f0f0f0] hover:bg-[#e1e1da] text-black font-extrabold text-xs flex items-center justify-center border-none outline-none cursor-pointer transition-colors">
+                    {{ isMyProfile() ? 'Do bạn tải lên' : 'Đã tải lên' }} ({{ p.pins?.length || 0 }})
+                  </button>
+                </div>
 
-            <!-- Right action button: Tạo ghim mới -->
-            <div *ngIf="isMyProfile()" class="relative">
-              <button 
-                (click)="navigateToCreate()"
-                class="h-10 px-5 rounded-full bg-[#e60023] hover:bg-[#cc001f] text-white font-extrabold text-xs cursor-pointer transition-all active:scale-95 border-none outline-none shadow-sm flex items-center justify-center gap-1"
-              >
-                <span class="material-symbols-outlined text-sm font-bold">add</span>
-                <span>Tạo ghim mới</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Masonry Grid of User's Created Pins -->
-          <div *ngIf="p.pins && p.pins.length > 0" class="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-3.5 w-full">
-            <div 
-              *ngFor="let pin of p.pins" 
-              (click)="navigateToPin(pin.id)"
-              class="break-inside-avoid mb-3.5 group cursor-pointer flex flex-col"
-            >
-              <div class="relative overflow-hidden rounded-[24px] bg-[#f6f6f3] shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-300">
-                <img 
-                  [src]="pin.imageUrl" 
-                  [alt]="pin.title" 
-                  class="w-full h-auto block rounded-[24px] transition-transform duration-300 group-hover:scale-102"
-                />
-                
-                <!-- Hover Overlay -->
-                <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 text-white z-10">
-                  <div class="flex justify-end">
-                    <span class="bg-black/60 backdrop-blur-md text-white font-semibold px-2.5 py-1 rounded-full text-[10px]">
-                      Do bạn tạo
-                    </span>
-                  </div>
+                <!-- Right action button: Tạo ghim mới -->
+                <div *ngIf="isMyProfile()" class="relative">
+                  <button 
+                    (click)="navigateToCreate()"
+                    class="h-10 px-5 rounded-full bg-[#e60023] hover:bg-[#cc001f] text-white font-extrabold text-xs cursor-pointer transition-all active:scale-95 border-none outline-none shadow-sm flex items-center justify-center gap-1"
+                  >
+                    <span class="material-symbols-outlined text-sm font-bold">add</span>
+                    <span>Tạo ghim mới</span>
+                  </button>
                 </div>
               </div>
-              
-              <!-- Title -->
-              <span class="mt-2 px-1 text-xs font-bold text-[#211922] truncate block">
-                {{ pin.title }}
-              </span>
+
+              <!-- Masonry Grid of User's Created Pins -->
+              <div *ngIf="p.pins && p.pins.length > 0" class="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 2xl:columns-7 3xl:columns-8 gap-3.5 w-full">
+                <div 
+                  *ngFor="let pin of p.pins" 
+                  (click)="navigateToPin(pin.id)"
+                  class="break-inside-avoid mb-3.5 group cursor-pointer flex flex-col"
+                >
+                  <div class="relative overflow-hidden rounded-[24px] bg-[#f6f6f3] shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-300">
+                    <img 
+                      [src]="pin.imageUrl" 
+                      [alt]="pin.title" 
+                      loading="lazy"
+                      fetchpriority="low"
+                      class="w-full h-auto block rounded-[24px] transition-transform duration-300 group-hover:scale-102"
+                    />
+                    
+                    <!-- Hover Overlay -->
+                    <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 text-white z-10">
+                      <div class="flex items-center justify-between w-full min-w-0" (click)="$event.stopPropagation()">
+                        <span *ngIf="isMyProfile()" class="bg-black/60 backdrop-blur-md text-white font-semibold px-2.5 py-1 rounded-full text-[10px]">
+                          Do bạn tạo
+                        </span>
+                        <button class="bg-[#e60023] hover:bg-[#cc001f] text-white font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer border-none outline-none shadow-sm ml-auto">
+                          Lưu
+                        </button>
+                      </div>
+
+                      <div class="flex items-center justify-between w-full min-w-0" (click)="$event.stopPropagation()">
+                        <div class="flex items-center gap-1 bg-white/20 backdrop-blur-md px-2 py-1 rounded-full text-[10px] font-semibold text-white">
+                          <span class="material-symbols-outlined text-[10px] leading-none">arrow_outward</span>
+                          <span class="truncate max-w-[60px]">pinterest.com</span>
+                        </div>
+                        <button class="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-100 cursor-pointer border-none outline-none">
+                          <span class="material-symbols-outlined text-sm font-bold">more_horiz</span>
+                        </button>
+                      </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -199,7 +224,7 @@
           </div>
 
           <!-- Masonry Grid of Saved Pins -->
-          <div *ngIf="getSavedPins().length > 0" class="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-3.5 w-full">
+          <div *ngIf="getSavedPins().length > 0" class="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 2xl:columns-7 3xl:columns-8 gap-3.5 w-full">
             <div 
               *ngFor="let pin of getSavedPins()" 
               (click)="navigateToPin(pin.id)"
@@ -209,26 +234,30 @@
                 <img 
                   [src]="pin.imageUrl" 
                   [alt]="pin.title" 
+                  loading="lazy"
+                  fetchpriority="low"
                   class="w-full h-auto block rounded-[24px] transition-transform duration-300 group-hover:scale-102"
                 />
                 
                 <!-- Hover Overlay -->
                 <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 text-white z-10">
-                  <div class="flex justify-end">
-                    <button 
-                      (click)="$event.stopPropagation()"
-                      class="bg-[#e60023] hover:bg-[#cc001f] text-white font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer border-none outline-none"
-                    >
+                  <div class="flex items-center justify-end w-full min-w-0" (click)="$event.stopPropagation()">
+                    <button class="bg-[#e60023] hover:bg-[#cc001f] text-white font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer border-none outline-none shadow-sm">
                       Lưu
+                    </button>
+                  </div>
+
+                  <div class="flex items-center justify-between w-full min-w-0" (click)="$event.stopPropagation()">
+                    <div class="flex items-center gap-1 bg-white/20 backdrop-blur-md px-2 py-1 rounded-full text-[10px] font-semibold text-white">
+                      <span class="material-symbols-outlined text-[10px] leading-none">arrow_outward</span>
+                      <span class="truncate max-w-[60px]">pinterest.com</span>
+                    </div>
+                    <button class="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-100 cursor-pointer border-none outline-none">
+                      <span class="material-symbols-outlined text-sm font-bold">more_horiz</span>
                     </button>
                   </div>
                 </div>
               </div>
-              
-              <!-- Title -->
-              <span class="mt-2 px-1 text-xs font-bold text-[#211922] truncate block">
-                {{ pin.title }}
-              </span>
             </div>
           </div>
 

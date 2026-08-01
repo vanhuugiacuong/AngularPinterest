@@ -1,5 +1,5 @@
 import { Component, OnInit, inject, signal, ViewChild, ElementRef, AfterViewInit, OnDestroy, HostListener } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
 import { PinService } from '../../core/services/pin';
@@ -17,6 +17,7 @@ import { FormsModule } from '@angular/forms';
 export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private location = inject(Location);
   private pinService = inject(PinService);
   private boardService = inject(BoardService);
   public supabaseService = inject(SupabaseService);
@@ -157,11 +158,21 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   }
 
   goBack() {
-    this.router.navigate(['/feed']);
+    if (window.history.length > 1) {
+      this.location.back();
+    } else {
+      this.router.navigate(['/feed']);
+    }
   }
 
   navigateToPin(pinId: string) {
     this.router.navigate(['/pin', pinId]);
+  }
+
+  navigateToUserProfile(username: string | undefined) {
+    if (username) {
+      this.router.navigate(['/profile', username]);
+    }
   }
 
   async toggleLike() {

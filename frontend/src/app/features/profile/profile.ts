@@ -175,4 +175,13 @@ export class Profile implements OnInit {
       console.error('Error toggling follow:', error);
     }
   }
+
+  getColumnsArray(): number[] {
+    return [0, 1, 2, 3, 4, 5];
+  }
+
+  getSkeletonsForColumn(colIndex: number): number[] {
+    const dummy = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    return dummy.filter((_, index) => index % 6 === colIndex);
+  }
 }

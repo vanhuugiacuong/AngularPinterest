@@ -44,8 +44,17 @@
           </span>
         </div>
 
+        <!-- Loading Skeleton Grid -->
+        <div *ngIf="isLoading()" class="w-full">
+          <div class="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-4 w-full">
+            <div *ngFor="let dummy of [1,2,3,4,5,6,7,8,9,10,11,12]" class="break-inside-avoid mb-4 flex flex-col">
+              <div class="w-full rounded-[24px] bg-[#e9e9e9] animate-pulse" [style.height.px]="dummy % 3 === 0 ? 280 : (dummy % 3 === 1 ? 340 : 220)"></div>
+            </div>
+          </div>
+        </div>
+
         <!-- Pins Masonry Grid inside the Board -->
-        <div class="w-full">
+        <div *ngIf="!isLoading()" class="w-full">
           <div class="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-4 w-full">
             <div 
               *ngFor="let pin of pins()" 
@@ -57,6 +66,8 @@
                 <img 
                   [src]="pin.image" 
                   [alt]="pin.title" 
+                  loading="lazy"
+                  fetchpriority="low"
                   class="w-full h-auto block rounded-[24px] transition-transform duration-300 group-hover:scale-102"
                 />
                 
