@@ -1,0 +1,67 @@
+<div
+  *ngIf="open"
+  class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-bg/70 backdrop-blur-sm animate-fade-in"
+  (click)="onBackdropClick()"
+  role="presentation"
+>
+  <div
+    #dialogEl
+    (click)="$event.stopPropagation()"
+    class="glass-elevated w-full max-w-[400px] rounded-panel p-8 shadow-card text-center outline-none"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="publish-dialog-title"
+    aria-describedby="publish-dialog-desc"
+    tabindex="-1"
+  >
+    <!-- PROCESSING -->
+    <div *ngIf="status === 'processing'" aria-live="polite">
+      <div
+        class="mx-auto mb-5 w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"
+        aria-hidden="true"
+      ></div>
+      <h2 id="publish-dialog-title" class="text-lg font-bold text-text mb-2">{{ message }}</h2>
+      <p id="publish-dialog-desc" class="text-xs text-text-muted leading-relaxed">
+        Vui lòng không đóng trang trong lúc NovaFrame đang đăng tác phẩm của bạn.
+      </p>
+    </div>
+
+    <!-- SUCCESS -->
+    <div *ngIf="status === 'success'" aria-live="polite">
+      <div
+        class="ppd-success-pop mx-auto mb-5 w-12 h-12 rounded-full bg-gradient-brand flex items-center justify-center"
+        aria-hidden="true"
+      >
+        <span class="material-symbols-outlined text-2xl text-text">check</span>
+      </div>
+      <h2 id="publish-dialog-title" class="text-lg font-bold text-text mb-2">Đăng ảnh thành công</h2>
+      <p id="publish-dialog-desc" class="text-xs text-text-muted">Đang chuyển đến trang cá nhân của bạn…</p>
+    </div>
+
+    <!-- ERROR -->
+    <div *ngIf="status === 'error'" aria-live="assertive">
+      <div class="mx-auto mb-5 w-12 h-12 rounded-full bg-error/15 flex items-center justify-center" aria-hidden="true">
+        <span class="material-symbols-outlined text-2xl text-error">error</span>
+      </div>
+      <h2 id="publish-dialog-title" class="text-lg font-bold text-text mb-2">Đăng ảnh thất bại</h2>
+      <p id="publish-dialog-desc" class="text-xs text-text-muted mb-6">{{ errorMessage }}</p>
+      <div class="flex items-center justify-center gap-3">
+        <button
+          type="button"
+          (click)="onCloseClick()"
+          class="h-10 px-5 rounded-control bg-surface-elevated hover:bg-surface-high text-text text-sm font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          Đóng
+        </button>
+        <button
+          #retryBtn
+          type="button"
+          (click)="onRetryClick()"
+          class="h-10 px-5 bg-gradient-brand cta-shape text-text text-sm font-bold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          Thử lại
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

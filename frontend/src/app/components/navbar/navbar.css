@@ -1,1 +1,28 @@
 /* Component-specific styles for Navbar */
+
+/* Search bar focus-sweep: a thin brand-gradient line grows in from the left
+   on focus, instead of a heavy ring around a pill. */
+.nf-search {
+  position: relative;
+}
+
+.nf-search::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #2457ff, #8b2cff, #c000ff);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.3s ease;
+}
+
+.nf-search:focus-within {
+  border-color: var(--color-accent);
+}
+
+.nf-search:focus-within::after {
+  transform: scaleX(1);
+}

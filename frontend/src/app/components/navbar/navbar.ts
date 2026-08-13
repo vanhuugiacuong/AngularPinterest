@@ -1,21 +1,26 @@
-import { Component, inject, signal, ElementRef, HostListener, Output, EventEmitter } from '@angular/core';
+import { Component, inject, signal, ElementRef, HostListener, Output, EventEmitter, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { SupabaseService } from '../../core/services/supabase';
+import { SidebarStateService } from '../../core/services/sidebar-state';
+import { Sidebar } from '../sidebar/sidebar';
 
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, Sidebar],
   templateUrl: './navbar.html',
   styleUrl: './navbar.css'
 })
 export class Navbar {
   public supabaseService = inject(SupabaseService);
+  public sidebarState = inject(SidebarStateService);
   private router = inject(Router);
   private elementRef = inject(ElementRef);
 
   @Output() loginClick = new EventEmitter<void>();
+
+  @ViewChild('sidebarTrigger') sidebarTrigger?: ElementRef<HTMLButtonElement>;
 
   public showProfilePopup = signal(false);
 
@@ -30,6 +35,23 @@ export class Navbar {
     if (!this.elementRef.nativeElement.contains(target)) {
       this.showProfilePopup.set(false);
     }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey() {
+    if (this.sidebarState.isOpen()) {
+      this.sidebarState.close();
+      this.sidebarTrigger?.nativeElement.focus();
+    }
+  }
+
+  onSidebarTriggerEnter() {
+    this.sidebarState.cancelClose();
+    this.sidebarState.openSidebar();
+  }
+
+  onSidebarTriggerLeave() {
+    this.sidebarState.scheduleClose();
   }
 
   onLoginClick() {

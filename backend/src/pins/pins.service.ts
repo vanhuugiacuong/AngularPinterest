@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { AiGeneratorService } from '../ai-generator/ai-generator.service';
@@ -11,7 +16,12 @@ export class PinsService {
     private readonly aiGeneratorService: AiGeneratorService,
   ) {}
 
-  async getAllPins(page: number = 1, limit: number = 20, userId?: string, seed?: string) {
+  async getAllPins(
+    page: number = 1,
+    limit: number = 20,
+    userId?: string,
+    seed?: string,
+  ) {
     const skip = (page - 1) * limit;
 
     // 1. Fetch all pins with user and like counts
@@ -21,8 +31,8 @@ export class PinsService {
           select: { id: true, username: true, avatarUrl: true },
         },
         _count: {
-          select: { likes: true }
-        }
+          select: { likes: true },
+        },
       },
     });
 
@@ -32,25 +42,28 @@ export class PinsService {
       try {
         const likes = await this.prisma.like.findMany({
           where: { userId },
-          include: { pin: { select: { category: true } } }
+          include: { pin: { select: { category: true } } },
         });
         const boardPins = await this.prisma.boardPin.findMany({
           where: { board: { userId } },
-          include: { pin: { select: { category: true } } }
+          include: { pin: { select: { category: true } } },
         });
         const categories = [
-          ...likes.map(l => l.pin?.category),
-          ...boardPins.map(b => b.pin?.category)
+          ...likes.map((l) => l.pin?.category),
+          ...boardPins.map((b) => b.pin?.category),
         ].filter(Boolean);
 
-        const counts = categories.reduce((acc, cat) => {
-          acc[cat] = (acc[cat] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
+        const counts = categories.reduce(
+          (acc, cat) => {
+            acc[cat] = (acc[cat] || 0) + 1;
+            return acc;
+          },
+          {} as Record<string, number>,
+        );
 
         preferredCategories = Object.entries(counts)
           .sort((a, b) => b[1] - a[1])
-          .map(e => e[0]);
+          .map((e) => e[0]);
       } catch (err) {
         console.error('Error fetching preferred categories:', err);
       }
@@ -58,7 +71,7 @@ export class PinsService {
 
     // 3. Sort pins using a score combining preferences, recency, and seeded random noise
     const noiseSeed = seed || 'default-seed';
-    const pinsWithScores = pins.map(pin => {
+    const pinsWithScores = pins.map((pin) => {
       let score = 0;
 
       // Category preference score
@@ -71,7 +84,8 @@ export class PinsService {
       }
 
       // Recency score (newer pins get a boost, up to 96 points for pins under 48 hours old)
-      const ageInHours = (Date.now() - new Date(pin.createdAt).getTime()) / (1000 * 60 * 60);
+      const ageInHours =
+        (Date.now() - new Date(pin.createdAt).getTime()) / (1000 * 60 * 60);
       if (ageInHours < 48) {
         score += (48 - ageInHours) * 2;
       }
@@ -85,7 +99,7 @@ export class PinsService {
     });
 
     pinsWithScores.sort((a, b) => b.score - a.score);
-    const sortedPins = pinsWithScores.map(item => item.pin);
+    const sortedPins = pinsWithScores.map((item) => item.pin);
 
     // 4. Return paginated slice
     return sortedPins.slice(skip, skip + limit);
@@ -100,38 +114,49 @@ export class PinsService {
     return this.prisma.pin.findMany({
       where: {
         category: pin.category,
-        id: { not: id }
+        id: { not: id },
       },
       skip,
       take: limit,
       orderBy: { createdAt: 'desc' },
       include: {
         user: { select: { id: true, username: true, avatarUrl: true } },
-        _count: { select: { likes: true } }
-      }
+        _count: { select: { likes: true } },
+      },
     });
   }
 
-  async getPinById(id: string) {
+  async getPinById(id: string, viewerId?: string) {
     const pin = await this.prisma.pin.findUnique({
       where: { id },
       include: {
         user: {
           select: { id: true, username: true, avatarUrl: true, bio: true },
         },
-        likes: true,
+        likes: {
+          where: { userId: viewerId || '__anonymous__' },
+          select: { userId: true },
+          take: 1,
+        },
+        _count: { select: { likes: true, comments: true } },
         comments: {
           include: {
-            user: { select: { id: true, username: true, avatarUrl: true } }
+            user: { select: { id: true, username: true, avatarUrl: true } },
           },
-          orderBy: { createdAt: 'asc' }
-        }
+          orderBy: { createdAt: 'asc' },
+        },
       },
     });
     if (!pin) {
       throw new NotFoundException('Pin not found');
     }
-    return pin;
+    const { likes, _count, ...safePin } = pin;
+    return {
+      ...safePin,
+      _count,
+      likeCount: _count.likes,
+      isLiked: likes.length > 0,
+    };
   }
 
   async createUploadPin(
@@ -141,9 +166,18 @@ export class PinsService {
     description?: string,
     boardId?: string,
   ) {
+    if (boardId) {
+      await this.assertOwnedBoard(boardId, userId);
+    }
+
     const extension = file.originalname.split('.').pop() || 'png';
     const filename = `${userId}/pin_${Date.now()}_${Math.floor(Math.random() * 1000)}.${extension}`;
-    const imageUrl = await this.supabaseService.uploadImage('pins', filename, file.buffer, file.mimetype);
+    const imageUrl = await this.supabaseService.uploadImage(
+      'pins',
+      filename,
+      file.buffer,
+      file.mimetype,
+    );
 
     const category = this.classifyCategory(title, description);
 
@@ -154,17 +188,13 @@ export class PinsService {
         imageUrl,
         userId,
         category,
+        boardPins: boardId
+          ? {
+              create: { boardId },
+            }
+          : undefined,
       },
     });
-
-    if (boardId) {
-      await this.prisma.boardPin.create({
-        data: {
-          boardId,
-          pinId: pin.id,
-        },
-      });
-    }
 
     return pin;
   }
@@ -179,8 +209,15 @@ export class PinsService {
     negativePrompt?: string,
     generationModel?: string,
   ) {
+    if (boardId) {
+      await this.assertOwnedBoard(boardId, userId);
+    }
+
     // 1. Download image from temporary url and upload to permanent pins bucket
-    const imageUrl = await this.aiGeneratorService.saveAiImageToStorage(previewUrl, userId);
+    const imageUrl = await this.aiGeneratorService.saveAiImageToStorage(
+      previewUrl,
+      userId,
+    );
 
     const category = this.classifyCategory(title, description);
 
@@ -196,18 +233,13 @@ export class PinsService {
         negativePrompt,
         generationModel,
         category,
+        boardPins: boardId
+          ? {
+              create: { boardId },
+            }
+          : undefined,
       },
     });
-
-    // 3. Connect to board if provided
-    if (boardId) {
-      await this.prisma.boardPin.create({
-        data: {
-          boardId,
-          pinId: pin.id,
-        },
-      });
-    }
 
     return pin;
   }
@@ -218,7 +250,9 @@ export class PinsService {
       throw new NotFoundException('Pin not found');
     }
     if (pin.userId !== userId) {
-      throw new ForbiddenException('You do not have permission to delete this pin');
+      throw new ForbiddenException(
+        'You do not have permission to delete this pin',
+      );
     }
 
     await this.prisma.pin.delete({ where: { id } });
@@ -226,6 +260,14 @@ export class PinsService {
   }
 
   async toggleLike(pinId: string, userId: string) {
+    const pin = await this.prisma.pin.findUnique({
+      where: { id: pinId },
+      select: { id: true },
+    });
+    if (!pin) {
+      throw new NotFoundException('Pin not found');
+    }
+
     const existingLike = await this.prisma.like.findUnique({
       where: {
         userId_pinId: { userId, pinId },
@@ -238,7 +280,8 @@ export class PinsService {
           userId_pinId: { userId, pinId },
         },
       });
-      return { liked: false };
+      const likeCount = await this.prisma.like.count({ where: { pinId } });
+      return { liked: false, likeCount };
     } else {
       await this.prisma.like.create({
         data: {
@@ -246,7 +289,8 @@ export class PinsService {
           pinId,
         },
       });
-      return { liked: true };
+      const likeCount = await this.prisma.like.count({ where: { pinId } });
+      return { liked: true, likeCount };
     }
   }
 
@@ -265,8 +309,8 @@ export class PinsService {
         userId,
       },
       include: {
-        user: { select: { id: true, username: true, avatarUrl: true } }
-      }
+        user: { select: { id: true, username: true, avatarUrl: true } },
+      },
     });
   }
 
@@ -274,34 +318,167 @@ export class PinsService {
     const text = `${title} ${description || ''}`.toLowerCase();
 
     // 1. Meme / Animals / Pet Memes
-    const memeKeywords = ['meme', 'chế', 'hài hước', 'funny', 'chó', 'cún', 'dog', 'puppy', 'mèo', 'cat', 'kitten', 'boss mèo', 'pet', 'thú cưng', 'ngáo', 'corgi', 'husky', 'pug', 'sóc', 'heo con', 'hamster', 'alpaca', 'lạc đà'];
-    if (memeKeywords.some(kw => text.includes(kw))) return 'meme';
+    const memeKeywords = [
+      'meme',
+      'chế',
+      'hài hước',
+      'funny',
+      'chó',
+      'cún',
+      'dog',
+      'puppy',
+      'mèo',
+      'cat',
+      'kitten',
+      'boss mèo',
+      'pet',
+      'thú cưng',
+      'ngáo',
+      'corgi',
+      'husky',
+      'pug',
+      'sóc',
+      'heo con',
+      'hamster',
+      'alpaca',
+      'lạc đà',
+    ];
+    if (memeKeywords.some((kw) => text.includes(kw))) return 'meme';
 
     // 2. K-Pop / Idol / Stage
-    const kpopKeywords = ['kpop', 'k-pop', 'idol', 'stage', 'sân khấu', 'biểu diễn', 'vũ đạo', 'concert', 'lightstick', 'album', 'blackpink', 'bts', 'twice', 'nữ thần', 'nam thần', 'visual', 'seoul', 'k-fashion'];
-    if (kpopKeywords.some(kw => text.includes(kw))) return 'kpop';
+    const kpopKeywords = [
+      'kpop',
+      'k-pop',
+      'idol',
+      'stage',
+      'sân khấu',
+      'biểu diễn',
+      'vũ đạo',
+      'concert',
+      'lightstick',
+      'album',
+      'blackpink',
+      'bts',
+      'twice',
+      'nữ thần',
+      'nam thần',
+      'visual',
+      'seoul',
+      'k-fashion',
+    ];
+    if (kpopKeywords.some((kw) => text.includes(kw))) return 'kpop';
 
     // 3. Drawing / Art / Sketch
-    const drawingKeywords = ['vẽ', 'drawing', 'art', 'sketch', 'ký họa', 'phác thảo', 'tranh', 'sơn dầu', 'acrylic', 'vải canvas', 'canvas', 'chì', 'than chì', 'charcoal', 'màu nước', 'cọ vẽ', 'bảng vẽ', 'hội họa', 'tác phẩm', 'studio', 'nét vẽ'];
-    if (drawingKeywords.some(kw => text.includes(kw))) return 'drawing';
+    const drawingKeywords = [
+      'vẽ',
+      'drawing',
+      'art',
+      'sketch',
+      'ký họa',
+      'phác thảo',
+      'tranh',
+      'sơn dầu',
+      'acrylic',
+      'vải canvas',
+      'canvas',
+      'chì',
+      'than chì',
+      'charcoal',
+      'màu nước',
+      'cọ vẽ',
+      'bảng vẽ',
+      'hội họa',
+      'tác phẩm',
+      'studio',
+      'nét vẽ',
+    ];
+    if (drawingKeywords.some((kw) => text.includes(kw))) return 'drawing';
 
     // 4. Anime / Manga / Cyberpunk
-    const animeKeywords = ['anime', 'manga', 'tokyo', 'cyberpunk', 'synthwave', 'hacker', 'led rgb', 'game', 'gaming', 'wacom', 'hộp băng', 'tay cầm', 'hạ độ', 'phim hoạt hình', 'nhân vật hoạt hình'];
-    if (animeKeywords.some(kw => text.includes(kw))) return 'anime';
+    const animeKeywords = [
+      'anime',
+      'manga',
+      'tokyo',
+      'cyberpunk',
+      'synthwave',
+      'hacker',
+      'led rgb',
+      'game',
+      'gaming',
+      'wacom',
+      'hộp băng',
+      'tay cầm',
+      'hạ độ',
+      'phim hoạt hình',
+      'nhân vật hoạt hình',
+    ];
+    if (animeKeywords.some((kw) => text.includes(kw))) return 'anime';
 
     // 5. Nature / Landscape
-    const natureKeywords = ['thiên nhiên', 'nature', 'phong cảnh', 'landscape', 'bầu trời', 'hoàng hôn', 'sunset', 'biển', 'beach', 'rừng', 'forest', 'cây', 'tree', 'lá phong', 'hoa', 'flower'];
-    if (natureKeywords.some(kw => text.includes(kw))) return 'nature';
+    const natureKeywords = [
+      'thiên nhiên',
+      'nature',
+      'phong cảnh',
+      'landscape',
+      'bầu trời',
+      'hoàng hôn',
+      'sunset',
+      'biển',
+      'beach',
+      'rừng',
+      'forest',
+      'cây',
+      'tree',
+      'lá phong',
+      'hoa',
+      'flower',
+    ];
+    if (natureKeywords.some((kw) => text.includes(kw))) return 'nature';
 
     // 6. Food / Cooking
-    const foodKeywords = ['ramen', 'món ăn', 'nấu ăn', 'food', 'cooking', 'ẩm thực', 'ăn uống', 'quán ăn', 'bánh', 'cà phê', 'coffee'];
-    if (foodKeywords.some(kw => text.includes(kw))) return 'food';
+    const foodKeywords = [
+      'ramen',
+      'món ăn',
+      'nấu ăn',
+      'food',
+      'cooking',
+      'ẩm thực',
+      'ăn uống',
+      'quán ăn',
+      'bánh',
+      'cà phê',
+      'coffee',
+    ];
+    if (foodKeywords.some((kw) => text.includes(kw))) return 'food';
 
     // 7. Fashion
-    const fashionKeywords = ['thời trang', 'fashion', 'outfit', 'streetwear', 'trang phục', 'makeup', 'lookbook', 'phong cách', 'áo'];
-    if (fashionKeywords.some(kw => text.includes(kw))) return 'fashion';
+    const fashionKeywords = [
+      'thời trang',
+      'fashion',
+      'outfit',
+      'streetwear',
+      'trang phục',
+      'makeup',
+      'lookbook',
+      'phong cách',
+      'áo',
+    ];
+    if (fashionKeywords.some((kw) => text.includes(kw))) return 'fashion';
 
     return 'other';
+  }
+
+  private async assertOwnedBoard(boardId: string, userId: string) {
+    const board = await this.prisma.board.findUnique({
+      where: { id: boardId },
+      select: { userId: true },
+    });
+    if (!board) {
+      throw new NotFoundException('Board not found');
+    }
+    if (board.userId !== userId) {
+      throw new ForbiddenException('You do not own this board');
+    }
   }
 
   private getPinNoise(pinId: string, seed: string): number {

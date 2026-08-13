@@ -1,0 +1,79 @@
+/* Component-specific styles for ImageEditor */
+
+.ie-root {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+@media (min-width: 900px) {
+  .ie-root {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    align-items: start;
+  }
+}
+
+.ie-stage {
+  touch-action: none;
+}
+
+.ie-tools {
+  max-height: none;
+}
+
+@media (min-width: 900px) {
+  .ie-tools {
+    max-height: 640px;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+}
+
+/* Custom range slider — readable track + brand-gradient thumb, consistent
+   across browsers instead of default OS styling. */
+.ie-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 28px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ie-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-surface-high);
+}
+
+.ie-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #2457ff, #8b2cff);
+  border: 2px solid var(--color-bg);
+  box-shadow: 0 0 0 1px rgba(150, 163, 255, 0.4);
+}
+
+.ie-range::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-surface-high);
+}
+
+.ie-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #2457ff, #8b2cff);
+  border: 2px solid var(--color-bg);
+}
+
+.ie-range:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+  border-radius: 999px;
+}

@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SupabaseService } from '../../core/services/supabase';
 import { Navbar } from '../../components/navbar/navbar';
@@ -39,6 +39,13 @@ export class Landing implements OnInit {
   closeLoginModal() {
     this.showLoginModal.set(false);
     this.errorMsg.set(null);
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey() {
+    if (this.showLoginModal()) {
+      this.closeLoginModal();
+    }
   }
 
   async login() {

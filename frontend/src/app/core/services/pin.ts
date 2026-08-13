@@ -9,6 +9,10 @@ export interface Pin {
   userId: string;
   createdAt: string;
   isAiGenerated: boolean;
+  isLiked?: boolean;
+  likeCount?: number;
+  _count?: { likes: number; comments?: number };
+  comments?: any[];
   user: {
     id: string;
     username: string;
@@ -17,7 +21,7 @@ export interface Pin {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class PinService {
   private baseUrl = 'http://localhost:3000/api/pins';
@@ -33,7 +37,7 @@ export class PinService {
         url += `&seed=${seed}`;
       }
       const response = await fetch(url, {
-        headers
+        headers,
       });
       if (!response.ok) {
         throw new Error(`Failed to fetch pins: ${response.statusText}`);
@@ -58,9 +62,13 @@ export class PinService {
     }
   }
 
-  async getPinById(id: string): Promise<Pin> {
+  async getPinById(id: string, token?: string): Promise<Pin> {
     try {
-      const response = await fetch(`${this.baseUrl}/${id}`);
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const response = await fetch(`${this.baseUrl}/${id}`, { headers });
       if (!response.ok) {
         throw new Error(`Failed to fetch pin details: ${response.statusText}`);
       }
@@ -71,14 +79,14 @@ export class PinService {
     }
   }
 
-  async toggleLike(id: string, token: string): Promise<{ liked: boolean }> {
+  async toggleLike(id: string, token: string): Promise<{ liked: boolean; likeCount: number }> {
     try {
       const response = await fetch(`${this.baseUrl}/${id}/like`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
       if (!response.ok) {
         throw new Error(`Failed to toggle like: ${response.statusText}`);
@@ -90,15 +98,33 @@ export class PinService {
     }
   }
 
+  async deletePin(id: string, token: string): Promise<{ success: boolean }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/${id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to delete pin: ${response.statusText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error(`Error deleting pin ${id}:`, error);
+      throw error;
+    }
+  }
+
   async addComment(id: string, content: string, token: string): Promise<any> {
     try {
       const response = await fetch(`${this.baseUrl}/${id}/comment`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ content })
+        body: JSON.stringify({ content }),
       });
       if (!response.ok) {
         throw new Error(`Failed to add comment: ${response.statusText}`);
@@ -115,9 +141,9 @@ export class PinService {
       const response = await fetch(this.baseUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: formData
+        body: formData,
       });
       if (!response.ok) {
         throw new Error(`Failed to upload pin: ${response.statusText}`);
@@ -134,10 +160,10 @@ export class PinService {
       const response = await fetch(`${this.baseUrl}/ai-save`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
       if (!response.ok) {
         throw new Error(`Failed to save AI pin: ${response.statusText}`);
