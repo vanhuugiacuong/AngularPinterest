@@ -34,6 +34,28 @@ export class PinsController {
     return this.pinsService.getAllPins(pageNum, limitNum, user?.id, seed);
   }
 
+  @Get('search')
+  async searchPins(
+    @Query('q') query: string,
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 20;
+    return this.pinsService.searchPins(query || '', pageNum, limitNum);
+  }
+
+  @Get(':id/similar')
+  async getSimilarPins(
+    @Param('id') id: string,
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 20;
+    return this.pinsService.getSimilarPins(id, pageNum, limitNum);
+  }
+
   @Get(':id/related')
   async getRelatedPins(
     @Param('id') id: string,
@@ -42,7 +64,7 @@ export class PinsController {
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
-    return this.pinsService.getRelatedPins(id, pageNum, limitNum);
+    return this.pinsService.getSimilarPins(id, pageNum, limitNum);
   }
 
   @Get(':id')
