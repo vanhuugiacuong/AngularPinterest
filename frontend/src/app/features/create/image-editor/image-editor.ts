@@ -26,6 +26,7 @@ import {
 } from './editor-types';
 import { EditorHistory } from './editor-history';
 import { canvasToBlob, loadImage, renderEditedImage } from './editor-render';
+import { RangeControl } from '../../../shared/range-control/range-control';
 
 const PREVIEW_MAX_DIMENSION = 1000;
 const EXPORT_MAX_DIMENSION = 2400;
@@ -37,7 +38,7 @@ function clamp01(v: number): number {
 @Component({
   selector: 'app-image-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RangeControl],
   templateUrl: './image-editor.html',
   styleUrl: './image-editor.css',
 })
@@ -69,6 +70,17 @@ export class ImageEditor implements OnChanges, OnDestroy {
     { key: 'grayscale', label: 'Trắng đen', min: 0, max: 100, step: 1, unit: '%' },
     { key: 'sepia', label: 'Sepia', min: 0, max: 100, step: 1, unit: '%' },
   ];
+
+  /** Color sliders are organized into a single-open accordion so the tool
+   * panel never needs its own internal scrollbar — it just flows with the
+   * page like the rest of the studio. */
+  public readonly sliderGroups: { id: string; label: string; icon: string; keys: (keyof ColorAdjustments)[] }[] = [
+    { id: 'light', label: 'Ánh sáng & tương phản', icon: 'brightness_6', keys: ['brightness', 'contrast'] },
+    { id: 'color', label: 'Màu sắc', icon: 'palette', keys: ['saturation', 'warmth', 'hue'] },
+    { id: 'fx', label: 'Hiệu ứng', icon: 'blur_on', keys: ['blur', 'grayscale', 'sepia'] },
+  ];
+
+  public expandedGroup = signal<string>('light');
 
   public activeTool = signal<'color' | 'caption'>('color');
   public adjustments = signal<ColorAdjustments>({ ...DEFAULT_ADJUSTMENTS });
@@ -210,6 +222,22 @@ export class ImageEditor implements OnChanges, OnDestroy {
 
   public setActiveTool(tool: 'color' | 'caption'): void {
     this.activeTool.set(tool);
+  }
+
+  public toggleGroup(id: string): void {
+    this.expandedGroup.update((current) => (current === id ? '' : id));
+  }
+
+  public sliderByKey(key: keyof ColorAdjustments) {
+    return this.colorSliders.find((s) => s.key === key)!;
+  }
+
+  /** Number of sliders in a group that have drifted from their default —
+   * shown as a badge on the collapsed accordion header so edits are never
+   * hidden out of view. */
+  public groupChangeCount(keys: (keyof ColorAdjustments)[]): number {
+    const a = this.adjustments();
+    return keys.filter((k) => a[k] !== DEFAULT_ADJUSTMENTS[k]).length;
   }
 
   public setAdjustmentLive(key: keyof ColorAdjustments, value: number): void {

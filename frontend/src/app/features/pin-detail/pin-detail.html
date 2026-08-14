@@ -66,11 +66,7 @@
               >
                 <!-- Author profile info -->
                 <div class="flex items-center gap-3">
-                  <img
-                    [src]="p.user?.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'"
-                    alt="Avatar"
-                    class="w-11 h-11 rounded-full border border-border object-cover"
-                  />
+                  <app-user-avatar [src]="p.user?.avatarUrl" [name]="p.user?.username" [size]="44"></app-user-avatar>
                   <div class="flex flex-col text-left">
                     <span class="text-sm font-bold text-text">{{ p.user?.username }}</span>
                     <span class="mono-label text-[10px] uppercase text-text-muted font-medium"
@@ -207,13 +203,11 @@
 
                     @for (comment of p.comments; track comment.id) {
                       <div class="flex gap-2.5 items-start">
-                        <img
-                          [src]="
-                            comment.user?.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'
-                          "
-                          alt="Avatar"
-                          class="w-8 h-8 rounded-full border border-border object-cover shrink-0"
-                        />
+                        <app-user-avatar
+                          [src]="comment.user?.avatarUrl"
+                          [name]="comment.user?.username"
+                          [size]="32"
+                        ></app-user-avatar>
                         <div
                           class="flex flex-col bg-surface-elevated rounded-control px-3 py-2 flex-1 min-w-0"
                         >
@@ -232,15 +226,7 @@
 
                   <!-- Comment input form -->
                   <div class="pt-4 border-t border-border flex items-center gap-3">
-                    <img
-                      [src]="
-                        supabaseService.user()?.user_metadata?.['avatar_url'] ||
-                        supabaseService.user()?.user_metadata?.['picture'] ||
-                        'https://api.dicebear.com/7.x/bottts/svg'
-                      "
-                      alt="User avatar"
-                      class="w-9 h-9 rounded-full border border-border object-cover"
-                    />
+                    <app-user-avatar [src]="myAvatarUrl()" [name]="myDisplayName()" [size]="36"></app-user-avatar>
 
                     <form
                       (submit)="submitComment(); $event.preventDefault()"

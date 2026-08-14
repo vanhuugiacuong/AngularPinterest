@@ -1,29 +1,81 @@
 <div class="min-h-screen bg-bg text-text flex flex-col font-sans relative">
   <!-- Navbar handles top header and collapsible left sidebar -->
-  <app-navbar></app-navbar>
+  <app-navbar (search)="onSearch($event)"></app-navbar>
 
   <!-- Main Content Area: shifted down to clear fixed header. Sidebar is an overlay and never reserves space. -->
   <div class="flex-1 pt-16 flex flex-col min-w-0">
-    <main class="flex-1 w-full mx-auto px-4 py-6 flex flex-col max-w-none">
+    <main class="flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col max-w-[1800px]">
 
-      <!-- Sub-header Navigation Tabs -->
-      <div class="flex items-center gap-6 mb-6 select-none border-b border-transparent">
-        <div class="relative pb-2 cursor-pointer">
-          <span class="text-base font-bold text-text">Tất cả</span>
-          <!-- Gradient bottom indicator line -->
-          <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-brand rounded-full"></div>
+      <!-- Discovery header: compact eyebrow + heading, collapses to just the
+           chip row once results are on screen so it never eats much height. -->
+      <div class="flex flex-col gap-4 mb-5">
+        @if (searchQuery()) {
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="min-w-0">
+              <span class="mono-label text-[10px] uppercase text-accent select-none">Kết quả tìm kiếm</span>
+              <h1 class="text-lg sm:text-xl font-extrabold text-text truncate mt-0.5">
+                “{{ searchQuery() }}”
+              </h1>
+            </div>
+            <button
+              type="button"
+              (click)="clearSearch()"
+              class="h-9 px-3.5 rounded-control bg-surface border border-border hover:border-border-strong text-xs font-bold text-text-muted hover:text-text flex items-center gap-1.5 cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <span class="material-symbols-outlined text-base leading-none">close</span>
+              Quay lại bảng tin
+            </button>
+          </div>
+        } @else {
+          <div class="flex items-baseline gap-2.5 select-none">
+            <span class="mono-label text-[10px] uppercase text-accent">NovaFrame</span>
+            <h1 class="text-lg sm:text-xl font-extrabold text-text tracking-tight">Khám phá</h1>
+          </div>
+        }
 
-        </div>
+        <!-- Category chips — built only from categories present in the loaded feed, hidden entirely in search mode -->
+        @if (!searchQuery() && categoryChips().length > 0) {
+          <div class="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1" role="tablist" aria-label="Lọc theo danh mục">
+            <button
+              type="button"
+              role="tab"
+              [attr.aria-selected]="activeCategory() === null"
+              (click)="setActiveCategory(null)"
+              [class.bg-text]="activeCategory() === null"
+              [class.text-bg]="activeCategory() === null"
+              [class.bg-surface]="activeCategory() !== null"
+              [class.text-text-muted]="activeCategory() !== null"
+              class="shrink-0 h-9 px-4 rounded-control border border-border hover:border-border-strong text-xs font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              Tất cả
+            </button>
+            @for (chip of categoryChips(); track chip.code) {
+              <button
+                type="button"
+                role="tab"
+                [attr.aria-selected]="activeCategory() === chip.code"
+                (click)="setActiveCategory(chip.code)"
+                [class.bg-text]="activeCategory() === chip.code"
+                [class.text-bg]="activeCategory() === chip.code"
+                [class.bg-surface]="activeCategory() !== chip.code"
+                [class.text-text-muted]="activeCategory() !== chip.code"
+                class="shrink-0 h-9 px-4 rounded-control border border-border hover:border-border-strong text-xs font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                {{ chip.label }}
+              </button>
+            }
+          </div>
+        }
       </div>
 
-      <!-- Skeleton Loading State (First load) -->
+      <!-- Skeleton Loading State (First load / search in flight) -->
       @if (isLoading()) {
         <div class="flex gap-3 w-full">
           @for (colIndex of getColumnsArray(); track colIndex) {
             <div class="flex flex-col gap-3 flex-1 min-w-0">
               @for (dummy of getSkeletonsForColumn(colIndex); track dummy) {
                 <div class="flex flex-col">
-                  <div class="skeleton w-full" [class.rounded-frame]="dummy % 2 === 0" [class.rounded-frame-alt]="dummy % 2 !== 0" [ngStyle]="{'height': (dummy % 3 === 0 ? '250px' : dummy % 3 === 1 ? '380px' : '300px')}"></div>
+                  <div class="skeleton w-full rounded-frame" [ngStyle]="{'height': (dummy % 3 === 0 ? '250px' : dummy % 3 === 1 ? '380px' : '300px')}"></div>
                   <div class="mt-2 px-1 flex flex-col gap-1">
                     <div class="skeleton rounded-control h-3 w-2/3"></div>
                     <div class="skeleton rounded-control h-3 w-1/3"></div>
@@ -35,21 +87,83 @@
         </div>
       }
 
-      <!-- NovaFrame Masonry Grid — soft asymmetric frames, always-visible mono metadata -->
-      @if (!isLoading()) {
+      <!-- Error state — a real fetch/search failure, not an empty result set -->
+      @if (!isLoading() && loadError()) {
+        <div class="flex-1 flex flex-col items-center justify-center gap-4 py-24 text-center" role="alert">
+          <div class="w-14 h-14 rounded-full bg-error/10 flex items-center justify-center">
+            <span class="material-symbols-outlined text-2xl text-error">cloud_off</span>
+          </div>
+          <div class="flex flex-col gap-1.5 max-w-sm">
+            <h2 class="text-sm font-bold text-text">Đã có lỗi xảy ra</h2>
+            <p class="text-xs text-text-muted leading-relaxed">{{ loadError() }}</p>
+          </div>
+          <button
+            type="button"
+            (click)="retryLoad()"
+            class="h-10 px-5 bg-gradient-brand cta-shape text-text font-bold text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            Thử lại
+          </button>
+        </div>
+      }
+
+      <!-- Empty state — a genuinely empty (or zero-match) result set -->
+      @if (!isLoading() && !loadError() && filteredPins().length === 0) {
+        <div class="flex-1 flex flex-col items-center justify-center gap-4 py-24 text-center">
+          <div class="w-14 h-14 rounded-full bg-surface-elevated border border-border flex items-center justify-center">
+            <span class="material-symbols-outlined text-2xl text-text-muted">
+              {{ searchQuery() ? 'search_off' : activeCategory() ? 'filter_alt_off' : 'photo_library' }}
+            </span>
+          </div>
+          <div class="flex flex-col gap-1.5 max-w-sm">
+            <h2 class="text-sm font-bold text-text">
+              @if (searchQuery()) {
+                Không tìm thấy kết quả nào
+              } @else if (activeCategory()) {
+                Chưa có ảnh nào trong danh mục này
+              } @else {
+                Bảng tin đang trống
+              }
+            </h2>
+            <p class="text-xs text-text-muted leading-relaxed">
+              @if (searchQuery()) {
+                Thử một từ khóa khác hoặc kiểm tra lại chính tả.
+              } @else if (activeCategory()) {
+                Hãy thử một danh mục khác hoặc xem tất cả ảnh.
+              } @else {
+                Hãy là người đầu tiên chia sẻ một tác phẩm trên NovaFrame.
+              }
+            </p>
+          </div>
+          @if (searchQuery()) {
+            <button type="button" (click)="clearSearch()" class="h-10 px-5 bg-gradient-brand cta-shape text-text font-bold text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+              Quay lại bảng tin
+            </button>
+          } @else if (activeCategory()) {
+            <button type="button" (click)="setActiveCategory(null)" class="h-10 px-5 bg-gradient-brand cta-shape text-text font-bold text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+              Xem tất cả
+            </button>
+          } @else {
+            <button type="button" (click)="navigateToCreate()" class="h-10 px-5 bg-gradient-brand cta-shape text-text font-bold text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+              Tạo ghim đầu tiên
+            </button>
+          }
+        </div>
+      }
+
+      <!-- NovaFrame Masonry Grid -->
+      @if (!isLoading() && !loadError() && filteredPins().length > 0) {
         <div class="flex gap-3 w-full">
           @for (colIndex of getColumnsArray(); track colIndex) {
             <div class="flex flex-col gap-3 flex-1 min-w-0">
 
               <!-- Pin Card -->
-              @for (pin of getPinsForColumn(colIndex); track pin.id; let i = $index) {
+              @for (pin of getPinsForColumn(colIndex); track pin.id) {
                 <div class="group cursor-pointer flex flex-col mb-1">
-                  <!-- Image Frame with slide-up action strip -->
+                  <!-- Image Frame with slide-up action strip — unified radius across every card -->
                   <div
                     (click)="navigateToPin(pin.id)"
-                    class="relative overflow-hidden bg-surface shadow-card glow-hover"
-                    [class.rounded-frame]="i % 2 === 0"
-                    [class.rounded-frame-alt]="i % 2 !== 0"
+                    class="relative overflow-hidden bg-surface shadow-card glow-hover rounded-frame"
                     [style.aspect-ratio]="pin.aspectRatio || '0.75'"
                   >
                     <img
@@ -60,10 +174,17 @@
                       class="w-full h-full object-cover block transition-transform duration-500 ease-spring group-hover:scale-[1.04]"
                     />
 
-                    <!-- Bottom slide-up action strip (NovaFrame signature — replaces top-corner Pinterest layout) -->
+                    @if (pin.isAiGenerated) {
+                      <span class="mono-label absolute top-2.5 left-2.5 z-10 flex items-center gap-1 bg-surface-high/90 border border-border-strong text-accent text-[9px] font-bold uppercase px-2 py-1 rounded-control pointer-events-none">
+                        <span class="material-symbols-outlined text-[12px] leading-none">auto_awesome</span>
+                        AI
+                      </span>
+                    }
+
+                    <!-- Bottom slide-up action strip -->
                     <div
                       (click)="$event.stopPropagation()"
-                      class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 flex items-center justify-between gap-2 z-10"
+                      class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 focus-within:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 flex items-center justify-between gap-2 z-10"
                     >
                       <!-- Collection selector -->
                       <div
@@ -97,14 +218,14 @@
                       <div class="flex items-center gap-1.5 shrink-0">
                         <button
                           (click)="toggleLike(pin, $event)"
-                          class="w-8 h-8 rounded-control bg-surface-high/95 border border-border-strong flex items-center justify-center text-text-muted hover:text-accent transition-colors duration-200 cursor-pointer"
-                          title="Thích"
+                          class="w-8 h-8 rounded-control bg-surface-high/95 border border-border-strong flex items-center justify-center text-text-muted hover:text-accent transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                          [attr.aria-label]="'Thích ' + pin.title"
                         >
                           <span class="material-symbols-outlined text-[16px] leading-none">favorite</span>
                         </button>
                         <button
                           (click)="savePinToBoard(pin.id, $event)"
-                          class="h-8 px-3.5 bg-gradient-brand cta-shape text-text font-bold text-[11px] cursor-pointer"
+                          class="h-8 px-3.5 bg-gradient-brand cta-shape text-text font-bold text-[11px] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                         >
                           Lưu
                         </button>
@@ -112,20 +233,22 @@
                     </div>
                   </div>
 
-                  <!-- Readout metadata — always visible, monospace, NovaFrame signature -->
-                  <div class="px-1 flex items-center justify-between w-full min-w-0 mt-2 gap-2">
-                    <span class="text-xs font-bold text-text truncate max-w-[62%]">{{ pin.title }}</span>
-                    <div class="mono-label flex items-center gap-2 shrink-0 text-[10px] uppercase text-text-muted">
-                      @if (pin.isAiGenerated) {
-                        <span class="text-accent">AI</span>
-                      }
-                      @if (pin.likes) {
-                        <span class="flex items-center gap-0.5">
-                          <span class="material-symbols-outlined text-[12px] leading-none text-accent">favorite</span>
-                          {{ pin.likes }}
-                        </span>
-                      }
-                      <span class="material-symbols-outlined text-sm text-text-muted hover:text-text cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-200">more_horiz</span>
+                  <!-- Metadata row: avatar + author on the left, title above; likes + AI on the right -->
+                  <div class="px-1 flex flex-col gap-1 w-full min-w-0 mt-2">
+                    <span class="text-xs font-bold text-text truncate">{{ pin.title }}</span>
+                    <div class="flex items-center justify-between gap-2 min-w-0">
+                      <div class="flex items-center gap-1.5 min-w-0">
+                        <app-user-avatar [src]="pin.authorAvatarUrl" [name]="pin.author" [size]="18" [ring]="false"></app-user-avatar>
+                        <span class="text-[11px] text-text-muted truncate">{{ pin.author }}</span>
+                      </div>
+                      <div class="mono-label flex items-center gap-2 shrink-0 text-[10px] uppercase text-text-muted">
+                        @if (pin.likes) {
+                          <span class="flex items-center gap-0.5">
+                            <span class="material-symbols-outlined text-[12px] leading-none text-accent">favorite</span>
+                            {{ pin.likes }}
+                          </span>
+                        }
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -135,7 +258,7 @@
               @if (isScrollingLoad()) {
                 @for (dummy of getScrollingSkeletonsForColumn(colIndex); track dummy) {
                   <div class="flex flex-col mt-2">
-                    <div class="skeleton w-full" [class.rounded-frame]="dummy % 2 === 0" [class.rounded-frame-alt]="dummy % 2 !== 0" [ngStyle]="{'height': (dummy % 2 === 0 ? '280px' : '340px')}"></div>
+                    <div class="skeleton w-full rounded-frame" [ngStyle]="{'height': (dummy % 2 === 0 ? '280px' : '340px')}"></div>
                   </div>
                 }
               }

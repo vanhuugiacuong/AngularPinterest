@@ -1,15 +1,30 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, inject, signal, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, inject, signal, computed, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
 import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
+import { UserAvatar } from '../../shared/user-avatar/user-avatar';
+
+/** Vietnamese labels for the category codes the backend's auto-classifier
+ * assigns (see PinsService.classifyCategory) — chips are only ever built
+ * from categories actually present in the loaded feed, never a fixed list. */
+const CATEGORY_LABELS: Record<string, string> = {
+  meme: 'Meme & Thú cưng',
+  kpop: 'K-Pop & Idol',
+  drawing: 'Hội họa',
+  anime: 'Anime & Cyberpunk',
+  nature: 'Thiên nhiên',
+  food: 'Ẩm thực',
+  fashion: 'Thời trang',
+  other: 'Khác',
+};
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, Navbar],
+  imports: [CommonModule, Navbar, UserAvatar],
   templateUrl: './home.html',
   styleUrl: './home.css'
 })
@@ -27,7 +42,16 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   public selectedBoardMap = signal<Record<string, Board>>({});
   public isLoading = signal<boolean>(true);
   public isScrollingLoad = signal<boolean>(false);
+  public loadError = signal<string | null>(null);
   public numColumns = signal<number>(4);
+
+  /** Non-null while the user has an active search query (from the navbar
+   * search bar). Search results replace the feed and disable infinite
+   * scroll / category filtering, matching the backend's non-paginated
+   * `/api/pins/search` contract. */
+  public searchQuery = signal<string | null>(null);
+
+  public activeCategory = signal<string | null>(null);
 
   private currentPage = 1;
   private limit = 20;
@@ -35,74 +59,25 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   private observer?: IntersectionObserver;
   private feedSeed = Math.random().toString(36).substring(2, 15);
 
-  // Fallback mock pin data to demonstrate Pinterest-style masonry grid heights and themes
-  private mockPins = [
-    {
-      id: '1',
-      title: 'Anime Swordsman',
-      image: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=500&auto=format&fit=crop',
-      hasBottomBar: false,
-    },
-    {
-      id: '2',
-      title: 'Boy Portrait',
-      image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=500&auto=format&fit=crop',
-      hasBottomBar: true,
-      author: 'Cường',
-    },
-    {
-      id: '3',
-      title: 'Cat with Wallet',
-      image: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=500&auto=format&fit=crop',
-      hasBottomBar: false,
-    },
-    {
-      id: '4',
-      title: 'Samura',
-      image: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=500&auto=format&fit=crop',
-      hasBottomBar: true,
-      author: 'Samura',
-    },
-    {
-      id: '5',
-      title: 'Monkey Praying Art',
-      image: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=500&auto=format&fit=crop',
-      hasBottomBar: false,
-    },
-    {
-      id: '6',
-      title: 'về chưa?',
-      image: 'https://images.unsplash.com/photo-1579783928621-7a13d66a62d1?w=500&auto=format&fit=crop',
-      hasBottomBar: true,
-      author: 'Sketchy',
-    },
-    {
-      id: '7',
-      title: 'Casual Outfit Male',
-      image: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=500&auto=format&fit=crop',
-      hasBottomBar: false,
-    },
-    {
-      id: '8',
-      title: 'Boy walking on beach',
-      image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=500&auto=format&fit=crop',
-      hasBottomBar: false,
-    },
-    {
-      id: '9',
-      title: 'Duck Plush Toy',
-      image: 'https://images.unsplash.com/photo-1559715745-e1b34a256f3f?w=500&auto=format&fit=crop',
-      hasBottomBar: true,
-      likes: 138,
-      author: 'Duckie',
-    },
-    {
-      id: '10',
-      title: 'Girl in Red Tank Top',
-      image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop',
-      hasBottomBar: false,
+  /** Categories actually present in the currently loaded feed — never a
+   * fixed/fake list, and hidden entirely while a search is active. */
+  public categoryChips = computed(() => {
+    const seen = new Map<string, number>();
+    for (const pin of this.pins()) {
+      if (!pin.category) continue;
+      seen.set(pin.category, (seen.get(pin.category) || 0) + 1);
     }
-  ];
+    return Array.from(seen.keys())
+      .sort((a, b) => (seen.get(b) || 0) - (seen.get(a) || 0))
+      .map((code) => ({ code, label: CATEGORY_LABELS[code] || code }));
+  });
+
+  public filteredPins = computed(() => {
+    const category = this.activeCategory();
+    const list = this.pins();
+    if (!category) return list;
+    return list.filter((p) => p.category === category);
+  });
 
   async ngOnInit() {
     this.updateNumColumns();
@@ -135,7 +110,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   }
 
   getPinsForColumn(colIndex: number): any[] {
-    return this.pins().filter((_, index) => index % this.numColumns() === colIndex);
+    return this.filteredPins().filter((_, index) => index % this.numColumns() === colIndex);
   }
 
   getSkeletonsForColumn(colIndex: number): number[] {
@@ -161,7 +136,13 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   setupIntersectionObserver() {
     this.observer = new IntersectionObserver(async (entries) => {
       const entry = entries[0];
-      if (entry.isIntersecting && !this.isLoading() && !this.isScrollingLoad() && this.hasMore) {
+      if (
+        entry.isIntersecting &&
+        !this.isLoading() &&
+        !this.isScrollingLoad() &&
+        !this.searchQuery() &&
+        this.hasMore
+      ) {
         await this.loadMorePins();
       }
     }, {
@@ -190,25 +171,23 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
 
   async loadPins() {
     this.isLoading.set(true);
+    this.loadError.set(null);
     this.currentPage = 1;
     this.hasMore = true;
     try {
       const token = await this.supabaseService.getSessionToken() || undefined;
       const apiPins = await this.pinService.getPins(this.currentPage, this.limit, token, this.feedSeed);
-      if (apiPins && apiPins.length > 0) {
-        const mapped = this.mapPins(apiPins);
-        this.pins.set(mapped);
-        if (apiPins.length < this.limit) {
-          this.hasMore = false;
-        }
-      } else {
-        this.pins.set(this.mockPins);
+      const mapped = this.mapPins(apiPins || []);
+      this.pins.set(mapped);
+      this.activeCategory.set(null);
+      if (!apiPins || apiPins.length < this.limit) {
         this.hasMore = false;
       }
     } catch (error) {
-      console.error('Error fetching pins from backend, falling back to mock pins:', error);
-      this.pins.set(this.mockPins);
+      console.error('Error fetching pins from backend:', error);
+      this.pins.set([]);
       this.hasMore = false;
+      this.loadError.set('Không thể tải bảng tin. Vui lòng kiểm tra kết nối và thử lại.');
     } finally {
       this.isLoading.set(false);
     }
@@ -238,6 +217,55 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  /** Runs a real search against the backend's CLIP/text search endpoint
+   * (see PinService.searchPins / GET /api/pins/search). An empty query
+   * clears search mode and restores the normal ranked feed. */
+  async onSearch(query: string) {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      if (this.searchQuery() !== null) {
+        this.searchQuery.set(null);
+        await this.loadPins();
+      }
+      return;
+    }
+
+    this.searchQuery.set(trimmed);
+    this.activeCategory.set(null);
+    this.isLoading.set(true);
+    this.loadError.set(null);
+    try {
+      const results = await this.pinService.searchPins(trimmed);
+      this.pins.set(this.mapPins(results || []));
+      this.hasMore = false;
+    } catch (error) {
+      console.error('Error searching pins:', error);
+      this.pins.set([]);
+      this.hasMore = false;
+      this.loadError.set('Không thể tìm kiếm lúc này. Vui lòng thử lại.');
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
+  async clearSearch() {
+    this.searchQuery.set(null);
+    await this.loadPins();
+  }
+
+  setActiveCategory(code: string | null) {
+    this.activeCategory.set(this.activeCategory() === code ? null : code);
+  }
+
+  retryLoad() {
+    const q = this.searchQuery();
+    if (q) {
+      void this.onSearch(q);
+    } else {
+      void this.loadPins();
+    }
+  }
+
   private mapPins(apiPins: any[]): any[] {
     return apiPins.map(p => {
       const author = p.user?.username || 'Pinterest AI';
@@ -258,8 +286,10 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
         image: p.imageUrl,
         hasBottomBar,
         author,
+        authorAvatarUrl: p.user?.avatarUrl || null,
         likes,
         isAiGenerated: p.isAiGenerated,
+        category: p.category,
         aspectRatio
       };
     });
@@ -267,6 +297,10 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
 
   navigateToPin(pinId: string) {
     this.router.navigate(['/pin', pinId]);
+  }
+
+  navigateToCreate() {
+    this.router.navigate(['/create']);
   }
 
   async toggleLike(pin: any, event: MouseEvent) {
@@ -334,7 +368,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       if (!token) return;
 
       let boardId = this.selectedBoardMap()[pinId]?.id;
-      
+
       if (!boardId && this.boards().length > 0) {
         boardId = this.boards()[0].id;
       }

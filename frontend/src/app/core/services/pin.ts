@@ -49,6 +49,20 @@ export class PinService {
     }
   }
 
+  async searchPins(query: string, page = 1, limit = 20): Promise<Pin[]> {
+    try {
+      const url = `${this.baseUrl}/search?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to search pins: ${response.statusText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error searching pins in PinService:', error);
+      throw error;
+    }
+  }
+
   async getRelatedPins(id: string, page = 1, limit = 20): Promise<Pin[]> {
     try {
       const response = await fetch(`${this.baseUrl}/${id}/related?page=${page}&limit=${limit}`);

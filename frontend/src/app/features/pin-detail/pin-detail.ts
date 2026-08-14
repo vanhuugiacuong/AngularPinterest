@@ -16,11 +16,12 @@ import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
 import { FormsModule } from '@angular/forms';
+import { UserAvatar } from '../../shared/user-avatar/user-avatar';
 
 @Component({
   selector: 'app-pin-detail',
   standalone: true,
-  imports: [CommonModule, Navbar, FormsModule],
+  imports: [CommonModule, Navbar, FormsModule, UserAvatar],
   templateUrl: './pin-detail.html',
   styleUrl: './pin-detail.css',
 })
@@ -49,6 +50,27 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   public numBottomColumns = signal<number>(3);
   public newCommentText = '';
   public isSubmittingComment = false;
+
+  /** Best available avatar for the signed-in viewer's own comment-box avatar. */
+  myAvatarUrl(): string | null {
+    const dbAvatar = this.supabaseService.dbUser()?.avatarUrl;
+    if (dbAvatar) return dbAvatar;
+    const user = this.supabaseService.user();
+    return user?.user_metadata?.['avatar_url'] || user?.user_metadata?.['picture'] || null;
+  }
+
+  myDisplayName(): string {
+    const dbName = this.supabaseService.dbUser()?.username;
+    if (dbName) return dbName;
+    const user = this.supabaseService.user();
+    if (!user) return '';
+    return (
+      user.user_metadata?.['full_name'] ||
+      user.user_metadata?.['name'] ||
+      user.email?.split('@')[0] ||
+      ''
+    );
+  }
 
   @HostListener('window:resize')
   onResize() {

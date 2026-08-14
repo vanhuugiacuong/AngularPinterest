@@ -1,41 +1,5 @@
 <div class="ie-root">
-  <!-- STAGE: canvas preview -->
-  <div class="ie-stage rounded-frame bg-surface-elevated border border-border relative overflow-hidden flex items-center justify-center min-h-[320px] md:min-h-[440px]">
-    @if (isLoadingImage()) {
-      <div class="flex flex-col items-center gap-2 py-10">
-        <div class="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
-        <span class="mono-label text-[10px] uppercase text-text-muted">Đang tải ảnh vào editor...</span>
-      </div>
-    }
-
-    @if (!isLoadingImage() && loadError()) {
-      <div class="flex flex-col items-center gap-2 py-10 px-6 text-center">
-        <span class="material-symbols-outlined text-3xl text-error">error</span>
-        <p class="text-xs text-error font-semibold">{{ loadError() }}</p>
-      </div>
-    }
-
-    <canvas
-      #previewCanvas
-      class="max-w-full max-h-[440px] md:max-h-[560px] w-auto h-auto block touch-none"
-      [class.hidden]="isLoadingImage() || loadError()"
-      [class.cursor-move]="activeTool() === 'caption' && caption().enabled"
-      (pointerdown)="onCanvasPointerDown($event)"
-      (pointermove)="onCanvasPointerMove($event)"
-      (pointerup)="onCanvasPointerUp($event)"
-      (pointercancel)="onCanvasPointerUp($event)"
-      role="img"
-      aria-label="Xem trước ảnh đang chỉnh sửa"
-    ></canvas>
-
-    @if (activeTool() === 'caption' && caption().enabled && !isLoadingImage() && !loadError()) {
-      <span class="mono-label absolute bottom-2 left-2 text-[9px] uppercase text-text-muted bg-bg/70 px-2 py-1 rounded-control pointer-events-none">
-        Kéo trên ảnh để đặt vị trí caption
-      </span>
-    }
-  </div>
-
-  <!-- TOOLS -->
+  <!-- TOOLS — sits left of the canvas; flows with the page (no nested scrollbar) -->
   <div class="ie-tools flex flex-col gap-4 min-w-0">
     <!-- History toolbar -->
     <div class="flex items-center gap-2">
@@ -121,37 +85,47 @@
           </button>
         </div>
 
-        <!-- Sliders -->
-        <div class="flex flex-col gap-3.5">
-          @for (s of colorSliders; track s.key) {
-            <div class="flex flex-col gap-1">
-              <div class="flex items-center justify-between">
-                <label [attr.for]="'slider-' + s.key" class="text-xs font-bold text-text-muted">{{ s.label }}</label>
-                <div class="flex items-center gap-2">
-                  <span class="mono-label text-[10px] text-text-muted tabular-nums">{{ adjustments()[s.key] }}{{ s.unit }}</span>
-                  <button
-                    type="button"
-                    (click)="resetAdjustment(s.key)"
-                    class="text-text-muted hover:text-accent cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
-                    [attr.aria-label]="'Đặt lại ' + s.label"
-                    title="Đặt lại"
-                  >
-                    <span class="material-symbols-outlined text-[15px] leading-none">refresh</span>
-                  </button>
+        <!-- Slider groups — single-open accordion, so the panel never grows a nested scrollbar -->
+        <div class="flex flex-col gap-2">
+          @for (group of sliderGroups; track group.id) {
+            <div class="rounded-control border border-border overflow-hidden">
+              <button
+                type="button"
+                (click)="toggleGroup(group.id)"
+                [attr.aria-expanded]="expandedGroup() === group.id"
+                [attr.aria-controls]="'group-panel-' + group.id"
+                class="w-full h-11 px-3.5 flex items-center justify-between gap-2 bg-surface-elevated hover:bg-surface-high cursor-pointer transition-colors duration-200 border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <span class="flex items-center gap-2 text-xs font-bold text-text">
+                  <span class="material-symbols-outlined text-base leading-none text-text-muted">{{ group.icon }}</span>
+                  {{ group.label }}
+                  @if (groupChangeCount(group.keys) > 0) {
+                    <span class="mono-label text-[9px] uppercase text-accent bg-accent/10 rounded-control px-1.5 py-0.5">{{ groupChangeCount(group.keys) }} đã chỉnh</span>
+                  }
+                </span>
+                <span
+                  class="material-symbols-outlined text-lg leading-none text-text-muted transition-transform duration-200"
+                  [class.rotate-180]="expandedGroup() === group.id"
+                >expand_more</span>
+              </button>
+
+              @if (expandedGroup() === group.id) {
+                <div [id]="'group-panel-' + group.id" class="flex flex-col gap-3.5 p-3.5 pt-3 bg-surface">
+                  @for (key of group.keys; track key) {
+                    <app-range-control
+                      [label]="sliderByKey(key).label"
+                      [value]="adjustments()[key]"
+                      [min]="sliderByKey(key).min"
+                      [max]="sliderByKey(key).max"
+                      [step]="sliderByKey(key).step"
+                      [unit]="sliderByKey(key).unit"
+                      (liveChange)="setAdjustmentLive(key, $event)"
+                      (commit)="commitLiveChange()"
+                      (reset)="resetAdjustment(key)"
+                    ></app-range-control>
+                  }
                 </div>
-              </div>
-              <input
-                [id]="'slider-' + s.key"
-                type="range"
-                [min]="s.min"
-                [max]="s.max"
-                [step]="s.step"
-                [value]="adjustments()[s.key]"
-                (input)="setAdjustmentLive(s.key, $any($event.target).valueAsNumber)"
-                (change)="commitLiveChange()"
-                class="ie-range"
-                [attr.aria-valuetext]="adjustments()[s.key] + s.unit"
-              />
+              }
             </div>
           }
         </div>
@@ -210,23 +184,16 @@
               </select>
             </div>
 
-            <div class="flex flex-col gap-1">
-              <div class="flex items-center justify-between">
-                <label for="caption-size" class="text-xs font-bold text-text-muted">Cỡ chữ</label>
-                <span class="mono-label text-[10px] text-text-muted tabular-nums">{{ caption().fontSize }}</span>
-              </div>
-              <input
-                id="caption-size"
-                type="range"
-                min="16"
-                max="96"
-                step="1"
-                [value]="caption().fontSize"
-                (input)="setCaptionFieldLive('fontSize', $any($event.target).valueAsNumber)"
-                (change)="commitLiveChange()"
-                class="ie-range"
-              />
-            </div>
+            <app-range-control
+              label="Cỡ chữ"
+              [value]="caption().fontSize"
+              [min]="16"
+              [max]="96"
+              [step]="1"
+              [showReset]="false"
+              (liveChange)="setCaptionFieldLive('fontSize', $event)"
+              (commit)="commitLiveChange()"
+            ></app-range-control>
 
             <div class="grid grid-cols-2 gap-3">
               <div class="flex flex-col gap-1.5">
@@ -294,23 +261,17 @@
               </div>
             </div>
 
-            <div class="flex flex-col gap-1">
-              <div class="flex items-center justify-between">
-                <label for="caption-opacity" class="text-xs font-bold text-text-muted">Độ trong suốt chữ</label>
-                <span class="mono-label text-[10px] text-text-muted tabular-nums">{{ caption().opacity }}%</span>
-              </div>
-              <input
-                id="caption-opacity"
-                type="range"
-                min="10"
-                max="100"
-                step="1"
-                [value]="caption().opacity"
-                (input)="setCaptionFieldLive('opacity', $any($event.target).valueAsNumber)"
-                (change)="commitLiveChange()"
-                class="ie-range"
-              />
-            </div>
+            <app-range-control
+              label="Độ trong suốt chữ"
+              unit="%"
+              [value]="caption().opacity"
+              [min]="10"
+              [max]="100"
+              [step]="1"
+              [showReset]="false"
+              (liveChange)="setCaptionFieldLive('opacity', $event)"
+              (commit)="commitLiveChange()"
+            ></app-range-control>
 
             <div class="flex items-center justify-between">
               <label for="caption-shadow" class="text-xs font-bold text-text-muted">Đổ bóng / viền chữ</label>
@@ -353,7 +314,7 @@
             </div>
 
             @if (caption().bgEnabled) {
-              <div class="grid grid-cols-2 gap-3">
+              <div class="grid grid-cols-2 gap-3 items-start">
                 <div class="flex flex-col gap-1.5">
                   <label for="caption-bg-color" class="text-xs font-bold text-text-muted">Màu nền</label>
                   <input
@@ -364,23 +325,17 @@
                     class="w-full h-10 rounded-control border border-border bg-surface-elevated cursor-pointer"
                   />
                 </div>
-                <div class="flex flex-col gap-1">
-                  <div class="flex items-center justify-between">
-                    <label for="caption-bg-opacity" class="text-xs font-bold text-text-muted">Độ mờ nền</label>
-                    <span class="mono-label text-[10px] text-text-muted tabular-nums">{{ caption().bgOpacity }}%</span>
-                  </div>
-                  <input
-                    id="caption-bg-opacity"
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="1"
-                    [value]="caption().bgOpacity"
-                    (input)="setCaptionFieldLive('bgOpacity', $any($event.target).valueAsNumber)"
-                    (change)="commitLiveChange()"
-                    class="ie-range mt-2"
-                  />
-                </div>
+                <app-range-control
+                  label="Độ mờ nền"
+                  unit="%"
+                  [value]="caption().bgOpacity"
+                  [min]="0"
+                  [max]="100"
+                  [step]="1"
+                  [showReset]="false"
+                  (liveChange)="setCaptionFieldLive('bgOpacity', $event)"
+                  (commit)="commitLiveChange()"
+                ></app-range-control>
               </div>
             }
 
@@ -409,6 +364,42 @@
           Reset caption
         </button>
       </div>
+    }
+  </div>
+
+  <!-- STAGE: canvas preview — the visual focal point of the studio -->
+  <div class="ie-stage rounded-frame bg-surface-elevated border border-border relative overflow-hidden flex items-center justify-center min-h-[320px] md:min-h-[520px]">
+    @if (isLoadingImage()) {
+      <div class="flex flex-col items-center gap-2 py-10">
+        <div class="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
+        <span class="mono-label text-[10px] uppercase text-text-muted">Đang tải ảnh vào editor...</span>
+      </div>
+    }
+
+    @if (!isLoadingImage() && loadError()) {
+      <div class="flex flex-col items-center gap-2 py-10 px-6 text-center">
+        <span class="material-symbols-outlined text-3xl text-error">error</span>
+        <p class="text-xs text-error font-semibold">{{ loadError() }}</p>
+      </div>
+    }
+
+    <canvas
+      #previewCanvas
+      class="max-w-full max-h-[520px] md:max-h-[640px] w-auto h-auto block touch-none"
+      [class.hidden]="isLoadingImage() || loadError()"
+      [class.cursor-move]="activeTool() === 'caption' && caption().enabled"
+      (pointerdown)="onCanvasPointerDown($event)"
+      (pointermove)="onCanvasPointerMove($event)"
+      (pointerup)="onCanvasPointerUp($event)"
+      (pointercancel)="onCanvasPointerUp($event)"
+      role="img"
+      aria-label="Xem trước ảnh đang chỉnh sửa"
+    ></canvas>
+
+    @if (activeTool() === 'caption' && caption().enabled && !isLoadingImage() && !loadError()) {
+      <span class="mono-label absolute bottom-2 left-2 text-[9px] uppercase text-text-muted bg-bg/70 px-2 py-1 rounded-control pointer-events-none">
+        Kéo trên ảnh để đặt vị trí caption
+      </span>
     }
   </div>
 </div>
