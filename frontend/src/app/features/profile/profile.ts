@@ -291,10 +291,10 @@ export class Profile implements OnInit, OnDestroy {
       }));
       this.adjustCount('posts', -1);
       this.deleteTarget.set(null);
-      this.announce('Đã xóa bài đăng.');
+      this.announce('Đã xóa tác phẩm.');
       this.restoreDialogFocus();
     } catch (error) {
-      this.deleteError.set(this.errorMessage(error, 'Không thể xóa bài đăng.'));
+      this.deleteError.set(this.errorMessage(error, 'Không thể xóa tác phẩm.'));
     } finally {
       this.deletePending.set(false);
     }

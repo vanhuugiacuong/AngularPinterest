@@ -172,7 +172,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
             id: p.id,
             title: p.title,
             image: p.imageUrl,
-            author: p.user?.username || 'Pinterest AI',
+            author: p.user?.username || 'NovaFrame AI',
             likes: (p as any)._count?.likes ?? 0,
             aspectRatio,
           };
@@ -291,7 +291,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       if (!boardId) {
         const newBoard = await this.boardService.createBoard(
           'Hồ sơ',
-          'Bảng lưu mặc định',
+          'Bộ sưu tập lưu mặc định',
           false,
           token,
         );
@@ -300,10 +300,10 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       }
 
       await this.boardService.addPinToBoard(boardId, currentPin.id, token);
-      alert('Đã lưu ảnh vào bảng thành công!');
+      alert('Đã lưu ảnh vào bộ sưu tập thành công!');
     } catch (error) {
       console.error('Error saving pin to board:', error);
-      alert('Lỗi khi lưu ảnh vào bảng.');
+      alert('Lỗi khi lưu ảnh vào bộ sưu tập.');
     }
   }
 
@@ -402,7 +402,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
             id: p.id,
             title: p.title,
             image: p.imageUrl,
-            author: p.user?.username || 'Pinterest AI',
+            author: p.user?.username || 'NovaFrame AI',
             likes: (p as any)._count?.likes ?? 0,
             aspectRatio,
           };

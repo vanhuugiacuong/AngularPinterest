@@ -23,7 +23,7 @@
             <div class="w-full flex flex-col" [class.lg:flex-row]="!isLandscape()">
               <!-- Stage: image is the priority, no enclosing split-card -->
               <div
-                class="relative bg-bg-secondary rounded-frame overflow-hidden flex items-center justify-center min-h-[320px]"
+                class="relative bg-[var(--color-ink)] rounded-frame frame-trace frame-trace-active overflow-hidden flex items-center justify-center min-h-[320px]"
                 [class.lg:w-[58%]]="!isLandscape()"
               >
                 <!-- Back button on stage -->
@@ -164,7 +164,7 @@
                       >
                         <span
                           class="mono-label text-[9px] uppercase text-text-muted font-bold px-4 py-1 block"
-                          >Lưu vào bảng</span
+                          >Lưu vào bộ sưu tập</span
                         >
                         <div class="max-h-[140px] overflow-y-auto">
                           @for (b of boards(); track b.id) {
@@ -298,7 +298,7 @@
                           class="group cursor-pointer flex flex-col mb-1"
                         >
                           <div
-                            class="relative overflow-hidden bg-surface shadow-card glow-hover"
+                            class="relative overflow-hidden bg-surface shadow-card glow-hover frame-trace"
                             [class.rounded-frame]="i % 2 === 0"
                             [class.rounded-frame-alt]="i % 2 !== 0"
                             [style.aspect-ratio]="rel.aspectRatio || '0.75'"

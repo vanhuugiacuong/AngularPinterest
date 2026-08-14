@@ -48,7 +48,7 @@
       [ngModel]="searchQuery()"
       (ngModelChange)="onSearchInput($event)"
       (keyup.enter)="submitSearch()"
-      [placeholder]="isProfilePage() ? 'Tìm kiếm bài đăng của bạn' : 'Tìm kiếm ý tưởng, tác phẩm, hoặc tác giả...'"
+      [placeholder]="isProfilePage() ? 'Tìm kiếm tác phẩm của bạn' : 'Tìm kiếm ý tưởng, tác phẩm, hoặc tác giả...'"
       aria-label="Tìm kiếm"
       class="bg-transparent border-none outline-none w-full text-sm text-text placeholder-text-muted"
       (click)="$event.stopPropagation()"

@@ -15,8 +15,8 @@
         </div>
       </section>
       <div class="content-skeleton-grid" aria-hidden="true">
-        @for (item of [1, 2, 3, 4, 5, 6, 7, 8]; track item) {
-          <div class="skeleton pin-skeleton"></div>
+        @for (item of [1, 2, 3, 4, 5, 6, 7, 8]; track item; let i = $index) {
+          <div class="skeleton pin-skeleton" [class.rounded-frame]="i % 2 === 0" [class.rounded-frame-alt]="i % 2 !== 0"></div>
         }
       </div>
     } @else if (profileError()) {
@@ -62,7 +62,7 @@
         <dl class="profile-stats" aria-label="Thống kê hồ sơ">
           <div class="stat-readout">
             <dd>{{ p.counts.posts }}</dd>
-            <dt>Bài đăng</dt>
+            <dt>Tác phẩm</dt>
           </div>
           <div class="stat-readout">
             <dd>{{ p.counts.albums }}</dd>
@@ -127,7 +127,7 @@
             (click)="setTab('posts')"
           >
             <span class="material-symbols-outlined">grid_view</span>
-            <span>Bài đăng</span>
+            <span>Tác phẩm</span>
             <span class="tab-count">{{ p.counts.posts }}</span>
           </button>
           <button
@@ -173,12 +173,12 @@
             <div class="panel-heading">
               <div>
                 <span class="panel-kicker">Nội dung đã đăng</span>
-                <h2>{{ p.viewer.isOwnProfile ? 'Bài đăng của bạn' : 'Bài đăng' }}</h2>
+                <h2>{{ p.viewer.isOwnProfile ? 'Tác phẩm của bạn' : 'Tác phẩm' }}</h2>
               </div>
               @if (p.viewer.isOwnProfile) {
                 <button type="button" class="primary-action" (click)="navigateTo('/create')">
                   <span class="material-symbols-outlined">add_photo_alternate</span>
-                  Tạo bài đăng
+                  Tạo tác phẩm
                 </button>
               }
             </div>
@@ -195,32 +195,34 @@
                 <h3>
                   {{
                     p.viewer.isOwnProfile
-                      ? 'Bạn chưa có bài đăng nào'
-                      : 'Người dùng này chưa có bài đăng nào'
+                      ? 'Bạn chưa có tác phẩm nào'
+                      : 'Người dùng này chưa có tác phẩm nào'
                   }}
                 </h3>
                 <p>
                   {{
                     p.viewer.isOwnProfile
-                      ? 'Bài đăng đầu tiên đang chờ dấu ấn sáng tạo của bạn.'
-                      : 'Hãy quay lại sau để khám phá bài đăng mới.'
+                      ? 'Tác phẩm đầu tiên đang chờ dấu ấn sáng tạo của bạn.'
+                      : 'Hãy quay lại sau để khám phá tác phẩm mới.'
                   }}
                 </p>
                 @if (p.viewer.isOwnProfile) {
                   <button type="button" class="primary-action" (click)="navigateTo('/create')">
-                    Tạo bài đăng đầu tiên
+                    Tạo tác phẩm đầu tiên
                   </button>
                 }
               </div>
             } @else {
               <div class="pin-grid">
-                @for (pin of postsState().items; track pin.id) {
+                @for (pin of postsState().items; track pin.id; let i = $index) {
                   <article class="pin-card">
                     <button
                       type="button"
-                      class="pin-media"
+                      class="pin-media frame-trace"
+                      [class.rounded-frame]="i % 2 === 0"
+                      [class.rounded-frame-alt]="i % 2 !== 0"
                       (click)="navigateToPin(pin.id)"
-                      [attr.aria-label]="'Mở bài đăng ' + pin.title"
+                      [attr.aria-label]="'Mở tác phẩm ' + pin.title"
                     >
                       <img [src]="pin.imageUrl" [alt]="pin.title" loading="lazy" />
                       @if (pin.isAiGenerated) {
@@ -228,7 +230,7 @@
                           <span class="material-symbols-outlined">auto_awesome</span> AI
                         </span>
                       }
-                      <span class="pin-open-hint">Xem bài đăng</span>
+                      <span class="pin-open-hint">Xem tác phẩm</span>
                     </button>
                     <div class="pin-meta post-meta">
                       <div class="pin-copy">
@@ -251,7 +253,7 @@
                             type="button"
                             class="icon-action icon-only"
                             (click)="togglePostMenu(pin.id, $event)"
-                            aria-label="Mở menu quản lý bài đăng"
+                            aria-label="Mở menu quản lý tác phẩm"
                             [attr.aria-expanded]="activePostMenu() === pin.id"
                           >
                             <span class="material-symbols-outlined">more_horiz</span>
@@ -264,7 +266,7 @@
                                 (click)="openDeleteDialog(pin, $event)"
                               >
                                 <span class="material-symbols-outlined">delete</span>
-                                Xóa bài đăng
+                                Xóa tác phẩm
                               </button>
                             </div>
                           }
@@ -301,8 +303,8 @@
 
             @if (albumsState().loading) {
               <div class="album-grid" aria-hidden="true">
-                @for (item of [1, 2, 3, 4, 5, 6]; track item) {
-                  <div class="skeleton album-skeleton"></div>
+                @for (item of [1, 2, 3, 4, 5, 6]; track item; let i = $index) {
+                  <div class="skeleton album-skeleton" [class.rounded-frame]="i % 2 === 0" [class.rounded-frame-alt]="i % 2 !== 0"></div>
                 }
               </div>
             } @else if (albumsState().error && albumsState().items.length === 0) {
@@ -334,11 +336,13 @@
               </div>
             } @else {
               <div class="album-grid">
-                @for (album of albumsState().items; track album.id) {
+                @for (album of albumsState().items; track album.id; let i = $index) {
                   <article class="album-card">
                     <button
                       type="button"
-                      class="album-collage"
+                      class="album-collage frame-trace"
+                      [class.rounded-frame]="i % 2 === 0"
+                      [class.rounded-frame-alt]="i % 2 !== 0"
                       (click)="navigateToAlbum(album.id)"
                       [attr.aria-label]="'Mở bộ sưu tập ' + album.name"
                     >
@@ -390,7 +394,7 @@
                         }
                       </div>
                       <div class="album-readout">
-                        <span>{{ album.pinCount }} ghim</span>
+                        <span>{{ album.pinCount }} tác phẩm</span>
                         <span>{{ formatDate(album.createdAt) }}</span>
                       </div>
                     </div>
@@ -412,7 +416,7 @@
             <div class="panel-heading">
               <div>
                 <span class="panel-kicker">Bộ sưu tập riêng tư</span>
-                <h2>Những bài đăng bạn đã thích</h2>
+                <h2>Những tác phẩm bạn đã thích</h2>
               </div>
               <span class="privacy-chip">
                 <span class="material-symbols-outlined">lock</span>
@@ -429,21 +433,23 @@
             } @else if (favoritesState().loaded && favoritesState().items.length === 0) {
               <div class="profile-state">
                 <span class="material-symbols-outlined state-icon">favorite_border</span>
-                <h3>Bạn chưa thích bài đăng nào</h3>
-                <p>Những bài đăng bạn đã thích sẽ được giữ riêng tại đây.</p>
+                <h3>Bạn chưa thích tác phẩm nào</h3>
+                <p>Những tác phẩm bạn đã thích sẽ được giữ riêng tại đây.</p>
                 <button type="button" class="primary-action" (click)="navigateTo('/feed')">
-                  Khám phá bài đăng
+                  Khám phá tác phẩm
                 </button>
               </div>
             } @else {
               <div class="pin-grid">
-                @for (pin of favoritesState().items; track pin.id) {
+                @for (pin of favoritesState().items; track pin.id; let i = $index) {
                   <article class="pin-card">
                     <button
                       type="button"
-                      class="pin-media"
+                      class="pin-media frame-trace"
+                      [class.rounded-frame]="i % 2 === 0"
+                      [class.rounded-frame-alt]="i % 2 !== 0"
                       (click)="navigateToPin(pin.id)"
-                      [attr.aria-label]="'Mở bài đăng ' + pin.title"
+                      [attr.aria-label]="'Mở tác phẩm ' + pin.title"
                     >
                       <img [src]="pin.imageUrl" [alt]="pin.title" loading="lazy" />
                       @if (pin.isAiGenerated) {
@@ -451,7 +457,7 @@
                           <span class="material-symbols-outlined">auto_awesome</span> AI
                         </span>
                       }
-                      <span class="pin-open-hint">Xem bài đăng</span>
+                      <span class="pin-open-hint">Xem tác phẩm</span>
                     </button>
                     <div class="pin-meta">
                       <div class="pin-copy">
@@ -462,7 +468,7 @@
                         type="button"
                         class="icon-action liked"
                         (click)="removeFavorite(pin, $event)"
-                        aria-label="Bỏ thích bài đăng này"
+                        aria-label="Bỏ thích tác phẩm này"
                         title="Bỏ thích"
                       >
                         <span class="material-symbols-outlined">favorite</span>
@@ -618,7 +624,7 @@
           <span class="material-symbols-outlined">delete_forever</span>
         </div>
         <h2 id="delete-pin-title">Xóa “{{ pin.title }}”?</h2>
-        <p id="delete-pin-description">Bài đăng sẽ bị xóa khỏi NovaFrame và không thể khôi phục.</p>
+        <p id="delete-pin-description">Tác phẩm sẽ bị xóa khỏi NovaFrame và không thể khôi phục.</p>
         @if (deleteError()) {
           <p class="form-error" role="alert">{{ deleteError() }}</p>
         }
@@ -653,8 +659,8 @@
 
 <ng-template #pinLoading>
   <div class="pin-grid" aria-hidden="true">
-    @for (item of [1, 2, 3, 4, 5, 6, 7, 8]; track item) {
-      <div class="skeleton pin-skeleton"></div>
+    @for (item of [1, 2, 3, 4, 5, 6, 7, 8]; track item; let i = $index) {
+      <div class="skeleton pin-skeleton" [class.rounded-frame]="i % 2 === 0" [class.rounded-frame-alt]="i % 2 !== 0"></div>
     }
   </div>
 </ng-template>

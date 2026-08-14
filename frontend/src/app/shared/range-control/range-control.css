@@ -27,9 +27,9 @@
   width: 20px;
   height: 20px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #2457ff, #8b2cff);
+  background: linear-gradient(135deg, var(--color-secondary), var(--color-primary));
   border: 2px solid var(--color-bg);
-  box-shadow: 0 0 0 1px rgba(150, 163, 255, 0.4);
+  box-shadow: 0 0 0 1px var(--color-border-strong);
 }
 
 .rc-range::-moz-range-track {
@@ -42,7 +42,7 @@
   width: 16px;
   height: 16px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #2457ff, #8b2cff);
+  background: linear-gradient(135deg, var(--color-secondary), var(--color-primary));
   border: 2px solid var(--color-bg);
 }
 

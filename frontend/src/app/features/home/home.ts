@@ -1,10 +1,11 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, inject, signal, computed, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, inject, signal, computed, effect, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
 import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
+import { UserService, ProfilePin } from '../../core/services/user';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
 
 /** Vietnamese labels for the category codes the backend's auto-classifier
@@ -32,6 +33,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   private pinService = inject(PinService);
   private supabaseService = inject(SupabaseService);
   private boardService = inject(BoardService);
+  private userService = inject(UserService);
   private router = inject(Router);
 
   @ViewChild('scrollSentinel') scrollSentinel!: ElementRef;
@@ -53,11 +55,48 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
 
   public activeCategory = signal<string | null>(null);
 
+  /** "Tiếp tục sáng tạo" — the logged-in user's own most recent pins, reusing
+   * the same UserService.getUserPosts endpoint Profile already calls. Loads
+   * independently of the main feed and never blocks it. */
+  public recentCreations = signal<ProfilePin[]>([]);
+  public isRecentLoading = signal<boolean>(false);
+  public recentCreationsLoaded = signal<boolean>(false);
+
   private currentPage = 1;
   private limit = 20;
   private hasMore = true;
   private observer?: IntersectionObserver;
   private feedSeed = Math.random().toString(36).substring(2, 15);
+
+  /** Real display name sourced from the backend-synced profile (falls back to
+   * OAuth metadata briefly while that sync is in flight) — same resolution
+   * order as Navbar.displayName(). Empty string renders no greeting. */
+  public displayName = computed(() => {
+    const dbName = this.supabaseService.dbUser()?.username;
+    if (dbName) return dbName;
+    const user = this.supabaseService.user();
+    if (!user) return '';
+    return (
+      user.user_metadata?.['full_name'] ||
+      user.user_metadata?.['name'] ||
+      user.email?.split('@')[0] ||
+      ''
+    );
+  });
+
+  constructor() {
+    // dbUser syncs asynchronously after sign-in (see SupabaseService), so this
+    // reacts once it becomes available instead of racing it in ngOnInit.
+    effect(() => {
+      const dbUser = this.supabaseService.dbUser();
+      if (dbUser?.username && !this.recentCreationsLoaded() && !this.isRecentLoading()) {
+        void this.loadRecentCreations(dbUser.username);
+      } else if (!dbUser && this.recentCreationsLoaded()) {
+        this.recentCreations.set([]);
+        this.recentCreationsLoaded.set(false);
+      }
+    });
+  }
 
   /** Categories actually present in the currently loaded feed — never a
    * fixed/fake list, and hidden entirely while a search is active. */
@@ -154,6 +193,21 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  async loadRecentCreations(username: string) {
+    this.isRecentLoading.set(true);
+    try {
+      const token = await this.supabaseService.getSessionToken() || undefined;
+      const page = await this.userService.getUserPosts(username, 1, 6, token);
+      this.recentCreations.set(page.items || []);
+    } catch (error) {
+      console.error('Error loading recent creations:', error);
+      this.recentCreations.set([]);
+    } finally {
+      this.isRecentLoading.set(false);
+      this.recentCreationsLoaded.set(true);
+    }
+  }
+
   async loadBoards() {
     const currentUser = this.supabaseService.user();
     if (currentUser) {
@@ -187,7 +241,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       console.error('Error fetching pins from backend:', error);
       this.pins.set([]);
       this.hasMore = false;
-      this.loadError.set('Không thể tải bảng tin. Vui lòng kiểm tra kết nối và thử lại.');
+      this.loadError.set('Không thể tải Không gian khám phá. Vui lòng kiểm tra kết nối và thử lại.');
     } finally {
       this.isLoading.set(false);
     }
@@ -268,7 +322,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
 
   private mapPins(apiPins: any[]): any[] {
     return apiPins.map(p => {
-      const author = p.user?.username || 'Pinterest AI';
+      const author = p.user?.username || 'NovaFrame AI';
       const likes = (p as any)._count?.likes ?? 0;
 
       let idHash = 0;
@@ -376,7 +430,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       if (!boardId) {
         const newBoard = await this.boardService.createBoard(
           'Hồ sơ',
-          'Bảng lưu mặc định',
+          'Bộ sưu tập lưu mặc định',
           false,
           token
         );
@@ -385,10 +439,10 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       }
 
       await this.boardService.addPinToBoard(boardId, pinId, token);
-      alert('Đã lưu ảnh vào bảng thành công!');
+      alert('Đã lưu ảnh vào bộ sưu tập thành công!');
     } catch (error) {
       console.error('Error saving pin to board:', error);
-      alert('Lỗi khi lưu ảnh vào bảng.');
+      alert('Lỗi khi lưu ảnh vào bộ sưu tập.');
     }
   }
 }
