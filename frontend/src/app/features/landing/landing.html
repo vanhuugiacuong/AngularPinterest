@@ -1,123 +1,119 @@
-<div class="min-h-screen bg-white text-black flex flex-col font-sans relative pt-16">
+<div class="min-h-screen bg-bg text-text flex flex-col font-sans relative pt-16 overflow-hidden">
   <!-- Header (Primary Nav) -->
   <app-navbar (loginClick)="openLoginModal()"></app-navbar>
 
+  <!-- Decorative ambient glow — drifts slowly, respects prefers-reduced-motion -->
+  <div class="pointer-events-none absolute -top-32 -left-24 w-[520px] h-[520px] rounded-full bg-primary/20 blur-[120px] animate-drift" aria-hidden="true"></div>
+  <div class="pointer-events-none absolute top-1/3 -right-32 w-[480px] h-[480px] rounded-full bg-accent/12 blur-[130px] animate-drift" style="animation-delay:-8s" aria-hidden="true"></div>
+
   <!-- Hero Section -->
   <main
-    class="flex-1 max-w-6xl w-full mx-auto px-6 py-12 md:py-20 flex flex-col md:flex-row items-center justify-between gap-12 z-10"
+    class="flex-1 max-w-6xl w-full mx-auto px-6 py-12 md:py-20 flex flex-col md:flex-row items-center justify-between gap-16 z-10"
   >
     <!-- Left Hero Column -->
     <div class="flex-1 text-center md:text-left">
-      <!-- display-xl typography tracking tight -->
+      <span class="mono-label inline-flex items-center gap-2 text-[11px] uppercase text-accent mb-5 select-none">
+        <span class="h-1.5 w-1.5 rounded-full bg-gradient-brand" aria-hidden="true"></span>
+        NovaFrame · Creative Observatory
+      </span>
+
       <h1
-        class="text-4xl sm:text-5xl lg:text-[60px] font-extrabold text-[#211922] leading-[1.1] tracking-tight mb-8"
+        class="text-4xl sm:text-5xl lg:text-[60px] font-extrabold text-text leading-[1.08] tracking-tight mb-6 text-balance"
       >
-        Tạo ra cuộc sống bạn yêu thích trên <span class="text-[#e60023]">Pinterest AI</span>
+        Nơi ý tưởng của bạn <span class="text-gradient-brand">trở thành tác phẩm</span>
       </h1>
+
+      <p class="text-text-muted text-base max-w-md mx-auto md:mx-0 mb-9 leading-relaxed">
+        Khám phá, lưu trữ và tạo ra hình ảnh của riêng bạn — bằng ảnh thật hoặc bằng AI — trong một
+        không gian sáng tạo được thiết kế riêng cho NovaFrame.
+      </p>
 
       <!-- Hero CTAs -->
       <div class="flex flex-col sm:flex-row items-center justify-center md:justify-start gap-4">
-        <!-- Join button -->
         <button
           (click)="openLoginModal()"
-          class="h-12 px-6 bg-[#e60023] hover:bg-[#cc001f] text-white font-bold rounded-full transition-all duration-200 cursor-pointer text-base shadow-md"
+          class="h-12 px-7 bg-gradient-brand cta-shape text-text font-bold cursor-pointer text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
         >
-          Bắt đầu
+          Bắt đầu khám phá
         </button>
-        <!-- Already member button -->
       </div>
     </div>
 
-    <!-- Right Hero Collage Column (Pinterest grid collage) -->
-    <div class="flex-1 w-full flex justify-center items-center relative">
-      <div class="grid grid-cols-3 gap-3 max-w-[420px] w-full">
-        <!-- Col 1 -->
-        <div class="flex flex-col gap-3 pt-8">
-          <div
-            class="h-32 bg-amber-50 rounded-[16px] border border-[#e5e5e0] shadow-sm flex items-center justify-center"
-          >
-            <span class="text-3xl select-none">🎨</span>
-          </div>
-          <div
-            class="h-44 bg-indigo-50 rounded-[16px] border border-[#e5e5e0] shadow-sm flex items-center justify-center"
-          >
-            <span class="text-3xl select-none">💻</span>
-          </div>
+    <!-- Right: Observatory Canvas — an asymmetric composition, not a 3-column collage -->
+    <div class="flex-1 w-full flex justify-center items-center relative min-h-[420px]">
+      <div class="relative w-full max-w-[460px] h-[400px] select-none" aria-hidden="true">
+        <!-- Dominant frame -->
+        <div class="absolute left-0 top-6 w-[60%] h-[72%] rounded-frame bg-surface-elevated glow-hover shadow-card border border-border overflow-hidden flex items-center justify-center">
+          <div class="absolute inset-0 bg-gradient-to-br from-primary/25 via-transparent to-accent/10"></div>
+          <span class="material-symbols-outlined text-6xl text-text-muted/60 relative">auto_awesome</span>
+          <span class="mono-label absolute bottom-3 left-3 text-[10px] uppercase text-text-muted/80">AI · 1200×1600</span>
         </div>
-        <!-- Col 2 -->
-        <div class="flex flex-col gap-3">
-          <div
-            class="h-48 bg-rose-50 rounded-[16px] border border-[#e5e5e0] shadow-md flex flex-col items-center justify-center p-4 text-center"
-          >
-            <span class="text-4xl mb-2 select-none">✨</span>
-            <span class="text-[10px] font-extrabold tracking-wider uppercase text-rose-800"
-              >AI Studio</span
-            >
-          </div>
-          <div
-            class="h-36 bg-emerald-50 rounded-[16px] border border-[#e5e5e0] shadow-sm flex items-center justify-center"
-          >
-            <span class="text-3xl select-none">📸</span>
-          </div>
+
+        <!-- Satellite: sketch -->
+        <div class="absolute right-2 top-0 w-[34%] h-[36%] rounded-frame-alt bg-surface-elevated glow-hover shadow-card border border-border flex items-center justify-center">
+          <span class="material-symbols-outlined text-3xl text-text-muted/60">palette</span>
         </div>
-        <!-- Col 3 -->
-        <div class="flex flex-col gap-3 pt-12">
-          <div
-            class="h-40 bg-blue-50 rounded-[16px] border border-[#e5e5e0] shadow-sm flex items-center justify-center"
-          >
-            <span class="text-3xl select-none">🚀</span>
-          </div>
-          <div
-            class="h-28 bg-purple-50 rounded-[16px] border border-[#e5e5e0] shadow-sm flex items-center justify-center"
-          >
-            <span class="text-3xl select-none">📌</span>
-          </div>
+
+        <!-- Satellite: AI Studio -->
+        <div class="absolute right-0 bottom-6 w-[40%] h-[34%] rounded-frame bg-surface-elevated glow-hover shadow-card border border-primary/40 flex flex-col items-center justify-center gap-1">
+          <span class="material-symbols-outlined text-3xl text-accent">auto_awesome</span>
+          <span class="mono-label text-[9px] uppercase text-gradient-brand font-bold">AI Studio</span>
         </div>
+
+        <!-- Satellite: camera -->
+        <div class="absolute left-[6%] bottom-0 w-[26%] h-[22%] rounded-frame-alt bg-surface-elevated glow-hover shadow-card border border-border flex items-center justify-center">
+          <span class="material-symbols-outlined text-2xl text-text-muted/60">photo_camera</span>
+        </div>
+
+        <!-- Readout caption -->
+        <span class="mono-label absolute -bottom-9 left-0 text-[10px] uppercase text-text-muted/60">#NF-04 · lưu trữ ý tưởng số</span>
       </div>
     </div>
   </main>
 
-  <!-- Login Modal Dialog Overlay (Scrim) -->
+  <!-- Login Modal Dialog Overlay (Scrim) — closes on Escape or backdrop click -->
   <div
     *ngIf="showLoginModal()"
-    class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
+    (click)="closeLoginModal()"
+    class="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in"
+    role="presentation"
   >
-    <!-- Modal Card (modal-card specs: rounded-lg 32px, white canvas, padding 32px) -->
+    <!-- Modal Card -->
     <div
-      class="max-w-[440px] w-full bg-white rounded-[32px] p-10 relative shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-[#e5e5e0] text-center"
+      (click)="$event.stopPropagation()"
+      class="glass-elevated max-w-[440px] w-full rounded-panel p-10 relative shadow-card text-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="login-modal-title"
     >
       <!-- Close button on top-right -->
       <button
         (click)="closeLoginModal()"
-        class="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#f6f6f3] text-black hover:bg-[#e5e5e0] transition-colors flex items-center justify-center cursor-pointer"
-        title="Đóng"
+        class="absolute top-4 right-4 w-8 h-8 rounded-full bg-surface text-text hover:bg-surface-elevated transition-colors flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        aria-label="Đóng"
       >
         <span class="material-symbols-outlined text-lg leading-none font-semibold">close</span>
       </button>
 
-      <!-- Red Pin Logo -->
+      <!-- Brand mark -->
       <div
-        class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#e60023] text-white mb-4"
+        class="inline-flex items-center justify-center w-12 h-12 rounded-frame-alt bg-gradient-brand shadow-glow mb-4"
       >
-        <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24">
-          <path
-            d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.966 1.406-5.966s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.993-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.162 0 7.398 2.965 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.631-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146 1.124.347 2.317.535 3.554.535 6.621 0 11.988-5.367 11.988-11.987C24 5.367 18.633 0 12.017 0z"
-          />
-        </svg>
+        <img src="/logo-mark.png" alt="NovaFrame" class="w-7 h-7 object-contain" />
       </div>
 
       <!-- Title & Description inside modal -->
-      <h2 class="text-[22px] font-semibold text-[#211922] tracking-tight mb-2">
-        Đăng nhập vào Pinterest AI
+      <h2 id="login-modal-title" class="text-[22px] font-semibold text-text tracking-tight mb-2">
+        Đăng nhập vào <span class="text-gradient-brand">NovaFrame</span>
       </h2>
-      <p class="text-[#62625b] text-sm mb-8 leading-relaxed px-4">
+      <p class="text-text-muted text-sm mb-8 leading-relaxed px-4">
         Tiếp tục bằng tài khoản Google để bắt đầu sáng tạo hình ảnh.
       </p>
 
       <!-- Google Login Button -->
       <button
         (click)="login()"
-        class="w-full h-11 flex items-center justify-center gap-3 px-4 bg-[#e5e5e0] hover:bg-[#c8c8c1] text-black font-bold rounded-[16px] transition-all duration-200 cursor-pointer active:scale-95 group"
+        class="w-full h-11 flex items-center justify-center gap-3 px-4 bg-surface hover:bg-surface-elevated border border-border text-text font-bold rounded-control transition-all duration-200 cursor-pointer active:scale-95 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         <svg
           class="w-5 h-5 transition-transform duration-300 group-hover:scale-105"
@@ -147,16 +143,17 @@
       <!-- Error message rendering in modal -->
       @if (errorMsg()) {
         <div
-          class="mt-4 p-3 rounded-[16px] bg-[#cc001f]/10 border border-[#cc001f]/20 text-[#9e0a0a] text-xs font-semibold text-left animate-fade-in"
+          class="mt-4 p-3 rounded-control bg-error/10 border border-error/30 text-error text-xs font-semibold text-left flex items-start gap-2 animate-fade-in"
         >
-          ⚠️ Lỗi đăng nhập: {{ errorMsg() }}
+          <span class="material-symbols-outlined text-base leading-none shrink-0">error</span>
+          <span>Lỗi đăng nhập: {{ errorMsg() }}</span>
         </div>
       }
 
-      <div class="mt-8 text-[12px] text-[#62625b] leading-normal px-4">
+      <div class="mt-8 text-[12px] text-text-muted leading-normal px-4">
         Bằng việc tiếp tục, bạn đồng ý với
-        <a href="#" class="font-semibold text-[#211922] hover:underline">Điều khoản Dịch vụ</a> và
-        <a href="#" class="font-semibold text-[#211922] hover:underline">Chính sách Bảo mật</a> của
+        <a href="#" class="font-semibold text-text hover:text-accent hover:underline">Điều khoản Dịch vụ</a> và
+        <a href="#" class="font-semibold text-text hover:text-accent hover:underline">Chính sách Bảo mật</a> của
         chúng tôi.
       </div>
     </div>

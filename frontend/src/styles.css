@@ -1,7 +1,50 @@
 @import "tailwindcss";
 
 @theme {
+  --color-bg: #070712;
+  --color-bg-secondary: #0d0d1d;
+  --color-surface: #131329;
+  --color-surface-elevated: #191936;
+  --color-primary: #8b2cff;
+  --color-primary-neon: #c000ff;
+  --color-secondary: #2457ff;
+  --color-accent: #00e5ff;
+  --color-text: #f7f7ff;
+  --color-text-muted: #a9abc3;
+  --color-border: rgba(139, 92, 246, 0.22);
+  --color-success: #2fe6b0;
+  --color-error: #ff3b5c;
+
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+
+  /* Soft asymmetric shape language — NovaFrame signature (see design proposal) */
+  --radius-control: 10px;
+  --radius-frame: 28px 12px 28px 12px;
+  --radius-frame-alt: 12px 28px 12px 28px;
+  --radius-cta: 22px 10px 22px 10px;
+  --radius-panel: 26px 26px 26px 10px;
+
+  --color-surface-high: #1e2140;
+  --color-warning: #ffb84d;
+  --color-border-strong: rgba(150, 163, 255, 0.28);
+
+  --shadow-card: 0 8px 30px -12px rgba(3, 3, 20, 0.55);
+  --shadow-glow: 0 0 28px 0 rgba(139, 44, 255, 0.35);
+  --shadow-glow-soft: 0 18px 34px -16px rgba(59, 99, 255, 0.35), 0 0 30px -10px rgba(139, 44, 255, 0.32);
+
+  --font-sans:
+    "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono:
+    ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
   --animate-fade-in: fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-slide-in: slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-shimmer: shimmer 1.8s ease-in-out infinite;
+  --animate-drift: drift 16s ease-in-out infinite;
 
   @keyframes fade-in {
     from {
@@ -12,5 +55,155 @@
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  @keyframes slide-in {
+    from {
+      opacity: 0;
+      transform: translateX(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes shimmer {
+    from {
+      background-position: -200% 0;
+    }
+    to {
+      background-position: 200% 0;
+    }
+  }
+
+  @keyframes drift {
+    0%,
+    100% {
+      transform: translate(0, 0) scale(1);
+    }
+    50% {
+      transform: translate(-24px, 18px) scale(1.08);
+    }
+  }
+}
+
+@utility bg-gradient-brand {
+  background-image: linear-gradient(
+    135deg,
+    #2024b8 0%,
+    #2457ff 35%,
+    #8b2cff 70%,
+    #d000ff 100%
+  );
+}
+
+@utility text-gradient-brand {
+  background-image: linear-gradient(
+    135deg,
+    #2024b8 0%,
+    #2457ff 35%,
+    #8b2cff 70%,
+    #d000ff 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+@utility glass {
+  background-color: rgba(19, 19, 41, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-border);
+}
+
+@utility glass-elevated {
+  background-color: rgba(25, 25, 54, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--color-border);
+}
+
+/* NovaFrame signature — soft glow lift for image frames / cards on hover */
+@utility glow-hover {
+  transition:
+    transform 0.35s var(--ease-spring),
+    box-shadow 0.35s ease,
+    border-color 0.3s ease;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-glow-soft);
+  }
+}
+
+/* NovaFrame signature — primary CTA shape: soft asymmetric radius, gentle spring on hover */
+@utility cta-shape {
+  border-radius: var(--radius-cta);
+  transition:
+    border-radius 0.35s var(--ease-spring),
+    transform 0.35s var(--ease-spring),
+    box-shadow 0.35s var(--ease-spring);
+  box-shadow: 0 6px 20px -10px rgba(139, 44, 255, 0.5);
+
+  &:hover {
+    border-radius: 26px 10px 26px 14px;
+    transform: translateY(-2px) scale(1.02);
+    box-shadow:
+      0 12px 32px -8px rgba(139, 44, 255, 0.6),
+      0 0 26px rgba(0, 229, 255, 0.25);
+  }
+
+  &:active {
+    transform: translateY(0) scale(0.97);
+  }
+}
+
+/* Monospace "creative workspace" metadata readout */
+@utility mono-label {
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+}
+
+/* Shimmer skeleton — replaces flat pulse for a more polished loading feel */
+@utility skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--color-surface-elevated);
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      100deg,
+      transparent 30%,
+      rgba(0, 229, 255, 0.1) 50%,
+      transparent 70%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.8s ease-in-out infinite;
+  }
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+::selection {
+  background-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

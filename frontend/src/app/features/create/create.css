@@ -1,9 +1,9 @@
 /* Styling for Create page */
 .drag-drop-area {
-  border: 2px dashed #dadad3;
+  border: 2px dashed var(--color-border);
   transition: all 0.2s ease-in-out;
 }
 .drag-drop-area:hover {
-  border-color: #8b8b83;
-  background-color: #fcfcf9;
+  border-color: var(--color-accent);
+  background-color: var(--color-surface-elevated);
 }
