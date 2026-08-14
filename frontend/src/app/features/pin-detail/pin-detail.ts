@@ -16,11 +16,12 @@ import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
 import { FormsModule } from '@angular/forms';
+import { UserAvatar } from '../../shared/user-avatar/user-avatar';
 
 @Component({
   selector: 'app-pin-detail',
   standalone: true,
-  imports: [CommonModule, Navbar, FormsModule],
+  imports: [CommonModule, Navbar, FormsModule, UserAvatar],
   templateUrl: './pin-detail.html',
   styleUrl: './pin-detail.css',
 })
@@ -49,6 +50,27 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   public numBottomColumns = signal<number>(3);
   public newCommentText = '';
   public isSubmittingComment = false;
+
+  /** Best available avatar for the signed-in viewer's own comment-box avatar. */
+  myAvatarUrl(): string | null {
+    const dbAvatar = this.supabaseService.dbUser()?.avatarUrl;
+    if (dbAvatar) return dbAvatar;
+    const user = this.supabaseService.user();
+    return user?.user_metadata?.['avatar_url'] || user?.user_metadata?.['picture'] || null;
+  }
+
+  myDisplayName(): string {
+    const dbName = this.supabaseService.dbUser()?.username;
+    if (dbName) return dbName;
+    const user = this.supabaseService.user();
+    if (!user) return '';
+    return (
+      user.user_metadata?.['full_name'] ||
+      user.user_metadata?.['name'] ||
+      user.email?.split('@')[0] ||
+      ''
+    );
+  }
 
   @HostListener('window:resize')
   onResize() {
@@ -150,7 +172,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
             id: p.id,
             title: p.title,
             image: p.imageUrl,
-            author: p.user?.username || 'Pinterest AI',
+            author: p.user?.username || 'NovaFrame AI',
             likes: (p as any)._count?.likes ?? 0,
             aspectRatio,
           };
@@ -269,7 +291,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       if (!boardId) {
         const newBoard = await this.boardService.createBoard(
           'Hồ sơ',
-          'Bảng lưu mặc định',
+          'Bộ sưu tập lưu mặc định',
           false,
           token,
         );
@@ -278,10 +300,10 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       }
 
       await this.boardService.addPinToBoard(boardId, currentPin.id, token);
-      alert('Đã lưu ảnh vào bảng thành công!');
+      alert('Đã lưu ảnh vào bộ sưu tập thành công!');
     } catch (error) {
       console.error('Error saving pin to board:', error);
-      alert('Lỗi khi lưu ảnh vào bảng.');
+      alert('Lỗi khi lưu ảnh vào bộ sưu tập.');
     }
   }
 
@@ -380,7 +402,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
             id: p.id,
             title: p.title,
             image: p.imageUrl,
-            author: p.user?.username || 'Pinterest AI',
+            author: p.user?.username || 'NovaFrame AI',
             likes: (p as any)._count?.likes ?? 0,
             aspectRatio,
           };

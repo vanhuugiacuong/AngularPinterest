@@ -146,7 +146,7 @@ export class Create implements OnInit {
     if (active) {
       return active.name;
     }
-    return 'Chọn bảng';
+    return 'Chọn bộ sưu tập';
   }
 
   onFileSelected(event: any) {
@@ -230,7 +230,7 @@ export class Create implements OnInit {
     }
     if (!boardId) {
       try {
-        const defaultBoard = await this.boardService.createBoard('Hồ sơ', 'Bảng lưu mặc định', false, token);
+        const defaultBoard = await this.boardService.createBoard('Hồ sơ', 'Bộ sưu tập lưu mặc định', false, token);
         this.boards.update(list => [defaultBoard, ...list]);
         boardId = defaultBoard.id;
       } catch (err) {

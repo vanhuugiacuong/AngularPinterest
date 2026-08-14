@@ -7,9 +7,9 @@
   min-height: 100vh;
   color: var(--color-text);
   background:
-    radial-gradient(circle at 16% 6%, rgba(36, 87, 255, 0.08), transparent 34rem),
-    radial-gradient(circle at 84% 18%, rgba(139, 44, 255, 0.07), transparent 30rem),
-    linear-gradient(180deg, var(--color-bg) 0%, #0a0b18 54%, var(--color-bg) 100%);
+    radial-gradient(circle at 16% 6%, color-mix(in srgb, var(--color-secondary) 8%, transparent), transparent 34rem),
+    radial-gradient(circle at 84% 18%, color-mix(in srgb, var(--color-primary) 7%, transparent), transparent 30rem),
+    linear-gradient(180deg, var(--color-bg) 0%, var(--color-ink) 54%, var(--color-bg) 100%);
 }
 
 .profile-main {
@@ -36,7 +36,7 @@
   right: -170px;
   width: 360px;
   height: 360px;
-  border: 1px solid rgba(0, 229, 255, 0.08);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 8%, transparent);
 }
 
 .profile-ambient-two {
@@ -44,7 +44,7 @@
   left: -215px;
   width: 430px;
   height: 430px;
-  border: 1px solid rgba(139, 44, 255, 0.1);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 10%, transparent);
 }
 
 button,
@@ -85,7 +85,11 @@ textarea:disabled {
   padding: 34px 36px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, rgba(25, 25, 54, 0.85), rgba(13, 13, 29, 0.72)),
+  background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-surface-elevated) 85%, transparent),
+      color-mix(in srgb, var(--color-bg-secondary) 72%, transparent)
+    ),
     var(--color-surface);
   box-shadow: var(--shadow-card);
 }
@@ -113,7 +117,7 @@ textarea:disabled {
   padding: 3px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--color-secondary), var(--color-primary));
-  box-shadow: 0 8px 24px -10px rgba(139, 44, 255, 0.45);
+  box-shadow: 0 8px 24px -10px color-mix(in srgb, var(--color-primary) 45%, transparent);
 }
 
 .profile-avatar {
@@ -245,14 +249,14 @@ textarea:disabled {
 }
 
 .primary-action {
-  color: #fff;
-  background: linear-gradient(135deg, #2457ff, #8b2cff 85%);
-  box-shadow: 0 8px 20px -12px rgba(139, 44, 255, 0.7);
+  color: var(--color-text);
+  background: linear-gradient(135deg, var(--color-secondary), var(--color-primary) 85%);
+  box-shadow: 0 8px 20px -12px color-mix(in srgb, var(--color-primary) 70%, transparent);
 }
 
 .primary-action:not(:disabled):hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 24px -12px rgba(139, 44, 255, 0.55);
+  box-shadow: 0 10px 24px -12px color-mix(in srgb, var(--color-primary) 55%, transparent);
 }
 
 .primary-action.following-action {
@@ -265,7 +269,7 @@ textarea:disabled {
 .secondary-action {
   border-color: var(--color-border);
   color: var(--color-text);
-  background: rgba(30, 33, 64, 0.6);
+  background: color-mix(in srgb, var(--color-surface-high) 60%, transparent);
 }
 
 .secondary-action:not(:disabled):hover {
@@ -274,7 +278,7 @@ textarea:disabled {
 }
 
 .danger-action {
-  color: #fff;
+  color: var(--color-text);
   background: var(--color-error);
 }
 
@@ -316,7 +320,7 @@ textarea:disabled {
   overflow-x: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: rgba(10, 10, 22, 0.82);
+  background: color-mix(in srgb, var(--color-bg) 82%, transparent);
   backdrop-filter: blur(18px);
   scrollbar-width: none;
 }
@@ -347,12 +351,24 @@ textarea:disabled {
 
 .profile-tabs button:hover {
   color: var(--color-text);
-  background: rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
 }
 
 .profile-tabs button.active {
+  position: relative;
   color: var(--color-text);
-  background: linear-gradient(135deg, rgba(36, 87, 255, 0.24), rgba(139, 44, 255, 0.22));
+  background: var(--color-surface-high);
+}
+
+.profile-tabs button.active::after {
+  position: absolute;
+  right: 14px;
+  bottom: 5px;
+  left: 14px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  content: '';
 }
 
 .profile-tabs button.active > .material-symbols-outlined {
@@ -367,14 +383,14 @@ textarea:disabled {
   padding: 0 7px;
   border-radius: 999px;
   color: var(--color-text-muted);
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
   font-size: 12px;
   font-weight: 600;
 }
 
 .profile-tabs button.active .tab-count {
   color: var(--color-text);
-  background: rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--color-text) 12%, transparent);
 }
 
 .tab-panel {
@@ -425,7 +441,7 @@ textarea:disabled {
   gap: 6px;
   border: 1px solid var(--color-border);
   color: var(--color-text-muted);
-  background: rgba(19, 19, 41, 0.82);
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
   font-size: 12px;
   font-weight: 600;
 }
@@ -462,7 +478,8 @@ textarea:disabled {
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  /* NovaFrame signature — asymmetric radius applied via [class.rounded-frame]/
+     [class.rounded-frame-alt] in profile.html, alternating per card index. */
   background: var(--color-surface);
   box-shadow: var(--shadow-card);
   cursor: pointer;
@@ -492,7 +509,7 @@ textarea:disabled {
   inset: 0;
   content: '';
   opacity: 0;
-  background: linear-gradient(180deg, transparent 55%, rgba(7, 7, 18, 0.75));
+  background: linear-gradient(180deg, transparent 55%, color-mix(in srgb, var(--color-bg) 75%, transparent));
   transition: opacity 220ms ease;
 }
 
@@ -533,7 +550,7 @@ textarea:disabled {
   left: 12px;
   min-height: 28px;
   padding: 0 10px;
-  border-color: rgba(0, 229, 255, 0.3);
+  border-color: color-mix(in srgb, var(--color-accent) 30%, transparent);
   border-radius: 999px;
   color: var(--color-accent);
   backdrop-filter: blur(12px);
@@ -628,8 +645,8 @@ textarea:disabled {
 }
 
 .icon-action.liked {
-  border-color: rgba(192, 0, 255, 0.25);
-  color: #d96aff;
+  border-color: color-mix(in srgb, var(--color-primary-neon) 25%, transparent);
+  color: color-mix(in srgb, var(--color-primary-neon) 75%, white);
 }
 
 .post-menu-wrap {
@@ -646,7 +663,7 @@ textarea:disabled {
   padding: 6px;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
-  background: rgba(25, 25, 54, 0.97);
+  background: color-mix(in srgb, var(--color-surface-elevated) 97%, transparent);
   box-shadow: var(--shadow-card);
   backdrop-filter: blur(18px);
 }
@@ -660,7 +677,7 @@ textarea:disabled {
   padding: 0 10px;
   border: 0;
   border-radius: 8px;
-  color: #ff7389;
+  color: color-mix(in srgb, var(--color-error) 82%, white);
   background: transparent;
   cursor: pointer;
   font-size: 13px;
@@ -668,7 +685,7 @@ textarea:disabled {
 }
 
 .post-menu button:hover {
-  background: rgba(255, 59, 92, 0.1);
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
 }
 
 /* ---------- Albums ---------- */
@@ -694,7 +711,8 @@ textarea:disabled {
   padding: 4px;
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  /* NovaFrame signature — asymmetric radius applied via [class.rounded-frame]/
+     [class.rounded-frame-alt] in profile.html, alternating per card index. */
   background: var(--color-surface);
   box-shadow: var(--shadow-card);
   cursor: pointer;
@@ -717,9 +735,8 @@ textarea:disabled {
   place-items: center;
   overflow: hidden;
   border-radius: 10px;
-  color: rgba(169, 171, 195, 0.34);
-  background: linear-gradient(135deg, rgba(36, 87, 255, 0.12), rgba(139, 44, 255, 0.1)),
-    var(--color-surface-elevated);
+  color: color-mix(in srgb, var(--color-text-muted) 34%, transparent);
+  background: var(--color-surface-elevated);
 }
 
 .collage-main {
@@ -783,7 +800,11 @@ textarea:disabled {
   border: 1px dashed var(--color-border-strong);
   border-radius: var(--radius-lg);
   text-align: center;
-  background: linear-gradient(145deg, rgba(19, 19, 41, 0.5), rgba(13, 13, 29, 0.28));
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--color-surface) 50%, transparent),
+    color-mix(in srgb, var(--color-bg-secondary) 28%, transparent)
+  );
 }
 
 .profile-state-large {
@@ -797,10 +818,10 @@ textarea:disabled {
   height: 58px;
   place-items: center;
   margin-bottom: 18px;
-  border: 1px solid rgba(0, 229, 255, 0.22);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 22%, transparent);
   border-radius: 50%;
   color: var(--color-accent);
-  background: rgba(0, 229, 255, 0.05);
+  background: color-mix(in srgb, var(--color-accent) 5%, transparent);
   font-size: 27px;
 }
 
@@ -829,7 +850,7 @@ textarea:disabled {
 .inline-error {
   align-items: center;
   gap: 12px;
-  color: #ff9baa;
+  color: color-mix(in srgb, var(--color-error) 65%, white);
   font-size: 13px;
 }
 
@@ -850,7 +871,7 @@ textarea:disabled {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(3, 3, 13, 0.72);
+  background: color-mix(in srgb, var(--color-ink) 72%, transparent);
   backdrop-filter: blur(12px);
   animation: backdrop-enter 180ms ease;
 }
@@ -871,8 +892,11 @@ textarea:disabled {
   overflow-y: auto;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-lg);
-  background: linear-gradient(145deg, rgba(30, 33, 64, 0.98), rgba(13, 13, 29, 0.99)),
-    var(--color-surface);
+  /* Same neutral glass surface as the login modal / board-select dropdown
+     (.glass-elevated in styles.css) instead of a bespoke gradient panel. */
+  background-color: color-mix(in srgb, var(--color-surface-elevated) 75%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.5);
   animation: dialog-enter 220ms var(--ease-spring);
 }
@@ -923,7 +947,7 @@ textarea:disabled {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   color: var(--color-text);
-  background: rgba(7, 7, 18, 0.5);
+  background: color-mix(in srgb, var(--color-bg) 50%, transparent);
   transition:
     border-color 180ms ease,
     box-shadow 180ms ease;
@@ -942,8 +966,8 @@ textarea:disabled {
 
 .dialog-form input[type='text']:focus,
 .dialog-form textarea:focus {
-  border-color: rgba(0, 229, 255, 0.5);
-  box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.08);
+  border-color: color-mix(in srgb, var(--color-accent) 50%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 8%, transparent);
 }
 
 .secret-toggle {
@@ -989,7 +1013,7 @@ textarea:disabled {
 
 .secret-toggle input:checked + .toggle-track {
   border-color: var(--color-primary);
-  background: rgba(139, 44, 255, 0.26);
+  background: color-mix(in srgb, var(--color-primary) 26%, transparent);
 }
 
 .secret-toggle input:checked + .toggle-track span {
@@ -1028,10 +1052,10 @@ textarea:disabled {
 .form-error {
   margin: 8px 0 0;
   padding: 10px 12px;
-  border: 1px solid rgba(255, 59, 92, 0.24);
+  border: 1px solid color-mix(in srgb, var(--color-error) 24%, transparent);
   border-radius: var(--radius-control);
-  color: #ff9baa;
-  background: rgba(255, 59, 92, 0.07);
+  color: color-mix(in srgb, var(--color-error) 65%, white);
+  background: color-mix(in srgb, var(--color-error) 7%, transparent);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -1058,10 +1082,10 @@ textarea:disabled {
   height: 58px;
   place-items: center;
   margin: 0 auto 14px;
-  border: 1px solid rgba(255, 59, 92, 0.28);
+  border: 1px solid color-mix(in srgb, var(--color-error) 28%, transparent);
   border-radius: 50%;
-  color: #ff7188;
-  background: rgba(255, 59, 92, 0.08);
+  color: color-mix(in srgb, var(--color-error) 72%, white);
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
 }
 
 .danger-icon .material-symbols-outlined {
@@ -1080,7 +1104,12 @@ textarea:disabled {
   position: absolute;
   inset: 0;
   content: '';
-  background: linear-gradient(100deg, transparent 30%, rgba(0, 229, 255, 0.08) 50%, transparent 70%);
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--color-accent) 8%, transparent) 50%,
+    transparent 70%
+  );
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.7s ease-in-out infinite;
 }
@@ -1136,12 +1165,10 @@ textarea:disabled {
 .pin-skeleton {
   width: 100%;
   aspect-ratio: 4 / 5;
-  border-radius: var(--radius-md);
 }
 
 .album-skeleton {
   aspect-ratio: 1.34;
-  border-radius: var(--radius-md);
 }
 
 .sr-live {
@@ -1154,7 +1181,7 @@ textarea:disabled {
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-control);
   color: var(--color-text);
-  background: rgba(25, 25, 54, 0.95);
+  background: color-mix(in srgb, var(--color-surface-elevated) 95%, transparent);
   box-shadow: var(--shadow-card);
   font-size: 13px;
   pointer-events: none;

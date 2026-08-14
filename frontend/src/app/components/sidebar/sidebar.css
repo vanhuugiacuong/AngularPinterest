@@ -12,7 +12,10 @@
    space above the page content — pushing the entire Feed (and every other
    route's <main>) hundreds of pixels below the fold. */
 
-/* A faint vertical light trail along the rail's right edge — NovaFrame signature */
+/* A faint vertical light trail along the rail's right edge — NovaFrame
+   signature. Aurora Archive rebalance: cyan/blue now carry most of the
+   trail's length and purple is pulled back to a brief accent near the
+   bottom, instead of splitting the trail 50/50 between the two hues. */
 .nf-rail::after {
   content: "";
   position: absolute;
@@ -23,11 +26,12 @@
   background: linear-gradient(
     180deg,
     transparent 0%,
-    rgba(0, 229, 255, 0.35) 20%,
-    rgba(139, 44, 255, 0.35) 55%,
+    rgba(0, 229, 255, 0.4) 15%,
+    rgba(36, 87, 255, 0.3) 45%,
+    rgba(139, 44, 255, 0.22) 72%,
     transparent 100%
   );
-  opacity: 0.6;
+  opacity: 0.55;
   pointer-events: none;
 }
 

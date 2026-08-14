@@ -13,7 +13,10 @@
   right: 14px;
   bottom: 0;
   height: 2px;
-  background: linear-gradient(90deg, #2457ff, #8b2cff, #c000ff);
+  /* Same brand gradient as .bg-gradient-brand / .text-gradient-brand in
+     styles.css (rotated to horizontal), so every brand gradient in the app
+     resolves to the same four color stops. */
+  background: linear-gradient(90deg, #2024b8 0%, #2457ff 35%, #8b2cff 70%, #d000ff 100%);
   transform: scaleX(0);
   transform-origin: left center;
   transition: transform 0.3s ease;
@@ -25,4 +28,15 @@
 
 .nf-search:focus-within::after {
   transform: scaleX(1);
+}
+
+/* The input stays type="search" (native Enter-to-submit, form semantics),
+   but the browser's own cancel/decoration glyphs would otherwise render
+   next to our custom NovaFrame clear button — producing two X icons in
+   WebKit/Chromium. Only our custom button (below) should remain. */
+.nf-search input[type="search"]::-webkit-search-cancel-button,
+.nf-search input[type="search"]::-webkit-search-decoration {
+  appearance: none;
+  -webkit-appearance: none;
+  display: none;
 }

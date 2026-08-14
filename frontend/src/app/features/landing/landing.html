@@ -1,10 +1,14 @@
-<div class="min-h-screen bg-bg text-text flex flex-col font-sans relative pt-16 overflow-hidden">
+<div
+  class="min-h-screen bg-[radial-gradient(ellipse_120%_55%_at_50%_-8%,var(--color-ink),var(--color-bg)_65%)] text-text flex flex-col font-sans relative pt-16 overflow-hidden"
+>
   <!-- Header (Primary Nav) -->
   <app-navbar (loginClick)="openLoginModal()"></app-navbar>
 
-  <!-- Decorative ambient glow — drifts slowly, respects prefers-reduced-motion -->
-  <div class="pointer-events-none absolute -top-32 -left-24 w-[520px] h-[520px] rounded-full bg-primary/20 blur-[120px] animate-drift" aria-hidden="true"></div>
-  <div class="pointer-events-none absolute top-1/3 -right-32 w-[480px] h-[480px] rounded-full bg-accent/12 blur-[130px] animate-drift" style="animation-delay:-8s" aria-hidden="true"></div>
+  <!-- Decorative ambient light — a single source anchored behind the frame cluster
+       (not a floating backdrop wash behind the headline), hidden below md where the
+       two-column layout collapses and the anchor point no longer lines up. Respects
+       prefers-reduced-motion via the shared .animate-drift keyframe. -->
+  <div class="hidden md:block pointer-events-none absolute top-20 right-[8%] w-[420px] h-[420px] rounded-full bg-accent/10 blur-[110px] animate-drift" aria-hidden="true"></div>
 
   <!-- Hero Section -->
   <main
@@ -39,29 +43,45 @@
       </div>
     </div>
 
-    <!-- Right: Observatory Canvas — an asymmetric composition, not a 3-column collage -->
+    <!-- Right: Observatory Canvas — an asymmetric composition, not a 3-column collage.
+         Signature entrance: the four frames settle into place from a slightly
+         offset start (--split-x/--split-y per frame), echoing how the two
+         frames in the NovaFrame logomark overlap and resolve. Runs once on
+         load; .frame-trace adds the dual-frame light trace on hover/focus. -->
     <div class="flex-1 w-full flex justify-center items-center relative min-h-[420px]">
       <div class="relative w-full max-w-[460px] h-[400px] select-none" aria-hidden="true">
         <!-- Dominant frame -->
-        <div class="absolute left-0 top-6 w-[60%] h-[72%] rounded-frame bg-surface-elevated glow-hover shadow-card border border-border overflow-hidden flex items-center justify-center">
+        <div
+          class="absolute left-0 top-6 w-[60%] h-[72%] rounded-frame bg-surface-elevated glow-hover frame-trace shadow-card border border-border overflow-hidden flex items-center justify-center animate-frame-split"
+          style="--split-x: -18px; --split-y: 16px"
+        >
           <div class="absolute inset-0 bg-gradient-to-br from-primary/25 via-transparent to-accent/10"></div>
           <span class="material-symbols-outlined text-6xl text-text-muted/60 relative">auto_awesome</span>
           <span class="mono-label absolute bottom-3 left-3 text-[10px] uppercase text-text-muted/80">AI · 1200×1600</span>
         </div>
 
         <!-- Satellite: sketch -->
-        <div class="absolute right-2 top-0 w-[34%] h-[36%] rounded-frame-alt bg-surface-elevated glow-hover shadow-card border border-border flex items-center justify-center">
+        <div
+          class="absolute right-2 top-0 w-[34%] h-[36%] rounded-frame-alt bg-surface-elevated glow-hover frame-trace shadow-card border border-border flex items-center justify-center animate-frame-split"
+          style="--split-x: 22px; --split-y: -16px; animation-delay: 90ms"
+        >
           <span class="material-symbols-outlined text-3xl text-text-muted/60">palette</span>
         </div>
 
         <!-- Satellite: AI Studio -->
-        <div class="absolute right-0 bottom-6 w-[40%] h-[34%] rounded-frame bg-surface-elevated glow-hover shadow-card border border-primary/40 flex flex-col items-center justify-center gap-1">
+        <div
+          class="absolute right-0 bottom-6 w-[40%] h-[34%] rounded-frame bg-surface-elevated glow-hover frame-trace shadow-card border border-primary/40 flex flex-col items-center justify-center gap-1 animate-frame-split"
+          style="--split-x: 20px; --split-y: 12px; animation-delay: 160ms"
+        >
           <span class="material-symbols-outlined text-3xl text-accent">auto_awesome</span>
           <span class="mono-label text-[9px] uppercase text-gradient-brand font-bold">AI Studio</span>
         </div>
 
         <!-- Satellite: camera -->
-        <div class="absolute left-[6%] bottom-0 w-[26%] h-[22%] rounded-frame-alt bg-surface-elevated glow-hover shadow-card border border-border flex items-center justify-center">
+        <div
+          class="absolute left-[6%] bottom-0 w-[26%] h-[22%] rounded-frame-alt bg-surface-elevated glow-hover frame-trace shadow-card border border-border flex items-center justify-center animate-frame-split"
+          style="--split-x: -16px; --split-y: 14px; animation-delay: 220ms"
+        >
           <span class="material-symbols-outlined text-2xl text-text-muted/60">photo_camera</span>
         </div>
 
@@ -70,6 +90,91 @@
       </div>
     </div>
   </main>
+
+  <!-- Khám phá → Lưu giữ → Sáng tạo — the three-beat rhythm of the product,
+       not a generic SaaS "how it works" grid. Purely informational (no fake
+       CTAs) since these actions only become real after signing in. -->
+  <section class="relative z-10 max-w-6xl w-full mx-auto px-6 py-14 md:py-20" aria-labelledby="flow-heading">
+    <h2 id="flow-heading" class="sr-only">Khám phá, lưu giữ và sáng tạo cùng NovaFrame</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div class="glass rounded-frame p-6 flex flex-col gap-3">
+        <span class="mono-label text-[10px] uppercase text-accent">01</span>
+        <span class="material-symbols-outlined text-2xl text-text-muted">explore</span>
+        <h3 class="text-lg font-bold text-text">Khám phá</h3>
+        <p class="text-sm text-text-muted leading-relaxed">
+          Lướt qua Không gian khám phá — nơi tác phẩm thật và ảnh do AI tạo ra cùng xuất hiện, được sắp
+          xếp theo danh mục bạn quan tâm.
+        </p>
+      </div>
+      <div class="glass rounded-frame-alt p-6 flex flex-col gap-3">
+        <span class="mono-label text-[10px] uppercase text-accent">02</span>
+        <span class="material-symbols-outlined text-2xl text-text-muted">collections_bookmark</span>
+        <h3 class="text-lg font-bold text-text">Lưu giữ</h3>
+        <p class="text-sm text-text-muted leading-relaxed">
+          Gom những gì bạn thích vào bộ sưu tập của riêng mình — công khai để chia sẻ, hoặc riêng tư để
+          giữ cho bản thân.
+        </p>
+      </div>
+      <div class="glass rounded-frame p-6 flex flex-col gap-3">
+        <span class="mono-label text-[10px] uppercase text-accent">03</span>
+        <span class="material-symbols-outlined text-2xl text-text-muted">auto_awesome</span>
+        <h3 class="text-lg font-bold text-text">Sáng tạo</h3>
+        <p class="text-sm text-text-muted leading-relaxed">
+          Tải ảnh lên và chỉnh sửa trong Creation Studio, hoặc tạo hình ảnh hoàn toàn mới bằng AI Studio
+          — rồi xuất bản thành tác phẩm của bạn.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Ambient light for the sections below the hero — separate source from the
+       hero orb above, kept subtle and non-interactive. -->
+  <div
+    class="pointer-events-none absolute bottom-24 left-[6%] w-[380px] h-[380px] rounded-full bg-secondary/8 blur-[120px] animate-drift"
+    style="animation-delay: -6s"
+    aria-hidden="true"
+  ></div>
+
+  <!-- Four pillars of the product — informational, not clickable (these
+       become real destinations only after signing in). -->
+  <section class="relative z-10 max-w-6xl w-full mx-auto px-6 pb-14 md:pb-20" aria-labelledby="pillars-heading">
+    <h2 id="pillars-heading" class="sr-only">Bốn không gian của NovaFrame</h2>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="rounded-control border border-border bg-surface/60 p-5 flex flex-col gap-2">
+        <span class="material-symbols-outlined text-xl text-accent">explore</span>
+        <h3 class="text-sm font-bold text-text">Không gian khám phá</h3>
+        <p class="text-xs text-text-muted leading-relaxed">Dòng chảy tác phẩm theo danh mục và tìm kiếm.</p>
+      </div>
+      <div class="rounded-control border border-border bg-surface/60 p-5 flex flex-col gap-2">
+        <span class="material-symbols-outlined text-xl text-accent">collections_bookmark</span>
+        <h3 class="text-sm font-bold text-text">Bộ sưu tập</h3>
+        <p class="text-xs text-text-muted leading-relaxed">Tổ chức ý tưởng thành các bộ sưu tập riêng.</p>
+      </div>
+      <div class="rounded-control border border-border bg-surface/60 p-5 flex flex-col gap-2">
+        <span class="material-symbols-outlined text-xl text-accent">design_services</span>
+        <h3 class="text-sm font-bold text-text">Creation Studio</h3>
+        <p class="text-xs text-text-muted leading-relaxed">Tải ảnh lên, chỉnh sửa và xuất bản tác phẩm.</p>
+      </div>
+      <div class="rounded-control border border-border bg-surface/60 p-5 flex flex-col gap-2">
+        <span class="material-symbols-outlined text-xl text-accent">auto_awesome</span>
+        <h3 class="text-sm font-bold text-text">AI Studio</h3>
+        <p class="text-xs text-text-muted leading-relaxed">Tạo hình ảnh mới từ mô tả bằng AI.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Minimal footer — brand mark, name, tagline. No fabricated links: the
+       app is auth-gated, so there are no other public routes to point to. -->
+  <footer class="relative z-10 border-t border-border">
+    <div class="max-w-6xl w-full mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <img src="/logo-mark.png" alt="NovaFrame" class="h-6 w-6 object-contain" />
+        <span class="font-extrabold text-text tracking-tight">NovaFrame</span>
+        <span class="mono-label text-[11px] uppercase text-text-muted ml-1">· Creative Observatory</span>
+      </div>
+      <span class="text-xs text-text-muted">© {{ currentYear }} NovaFrame</span>
+    </div>
+  </footer>
 
   <!-- Login Modal Dialog Overlay (Scrim) — closes on Escape or backdrop click -->
   <div

@@ -14,6 +14,7 @@ export class Landing implements OnInit {
   private supabaseService = inject(SupabaseService);
   public showLoginModal = signal<boolean>(false);
   public errorMsg = signal<string | null>(null);
+  public currentYear = new Date().getFullYear();
 
   ngOnInit() {
     // Check if there is an auth error in the URL (redirected back from failed Google OAuth)
