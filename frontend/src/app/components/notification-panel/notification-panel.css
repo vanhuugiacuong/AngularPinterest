@@ -1,0 +1,12 @@
+/* Smooth animations for the panel */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Tailwind classes are primarily handled by the template,
+   additional styles can be added here if needed for complex animations */
