@@ -25,6 +25,8 @@ model User {
   
   followers    Follow[]  @relation("UserFollowers")
   following    Follow[]  @relation("UserFollowing")
+  notifications     Notification[] @relation("UserNotifications")
+  sentNotifications Notification[] @relation("UserSentNotifications")
 }
 
 model Follow {
@@ -57,6 +59,7 @@ model Pin {
   boardPins       BoardPin[]
   likes           Like[]
   comments        Comment[]
+  notifications   Notification[]
 }
 
 model Board {
@@ -102,4 +105,19 @@ model Comment {
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   pin       Pin      @relation(fields: [pinId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  senderId  String?
+  pinId     String?
+  type      String
+  content   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  sender    User?    @relation("UserSentNotifications", fields: [senderId], references: [id], onDelete: SetNull)
+  pin       Pin?     @relation(fields: [pinId], references: [id], onDelete: SetNull)
 }
