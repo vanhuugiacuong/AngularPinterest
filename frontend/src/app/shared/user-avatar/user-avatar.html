@@ -1,0 +1,31 @@
+<div
+  class="uav-root relative inline-flex items-center justify-center shrink-0 rounded-full overflow-hidden select-none bg-surface-elevated"
+  [style.width.px]="size"
+  [style.height.px]="size"
+  [ngClass]="{ 'ring-1 ring-primary/30 ring-offset-2 ring-offset-bg': ring }"
+>
+  @if (src) {
+    <img
+      [src]="src"
+      [alt]="name ? 'Ảnh đại diện của ' + name : 'Ảnh đại diện'"
+      (load)="onImageLoad()"
+      (error)="onImageError()"
+      class="absolute inset-0 w-full h-full object-cover transition-opacity duration-200"
+      [class.opacity-0]="status() !== 'loaded'"
+    />
+  }
+
+  @if (status() === 'loading' && src) {
+    <div class="skeleton absolute inset-0" aria-hidden="true"></div>
+  }
+
+  @if (status() === 'error' || !src) {
+    <div
+      class="absolute inset-0 flex items-center justify-center bg-gradient-brand font-extrabold text-text leading-none"
+      [style.fontSize.px]="size * 0.4"
+      aria-hidden="true"
+    >
+      {{ initials() }}
+    </div>
+  }
+</div>

@@ -1,17 +1,74 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { AiGeneratorService } from '../ai-generator/ai-generator.service';
 
 @Injectable()
 export class PinsService {
+  private readonly clipServiceUrl = process.env.CLIP_SERVICE_URL || 'http://localhost:8001';
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly supabaseService: SupabaseService,
     private readonly aiGeneratorService: AiGeneratorService,
   ) {}
 
-  async getAllPins(page: number = 1, limit: number = 20, userId?: string, seed?: string) {
+  private async getImageEmbedding(buffer: Buffer, filename: string, mimetype: string): Promise<number[] | null> {
+    try {
+      const formData = new FormData();
+      const blob = new Blob([new Uint8Array(buffer)], { type: mimetype });
+      formData.append('file', blob, filename);
+
+      const response = await fetch(`${this.clipServiceUrl}/embed/image`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`CLIP image embedding failed: ${response.statusText} - ${errorText}`);
+        return null;
+      }
+
+      const result = await response.json();
+      return result.embedding;
+    } catch (error) {
+      console.error('CLIP image embedding network error:', error);
+      return null;
+    }
+  }
+
+  private async getTextEmbedding(query: string): Promise<number[] | null> {
+    try {
+      const response = await fetch(
+        `${this.clipServiceUrl}/embed/text?query=${encodeURIComponent(query)}`
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`CLIP text embedding failed: ${response.statusText} - ${errorText}`);
+        return null;
+      }
+
+      const result = await response.json();
+      return result.embedding;
+    } catch (error) {
+      console.error('CLIP text embedding network error:', error);
+      return null;
+    }
+  }
+
+  async getAllPins(
+    page: number = 1,
+    limit: number = 20,
+    userId?: string,
+    seed?: string,
+  ) {
     const skip = (page - 1) * limit;
 
     // 1. Fetch all pins with user and like counts
@@ -21,8 +78,8 @@ export class PinsService {
           select: { id: true, username: true, avatarUrl: true },
         },
         _count: {
-          select: { likes: true }
-        }
+          select: { likes: true },
+        },
       },
     });
 
@@ -32,25 +89,28 @@ export class PinsService {
       try {
         const likes = await this.prisma.like.findMany({
           where: { userId },
-          include: { pin: { select: { category: true } } }
+          include: { pin: { select: { category: true } } },
         });
         const boardPins = await this.prisma.boardPin.findMany({
           where: { board: { userId } },
-          include: { pin: { select: { category: true } } }
+          include: { pin: { select: { category: true } } },
         });
         const categories = [
-          ...likes.map(l => l.pin?.category),
-          ...boardPins.map(b => b.pin?.category)
+          ...likes.map((l) => l.pin?.category),
+          ...boardPins.map((b) => b.pin?.category),
         ].filter(Boolean);
 
-        const counts = categories.reduce((acc, cat) => {
-          acc[cat] = (acc[cat] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
+        const counts = categories.reduce(
+          (acc, cat) => {
+            acc[cat] = (acc[cat] || 0) + 1;
+            return acc;
+          },
+          {} as Record<string, number>,
+        );
 
         preferredCategories = Object.entries(counts)
           .sort((a, b) => b[1] - a[1])
-          .map(e => e[0]);
+          .map((e) => e[0]);
       } catch (err) {
         console.error('Error fetching preferred categories:', err);
       }
@@ -58,7 +118,7 @@ export class PinsService {
 
     // 3. Sort pins using a score combining preferences, recency, and seeded random noise
     const noiseSeed = seed || 'default-seed';
-    const pinsWithScores = pins.map(pin => {
+    const pinsWithScores = pins.map((pin) => {
       let score = 0;
 
       // Category preference score
@@ -71,7 +131,8 @@ export class PinsService {
       }
 
       // Recency score (newer pins get a boost, up to 96 points for pins under 48 hours old)
-      const ageInHours = (Date.now() - new Date(pin.createdAt).getTime()) / (1000 * 60 * 60);
+      const ageInHours =
+        (Date.now() - new Date(pin.createdAt).getTime()) / (1000 * 60 * 60);
       if (ageInHours < 48) {
         score += (48 - ageInHours) * 2;
       }
@@ -85,7 +146,7 @@ export class PinsService {
     });
 
     pinsWithScores.sort((a, b) => b.score - a.score);
-    const sortedPins = pinsWithScores.map(item => item.pin);
+    const sortedPins = pinsWithScores.map((item) => item.pin);
 
     // 4. Return paginated slice
     return sortedPins.slice(skip, skip + limit);
@@ -100,38 +161,49 @@ export class PinsService {
     return this.prisma.pin.findMany({
       where: {
         category: pin.category,
-        id: { not: id }
+        id: { not: id },
       },
       skip,
       take: limit,
       orderBy: { createdAt: 'desc' },
       include: {
         user: { select: { id: true, username: true, avatarUrl: true } },
-        _count: { select: { likes: true } }
-      }
+        _count: { select: { likes: true } },
+      },
     });
   }
 
-  async getPinById(id: string) {
+  async getPinById(id: string, viewerId?: string) {
     const pin = await this.prisma.pin.findUnique({
       where: { id },
       include: {
         user: {
           select: { id: true, username: true, avatarUrl: true, bio: true },
         },
-        likes: true,
+        likes: {
+          where: { userId: viewerId || '__anonymous__' },
+          select: { userId: true },
+          take: 1,
+        },
+        _count: { select: { likes: true, comments: true } },
         comments: {
           include: {
-            user: { select: { id: true, username: true, avatarUrl: true } }
+            user: { select: { id: true, username: true, avatarUrl: true } },
           },
-          orderBy: { createdAt: 'asc' }
-        }
+          orderBy: { createdAt: 'asc' },
+        },
       },
     });
     if (!pin) {
       throw new NotFoundException('Pin not found');
     }
-    return pin;
+    const { likes, _count, ...safePin } = pin;
+    return {
+      ...safePin,
+      _count,
+      likeCount: _count.likes,
+      isLiked: likes.length > 0,
+    };
   }
 
   async createUploadPin(
@@ -141,11 +213,28 @@ export class PinsService {
     description?: string,
     boardId?: string,
   ) {
+    if (boardId) {
+      await this.assertOwnedBoard(boardId, userId);
+    }
+
     const extension = file.originalname.split('.').pop() || 'png';
     const filename = `${userId}/pin_${Date.now()}_${Math.floor(Math.random() * 1000)}.${extension}`;
-    const imageUrl = await this.supabaseService.uploadImage('pins', filename, file.buffer, file.mimetype);
+    const imageUrl = await this.supabaseService.uploadImage(
+      'pins',
+      filename,
+      file.buffer,
+      file.mimetype,
+    );
 
     const category = this.classifyCategory(title, description);
+
+    // 1. Fetch CLIP embedding (gracefully handled)
+    let embedding: number[] | null = null;
+    try {
+      embedding = await this.getImageEmbedding(file.buffer, file.originalname, file.mimetype);
+    } catch (e) {
+      console.error('Error fetching CLIP embedding for uploaded pin:', e);
+    }
 
     const pin = await this.prisma.pin.create({
       data: {
@@ -154,16 +243,26 @@ export class PinsService {
         imageUrl,
         userId,
         category,
+        boardPins: boardId
+          ? {
+              create: { boardId },
+            }
+          : undefined,
       },
     });
 
-    if (boardId) {
-      await this.prisma.boardPin.create({
-        data: {
-          boardId,
-          pinId: pin.id,
-        },
-      });
+    // 2. If embedding exists, store it using Raw SQL
+    if (embedding) {
+      try {
+        await this.prisma.$executeRawUnsafe(
+          'UPDATE "Pin" SET "embedding" = $1::vector WHERE "id" = $2',
+          JSON.stringify(embedding),
+          pin.id
+        );
+        console.log(`Successfully stored vector embedding for Pin: ${pin.id}`);
+      } catch (err) {
+        console.error(`Failed to store vector embedding for Pin: ${pin.id}`, err);
+      }
     }
 
     return pin;
@@ -179,12 +278,33 @@ export class PinsService {
     negativePrompt?: string,
     generationModel?: string,
   ) {
+    if (boardId) {
+      await this.assertOwnedBoard(boardId, userId);
+    }
+
     // 1. Download image from temporary url and upload to permanent pins bucket
-    const imageUrl = await this.aiGeneratorService.saveAiImageToStorage(previewUrl, userId);
+    const imageUrl = await this.aiGeneratorService.saveAiImageToStorage(
+      previewUrl,
+      userId,
+    );
 
     const category = this.classifyCategory(title, description);
 
-    // 2. Save to database
+    // 2. Fetch embedding for AI generated image (gracefully handled)
+    let embedding: number[] | null = null;
+    try {
+      const response = await fetch(imageUrl);
+      if (response.ok) {
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const contentType = response.headers.get('Content-Type') || 'image/png';
+        embedding = await this.getImageEmbedding(buffer, 'ai_pin.png', contentType);
+      }
+    } catch (e) {
+      console.error('Error fetching CLIP embedding for AI pin:', e);
+    }
+
+    // 3. Save to database
     const pin = await this.prisma.pin.create({
       data: {
         title,
@@ -196,17 +316,26 @@ export class PinsService {
         negativePrompt,
         generationModel,
         category,
+        boardPins: boardId
+          ? {
+              create: { boardId },
+            }
+          : undefined,
       },
     });
 
-    // 3. Connect to board if provided
-    if (boardId) {
-      await this.prisma.boardPin.create({
-        data: {
-          boardId,
-          pinId: pin.id,
-        },
-      });
+    // 4. If embedding exists, store it using Raw SQL
+    if (embedding) {
+      try {
+        await this.prisma.$executeRawUnsafe(
+          'UPDATE "Pin" SET "embedding" = $1::vector WHERE "id" = $2',
+          JSON.stringify(embedding),
+          pin.id
+        );
+        console.log(`Successfully stored vector embedding for AI Pin: ${pin.id}`);
+      } catch (err) {
+        console.error(`Failed to store vector embedding for AI Pin: ${pin.id}`, err);
+      }
     }
 
     return pin;
@@ -218,7 +347,9 @@ export class PinsService {
       throw new NotFoundException('Pin not found');
     }
     if (pin.userId !== userId) {
-      throw new ForbiddenException('You do not have permission to delete this pin');
+      throw new ForbiddenException(
+        'You do not have permission to delete this pin',
+      );
     }
 
     await this.prisma.pin.delete({ where: { id } });
@@ -226,6 +357,14 @@ export class PinsService {
   }
 
   async toggleLike(pinId: string, userId: string) {
+    const pin = await this.prisma.pin.findUnique({
+      where: { id: pinId },
+      select: { id: true },
+    });
+    if (!pin) {
+      throw new NotFoundException('Pin not found');
+    }
+
     const existingLike = await this.prisma.like.findUnique({
       where: {
         userId_pinId: { userId, pinId },
@@ -238,7 +377,8 @@ export class PinsService {
           userId_pinId: { userId, pinId },
         },
       });
-      return { liked: false };
+      const likeCount = await this.prisma.like.count({ where: { pinId } });
+      return { liked: false, likeCount };
     } else {
       await this.prisma.like.create({
         data: {
@@ -246,7 +386,8 @@ export class PinsService {
           pinId,
         },
       });
-      return { liked: true };
+      const likeCount = await this.prisma.like.count({ where: { pinId } });
+      return { liked: true, likeCount };
     }
   }
 
@@ -265,8 +406,8 @@ export class PinsService {
         userId,
       },
       include: {
-        user: { select: { id: true, username: true, avatarUrl: true } }
-      }
+        user: { select: { id: true, username: true, avatarUrl: true } },
+      },
     });
   }
 
@@ -274,34 +415,167 @@ export class PinsService {
     const text = `${title} ${description || ''}`.toLowerCase();
 
     // 1. Meme / Animals / Pet Memes
-    const memeKeywords = ['meme', 'chế', 'hài hước', 'funny', 'chó', 'cún', 'dog', 'puppy', 'mèo', 'cat', 'kitten', 'boss mèo', 'pet', 'thú cưng', 'ngáo', 'corgi', 'husky', 'pug', 'sóc', 'heo con', 'hamster', 'alpaca', 'lạc đà'];
-    if (memeKeywords.some(kw => text.includes(kw))) return 'meme';
+    const memeKeywords = [
+      'meme',
+      'chế',
+      'hài hước',
+      'funny',
+      'chó',
+      'cún',
+      'dog',
+      'puppy',
+      'mèo',
+      'cat',
+      'kitten',
+      'boss mèo',
+      'pet',
+      'thú cưng',
+      'ngáo',
+      'corgi',
+      'husky',
+      'pug',
+      'sóc',
+      'heo con',
+      'hamster',
+      'alpaca',
+      'lạc đà',
+    ];
+    if (memeKeywords.some((kw) => text.includes(kw))) return 'meme';
 
     // 2. K-Pop / Idol / Stage
-    const kpopKeywords = ['kpop', 'k-pop', 'idol', 'stage', 'sân khấu', 'biểu diễn', 'vũ đạo', 'concert', 'lightstick', 'album', 'blackpink', 'bts', 'twice', 'nữ thần', 'nam thần', 'visual', 'seoul', 'k-fashion'];
-    if (kpopKeywords.some(kw => text.includes(kw))) return 'kpop';
+    const kpopKeywords = [
+      'kpop',
+      'k-pop',
+      'idol',
+      'stage',
+      'sân khấu',
+      'biểu diễn',
+      'vũ đạo',
+      'concert',
+      'lightstick',
+      'album',
+      'blackpink',
+      'bts',
+      'twice',
+      'nữ thần',
+      'nam thần',
+      'visual',
+      'seoul',
+      'k-fashion',
+    ];
+    if (kpopKeywords.some((kw) => text.includes(kw))) return 'kpop';
 
     // 3. Drawing / Art / Sketch
-    const drawingKeywords = ['vẽ', 'drawing', 'art', 'sketch', 'ký họa', 'phác thảo', 'tranh', 'sơn dầu', 'acrylic', 'vải canvas', 'canvas', 'chì', 'than chì', 'charcoal', 'màu nước', 'cọ vẽ', 'bảng vẽ', 'hội họa', 'tác phẩm', 'studio', 'nét vẽ'];
-    if (drawingKeywords.some(kw => text.includes(kw))) return 'drawing';
+    const drawingKeywords = [
+      'vẽ',
+      'drawing',
+      'art',
+      'sketch',
+      'ký họa',
+      'phác thảo',
+      'tranh',
+      'sơn dầu',
+      'acrylic',
+      'vải canvas',
+      'canvas',
+      'chì',
+      'than chì',
+      'charcoal',
+      'màu nước',
+      'cọ vẽ',
+      'bảng vẽ',
+      'hội họa',
+      'tác phẩm',
+      'studio',
+      'nét vẽ',
+    ];
+    if (drawingKeywords.some((kw) => text.includes(kw))) return 'drawing';
 
     // 4. Anime / Manga / Cyberpunk
-    const animeKeywords = ['anime', 'manga', 'tokyo', 'cyberpunk', 'synthwave', 'hacker', 'led rgb', 'game', 'gaming', 'wacom', 'hộp băng', 'tay cầm', 'hạ độ', 'phim hoạt hình', 'nhân vật hoạt hình'];
-    if (animeKeywords.some(kw => text.includes(kw))) return 'anime';
+    const animeKeywords = [
+      'anime',
+      'manga',
+      'tokyo',
+      'cyberpunk',
+      'synthwave',
+      'hacker',
+      'led rgb',
+      'game',
+      'gaming',
+      'wacom',
+      'hộp băng',
+      'tay cầm',
+      'hạ độ',
+      'phim hoạt hình',
+      'nhân vật hoạt hình',
+    ];
+    if (animeKeywords.some((kw) => text.includes(kw))) return 'anime';
 
     // 5. Nature / Landscape
-    const natureKeywords = ['thiên nhiên', 'nature', 'phong cảnh', 'landscape', 'bầu trời', 'hoàng hôn', 'sunset', 'biển', 'beach', 'rừng', 'forest', 'cây', 'tree', 'lá phong', 'hoa', 'flower'];
-    if (natureKeywords.some(kw => text.includes(kw))) return 'nature';
+    const natureKeywords = [
+      'thiên nhiên',
+      'nature',
+      'phong cảnh',
+      'landscape',
+      'bầu trời',
+      'hoàng hôn',
+      'sunset',
+      'biển',
+      'beach',
+      'rừng',
+      'forest',
+      'cây',
+      'tree',
+      'lá phong',
+      'hoa',
+      'flower',
+    ];
+    if (natureKeywords.some((kw) => text.includes(kw))) return 'nature';
 
     // 6. Food / Cooking
-    const foodKeywords = ['ramen', 'món ăn', 'nấu ăn', 'food', 'cooking', 'ẩm thực', 'ăn uống', 'quán ăn', 'bánh', 'cà phê', 'coffee'];
-    if (foodKeywords.some(kw => text.includes(kw))) return 'food';
+    const foodKeywords = [
+      'ramen',
+      'món ăn',
+      'nấu ăn',
+      'food',
+      'cooking',
+      'ẩm thực',
+      'ăn uống',
+      'quán ăn',
+      'bánh',
+      'cà phê',
+      'coffee',
+    ];
+    if (foodKeywords.some((kw) => text.includes(kw))) return 'food';
 
     // 7. Fashion
-    const fashionKeywords = ['thời trang', 'fashion', 'outfit', 'streetwear', 'trang phục', 'makeup', 'lookbook', 'phong cách', 'áo'];
-    if (fashionKeywords.some(kw => text.includes(kw))) return 'fashion';
+    const fashionKeywords = [
+      'thời trang',
+      'fashion',
+      'outfit',
+      'streetwear',
+      'trang phục',
+      'makeup',
+      'lookbook',
+      'phong cách',
+      'áo',
+    ];
+    if (fashionKeywords.some((kw) => text.includes(kw))) return 'fashion';
 
     return 'other';
+  }
+
+  private async assertOwnedBoard(boardId: string, userId: string) {
+    const board = await this.prisma.board.findUnique({
+      where: { id: boardId },
+      select: { userId: true },
+    });
+    if (!board) {
+      throw new NotFoundException('Board not found');
+    }
+    if (board.userId !== userId) {
+      throw new ForbiddenException('You do not own this board');
+    }
   }
 
   private getPinNoise(pinId: string, seed: string): number {
@@ -312,5 +586,151 @@ export class PinsService {
       hash |= 0; // Convert to 32bit integer
     }
     return Math.abs(hash % 1000) / 1000;
+  }
+
+  async searchPins(query: string, page: number = 1, limit: number = 20) {
+    const skip = (page - 1) * limit;
+
+    // 1. Get text embedding from CLIP service
+    const embedding = await this.getTextEmbedding(query);
+    if (!embedding) {
+      // Fallback: simple text keyword contains query
+      return this.prisma.pin.findMany({
+        where: {
+          OR: [
+            { title: { contains: query, mode: 'insensitive' } },
+            { description: { contains: query, mode: 'insensitive' } },
+          ],
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: { select: { id: true, username: true, avatarUrl: true } },
+          _count: { select: { likes: true } }
+        }
+      });
+    }
+
+    // 2. Query pgvector using Raw SQL for cosine similarity
+    const vectorString = JSON.stringify(embedding);
+    const queryLimit = limit * 2;
+    const pins: any[] = await this.prisma.$queryRawUnsafe(`
+      SELECT 
+        p.id, p.title, p.description, p."imageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
+        u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl",
+        COUNT(l."pinId")::int AS "likesCount",
+        1 - (p.embedding <=> $1::vector) AS similarity
+      FROM "Pin" p
+      LEFT JOIN "User" u ON p."userId" = u.id
+      LEFT JOIN "Like" l ON p.id = l."pinId"
+      WHERE p.embedding IS NOT NULL
+      GROUP BY p.id, u.username, u."avatarUrl"
+      ORDER BY p.embedding <=> $1::vector
+      LIMIT $2 OFFSET $3
+    `, vectorString, queryLimit, skip);
+
+    const seenUrls = new Set<string>();
+    const uniquePins: any[] = [];
+    for (const p of pins) {
+      if (!seenUrls.has(p.imageUrl)) {
+        seenUrls.add(p.imageUrl);
+        uniquePins.push(p);
+      }
+    }
+
+    return uniquePins.slice(0, limit).map(p => ({
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      imageUrl: p.imageUrl,
+      sourceUrl: p.sourceUrl,
+      userId: p.userId,
+      createdAt: p.createdAt,
+      isAiGenerated: p.isAiGenerated,
+      category: p.category,
+      user: {
+        id: p.userId,
+        username: p.authorUsername || 'Pinterest AI',
+        avatarUrl: p.authorAvatarUrl,
+      },
+      _count: {
+        likes: p.likesCount || 0
+      },
+      similarity: p.similarity
+    }));
+  }
+
+  async getSimilarPins(pinId: string, page: number = 1, limit: number = 20) {
+    const skip = (page - 1) * limit;
+
+    const pin = await this.prisma.pin.findUnique({ where: { id: pinId } });
+    if (!pin) {
+      throw new NotFoundException('Pin not found');
+    }
+
+    // Check if this pin has an embedding
+    const rawPinArr: any[] = await this.prisma.$queryRawUnsafe(
+      'SELECT embedding FROM "Pin" WHERE id = $1',
+      pinId
+    );
+    const hasEmbedding = rawPinArr.length > 0 && rawPinArr[0].embedding !== null;
+
+    if (!hasEmbedding) {
+      // Fallback: category-based similar pins
+      return this.getRelatedPins(pinId, page, limit);
+    }
+
+    const embeddingString = rawPinArr[0].embedding;
+    const queryLimit = limit * 2;
+
+    // Query pgvector using Raw SQL for cosine similarity relative to this pin's embedding
+    const pins: any[] = await this.prisma.$queryRawUnsafe(`
+      SELECT 
+        p.id, p.title, p.description, p."imageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
+        u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl",
+        COUNT(l."pinId")::int AS "likesCount",
+        1 - (p.embedding <=> $1::vector) AS similarity
+      FROM "Pin" p
+      LEFT JOIN "User" u ON p."userId" = u.id
+      LEFT JOIN "Like" l ON p.id = l."pinId"
+      WHERE p.id != $2 AND p.embedding IS NOT NULL
+      GROUP BY p.id, u.username, u."avatarUrl"
+      ORDER BY p.embedding <=> $1::vector
+      LIMIT $3 OFFSET $4
+    `, embeddingString, pinId, queryLimit, skip);
+
+    const seenUrls = new Set<string>();
+    // Exclude the current pin's image from similar results
+    seenUrls.add(pin.imageUrl);
+
+    const uniquePins: any[] = [];
+    for (const p of pins) {
+      if (!seenUrls.has(p.imageUrl)) {
+        seenUrls.add(p.imageUrl);
+        uniquePins.push(p);
+      }
+    }
+
+    return uniquePins.slice(0, limit).map(p => ({
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      imageUrl: p.imageUrl,
+      sourceUrl: p.sourceUrl,
+      userId: p.userId,
+      createdAt: p.createdAt,
+      isAiGenerated: p.isAiGenerated,
+      category: p.category,
+      user: {
+        id: p.userId,
+        username: p.authorUsername || 'Pinterest AI',
+        avatarUrl: p.authorAvatarUrl,
+      },
+      _count: {
+        likes: p.likesCount || 0
+      },
+      similarity: p.similarity
+    }));
   }
 }

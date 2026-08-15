@@ -1,47 +1,35 @@
-import { Injectable, ExecutionContext } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { Request } from 'express';
+import { UserPayload } from './current-user.decorator';
+import { SupabaseService } from './supabase.service';
+
+interface AuthenticatedRequest extends Request {
+  user?: UserPayload;
+}
 
 @Injectable()
-export class SupabaseAuthGuard extends AuthGuard('supabase') {
-  override async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const authHeader = request.headers['authorization'];
-    
-    if (authHeader === 'Bearer mock-token') {
-      request.user = {
-        id: 'mock-user-id-12345',
-        email: 'developer@example.com',
-        role: 'authenticated'
-      };
-      return true;
+export class SupabaseAuthGuard implements CanActivate {
+  constructor(private readonly supabaseService: SupabaseService) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    const authHeader = request.headers.authorization;
+
+    if (!authHeader?.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Authentication is required');
     }
 
-    try {
-      const result = await super.canActivate(context);
-      if (result) return true;
-    } catch (err) {
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.split(' ')[1];
-        try {
-          const payloadBase64 = token.split('.')[1];
-          if (payloadBase64) {
-            const decodedPayload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf8'));
-            if (decodedPayload && decodedPayload.sub && decodedPayload.email) {
-              console.log('[Dev Auth Fallback] Decoded JWT payload without signature verification:', decodedPayload.email);
-              request.user = {
-                id: decodedPayload.sub,
-                email: decodedPayload.email,
-                role: decodedPayload.role || 'authenticated'
-              };
-              return true;
-            }
-          }
-        } catch (decodeErr) {
-          console.error('[Dev Auth Fallback] Failed to manually decode token:', decodeErr);
-        }
-      }
+    const token = authHeader.slice('Bearer '.length).trim();
+    if (!token) {
+      throw new UnauthorizedException('Authentication is required');
     }
-    
-    return false;
+
+    request.user = await this.supabaseService.verifyAccessToken(token);
+    return true;
   }
 }

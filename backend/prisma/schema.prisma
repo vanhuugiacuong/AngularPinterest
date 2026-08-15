@@ -52,6 +52,7 @@ model Pin {
   negativePrompt  String?
   generationModel String?
   category        String      @default("other")
+  embedding       Unsupported("vector(512)")?
 
   user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   boardPins       BoardPin[]
