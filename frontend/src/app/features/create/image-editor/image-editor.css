@@ -1,0 +1,21 @@
+/* Component-specific styles for ImageEditor */
+
+.ie-root {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+/* Tools sit LEFT of the canvas at desktop widths — an instrument panel next
+   to a focal-point stage, and the whole studio scrolls as one page (no
+   internal scrollbar trapped inside the tool column). */
+@media (min-width: 900px) {
+  .ie-root {
+    grid-template-columns: 300px minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.ie-stage {
+  touch-action: none;
+}

@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SupabaseService } from '../../core/services/supabase';
 import { Navbar } from '../../components/navbar/navbar';
@@ -14,6 +14,7 @@ export class Landing implements OnInit {
   private supabaseService = inject(SupabaseService);
   public showLoginModal = signal<boolean>(false);
   public errorMsg = signal<string | null>(null);
+  public currentYear = new Date().getFullYear();
 
   ngOnInit() {
     // Check if there is an auth error in the URL (redirected back from failed Google OAuth)
@@ -39,6 +40,13 @@ export class Landing implements OnInit {
   closeLoginModal() {
     this.showLoginModal.set(false);
     this.errorMsg.set(null);
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey() {
+    if (this.showLoginModal()) {
+      this.closeLoginModal();
+    }
   }
 
   async login() {
