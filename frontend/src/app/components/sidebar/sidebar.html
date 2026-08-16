@@ -1,0 +1,184 @@
+<!-- Left-edge hover trigger zone (desktop/hover-capable pointers only) -->
+<div
+  *ngIf="sidebarState.supportsHover"
+  (mouseenter)="onZoneEnter()"
+  (mouseleave)="onZoneLeave()"
+  class="fixed left-0 top-16 z-30 h-[calc(100vh-4rem)] w-3"
+  aria-hidden="true"
+></div>
+
+<!-- Sliding icon-rail panel — an "instrument rail" with a hairline edge instead of a glass slab -->
+<nav
+  id="app-sidebar-panel"
+  role="navigation"
+  aria-label="Điều hướng chính"
+  [attr.inert]="sidebarState.isOpen() ? null : ''"
+  (mouseenter)="onZoneEnter()"
+  (mouseleave)="onZoneLeave()"
+  (focusin)="onZoneEnter()"
+  (focusout)="onZoneLeave()"
+  [class.translate-x-0]="sidebarState.isOpen()"
+  [class.-translate-x-full]="!sidebarState.isOpen()"
+  class="nf-rail bg-surface fixed left-0 top-16 z-40 flex h-[calc(100vh-4rem)] w-[84px] flex-col items-center justify-between overflow-visible border-r border-border py-4 shadow-card transition-transform duration-[250ms] ease-out select-none"
+>
+  <!-- Top: Brand + Navigation Icons -->
+  <div class="flex w-full flex-col items-center gap-3">
+    <!-- Brand mark -->
+    <div class="relative group">
+      <button
+        type="button"
+        (click)="navigateHome()"
+        class="flex h-11 w-11 items-center justify-center rounded-frame-alt bg-gradient-brand text-text shadow-glow transition-transform duration-300 ease-spring active:scale-95 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
+        aria-label="NovaFrame — về trang chủ"
+      >
+        <img src="/logo-mark.png" alt="NovaFrame" class="h-6 w-6 object-contain" />
+      </button>
+      <span
+        role="tooltip"
+        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control mono-label bg-surface-high border border-border-strong px-2.5 py-1.5 text-[11px] uppercase text-text opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+      >
+        NovaFrame
+      </span>
+    </div>
+
+    <div class="h-px w-8 bg-border"></div>
+
+    <!-- Home -->
+    <div class="relative group w-full flex justify-center">
+      <span
+        *ngIf="isFeedPage()"
+        class="nf-active-tick absolute left-1.5 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-gradient-brand"
+        aria-hidden="true"
+      ></span>
+      <button
+        type="button"
+        (click)="navigateHome()"
+        [class.bg-surface-elevated]="isFeedPage()"
+        [class.rounded-frame-alt]="isFeedPage()"
+        [class.text-accent]="isFeedPage()"
+        [class.text-text-muted]="!isFeedPage()"
+        class="flex h-11 w-11 items-center justify-center rounded-control transition-all duration-300 ease-spring hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
+        aria-label="Trang chủ"
+        [attr.aria-current]="isFeedPage() ? 'page' : null"
+      >
+        <span class="material-symbols-outlined text-xl" [class.font-bold]="isFeedPage()">home</span>
+      </button>
+      <span
+        role="tooltip"
+        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control mono-label bg-surface-high border border-border-strong px-2.5 py-1.5 text-[11px] uppercase text-text opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+      >
+        Trang chủ
+      </span>
+    </div>
+
+    <!-- Explore — not wired to a route yet; visually muted and non-interactive
+         (no hover fill/shape-change) so it never reads as a working control,
+         with "Sắp ra mắt" surfaced in its tooltip instead of a fake click target. -->
+    <div class="relative group w-full flex justify-center">
+      <div
+        class="flex h-11 w-11 items-center justify-center rounded-control text-text-muted/50 cursor-default"
+        aria-disabled="true"
+      >
+        <span class="material-symbols-outlined text-xl">explore</span>
+      </div>
+      <span
+        role="tooltip"
+        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control mono-label bg-surface-high border border-border-strong px-2.5 py-1.5 text-[11px] uppercase text-text-muted opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100"
+      >
+        Khám phá · Sắp ra mắt
+      </span>
+    </div>
+
+    <!-- Create -->
+    <div class="relative group w-full flex justify-center">
+      <span
+        *ngIf="isCreatePage()"
+        class="nf-active-tick absolute left-1.5 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-gradient-brand"
+        aria-hidden="true"
+      ></span>
+      <button
+        type="button"
+        (click)="navigateToCreate()"
+        [class.bg-surface-elevated]="isCreatePage()"
+        [class.rounded-frame-alt]="isCreatePage()"
+        [class.text-accent]="isCreatePage()"
+        [class.text-text-muted]="!isCreatePage()"
+        class="flex h-11 w-11 items-center justify-center rounded-control transition-all duration-300 ease-spring hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
+        aria-label="Tạo mới"
+        [attr.aria-current]="isCreatePage() ? 'page' : null"
+      >
+        <span class="material-symbols-outlined text-xl" [class.font-bold]="isCreatePage()">add</span>
+      </button>
+      <span
+        role="tooltip"
+        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control mono-label bg-surface-high border border-border-strong px-2.5 py-1.5 text-[11px] uppercase text-text opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+      >
+        Tạo
+      </span>
+    </div>
+
+    <!-- Notifications — not wired yet; same muted, non-interactive treatment as Explore. -->
+    <div class="relative group w-full flex justify-center">
+      <div
+        class="flex h-11 w-11 items-center justify-center rounded-control text-text-muted/50 cursor-default"
+        aria-disabled="true"
+      >
+        <span class="material-symbols-outlined text-xl">notifications</span>
+      </div>
+      <span
+        role="tooltip"
+        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control mono-label bg-surface-high border border-border-strong px-2.5 py-1.5 text-[11px] uppercase text-text-muted opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100"
+      >
+        Thông báo · Sắp ra mắt
+      </span>
+    </div>
+
+    <!-- Messages — not wired yet; same muted, non-interactive treatment as Explore. -->
+    <div class="relative group w-full flex justify-center">
+      <div
+        class="flex h-11 w-11 items-center justify-center rounded-control text-text-muted/50 cursor-default"
+        aria-disabled="true"
+      >
+        <span class="material-symbols-outlined text-xl">sms</span>
+      </div>
+      <span
+        role="tooltip"
+        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control mono-label bg-surface-high border border-border-strong px-2.5 py-1.5 text-[11px] uppercase text-text-muted opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100"
+      >
+        Tin nhắn · Sắp ra mắt
+      </span>
+    </div>
+  </div>
+
+  <!-- Bottom: Settings — not wired yet; same muted, non-interactive treatment as Explore. -->
+  <div class="relative group w-full flex justify-center">
+    <div
+      class="flex h-11 w-11 items-center justify-center rounded-control text-text-muted/50 cursor-default"
+      aria-disabled="true"
+    >
+      <span class="material-symbols-outlined text-xl">settings</span>
+    </div>
+    <span
+      role="tooltip"
+      class="nf-tooltip pointer-events-none absolute left-full bottom-1/2 z-50 ml-2 translate-y-1/2 whitespace-nowrap rounded-control mono-label bg-surface-high border border-border-strong px-2.5 py-1.5 text-[11px] uppercase text-text-muted opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100"
+    >
+      Cài đặt · Sắp ra mắt
+    </span>
+  </div>
+</nav>
+
+<!-- Focus backdrop: dims + blurs content behind the sidebar while it is open.
+     Always rendered (never *ngIf) so opacity transitions play on both open AND
+     close, staying in sync with the nav's translate-x slide. Click closes the
+     sidebar; pointer-events are disabled while closed so it never intercepts
+     clicks/hover on the trigger zone or main content. Covers both hover-open
+     (desktop) and click/tap-open (mobile) — same isOpen() source of truth. -->
+<div
+  (click)="sidebarState.close()"
+  [class.opacity-100]="sidebarState.isOpen()"
+  [class.opacity-0]="!sidebarState.isOpen()"
+  [class.pointer-events-auto]="sidebarState.isOpen()"
+  [class.pointer-events-none]="!sidebarState.isOpen()"
+  class="nf-sidebar-backdrop fixed inset-x-0 top-16 bottom-0 z-30"
+  aria-hidden="true"
+></div>

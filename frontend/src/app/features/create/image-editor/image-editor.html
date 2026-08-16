@@ -1,0 +1,405 @@
+<div class="ie-root">
+  <!-- TOOLS — sits left of the canvas; flows with the page (no nested scrollbar) -->
+  <div class="ie-tools flex flex-col gap-4 min-w-0">
+    <!-- History toolbar -->
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        (click)="undo()"
+        [disabled]="!canUndo()"
+        class="flex-1 h-10 rounded-control bg-surface border border-border hover:border-border-strong disabled:opacity-35 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 text-xs font-bold text-text cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        aria-label="Hoàn tác"
+      >
+        <span class="material-symbols-outlined text-base leading-none">undo</span>
+        Undo
+      </button>
+      <button
+        type="button"
+        (click)="redo()"
+        [disabled]="!canRedo()"
+        class="flex-1 h-10 rounded-control bg-surface border border-border hover:border-border-strong disabled:opacity-35 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 text-xs font-bold text-text cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        aria-label="Làm lại"
+      >
+        <span class="material-symbols-outlined text-base leading-none">redo</span>
+        Redo
+      </button>
+      <button
+        type="button"
+        (click)="resetAll()"
+        class="h-10 px-3 rounded-control bg-surface border border-border hover:border-error/50 hover:text-error flex items-center justify-center text-text-muted cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        title="Đặt lại toàn bộ chỉnh sửa"
+        aria-label="Đặt lại toàn bộ chỉnh sửa"
+      >
+        <span class="material-symbols-outlined text-base leading-none">restart_alt</span>
+      </button>
+    </div>
+
+    <!-- Tab switch -->
+    <div class="inline-flex items-center gap-1 p-1 rounded-control bg-surface-elevated select-none w-fit" role="tablist" aria-label="Công cụ chỉnh sửa">
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="activeTool() === 'color'"
+        (click)="setActiveTool('color')"
+        [class.bg-surface-high]="activeTool() === 'color'"
+        [class.text-text]="activeTool() === 'color'"
+        [class.text-text-muted]="activeTool() !== 'color'"
+        class="h-9 px-4 rounded-control text-xs font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        Màu sắc
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="activeTool() === 'caption'"
+        (click)="setActiveTool('caption')"
+        [class.bg-surface-high]="activeTool() === 'caption'"
+        [class.text-text]="activeTool() === 'caption'"
+        [class.text-text-muted]="activeTool() !== 'caption'"
+        class="h-9 px-4 rounded-control text-xs font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        Caption
+      </button>
+    </div>
+
+    <!-- COLOR PANEL -->
+    @if (activeTool() === 'color') {
+      <div class="flex flex-col gap-4" role="tabpanel" aria-label="Công cụ chỉnh màu">
+        <!-- Presets -->
+        <div class="flex flex-wrap gap-1.5">
+          @for (preset of presets; track preset.label) {
+            <button
+              type="button"
+              (click)="applyPreset(preset)"
+              class="h-8 px-3 rounded-control bg-surface border border-border hover:border-primary/50 text-[11px] font-bold text-text-muted hover:text-text cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              {{ preset.label }}
+            </button>
+          }
+          <button
+            type="button"
+            (click)="resetColor()"
+            class="h-8 px-3 rounded-control bg-surface border border-border hover:border-error/50 hover:text-error text-[11px] font-bold text-text-muted cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            Reset màu
+          </button>
+        </div>
+
+        <!-- Slider groups — single-open accordion, so the panel never grows a nested scrollbar -->
+        <div class="flex flex-col gap-2">
+          @for (group of sliderGroups; track group.id) {
+            <div class="rounded-control border border-border overflow-hidden">
+              <button
+                type="button"
+                (click)="toggleGroup(group.id)"
+                [attr.aria-expanded]="expandedGroup() === group.id"
+                [attr.aria-controls]="'group-panel-' + group.id"
+                class="w-full h-11 px-3.5 flex items-center justify-between gap-2 bg-surface-elevated hover:bg-surface-high cursor-pointer transition-colors duration-200 border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <span class="flex items-center gap-2 text-xs font-bold text-text">
+                  <span class="material-symbols-outlined text-base leading-none text-text-muted">{{ group.icon }}</span>
+                  {{ group.label }}
+                  @if (groupChangeCount(group.keys) > 0) {
+                    <span class="mono-label text-[9px] uppercase text-accent bg-accent/10 rounded-control px-1.5 py-0.5">{{ groupChangeCount(group.keys) }} đã chỉnh</span>
+                  }
+                </span>
+                <span
+                  class="material-symbols-outlined text-lg leading-none text-text-muted transition-transform duration-200"
+                  [class.rotate-180]="expandedGroup() === group.id"
+                >expand_more</span>
+              </button>
+
+              @if (expandedGroup() === group.id) {
+                <div [id]="'group-panel-' + group.id" class="flex flex-col gap-3.5 p-3.5 pt-3 bg-surface">
+                  @for (key of group.keys; track key) {
+                    <app-range-control
+                      [label]="sliderByKey(key).label"
+                      [value]="adjustments()[key]"
+                      [min]="sliderByKey(key).min"
+                      [max]="sliderByKey(key).max"
+                      [step]="sliderByKey(key).step"
+                      [unit]="sliderByKey(key).unit"
+                      (liveChange)="setAdjustmentLive(key, $event)"
+                      (commit)="commitLiveChange()"
+                      (reset)="resetAdjustment(key)"
+                    ></app-range-control>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- CAPTION PANEL -->
+    @if (activeTool() === 'caption') {
+      <div class="flex flex-col gap-4" role="tabpanel" aria-label="Công cụ chèn caption">
+        <div class="flex items-center justify-between">
+          <label for="caption-enabled" class="text-xs font-bold text-text-muted">Hiển thị caption</label>
+          <button
+            type="button"
+            id="caption-enabled"
+            role="switch"
+            [attr.aria-checked]="caption().enabled"
+            (click)="setCaptionFieldInstant('enabled', !caption().enabled)"
+            [class.bg-gradient-brand]="caption().enabled"
+            [class.bg-surface]="!caption().enabled"
+            class="w-11 h-6 rounded-full relative border border-border-strong cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            <span
+              class="absolute top-0.5 h-4 w-4 rounded-full bg-text transition-all duration-200"
+              [class.left-[22px]]="caption().enabled"
+              [class.left-0.5]="!caption().enabled"
+            ></span>
+          </button>
+        </div>
+
+        @if (caption().enabled) {
+          <div class="flex flex-col gap-3.5">
+            <div class="flex flex-col gap-1.5">
+              <label for="caption-text" class="text-xs font-bold text-text-muted">Nội dung caption</label>
+              <textarea
+                id="caption-text"
+                rows="2"
+                [value]="caption().text"
+                (input)="setCaptionFieldLive('text', $any($event.target).value)"
+                (blur)="commitLiveChange()"
+                placeholder="Nhập caption của bạn..."
+                class="w-full bg-surface-elevated border border-border focus:border-accent outline-none rounded-control p-3 text-xs text-text placeholder-text-muted transition-all resize-none focus:ring-2 focus:ring-accent/40"
+              ></textarea>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+              <label for="caption-font" class="text-xs font-bold text-text-muted">Font chữ</label>
+              <select
+                id="caption-font"
+                [value]="caption().font"
+                (change)="setCaptionFieldInstant('font', $any($event.target).value)"
+                class="w-full bg-surface-elevated border border-border focus:border-accent outline-none rounded-control px-3 h-10 text-xs text-text transition-all focus:ring-2 focus:ring-accent/40"
+              >
+                @for (f of fonts; track f.value) {
+                  <option [value]="f.value">{{ f.label }}</option>
+                }
+              </select>
+            </div>
+
+            <app-range-control
+              label="Cỡ chữ"
+              [value]="caption().fontSize"
+              [min]="16"
+              [max]="96"
+              [step]="1"
+              [showReset]="false"
+              (liveChange)="setCaptionFieldLive('fontSize', $event)"
+              (commit)="commitLiveChange()"
+            ></app-range-control>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div class="flex flex-col gap-1.5">
+                <label for="caption-color" class="text-xs font-bold text-text-muted">Màu chữ</label>
+                <input
+                  id="caption-color"
+                  type="color"
+                  [value]="caption().color"
+                  (change)="setCaptionFieldInstant('color', $any($event.target).value)"
+                  class="w-full h-10 rounded-control border border-border bg-surface-elevated cursor-pointer"
+                />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-bold text-text-muted">Độ đậm</label>
+                <button
+                  type="button"
+                  role="switch"
+                  [attr.aria-checked]="caption().bold"
+                  (click)="setCaptionFieldInstant('bold', !caption().bold)"
+                  [class.bg-surface-high]="caption().bold"
+                  [class.text-accent]="caption().bold"
+                  class="h-10 rounded-control bg-surface-elevated border border-border text-text-muted font-black text-sm cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  B
+                </button>
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+              <span class="text-xs font-bold text-text-muted" id="caption-align-label">Căn chỉnh</span>
+              <div class="flex gap-1.5" role="group" aria-labelledby="caption-align-label">
+                <button
+                  type="button"
+                  (click)="setCaptionAlign('left')"
+                  [attr.aria-pressed]="caption().align === 'left'"
+                  [class.bg-surface-high]="caption().align === 'left'"
+                  [class.text-accent]="caption().align === 'left'"
+                  class="flex-1 h-10 rounded-control bg-surface-elevated border border-border text-text-muted cursor-pointer transition-colors duration-200 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  aria-label="Căn trái"
+                >
+                  <span class="material-symbols-outlined text-lg leading-none">format_align_left</span>
+                </button>
+                <button
+                  type="button"
+                  (click)="setCaptionAlign('center')"
+                  [attr.aria-pressed]="caption().align === 'center'"
+                  [class.bg-surface-high]="caption().align === 'center'"
+                  [class.text-accent]="caption().align === 'center'"
+                  class="flex-1 h-10 rounded-control bg-surface-elevated border border-border text-text-muted cursor-pointer transition-colors duration-200 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  aria-label="Căn giữa"
+                >
+                  <span class="material-symbols-outlined text-lg leading-none">format_align_center</span>
+                </button>
+                <button
+                  type="button"
+                  (click)="setCaptionAlign('right')"
+                  [attr.aria-pressed]="caption().align === 'right'"
+                  [class.bg-surface-high]="caption().align === 'right'"
+                  [class.text-accent]="caption().align === 'right'"
+                  class="flex-1 h-10 rounded-control bg-surface-elevated border border-border text-text-muted cursor-pointer transition-colors duration-200 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  aria-label="Căn phải"
+                >
+                  <span class="material-symbols-outlined text-lg leading-none">format_align_right</span>
+                </button>
+              </div>
+            </div>
+
+            <app-range-control
+              label="Độ trong suốt chữ"
+              unit="%"
+              [value]="caption().opacity"
+              [min]="10"
+              [max]="100"
+              [step]="1"
+              [showReset]="false"
+              (liveChange)="setCaptionFieldLive('opacity', $event)"
+              (commit)="commitLiveChange()"
+            ></app-range-control>
+
+            <div class="flex items-center justify-between">
+              <label for="caption-shadow" class="text-xs font-bold text-text-muted">Đổ bóng / viền chữ</label>
+              <button
+                type="button"
+                id="caption-shadow"
+                role="switch"
+                [attr.aria-checked]="caption().shadowEnabled"
+                (click)="setCaptionFieldInstant('shadowEnabled', !caption().shadowEnabled)"
+                [class.bg-gradient-brand]="caption().shadowEnabled"
+                [class.bg-surface]="!caption().shadowEnabled"
+                class="w-11 h-6 rounded-full relative border border-border-strong cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <span
+                  class="absolute top-0.5 h-4 w-4 rounded-full bg-text transition-all duration-200"
+                  [class.left-[22px]]="caption().shadowEnabled"
+                  [class.left-0.5]="!caption().shadowEnabled"
+                ></span>
+              </button>
+            </div>
+
+            <div class="flex items-center justify-between">
+              <label for="caption-bg-toggle" class="text-xs font-bold text-text-muted">Nền phía sau caption</label>
+              <button
+                type="button"
+                id="caption-bg-toggle"
+                role="switch"
+                [attr.aria-checked]="caption().bgEnabled"
+                (click)="setCaptionFieldInstant('bgEnabled', !caption().bgEnabled)"
+                [class.bg-gradient-brand]="caption().bgEnabled"
+                [class.bg-surface]="!caption().bgEnabled"
+                class="w-11 h-6 rounded-full relative border border-border-strong cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <span
+                  class="absolute top-0.5 h-4 w-4 rounded-full bg-text transition-all duration-200"
+                  [class.left-[22px]]="caption().bgEnabled"
+                  [class.left-0.5]="!caption().bgEnabled"
+                ></span>
+              </button>
+            </div>
+
+            @if (caption().bgEnabled) {
+              <div class="grid grid-cols-2 gap-3 items-start">
+                <div class="flex flex-col gap-1.5">
+                  <label for="caption-bg-color" class="text-xs font-bold text-text-muted">Màu nền</label>
+                  <input
+                    id="caption-bg-color"
+                    type="color"
+                    [value]="caption().bgColor"
+                    (change)="setCaptionFieldInstant('bgColor', $any($event.target).value)"
+                    class="w-full h-10 rounded-control border border-border bg-surface-elevated cursor-pointer"
+                  />
+                </div>
+                <app-range-control
+                  label="Độ mờ nền"
+                  unit="%"
+                  [value]="caption().bgOpacity"
+                  [min]="0"
+                  [max]="100"
+                  [step]="1"
+                  [showReset]="false"
+                  (liveChange)="setCaptionFieldLive('bgOpacity', $event)"
+                  (commit)="commitLiveChange()"
+                ></app-range-control>
+              </div>
+            }
+
+            <div class="flex flex-col gap-1.5">
+              <span class="text-xs font-bold text-text-muted" id="caption-pos-label">Vị trí nhanh</span>
+              <div class="flex gap-1.5" role="group" aria-labelledby="caption-pos-label">
+                <button type="button" (click)="setCaptionPosition('top')" class="flex-1 h-9 rounded-control bg-surface-elevated border border-border hover:border-primary/50 text-[11px] font-bold text-text-muted hover:text-text cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                  Phía trên
+                </button>
+                <button type="button" (click)="setCaptionPosition('center')" class="flex-1 h-9 rounded-control bg-surface-elevated border border-border hover:border-primary/50 text-[11px] font-bold text-text-muted hover:text-text cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                  Chính giữa
+                </button>
+                <button type="button" (click)="setCaptionPosition('bottom')" class="flex-1 h-9 rounded-control bg-surface-elevated border border-border hover:border-primary/50 text-[11px] font-bold text-text-muted hover:text-text cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                  Phía dưới
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+
+        <button
+          type="button"
+          (click)="resetCaption()"
+          class="h-9 rounded-control bg-surface border border-border hover:border-error/50 hover:text-error text-[11px] font-bold text-text-muted cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          Reset caption
+        </button>
+      </div>
+    }
+  </div>
+
+  <!-- STAGE: canvas preview — the visual focal point of the studio -->
+  <div class="ie-stage rounded-frame frame-trace frame-trace-active bg-surface-elevated border border-border relative overflow-hidden flex items-center justify-center min-h-[320px] md:min-h-[520px]">
+    @if (isLoadingImage()) {
+      <div class="flex flex-col items-center gap-2 py-10">
+        <div class="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
+        <span class="mono-label text-[10px] uppercase text-text-muted">Đang tải ảnh vào editor...</span>
+      </div>
+    }
+
+    @if (!isLoadingImage() && loadError()) {
+      <div class="flex flex-col items-center gap-2 py-10 px-6 text-center">
+        <span class="material-symbols-outlined text-3xl text-error">error</span>
+        <p class="text-xs text-error font-semibold">{{ loadError() }}</p>
+      </div>
+    }
+
+    <canvas
+      #previewCanvas
+      class="max-w-full max-h-[520px] md:max-h-[640px] w-auto h-auto block touch-none"
+      [class.hidden]="isLoadingImage() || loadError()"
+      [class.cursor-move]="activeTool() === 'caption' && caption().enabled"
+      (pointerdown)="onCanvasPointerDown($event)"
+      (pointermove)="onCanvasPointerMove($event)"
+      (pointerup)="onCanvasPointerUp($event)"
+      (pointercancel)="onCanvasPointerUp($event)"
+      role="img"
+      aria-label="Xem trước ảnh đang chỉnh sửa"
+    ></canvas>
+
+    @if (activeTool() === 'caption' && caption().enabled && !isLoadingImage() && !loadError()) {
+      <span class="mono-label absolute bottom-2 left-2 text-[9px] uppercase text-text-muted bg-bg/70 px-2 py-1 rounded-control pointer-events-none">
+        Kéo trên ảnh để đặt vị trí caption
+      </span>
+    }
+  </div>
+</div>

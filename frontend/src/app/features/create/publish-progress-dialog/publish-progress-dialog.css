@@ -1,0 +1,20 @@
+/* Component-specific styles for PublishProgressDialog */
+
+@keyframes ppd-success-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.ppd-success-pop {
+  animation: ppd-success-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}

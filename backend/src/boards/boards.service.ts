@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 
 @Injectable()
@@ -36,11 +41,30 @@ export class BoardsService {
     return board;
   }
 
-  async createBoard(userId: string, name: string, description?: string, isSecret: boolean = false) {
+  async createBoard(
+    userId: string,
+    name: string,
+    description?: string,
+    isSecret: boolean = false,
+  ) {
+    const normalizedName = name?.trim();
+    const normalizedDescription = description?.trim();
+    if (!normalizedName) {
+      throw new BadRequestException('Board name is required');
+    }
+    if (normalizedName.length > 80) {
+      throw new BadRequestException('Board name must not exceed 80 characters');
+    }
+    if (normalizedDescription && normalizedDescription.length > 280) {
+      throw new BadRequestException(
+        'Board description must not exceed 280 characters',
+      );
+    }
+
     return this.prisma.board.create({
       data: {
-        name,
-        description,
+        name: normalizedName,
+        description: normalizedDescription || null,
         isSecret,
         userId,
       },
@@ -48,7 +72,9 @@ export class BoardsService {
   }
 
   async addPinToBoard(boardId: string, pinId: string, userId: string) {
-    const board = await this.prisma.board.findUnique({ where: { id: boardId } });
+    const board = await this.prisma.board.findUnique({
+      where: { id: boardId },
+    });
     if (!board) {
       throw new NotFoundException('Board not found');
     }
@@ -75,7 +101,9 @@ export class BoardsService {
   }
 
   async removePinFromBoard(boardId: string, pinId: string, userId: string) {
-    const board = await this.prisma.board.findUnique({ where: { id: boardId } });
+    const board = await this.prisma.board.findUnique({
+      where: { id: boardId },
+    });
     if (!board) {
       throw new NotFoundException('Board not found');
     }

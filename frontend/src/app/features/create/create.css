@@ -1,9 +1,27 @@
 /* Styling for Create page */
 .drag-drop-area {
-  border: 2px dashed #dadad3;
+  border: 2px dashed var(--color-border);
   transition: all 0.2s ease-in-out;
 }
 .drag-drop-area:hover {
-  border-color: #8b8b83;
-  background-color: #fcfcf9;
+  border-color: var(--color-accent);
+  background-color: var(--color-surface-elevated);
+}
+
+/* AI Studio tab — a faint warm wash at the top of the panel distinguishes it
+   from Upload's neutral surface by color temperature, not layout. Kept to a
+   single low-opacity gradient so it reads as "a different mode" rather than
+   a themed section. */
+.ai-mode-panel {
+  position: relative;
+}
+
+.ai-mode-panel::before {
+  content: "";
+  position: absolute;
+  inset: -12px -12px auto -12px;
+  height: 140px;
+  background: radial-gradient(60% 100% at 50% 0%, rgba(255, 184, 77, 0.05), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
 }
