@@ -30,11 +30,19 @@ export class Sidebar {
     this.router.navigate(['/create']);
   }
 
+  navigateToMessages(): void {
+    this.router.navigate(['/messages']);
+  }
+
   isFeedPage(): boolean {
     return this.router.url === '/feed' || this.router.url === '/';
   }
 
   isCreatePage(): boolean {
     return this.router.url === '/create';
+  }
+
+  isMessagesPage(): boolean {
+    return this.router.url.startsWith('/messages');
   }
 }

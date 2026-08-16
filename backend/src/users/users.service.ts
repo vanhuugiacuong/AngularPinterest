@@ -4,6 +4,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { buildParticipantKey } from '../common/relationship.util';
+
+export type MessageRequestRelationshipStatus =
+  | 'NONE'
+  | 'PENDING_OUTGOING'
+  | 'PENDING_INCOMING'
+  | 'ACCEPTED'
+  | 'REJECTED'
+  | 'REPORTED';
 
 @Injectable()
 export class UsersService {
@@ -68,7 +77,7 @@ export class UsersService {
       ? { userId: user.id }
       : { userId: user.id, isSecret: false };
 
-    const [posts, albums, followers, following, favorites, follow] =
+    const [posts, albums, followers, following, favorites, followingRow, followedByRow] =
       await Promise.all([
         this.prisma.pin.count({ where: { userId: user.id } }),
         this.prisma.board.count({ where: boardFilter }),
@@ -88,7 +97,29 @@ export class UsersService {
               select: { followerId: true },
             })
           : Promise.resolve(null),
+        viewerId && !isOwnProfile
+          ? this.prisma.follow.findUnique({
+              where: {
+                followerId_followingId: {
+                  followerId: user.id,
+                  followingId: viewerId,
+                },
+              },
+              select: { followerId: true },
+            })
+          : Promise.resolve(null),
       ]);
+
+    const isFollowing = Boolean(followingRow);
+    const isFollowedBy = Boolean(followedByRow);
+    const isMutualFollow = isFollowing && isFollowedBy;
+
+    const relationship = await this.getMessagingRelationship(
+      viewerId,
+      isOwnProfile,
+      user.id,
+      isMutualFollow,
+    );
 
     return {
       user,
@@ -101,9 +132,85 @@ export class UsersService {
       },
       viewer: {
         isOwnProfile,
-        isFollowing: Boolean(follow),
+        isFollowing,
+        isFollowedBy,
+        isMutualFollow,
         canViewFavorites: isOwnProfile,
+        ...relationship,
       },
+    };
+  }
+
+  private async getMessagingRelationship(
+    viewerId: string | undefined,
+    isOwnProfile: boolean,
+    targetUserId: string,
+    isMutualFollow: boolean,
+  ) {
+    const empty = {
+      messageRequestStatus: 'NONE' as MessageRequestRelationshipStatus,
+      conversationId: null as string | null,
+      isBlocked: false,
+      isBlockedByTarget: false,
+      canMessage: false,
+      canSendMessageRequest: false,
+    };
+
+    if (!viewerId || isOwnProfile) {
+      return empty;
+    }
+
+    const [request, conversation, blockedByViewer, blockedByTarget] = await Promise.all([
+      this.prisma.messageRequest.findFirst({
+        where: {
+          OR: [
+            { senderId: viewerId, receiverId: targetUserId },
+            { senderId: targetUserId, receiverId: viewerId },
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { senderId: true, status: true },
+      }),
+      this.prisma.conversation.findUnique({
+        where: { participantKey: buildParticipantKey(viewerId, targetUserId) },
+        select: { id: true },
+      }),
+      this.prisma.userBlock.findUnique({
+        where: { blockerId_blockedId: { blockerId: viewerId, blockedId: targetUserId } },
+        select: { blockerId: true },
+      }),
+      this.prisma.userBlock.findUnique({
+        where: { blockerId_blockedId: { blockerId: targetUserId, blockedId: viewerId } },
+        select: { blockerId: true },
+      }),
+    ]);
+
+    const isBlocked = Boolean(blockedByViewer);
+    const isBlockedByTarget = Boolean(blockedByTarget);
+    const blockedEitherWay = isBlocked || isBlockedByTarget;
+
+    let messageRequestStatus: MessageRequestRelationshipStatus = 'NONE';
+    if (request) {
+      const outgoing = request.senderId === viewerId;
+      if (request.status === 'PENDING') {
+        messageRequestStatus = outgoing ? 'PENDING_OUTGOING' : 'PENDING_INCOMING';
+      } else {
+        messageRequestStatus = request.status as MessageRequestRelationshipStatus;
+      }
+    }
+
+    const canMessage =
+      !blockedEitherWay && (isMutualFollow || messageRequestStatus === 'ACCEPTED');
+    const canSendMessageRequest =
+      !blockedEitherWay && !isMutualFollow && messageRequestStatus === 'NONE';
+
+    return {
+      messageRequestStatus,
+      conversationId: conversation?.id ?? null,
+      isBlocked,
+      isBlockedByTarget,
+      canMessage,
+      canSendMessageRequest,
     };
   }
 

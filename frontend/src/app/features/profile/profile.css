@@ -266,6 +266,69 @@ textarea:disabled {
   box-shadow: none;
 }
 
+.message-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.message-row .message-action {
+  flex: 1;
+  min-width: 0;
+}
+
+.safety-menu-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.safety-menu-wrap > .icon-action {
+  height: 100%;
+}
+
+.safety-menu {
+  position: absolute;
+  z-index: 20;
+  top: 50px;
+  right: 0;
+  width: 220px;
+  padding: 6px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-surface-elevated) 97%, transparent);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(18px);
+}
+
+.safety-menu button {
+  display: flex;
+  width: 100%;
+  min-height: 42px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--color-text);
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.safety-menu button:hover {
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+}
+
+.safety-menu button.danger-item {
+  color: color-mix(in srgb, var(--color-error) 82%, white);
+}
+
+.safety-menu button.danger-item:hover {
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+}
+
 .secondary-action {
   border-color: var(--color-border);
   color: var(--color-text);
@@ -942,6 +1005,7 @@ textarea:disabled {
 }
 
 .dialog-form input[type='text'],
+.dialog-form select,
 .dialog-form textarea {
   width: 100%;
   border: 1px solid var(--color-border);
@@ -953,7 +1017,8 @@ textarea:disabled {
     box-shadow 180ms ease;
 }
 
-.dialog-form input[type='text'] {
+.dialog-form input[type='text'],
+.dialog-form select {
   min-height: 46px;
   padding: 0 14px;
 }
@@ -965,6 +1030,7 @@ textarea:disabled {
 }
 
 .dialog-form input[type='text']:focus,
+.dialog-form select:focus,
 .dialog-form textarea:focus {
   border-color: color-mix(in srgb, var(--color-accent) 50%, transparent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 8%, transparent);

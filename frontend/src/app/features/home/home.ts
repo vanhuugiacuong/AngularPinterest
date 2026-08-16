@@ -353,6 +353,12 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     this.router.navigate(['/pin', pinId]);
   }
 
+  navigateToProfile(username: string | undefined | null, event: MouseEvent) {
+    event.stopPropagation();
+    if (!username) return;
+    this.router.navigate(['/profile', username]);
+  }
+
   navigateToCreate() {
     this.router.navigate(['/create']);
   }

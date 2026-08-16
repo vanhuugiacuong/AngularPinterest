@@ -65,15 +65,20 @@
                 class="flex-1 min-w-0 flex flex-col gap-6 border-t lg:border-t-0 lg:border-l border-border pt-6 lg:pt-1 lg:pl-8 mt-6 lg:mt-0 text-left"
               >
                 <!-- Author profile info -->
-                <div class="flex items-center gap-3">
+                <button
+                  type="button"
+                  (click)="navigateToProfile(p.user?.username)"
+                  class="flex items-center gap-3 bg-transparent border-none p-0 cursor-pointer text-left select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
+                  [attr.aria-label]="'Xem trang cá nhân của ' + p.user?.username"
+                >
                   <app-user-avatar [src]="p.user?.avatarUrl" [name]="p.user?.username" [size]="44"></app-user-avatar>
                   <div class="flex flex-col text-left">
-                    <span class="text-sm font-bold text-text">{{ p.user?.username }}</span>
+                    <span class="text-sm font-bold text-text hover:underline">{{ p.user?.username }}</span>
                     <span class="mono-label text-[10px] uppercase text-text-muted font-medium"
                       >Người đăng tải</span
                     >
                   </div>
-                </div>
+                </button>
 
                 <!-- Title & Description -->
                 <div class="flex flex-col gap-1.5">
@@ -203,17 +208,28 @@
 
                     @for (comment of p.comments; track comment.id) {
                       <div class="flex gap-2.5 items-start">
-                        <app-user-avatar
-                          [src]="comment.user?.avatarUrl"
-                          [name]="comment.user?.username"
-                          [size]="32"
-                        ></app-user-avatar>
+                        <button
+                          type="button"
+                          (click)="navigateToProfile(comment.user?.username)"
+                          class="bg-transparent border-none p-0 cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full"
+                          [attr.aria-label]="'Xem trang cá nhân của ' + comment.user?.username"
+                        >
+                          <app-user-avatar
+                            [src]="comment.user?.avatarUrl"
+                            [name]="comment.user?.username"
+                            [size]="32"
+                          ></app-user-avatar>
+                        </button>
                         <div
                           class="flex flex-col bg-surface-elevated rounded-control px-3 py-2 flex-1 min-w-0"
                         >
-                          <span class="text-xs font-bold text-text truncate">{{
-                            comment.user?.username
-                          }}</span>
+                          <button
+                            type="button"
+                            (click)="navigateToProfile(comment.user?.username)"
+                            class="text-xs font-bold text-text truncate bg-transparent border-none p-0 cursor-pointer text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control w-fit"
+                          >
+                            {{ comment.user?.username }}
+                          </button>
                           <p
                             class="text-xs text-text-muted mt-0.5 leading-relaxed break-words whitespace-pre-line"
                           >

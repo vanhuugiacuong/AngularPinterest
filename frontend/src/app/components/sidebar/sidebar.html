@@ -133,19 +133,31 @@
       </span>
     </div>
 
-    <!-- Messages — not wired yet; same muted, non-interactive treatment as Explore. -->
+    <!-- Messages -->
     <div class="relative group w-full flex justify-center">
-      <div
-        class="flex h-11 w-11 items-center justify-center rounded-control text-text-muted/50 cursor-default"
-        aria-disabled="true"
+      <span
+        *ngIf="isMessagesPage()"
+        class="nf-active-tick absolute left-1.5 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-gradient-brand"
+        aria-hidden="true"
+      ></span>
+      <button
+        type="button"
+        (click)="navigateToMessages()"
+        [class.bg-surface-elevated]="isMessagesPage()"
+        [class.rounded-frame-alt]="isMessagesPage()"
+        [class.text-accent]="isMessagesPage()"
+        [class.text-text-muted]="!isMessagesPage()"
+        class="flex h-11 w-11 items-center justify-center rounded-control transition-all duration-300 ease-spring hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
+        aria-label="Tin nhắn"
+        [attr.aria-current]="isMessagesPage() ? 'page' : null"
       >
-        <span class="material-symbols-outlined text-xl">sms</span>
-      </div>
+        <span class="material-symbols-outlined text-xl" [class.font-bold]="isMessagesPage()">sms</span>
+      </button>
       <span
         role="tooltip"
-        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control mono-label bg-surface-high border border-border-strong px-2.5 py-1.5 text-[11px] uppercase text-text-muted opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100"
+        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control mono-label bg-surface-high border border-border-strong px-2.5 py-1.5 text-[11px] uppercase text-text opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
       >
-        Tin nhắn · Sắp ra mắt
+        Tin nhắn
       </span>
     </div>
   </div>

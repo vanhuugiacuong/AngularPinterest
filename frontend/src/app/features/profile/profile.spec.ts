@@ -5,8 +5,27 @@ import { describe, expect, it, vi } from 'vitest';
 import { BoardService } from '../../core/services/board';
 import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
-import { ProfileSummary, UserService } from '../../core/services/user';
+import { ProfileSummary, ProfileViewerState, UserService } from '../../core/services/user';
+import { MessagingService } from '../../core/services/messaging';
+import { SafetyService } from '../../core/services/safety';
 import { Profile } from './profile';
+
+function baseViewer(overrides: Partial<ProfileViewerState> = {}): ProfileViewerState {
+  return {
+    isOwnProfile: false,
+    isFollowing: false,
+    isFollowedBy: false,
+    isMutualFollow: false,
+    canViewFavorites: false,
+    messageRequestStatus: 'NONE',
+    conversationId: null,
+    isBlocked: false,
+    isBlockedByTarget: false,
+    canMessage: false,
+    canSendMessageRequest: true,
+    ...overrides,
+  };
+}
 
 describe('Profile', () => {
   const summary: ProfileSummary = {
@@ -24,14 +43,10 @@ describe('Profile', () => {
       following: 3,
       favorites: null,
     },
-    viewer: {
-      isOwnProfile: false,
-      isFollowing: false,
-      canViewFavorites: false,
-    },
+    viewer: baseViewer(),
   };
 
-  it('defaults to real user posts and rejects a private favorites query for another profile', async () => {
+  function setup(overrides: { userService?: object; messagingService?: object; safetyService?: object } = {}) {
     const userService = {
       getUserProfile: vi.fn().mockResolvedValue(summary),
       getUserPosts: vi.fn().mockResolvedValue({
@@ -43,10 +58,22 @@ describe('Profile', () => {
       }),
       getUserAlbums: vi.fn(),
       getFavorites: vi.fn(),
+      ...overrides.userService,
+    };
+    const messagingService = {
+      sendMessageRequest: vi.fn(),
+      openDirectConversation: vi.fn(),
+      ...overrides.messagingService,
+    };
+    const safetyService = {
+      blockUser: vi.fn(),
+      unblockUser: vi.fn(),
+      reportUser: vi.fn(),
+      ...overrides.safetyService,
     };
     const router = { navigate: vi.fn().mockResolvedValue(true) };
 
-    await TestBed.configureTestingModule({
+    TestBed.configureTestingModule({
       imports: [Profile],
       providers: [
         {
@@ -60,16 +87,21 @@ describe('Profile', () => {
         { provide: UserService, useValue: userService },
         { provide: BoardService, useValue: {} },
         { provide: PinService, useValue: {} },
+        { provide: MessagingService, useValue: messagingService },
+        { provide: SafetyService, useValue: safetyService },
         {
           provide: SupabaseService,
           useValue: { getSessionToken: vi.fn().mockResolvedValue('token') },
         },
       ],
-    })
-      .overrideComponent(Profile, { set: { template: '' } })
-      .compileComponents();
+    }).overrideComponent(Profile, { set: { template: '' } });
 
     const fixture = TestBed.createComponent(Profile);
+    return { fixture, userService, messagingService, safetyService, router };
+  }
+
+  it('defaults to real user posts and rejects a private favorites query for another profile', async () => {
+    const { fixture, userService, router } = setup();
     fixture.detectChanges();
 
     await vi.waitFor(() => expect(userService.getUserPosts).toHaveBeenCalled());
@@ -81,5 +113,116 @@ describe('Profile', () => {
     );
 
     fixture.destroy();
+  });
+
+  it('shows "Nhắn tin" and is enabled once mutual follow / an accepted request allows messaging', () => {
+    const { fixture } = setup();
+    const profile = fixture.componentInstance;
+    profile.profile.set({
+      ...summary,
+      viewer: baseViewer({ isMutualFollow: true, canMessage: true, canSendMessageRequest: false }),
+    });
+
+    expect(profile.messageButtonLabel()).toBe('Nhắn tin');
+    expect(profile.messageButtonDisabled()).toBe(false);
+  });
+
+  it('shows "Gửi yêu cầu nhắn tin" enabled when no request exists yet', () => {
+    const { fixture } = setup();
+    const profile = fixture.componentInstance;
+    profile.profile.set({ ...summary, viewer: baseViewer() });
+
+    expect(profile.messageButtonLabel()).toBe('Gửi yêu cầu nhắn tin');
+    expect(profile.messageButtonDisabled()).toBe(false);
+  });
+
+  it('shows a disabled "Đang chờ phản hồi" while a request is pending', () => {
+    const { fixture } = setup();
+    const profile = fixture.componentInstance;
+    profile.profile.set({
+      ...summary,
+      viewer: baseViewer({ messageRequestStatus: 'PENDING_OUTGOING', canSendMessageRequest: false }),
+    });
+
+    expect(profile.messageButtonLabel()).toBe('Đang chờ phản hồi');
+    expect(profile.messageButtonDisabled()).toBe(true);
+  });
+
+  it('shows a disabled state once a request was rejected, and never lets it be resent', () => {
+    const { fixture } = setup();
+    const profile = fixture.componentInstance;
+    profile.profile.set({
+      ...summary,
+      viewer: baseViewer({ messageRequestStatus: 'REJECTED', canSendMessageRequest: false }),
+    });
+
+    expect(profile.messageButtonLabel()).toBe('Yêu cầu đã bị từ chối');
+    expect(profile.messageButtonDisabled()).toBe(true);
+  });
+
+  it('disables messaging entirely once blocked, regardless of follow state', () => {
+    const { fixture } = setup();
+    const profile = fixture.componentInstance;
+    profile.profile.set({
+      ...summary,
+      viewer: baseViewer({
+        isMutualFollow: true,
+        isBlocked: true,
+        canMessage: false,
+        canSendMessageRequest: false,
+      }),
+    });
+
+    expect(profile.messageButtonLabel()).toBe('Đã chặn người dùng này');
+    expect(profile.messageButtonDisabled()).toBe(true);
+  });
+
+  it('sends a message request and flips the button to the pending state optimistically', async () => {
+    const { fixture, messagingService } = setup({
+      messagingService: {
+        sendMessageRequest: vi.fn().mockResolvedValue({ id: 'req-1', status: 'PENDING' }),
+      },
+    });
+    const profile = fixture.componentInstance;
+    profile.profile.set({ ...summary, viewer: baseViewer() });
+
+    await profile.onMessageAction();
+
+    expect(messagingService.sendMessageRequest).toHaveBeenCalledWith('artist-id', 'token');
+    expect(profile.profile()?.viewer.messageRequestStatus).toBe('PENDING_OUTGOING');
+    expect(profile.messageButtonDisabled()).toBe(true);
+  });
+
+  it('toggles the safety chevron menu open and closed', () => {
+    const { fixture } = setup();
+    const profile = fixture.componentInstance;
+    const event = { stopPropagation: vi.fn() } as unknown as Event;
+
+    expect(profile.showSafetyMenu()).toBe(false);
+    profile.toggleSafetyMenu(event);
+    expect(profile.showSafetyMenu()).toBe(true);
+    profile.toggleSafetyMenu(event);
+    expect(profile.showSafetyMenu()).toBe(false);
+  });
+
+  it('closes the safety menu on Escape', () => {
+    const { fixture } = setup();
+    const profile = fixture.componentInstance;
+    profile.showSafetyMenu.set(true);
+
+    profile.onDocumentKeydown(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+    expect(profile.showSafetyMenu()).toBe(false);
+  });
+
+  it('flags isOwnProfile so the template can hide follow/message/safety actions (guarded by *ngIf="!p.viewer.isOwnProfile" in profile.html)', () => {
+    const { fixture } = setup();
+    const profile = fixture.componentInstance;
+    profile.profile.set({
+      ...summary,
+      viewer: baseViewer({ isOwnProfile: true, canSendMessageRequest: false }),
+    });
+
+    expect(profile.isOwnProfile()).toBe(true);
   });
 });
