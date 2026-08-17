@@ -7,7 +7,7 @@
   aria-hidden="true"
 ></div>
 
-<!-- Sliding icon-rail panel — an "instrument rail" with a hairline edge instead of a glass slab -->
+<!-- Primary Sidebar Rail — z-40 -->
 <nav
   id="app-sidebar-panel"
   role="navigation"
@@ -71,9 +71,7 @@
       </span>
     </div>
 
-    <!-- Explore — not wired to a route yet; visually muted and non-interactive
-         (no hover fill/shape-change) so it never reads as a working control,
-         with "Sắp ra mắt" surfaced in its tooltip instead of a fake click target. -->
+    <!-- Explore -->
     <div class="relative group w-full flex justify-center">
       <div
         class="flex h-11 w-11 items-center justify-center rounded-control text-text-muted/50 cursor-default"
@@ -117,19 +115,37 @@
       </span>
     </div>
 
-    <!-- Notifications — not wired yet; same muted, non-interactive treatment as Explore. -->
+    <!-- Notifications — Active Notification Button -->
     <div class="relative group w-full flex justify-center">
-      <div
-        class="flex h-11 w-11 items-center justify-center rounded-control text-text-muted/50 cursor-default"
-        aria-disabled="true"
+      <span
+        *ngIf="isNotificationOpen"
+        class="nf-active-tick absolute left-1.5 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-gradient-brand"
+        aria-hidden="true"
+      ></span>
+      <button
+        type="button"
+        (click)="toggleNotifications()"
+        [class.bg-surface-elevated]="isNotificationOpen"
+        [class.rounded-frame-alt]="isNotificationOpen"
+        [class.text-accent]="isNotificationOpen"
+        [class.text-text-muted]="!isNotificationOpen"
+        class="relative flex h-11 w-11 items-center justify-center rounded-control transition-all duration-300 ease-spring hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
+        aria-label="Thông báo"
       >
-        <span class="material-symbols-outlined text-xl">notifications</span>
-      </div>
+        <span class="material-symbols-outlined text-xl" [class.font-bold]="isNotificationOpen">notifications</span>
+        <!-- Unread Badge -->
+        <span
+          *ngIf="(unreadCount$ | async)! > 0"
+          class="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-text-on-accent ring-2 ring-surface shadow-glow"
+        >
+          {{ (unreadCount$ | async)! > 99 ? '99+' : (unreadCount$ | async) }}
+        </span>
+      </button>
       <span
         role="tooltip"
-        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control mono-label bg-surface-high border border-border-strong px-2.5 py-1.5 text-[11px] uppercase text-text-muted opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100"
+        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control mono-label bg-surface-high border border-border-strong px-2.5 py-1.5 text-[11px] uppercase text-text opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
       >
-        Thông báo · Sắp ra mắt
+        Thông báo
       </span>
     </div>
 
@@ -162,7 +178,7 @@
     </div>
   </div>
 
-  <!-- Bottom: Settings — not wired yet; same muted, non-interactive treatment as Explore. -->
+  <!-- Bottom: Settings -->
   <div class="relative group w-full flex justify-center">
     <div
       class="flex h-11 w-11 items-center justify-center rounded-control text-text-muted/50 cursor-default"
@@ -179,18 +195,145 @@
   </div>
 </nav>
 
-<!-- Focus backdrop: dims + blurs content behind the sidebar while it is open.
-     Always rendered (never *ngIf) so opacity transitions play on both open AND
-     close, staying in sync with the nav's translate-x slide. Click closes the
-     sidebar; pointer-events are disabled while closed so it never intercepts
-     clicks/hover on the trigger zone or main content. Covers both hover-open
-     (desktop) and click/tap-open (mobile) — same isOpen() source of truth. -->
+<!-- Sub-Sidebar Notification Drawer Panel — z-40 (Same elevation as Sidebar Rail, perfectly attached) -->
 <div
-  (click)="sidebarState.close()"
-  [class.opacity-100]="sidebarState.isOpen()"
-  [class.opacity-0]="!sidebarState.isOpen()"
-  [class.pointer-events-auto]="sidebarState.isOpen()"
-  [class.pointer-events-none]="!sidebarState.isOpen()"
+  *ngIf="isNotificationOpen"
+  (mouseenter)="onZoneEnter()"
+  (mouseleave)="onZoneLeave()"
+  class="nf-notification-drawer fixed left-[84px] top-16 z-40 flex h-[calc(100vh-4rem)] w-80 sm:w-[360px] flex-col bg-surface border-r border-border shadow-2xl transition-all duration-300 ease-out select-none"
+>
+  <!-- Drawer Header -->
+  <div class="flex items-center justify-between border-b border-border px-5 py-4 bg-surface-high/30">
+    <div class="flex items-center gap-2.5">
+      <h3 class="text-base font-bold text-text tracking-tight">Thông báo</h3>
+      <span
+        *ngIf="(unreadCount$ | async)! > 0"
+        class="rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent border border-accent/20"
+      >
+        {{ (unreadCount$ | async) }} mới
+      </span>
+    </div>
+    <div class="flex items-center gap-1">
+      <button
+        *ngIf="(notifications$ | async)?.length"
+        type="button"
+        (click)="markAllAsRead()"
+        class="text-xs font-medium text-text-muted hover:text-accent transition-colors px-2 py-1 rounded-control hover:bg-surface-elevated cursor-pointer"
+        title="Đánh dấu tất cả là đã đọc"
+      >
+        Đọc tất cả
+      </button>
+      <button
+        type="button"
+        (click)="closeNotifications()"
+        class="flex h-8 w-8 items-center justify-center rounded-full text-text-muted hover:bg-surface-elevated hover:text-text transition-colors cursor-pointer"
+        aria-label="Đóng thông báo"
+      >
+        <span class="material-symbols-outlined text-lg">close</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Sub-header section label like Pinterest -->
+  <div class="px-5 pt-3 pb-1 border-b border-border/30 bg-surface">
+    <span class="text-xs font-semibold text-text-muted uppercase tracking-wider">Cập nhật</span>
+  </div>
+
+  <!-- Drawer Body / Notification List -->
+  <div class="flex-1 overflow-y-auto divide-y divide-border/30">
+    <ng-container *ngIf="(notifications$ | async) as list">
+      <!-- Empty State -->
+      <div *ngIf="list.length === 0" class="flex flex-col items-center justify-center h-72 p-6 text-center">
+        <div class="flex h-16 w-16 items-center justify-center rounded-full bg-surface-elevated text-text-muted mb-3.5 shadow-inner">
+          <span class="material-symbols-outlined text-3xl">notifications_off</span>
+        </div>
+        <p class="text-sm font-semibold text-text">Chưa có thông báo nào</p>
+        <p class="text-xs text-text-muted mt-1.5 max-w-[240px] leading-relaxed">
+          Khi có tương tác mới hoặc cập nhật từ ghim của bạn, thông báo sẽ xuất hiện ở đây.
+        </p>
+      </div>
+
+      <!-- Item List -->
+      <div
+        *ngFor="let item of list"
+        (click)="onNotificationClick(item)"
+        [class.bg-accent/5]="!item.isRead"
+        class="group relative flex items-start gap-3.5 p-4 hover:bg-surface-elevated transition-colors cursor-pointer"
+      >
+        <!-- Sender Avatar or Initial -->
+        <div class="relative shrink-0 mt-0.5">
+          <img
+            *ngIf="item.sender?.avatarUrl"
+            [src]="item.sender?.avatarUrl"
+            [alt]="item.sender?.username || 'User'"
+            class="h-10 w-10 rounded-full object-cover ring-1 ring-border"
+          />
+          <div
+            *ngIf="!item.sender?.avatarUrl"
+            class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-brand text-text text-sm font-semibold shadow-sm"
+          >
+            {{ (item.sender?.username || 'P').charAt(0).toUpperCase() }}
+          </div>
+
+          <!-- Notification Type Badge -->
+          <span
+            class="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-[10px] text-white shadow-md ring-2 ring-surface"
+            [ngClass]="{
+              'bg-red-500': item.type === 'LIKE',
+              'bg-blue-500': item.type === 'COMMENT',
+              'bg-purple-500': item.type === 'SAVE',
+              'bg-emerald-500': item.type === 'POST_SUCCESS'
+            }"
+          >
+            <span class="material-symbols-outlined text-[12px]">
+              {{
+                item.type === 'LIKE' ? 'favorite' :
+                item.type === 'COMMENT' ? 'chat_bubble' :
+                item.type === 'SAVE' ? 'bookmark' : 'check_circle'
+              }}
+            </span>
+          </span>
+        </div>
+
+        <!-- Notification Message & Time -->
+        <div class="flex-1 min-w-0 pr-2">
+          <p class="text-xs text-text leading-relaxed">
+            <span *ngIf="item.sender?.username" class="font-semibold text-text group-hover:text-accent transition-colors">
+              {{ item.sender?.username }}
+            </span>
+            <span class="ml-1">{{ item.content }}</span>
+          </p>
+          <span class="text-[11px] text-text-muted mt-1 inline-block font-medium">
+            {{ getTimeAgo(item.createdAt) }}
+          </span>
+        </div>
+
+        <!-- Pin Image Preview if attached -->
+        <div *ngIf="item.pin?.imageUrl" class="shrink-0">
+          <img
+            [src]="item.pin?.imageUrl"
+            [alt]="item.pin?.title || 'Pin'"
+            class="h-11 w-11 rounded-frame-alt object-cover border border-border shadow-sm group-hover:scale-105 transition-transform"
+          />
+        </div>
+
+        <!-- Unread Blue Dot -->
+        <span
+          *ngIf="!item.isRead"
+          class="absolute right-2.5 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-accent ring-4 ring-accent/20"
+        ></span>
+      </div>
+    </ng-container>
+  </div>
+</div>
+
+<!-- Background Backdrop — z-30 (BEHIND both Sidebar Rail z-40 AND Notification Drawer z-40) -->
+<div
+  (click)="closeNotifications()"
+  [class.opacity-100]="sidebarState.isOpen() || isNotificationOpen"
+  [class.opacity-0]="!sidebarState.isOpen() && !isNotificationOpen"
+  [class.pointer-events-auto]="sidebarState.isOpen() || isNotificationOpen"
+  [class.pointer-events-none]="!sidebarState.isOpen() && !isNotificationOpen"
   class="nf-sidebar-backdrop fixed inset-x-0 top-16 bottom-0 z-30"
   aria-hidden="true"
 ></div>
