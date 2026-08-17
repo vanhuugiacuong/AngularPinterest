@@ -7,10 +7,17 @@ export interface Board {
   isSecret: boolean;
   userId: string;
   createdAt: string;
+  pinCount?: number;
+  thumbnails?: Array<{
+    id: string;
+    title: string;
+    imageUrl: string;
+    isAiGenerated: boolean;
+  }>;
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class BoardService {
   private baseUrl = 'http://localhost:3000/api/boards';
@@ -19,8 +26,8 @@ export class BoardService {
     try {
       const response = await fetch(this.baseUrl, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
       if (!response.ok) {
         throw new Error(`Failed to fetch boards: ${response.statusText}`);
@@ -36,8 +43,8 @@ export class BoardService {
     try {
       const response = await fetch(`${this.baseUrl}/${id}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
       if (!response.ok) {
         throw new Error(`Failed to fetch board details: ${response.statusText}`);
@@ -49,15 +56,20 @@ export class BoardService {
     }
   }
 
-  async createBoard(name: string, description: string, isSecret: boolean, token: string): Promise<Board> {
+  async createBoard(
+    name: string,
+    description: string,
+    isSecret: boolean,
+    token: string,
+  ): Promise<Board> {
     try {
       const response = await fetch(this.baseUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name, description, isSecret })
+        body: JSON.stringify({ name, description, isSecret }),
       });
       if (!response.ok) {
         throw new Error(`Failed to create board: ${response.statusText}`);
@@ -74,10 +86,10 @@ export class BoardService {
       const response = await fetch(`${this.baseUrl}/${boardId}/pins`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ pinId })
+        body: JSON.stringify({ pinId }),
       });
       if (!response.ok) {
         throw new Error(`Failed to add pin to board: ${response.statusText}`);
@@ -94,8 +106,8 @@ export class BoardService {
       const response = await fetch(`${this.baseUrl}/${boardId}/pins/${pinId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
       if (!response.ok) {
         throw new Error(`Failed to remove pin from board: ${response.statusText}`);

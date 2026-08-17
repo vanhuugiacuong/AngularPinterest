@@ -1,6 +1,15 @@
-import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { SupabaseAuthGuard } from '../supabase/supabase.guard';
+import { OptionalSupabaseAuthGuard } from '../supabase/optional-supabase.guard';
 import { CurrentUser, UserPayload } from '../supabase/current-user.decorator';
 
 @Controller('api/users')
@@ -17,9 +26,45 @@ export class UsersController {
     return this.usersService.syncUser(user.id, user.email, username, avatarUrl);
   }
 
+  @Get('me/favorites')
+  @UseGuards(SupabaseAuthGuard)
+  async getFavorites(
+    @CurrentUser() user: UserPayload,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.usersService.getFavorites(user.id, page, limit);
+  }
+
+  @Get(':username/posts')
+  @UseGuards(OptionalSupabaseAuthGuard)
+  async getUserPosts(
+    @CurrentUser() viewer: UserPayload | undefined,
+    @Param('username') username: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.usersService.getUserPosts(username, viewer?.id, page, limit);
+  }
+
+  @Get(':username/boards')
+  @UseGuards(OptionalSupabaseAuthGuard)
+  async getUserBoards(
+    @CurrentUser() viewer: UserPayload | undefined,
+    @Param('username') username: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.usersService.getUserBoards(username, viewer?.id, page, limit);
+  }
+
   @Get(':username')
-  async getUserProfile(@Param('username') username: string) {
-    return this.usersService.getUserProfile(username);
+  @UseGuards(OptionalSupabaseAuthGuard)
+  async getUserProfile(
+    @CurrentUser() viewer: UserPayload | undefined,
+    @Param('username') username: string,
+  ) {
+    return this.usersService.getUserProfile(username, viewer?.id);
   }
 
   @Post(':id/follow')

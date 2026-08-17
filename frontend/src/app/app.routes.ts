@@ -5,6 +5,7 @@ import { PinDetail } from './features/pin-detail/pin-detail';
 import { Profile } from './features/profile/profile';
 import { BoardDetail } from './features/board-detail/board-detail';
 import { Create } from './features/create/create';
+import { Messages } from './features/messages/messages';
 import { authGuard } from './core/guards/auth';
 
 export const routes: Routes = [
@@ -14,5 +15,7 @@ export const routes: Routes = [
   { path: 'profile/:username', component: Profile, canActivate: [authGuard] },
   { path: 'board/:id', component: BoardDetail, canActivate: [authGuard] },
   { path: 'create', component: Create, canActivate: [authGuard] },
+  { path: 'messages', component: Messages, canActivate: [authGuard] },
+  { path: 'messages/:conversationId', component: Messages, canActivate: [authGuard] },
   { path: '**', redirectTo: '' }
 ];
