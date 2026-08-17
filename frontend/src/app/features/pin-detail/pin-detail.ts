@@ -199,6 +199,11 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     this.router.navigate(['/pin', pinId]);
   }
 
+  navigateToProfile(username: string | undefined | null) {
+    if (!username) return;
+    this.router.navigate(['/profile', username]);
+  }
+
   async toggleLike() {
     const currentPin = this.pin();
     const currentUser = this.supabaseService.user();

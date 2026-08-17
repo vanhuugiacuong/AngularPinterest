@@ -7,6 +7,9 @@ describe('UsersService profile data', () => {
     board: { count: jest.fn(), findMany: jest.fn() },
     follow: { count: jest.fn(), findUnique: jest.fn() },
     like: { count: jest.fn(), findMany: jest.fn() },
+    messageRequest: { findFirst: jest.fn() },
+    conversation: { findUnique: jest.fn() },
+    userBlock: { findUnique: jest.fn() },
   };
   let service: UsersService;
 
@@ -26,7 +29,13 @@ describe('UsersService profile data', () => {
     prisma.pin.count.mockResolvedValue(3);
     prisma.board.count.mockResolvedValue(2);
     prisma.follow.count.mockResolvedValueOnce(8).mockResolvedValueOnce(4);
-    prisma.follow.findUnique.mockResolvedValue({ followerId: 'viewer' });
+    // First call checks viewer -> target (isFollowing), second checks target -> viewer (isFollowedBy).
+    prisma.follow.findUnique
+      .mockResolvedValueOnce({ followerId: 'viewer' })
+      .mockResolvedValueOnce(null);
+    prisma.messageRequest.findFirst.mockResolvedValue(null);
+    prisma.conversation.findUnique.mockResolvedValue(null);
+    prisma.userBlock.findUnique.mockResolvedValue(null);
 
     const result = await service.getUserProfile('artist', 'viewer');
 
@@ -41,12 +50,97 @@ describe('UsersService profile data', () => {
     expect(result.viewer).toEqual({
       isOwnProfile: false,
       isFollowing: true,
+      isFollowedBy: false,
+      isMutualFollow: false,
       canViewFavorites: false,
+      messageRequestStatus: 'NONE',
+      conversationId: null,
+      isBlocked: false,
+      isBlockedByTarget: false,
+      canMessage: false,
+      canSendMessageRequest: true,
     });
     expect(prisma.board.count).toHaveBeenCalledWith({
       where: { userId: 'profile-user', isSecret: false },
     });
     expect(prisma.like.count).not.toHaveBeenCalled();
+  });
+
+  it('allows messaging for mutual followers without a message request', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'profile-user',
+      username: 'artist',
+      avatarUrl: null,
+      bio: null,
+      createdAt: new Date('2026-01-01'),
+    });
+    prisma.pin.count.mockResolvedValue(0);
+    prisma.board.count.mockResolvedValue(0);
+    prisma.follow.count.mockResolvedValueOnce(1).mockResolvedValueOnce(1);
+    prisma.follow.findUnique
+      .mockResolvedValueOnce({ followerId: 'viewer' })
+      .mockResolvedValueOnce({ followerId: 'profile-user' });
+    prisma.messageRequest.findFirst.mockResolvedValue(null);
+    prisma.conversation.findUnique.mockResolvedValue({ id: 'conversation-1' });
+    prisma.userBlock.findUnique.mockResolvedValue(null);
+
+    const result = await service.getUserProfile('artist', 'viewer');
+
+    expect(result.viewer.isMutualFollow).toBe(true);
+    expect(result.viewer.canMessage).toBe(true);
+    expect(result.viewer.canSendMessageRequest).toBe(false);
+    expect(result.viewer.conversationId).toBe('conversation-1');
+  });
+
+  it('blocks messaging and requests when either side has blocked the other', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'profile-user',
+      username: 'artist',
+      avatarUrl: null,
+      bio: null,
+      createdAt: new Date('2026-01-01'),
+    });
+    prisma.pin.count.mockResolvedValue(0);
+    prisma.board.count.mockResolvedValue(0);
+    prisma.follow.count.mockResolvedValueOnce(0).mockResolvedValueOnce(0);
+    prisma.follow.findUnique.mockResolvedValue(null);
+    prisma.messageRequest.findFirst.mockResolvedValue(null);
+    prisma.conversation.findUnique.mockResolvedValue(null);
+    prisma.userBlock.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ blockerId: 'profile-user' });
+
+    const result = await service.getUserProfile('artist', 'viewer');
+
+    expect(result.viewer.isBlockedByTarget).toBe(true);
+    expect(result.viewer.canMessage).toBe(false);
+    expect(result.viewer.canSendMessageRequest).toBe(false);
+  });
+
+  it('reflects a pending outgoing message request', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'profile-user',
+      username: 'artist',
+      avatarUrl: null,
+      bio: null,
+      createdAt: new Date('2026-01-01'),
+    });
+    prisma.pin.count.mockResolvedValue(0);
+    prisma.board.count.mockResolvedValue(0);
+    prisma.follow.count.mockResolvedValueOnce(0).mockResolvedValueOnce(0);
+    prisma.follow.findUnique.mockResolvedValue(null);
+    prisma.messageRequest.findFirst.mockResolvedValue({
+      senderId: 'viewer',
+      status: 'PENDING',
+    });
+    prisma.conversation.findUnique.mockResolvedValue(null);
+    prisma.userBlock.findUnique.mockResolvedValue(null);
+
+    const result = await service.getUserProfile('artist', 'viewer');
+
+    expect(result.viewer.messageRequestStatus).toBe('PENDING_OUTGOING');
+    expect(result.viewer.canSendMessageRequest).toBe(false);
+    expect(result.viewer.canMessage).toBe(false);
   });
 
   it('uses the authenticated user id for the private favorites query', async () => {

@@ -16,6 +16,8 @@ import { BoardService } from '../../core/services/board';
 import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
 import { ProfileAlbum, ProfilePin, ProfileSummary, UserService } from '../../core/services/user';
+import { MessagingService, ReportReason } from '../../core/services/messaging';
+import { SafetyService } from '../../core/services/safety';
 
 type ProfileTab = 'favorites' | 'albums' | 'posts';
 
@@ -43,6 +45,8 @@ export class Profile implements OnInit, OnDestroy {
   private readonly boardService = inject(BoardService);
   private readonly pinService = inject(PinService);
   private readonly supabaseService = inject(SupabaseService);
+  private readonly messagingService = inject(MessagingService);
+  private readonly safetyService = inject(SafetyService);
 
   readonly profile = signal<ProfileSummary | null>(null);
   readonly profileLoading = signal(true);
@@ -66,6 +70,19 @@ export class Profile implements OnInit, OnDestroy {
   readonly deleteTarget = signal<ProfilePin | null>(null);
   readonly deletePending = signal(false);
   readonly deleteError = signal<string | null>(null);
+
+  readonly messageActionPending = signal(false);
+  readonly showSafetyMenu = signal(false);
+
+  readonly showReportDialog = signal(false);
+  readonly reportReason = signal<ReportReason>('SPAM');
+  readonly reportPending = signal(false);
+  readonly reportError = signal<string | null>(null);
+  reportDetails = '';
+
+  readonly showBlockDialog = signal(false);
+  readonly blockPending = signal(false);
+  readonly blockError = signal<string | null>(null);
 
   private readonly pageSize = 20;
   private routeSubscription?: Subscription;
@@ -218,6 +235,164 @@ export class Profile implements OnInit, OnDestroy {
     setTimeout(() => this.shareMessage.set(null), 3000);
   }
 
+  messageButtonLabel(): string {
+    const viewer = this.profile()?.viewer;
+    if (!viewer) return '';
+    if (viewer.canMessage) return 'Nhắn tin';
+    if (viewer.isBlocked) return 'Đã chặn người dùng này';
+    if (viewer.isBlockedByTarget) return 'Không thể nhắn tin';
+    switch (viewer.messageRequestStatus) {
+      case 'PENDING_OUTGOING':
+        return 'Đang chờ phản hồi';
+      case 'PENDING_INCOMING':
+        return 'Phản hồi trong Tin nhắn';
+      case 'REJECTED':
+        return 'Yêu cầu đã bị từ chối';
+      case 'REPORTED':
+        return 'Yêu cầu đã bị báo cáo';
+      default:
+        return 'Gửi yêu cầu nhắn tin';
+    }
+  }
+
+  messageButtonDisabled(): boolean {
+    const viewer = this.profile()?.viewer;
+    if (!viewer || this.messageActionPending()) return true;
+    return !viewer.canMessage && !viewer.canSendMessageRequest;
+  }
+
+  async onMessageAction() {
+    const summary = this.profile();
+    if (!summary || this.messageActionPending()) return;
+    const viewer = summary.viewer;
+
+    if (viewer.canMessage) {
+      this.messageActionPending.set(true);
+      try {
+        const token = await this.requireToken();
+        const conversationId =
+          viewer.conversationId ||
+          (await this.messagingService.openDirectConversation(summary.user.id, token)).id;
+        void this.router.navigate(['/messages', conversationId]);
+      } catch (error) {
+        this.announce(this.errorMessage(error, 'Không thể mở cuộc trò chuyện.'));
+      } finally {
+        this.messageActionPending.set(false);
+      }
+      return;
+    }
+
+    if (viewer.canSendMessageRequest) {
+      this.messageActionPending.set(true);
+      try {
+        const token = await this.requireToken();
+        await this.messagingService.sendMessageRequest(summary.user.id, token);
+        this.updateProfile((current) => ({
+          ...current,
+          viewer: {
+            ...current.viewer,
+            messageRequestStatus: 'PENDING_OUTGOING',
+            canSendMessageRequest: false,
+          },
+        }));
+        this.announce('Đã gửi yêu cầu nhắn tin.');
+      } catch (error) {
+        this.announce(this.errorMessage(error, 'Không thể gửi yêu cầu nhắn tin.'));
+      } finally {
+        this.messageActionPending.set(false);
+      }
+    }
+  }
+
+  toggleSafetyMenu(event: Event) {
+    event.stopPropagation();
+    this.showSafetyMenu.update((value) => !value);
+  }
+
+  openReportDialog() {
+    this.showSafetyMenu.set(false);
+    this.dialogReturnFocus = document.activeElement as HTMLElement;
+    this.reportReason.set('SPAM');
+    this.reportDetails = '';
+    this.reportError.set(null);
+    this.showReportDialog.set(true);
+    setTimeout(() => document.getElementById('report-reason')?.focus());
+  }
+
+  closeReportDialog() {
+    if (this.reportPending()) return;
+    this.showReportDialog.set(false);
+    this.reportError.set(null);
+    this.restoreDialogFocus();
+  }
+
+  async submitReport() {
+    const summary = this.profile();
+    if (!summary || this.reportPending()) return;
+    this.reportPending.set(true);
+    this.reportError.set(null);
+    try {
+      const token = await this.requireToken();
+      await this.safetyService.reportUser(
+        summary.user.id,
+        this.reportReason(),
+        this.reportDetails.trim() || undefined,
+        token,
+      );
+      this.showReportDialog.set(false);
+      this.announce('Đã gửi báo cáo. Cảm ơn bạn đã phản hồi.');
+      this.restoreDialogFocus();
+    } catch (error) {
+      this.reportError.set(this.errorMessage(error, 'Không thể gửi báo cáo.'));
+    } finally {
+      this.reportPending.set(false);
+    }
+  }
+
+  openBlockDialog() {
+    this.showSafetyMenu.set(false);
+    this.dialogReturnFocus = document.activeElement as HTMLElement;
+    this.blockError.set(null);
+    this.showBlockDialog.set(true);
+    setTimeout(() => document.getElementById('confirm-block-user')?.focus());
+  }
+
+  closeBlockDialog() {
+    if (this.blockPending()) return;
+    this.showBlockDialog.set(false);
+    this.blockError.set(null);
+    this.restoreDialogFocus();
+  }
+
+  async confirmBlock() {
+    const summary = this.profile();
+    if (!summary || this.blockPending()) return;
+    const wasBlocked = summary.viewer.isBlocked;
+    this.blockPending.set(true);
+    this.blockError.set(null);
+    try {
+      const token = await this.requireToken();
+      if (wasBlocked) {
+        await this.safetyService.unblockUser(summary.user.id, token);
+      } else {
+        await this.safetyService.blockUser(summary.user.id, token);
+      }
+      await this.refreshProfileViewerState();
+      this.showBlockDialog.set(false);
+      this.announce(wasBlocked ? 'Đã bỏ chặn người dùng.' : 'Đã chặn người dùng.');
+      this.restoreDialogFocus();
+    } catch (error) {
+      this.blockError.set(this.errorMessage(error, 'Không thể cập nhật trạng thái chặn.'));
+    } finally {
+      this.blockPending.set(false);
+    }
+  }
+
+  navigateToProfile(username: string | undefined | null) {
+    if (!username) return;
+    void this.router.navigate(['/profile', username]);
+  }
+
   navigateToPin(pinId: string) {
     void this.router.navigate(['/pin', pinId]);
   }
@@ -353,16 +528,30 @@ export class Profile implements OnInit, OnDestroy {
     }
   }
 
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (this.showSafetyMenu() && !target.closest('[data-safety-menu]')) {
+      this.showSafetyMenu.set(false);
+    }
+  }
+
   @HostListener('document:keydown', ['$event'])
   onDocumentKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       if (this.deleteTarget()) this.closeDeleteDialog();
       else if (this.showCreateAlbumModal()) this.closeCreateAlbumModal();
+      else if (this.showReportDialog()) this.closeReportDialog();
+      else if (this.showBlockDialog()) this.closeBlockDialog();
+      else if (this.showSafetyMenu()) this.showSafetyMenu.set(false);
       else this.activePostMenu.set(null);
       return;
     }
 
-    if (event.key === 'Tab' && (this.deleteTarget() || this.showCreateAlbumModal())) {
+    if (
+      event.key === 'Tab' &&
+      (this.deleteTarget() || this.showCreateAlbumModal() || this.showReportDialog() || this.showBlockDialog())
+    ) {
       const dialog = document.querySelector<HTMLElement>('[data-profile-dialog="active"]');
       if (!dialog) return;
       const focusable = Array.from(
@@ -552,6 +741,21 @@ export class Profile implements OnInit, OnDestroy {
   private updateProfile(update: (profile: ProfileSummary) => ProfileSummary) {
     const current = this.profile();
     if (current) this.profile.set(update(current));
+  }
+
+  /** Re-fetches just the permission/relationship state after an action like
+   * block/unblock, instead of a full loadProfile() which would also reset
+   * and re-fetch the posts/albums/favorites tabs. */
+  private async refreshProfileViewerState() {
+    const summary = this.profile();
+    if (!summary) return;
+    try {
+      const token = (await this.supabaseService.getSessionToken()) || undefined;
+      const fresh = await this.userService.getUserProfile(summary.user.username, token);
+      this.updateProfile((current) => ({ ...current, viewer: fresh.viewer }));
+    } catch {
+      // Best-effort refresh — keep the existing state if this fails.
+    }
   }
 
   private async requireToken() {

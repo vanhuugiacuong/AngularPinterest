@@ -16,14 +16,35 @@ export interface ProfileCounts {
   favorites: number | null;
 }
 
+/** Mirrors backend MessageRequestStatus, but from the viewer's point of
+ * view: PENDING is split into outgoing/incoming so the profile action
+ * button can render the right label without knowing who sent it. */
+export type MessageRequestRelationshipStatus =
+  | 'NONE'
+  | 'PENDING_OUTGOING'
+  | 'PENDING_INCOMING'
+  | 'ACCEPTED'
+  | 'REJECTED'
+  | 'REPORTED';
+
+export interface ProfileViewerState {
+  isOwnProfile: boolean;
+  isFollowing: boolean;
+  isFollowedBy: boolean;
+  isMutualFollow: boolean;
+  canViewFavorites: boolean;
+  messageRequestStatus: MessageRequestRelationshipStatus;
+  conversationId: string | null;
+  isBlocked: boolean;
+  isBlockedByTarget: boolean;
+  canMessage: boolean;
+  canSendMessageRequest: boolean;
+}
+
 export interface ProfileSummary {
   user: ProfileUser;
   counts: ProfileCounts;
-  viewer: {
-    isOwnProfile: boolean;
-    isFollowing: boolean;
-    canViewFavorites: boolean;
-  };
+  viewer: ProfileViewerState;
 }
 
 export interface ProfilePin {

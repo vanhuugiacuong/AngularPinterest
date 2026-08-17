@@ -96,16 +96,72 @@
               }
               {{ p.viewer.isFollowing ? 'Bỏ theo dõi' : 'Theo dõi' }}
             </button>
+
+            <div class="message-row">
+              <button
+                type="button"
+                class="primary-action message-action"
+                [class.following-action]="!p.viewer.canMessage"
+                [disabled]="messageButtonDisabled()"
+                (click)="onMessageAction()"
+              >
+                @if (messageActionPending()) {
+                  <span class="button-spinner" aria-hidden="true"></span>
+                } @else {
+                  <span class="material-symbols-outlined">chat_bubble</span>
+                }
+                {{ messageButtonLabel() }}
+              </button>
+
+              <div class="safety-menu-wrap" data-safety-menu>
+                <button
+                  type="button"
+                  class="icon-action icon-only"
+                  (click)="toggleSafetyMenu($event)"
+                  aria-haspopup="true"
+                  [attr.aria-expanded]="showSafetyMenu()"
+                  aria-label="Thêm tùy chọn cho hồ sơ này"
+                >
+                  <span class="material-symbols-outlined">expand_more</span>
+                </button>
+                @if (showSafetyMenu()) {
+                  <div class="safety-menu" role="menu" aria-label="Tùy chọn an toàn">
+                    <button type="button" role="menuitem" (click)="openReportDialog()">
+                      <span class="material-symbols-outlined">flag</span>
+                      Báo cáo tài khoản
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      (click)="shareProfile(); showSafetyMenu.set(false)"
+                    >
+                      <span class="material-symbols-outlined">ios_share</span>
+                      Chia sẻ trang cá nhân
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class="danger-item"
+                      (click)="openBlockDialog()"
+                    >
+                      <span class="material-symbols-outlined">block</span>
+                      {{ p.viewer.isBlocked ? 'Bỏ chặn tài khoản' : 'Chặn tài khoản' }}
+                    </button>
+                  </div>
+                }
+              </div>
+            </div>
+          } @else {
+            <button
+              type="button"
+              class="secondary-action"
+              (click)="shareProfile()"
+              aria-label="Chia sẻ hồ sơ này"
+            >
+              <span class="material-symbols-outlined">ios_share</span>
+              Chia sẻ hồ sơ
+            </button>
           }
-          <button
-            type="button"
-            class="secondary-action"
-            (click)="shareProfile()"
-            aria-label="Chia sẻ hồ sơ này"
-          >
-            <span class="material-symbols-outlined">ios_share</span>
-            Chia sẻ hồ sơ
-          </button>
         </div>
       </section>
 
@@ -649,6 +705,147 @@
               Đang xóa
             } @else {
               Xóa bài
+            }
+          </button>
+        </div>
+      </section>
+    </div>
+  }
+
+  @if (showReportDialog()) {
+    <div class="dialog-backdrop" (click)="closeReportDialog()">
+      <section
+        class="profile-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="report-dialog-title"
+        data-profile-dialog="active"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="dialog-heading">
+          <div>
+            <span class="panel-kicker">An toàn tài khoản</span>
+            <h2 id="report-dialog-title">Báo cáo @&#8203;{{ profile()?.user?.username }}</h2>
+          </div>
+          <button
+            type="button"
+            class="icon-action icon-only"
+            (click)="closeReportDialog()"
+            aria-label="Đóng"
+          >
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <form (ngSubmit)="submitReport()" class="dialog-form">
+          <label for="report-reason">Lý do báo cáo <span aria-hidden="true">*</span></label>
+          <select
+            id="report-reason"
+            name="reportReason"
+            [ngModel]="reportReason()"
+            (ngModelChange)="reportReason.set($event)"
+            [disabled]="reportPending()"
+          >
+            <option value="SPAM">Spam hoặc quảng cáo</option>
+            <option value="HARASSMENT">Quấy rối</option>
+            <option value="HATE_SPEECH">Ngôn từ thù ghét</option>
+            <option value="IMPERSONATION">Mạo danh</option>
+            <option value="INAPPROPRIATE_CONTENT">Nội dung không phù hợp</option>
+            <option value="OTHER">Khác</option>
+          </select>
+
+          <label for="report-details">Chi tiết (không bắt buộc)</label>
+          <textarea
+            id="report-details"
+            name="reportDetails"
+            rows="3"
+            maxlength="500"
+            [(ngModel)]="reportDetails"
+            [disabled]="reportPending()"
+            placeholder="Mô tả thêm về vấn đề bạn gặp phải..."
+          ></textarea>
+
+          @if (reportError()) {
+            <p class="form-error" role="alert">{{ reportError() }}</p>
+          }
+
+          <div class="dialog-actions">
+            <button
+              type="button"
+              class="secondary-action"
+              (click)="closeReportDialog()"
+              [disabled]="reportPending()"
+            >
+              Hủy
+            </button>
+            <button type="submit" class="danger-action" [disabled]="reportPending()">
+              @if (reportPending()) {
+                <span class="button-spinner" aria-hidden="true"></span>
+                Đang gửi
+              } @else {
+                Gửi báo cáo
+              }
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  }
+
+  @if (showBlockDialog()) {
+    <div class="dialog-backdrop" (click)="closeBlockDialog()">
+      <section
+        class="profile-dialog confirm-dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="block-dialog-title"
+        aria-describedby="block-dialog-description"
+        data-profile-dialog="active"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="danger-icon" aria-hidden="true">
+          <span class="material-symbols-outlined">block</span>
+        </div>
+        @if (profile(); as blockTargetProfile) {
+          <h2 id="block-dialog-title">
+            {{
+              blockTargetProfile.viewer.isBlocked
+                ? 'Bỏ chặn @' + blockTargetProfile.user.username + '?'
+                : 'Chặn @' + blockTargetProfile.user.username + '?'
+            }}
+          </h2>
+          <p id="block-dialog-description">
+            {{
+              blockTargetProfile.viewer.isBlocked
+                ? 'Hai bạn sẽ có thể theo dõi và nhắn tin lại với nhau như bình thường.'
+                : 'Người này sẽ không thể gửi yêu cầu nhắn tin hoặc nhắn tin cho bạn nữa.'
+            }}
+          </p>
+        }
+        @if (blockError()) {
+          <p class="form-error" role="alert">{{ blockError() }}</p>
+        }
+        <div class="dialog-actions">
+          <button
+            type="button"
+            class="secondary-action"
+            (click)="closeBlockDialog()"
+            [disabled]="blockPending()"
+          >
+            Hủy
+          </button>
+          <button
+            id="confirm-block-user"
+            type="button"
+            class="danger-action"
+            (click)="confirmBlock()"
+            [disabled]="blockPending()"
+          >
+            @if (blockPending()) {
+              <span class="button-spinner" aria-hidden="true"></span>
+              Đang xử lý
+            } @else {
+              {{ profile()?.viewer?.isBlocked ? 'Bỏ chặn' : 'Chặn' }}
             }
           </button>
         </div>
