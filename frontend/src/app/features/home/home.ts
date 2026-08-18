@@ -1,12 +1,14 @@
 import { Component, OnInit, AfterViewInit, OnDestroy, inject, signal, computed, effect, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { Navbar } from '../../components/navbar/navbar';
 import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
 import { UserService, ProfilePin } from '../../core/services/user';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
+import { ImageSearchStore } from '../../core/services/image-search-store';
 
 /** Vietnamese labels for the category codes the backend's auto-classifier
  * assigns (see PinsService.classifyCategory) — chips are only ever built
@@ -35,6 +37,8 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   private boardService = inject(BoardService);
   private userService = inject(UserService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private imageSearchStore = inject(ImageSearchStore);
 
   @ViewChild('scrollSentinel') scrollSentinel!: ElementRef;
 
@@ -53,6 +57,11 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
    * `/api/pins/search` contract. */
   public searchQuery = signal<string | null>(null);
 
+  /** True while the active search is a reverse-image search (results read
+   * from ImageSearchStore instead of PinService.searchPins). */
+  public isImageSearch = signal<boolean>(false);
+  public imageSearchPreviewUrl = computed(() => this.imageSearchStore.previewUrl());
+
   public activeCategory = signal<string | null>(null);
 
   /** "Tiếp tục sáng tạo" — the logged-in user's own most recent pins, reusing
@@ -67,6 +76,10 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   private hasMore = true;
   private observer?: IntersectionObserver;
   private feedSeed = Math.random().toString(36).substring(2, 15);
+  private queryParamsSub?: Subscription;
+  /** Guards against a slow, now-stale search response overwriting a newer
+   * one (e.g. fast typing while the results page is live-updating). */
+  private searchRequestId = 0;
 
   /** Real display name sourced from the backend-synced profile (falls back to
    * OAuth metadata briefly while that sync is in flight) — same resolution
@@ -96,6 +109,20 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
         this.recentCreationsLoaded.set(false);
       }
     });
+
+    // Mirrors ImageSearchStore reactively (not just once on navigation) so
+    // uploading a second image while already on the results page updates
+    // this view too, even when the URL (/feed?mode=image) doesn't change.
+    effect(() => {
+      if (!this.isImageSearch()) return;
+      const loading = this.imageSearchStore.isLoading();
+      const error = this.imageSearchStore.error();
+      const results = this.imageSearchStore.results();
+      this.isLoading.set(loading);
+      this.loadError.set(error);
+      this.pins.set(this.mapPins(results || []));
+      this.hasMore = false;
+    });
   }
 
   /** Categories actually present in the currently loaded feed — never a
@@ -118,10 +145,38 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     return list.filter((p) => p.category === category);
   });
 
+  /** True while either a text search or a reverse-image search is active —
+   * gates the feed-only UI (greeting, recent creations, category chips)
+   * that only makes sense outside of search mode. */
+  public isSearchActive = computed(() => this.searchQuery() !== null || this.isImageSearch());
+
   async ngOnInit() {
     this.updateNumColumns();
-    await this.loadPins();
-    await this.loadBoards();
+    void this.loadBoards();
+
+    // Query params are the single source of truth for search mode — reached
+    // via a direct link (/feed?q=...) or the navbar's Enter/suggestion-click
+    // navigation (see Navbar.navigateToResults). Typing alone never lands
+    // here; it only refreshes the navbar's own dropdown.
+    this.queryParamsSub = this.route.queryParamMap.subscribe((params) => {
+      const mode = params.get('mode');
+      const q = (params.get('q') || '').trim();
+
+      if (mode === 'image') {
+        this.applyImageSearchResults();
+        return;
+      }
+
+      if (q) {
+        void this.onSearch(q);
+      } else {
+        if (this.isSearchActive()) {
+          this.searchQuery.set(null);
+          this.isImageSearch.set(false);
+        }
+        void this.loadPins();
+      }
+    });
   }
 
   @HostListener('window:resize')
@@ -170,6 +225,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     if (this.observer) {
       this.observer.disconnect();
     }
+    this.queryParamsSub?.unsubscribe();
   }
 
   setupIntersectionObserver() {
@@ -179,7 +235,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
         entry.isIntersecting &&
         !this.isLoading() &&
         !this.isScrollingLoad() &&
-        !this.searchQuery() &&
+        !this.isSearchActive() &&
         this.hasMore
       ) {
         await this.loadMorePins();
@@ -256,7 +312,11 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       const apiPins = await this.pinService.getPins(this.currentPage, this.limit, token, this.feedSeed);
       if (apiPins && apiPins.length > 0) {
         const mapped = this.mapPins(apiPins);
-        this.pins.update(current => [...current, ...mapped]);
+        this.pins.update(current => {
+          const existingIds = new Set(current.map(p => p.id));
+          const uniqueNew = mapped.filter(p => !existingIds.has(p.id));
+          return [...current, ...uniqueNew];
+        });
         if (apiPins.length < this.limit) {
           this.hasMore = false;
         }
@@ -273,37 +333,70 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
 
   /** Runs a real search against the backend's CLIP/text search endpoint
    * (see PinService.searchPins / GET /api/pins/search). An empty query
-   * clears search mode and restores the normal ranked feed. */
+   * clears search mode and restores the normal ranked feed. Reached both
+   * from the navbar's (search) output and from the /feed?q= queryParamMap
+   * subscription in ngOnInit — the equality check below makes a second,
+   * redundant call for the same query a no-op instead of double-fetching. */
   async onSearch(query: string) {
     const trimmed = query.trim();
     if (!trimmed) {
-      if (this.searchQuery() !== null) {
+      if (this.isSearchActive()) {
         this.searchQuery.set(null);
+        this.isImageSearch.set(false);
         await this.loadPins();
       }
       return;
     }
 
+    if (!this.isImageSearch() && trimmed === this.searchQuery()) {
+      return;
+    }
+
     this.searchQuery.set(trimmed);
+    this.isImageSearch.set(false);
     this.activeCategory.set(null);
     this.isLoading.set(true);
     this.loadError.set(null);
+
+    // Stamped so a slow, now-superseded response can't overwrite a faster,
+    // newer one (e.g. two quick consecutive searches, or a stray duplicate
+    // call from the (search) output firing alongside the queryParam sync).
+    const requestId = ++this.searchRequestId;
     try {
       const results = await this.pinService.searchPins(trimmed);
+      if (requestId !== this.searchRequestId) return;
       this.pins.set(this.mapPins(results || []));
       this.hasMore = false;
     } catch (error) {
+      if (requestId !== this.searchRequestId) return;
       console.error('Error searching pins:', error);
       this.pins.set([]);
       this.hasMore = false;
       this.loadError.set('Không thể tìm kiếm lúc này. Vui lòng thử lại.');
     } finally {
-      this.isLoading.set(false);
+      if (requestId === this.searchRequestId) {
+        this.isLoading.set(false);
+      }
     }
+  }
+
+  /** Reflects an already-completed reverse-image search (see
+   * ImageSearchStore) into the feed view. The effect registered in the
+   * constructor keeps pins/loading/error mirrored for as long as image mode
+   * stays active, so this only needs to flip the mode flags. */
+  private applyImageSearchResults() {
+    this.searchRequestId++; // invalidate any in-flight text search
+    this.searchQuery.set(null);
+    this.activeCategory.set(null);
+    this.isImageSearch.set(true);
   }
 
   async clearSearch() {
     this.searchQuery.set(null);
+    this.isImageSearch.set(false);
+    if (this.route.snapshot.queryParamMap.keys.length > 0) {
+      this.router.navigate(['/feed']);
+    }
     await this.loadPins();
   }
 
@@ -312,6 +405,13 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   }
 
   retryLoad() {
+    if (this.isImageSearch()) {
+      // No File is kept around after upload (see ImageSearchStore), so
+      // there is nothing to resubmit — send the user back to the feed to
+      // try another image via the camera button instead.
+      void this.clearSearch();
+      return;
+    }
     const q = this.searchQuery();
     if (q) {
       void this.onSearch(q);

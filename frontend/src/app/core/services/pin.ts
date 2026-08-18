@@ -63,6 +63,33 @@ export class PinService {
     }
   }
 
+  /** Reverse image search: uploads a File (not yet a saved Pin) to the CLIP
+   * embedding pipeline on the backend and returns real database matches. */
+  async searchPinsByImage(file: File, limit = 40): Promise<Pin[]> {
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const response = await fetch(`${this.baseUrl}/search-by-image?limit=${limit}`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) {
+        let message = `Tìm kiếm bằng hình ảnh thất bại (${response.status})`;
+        try {
+          const body = await response.json();
+          message = body.message || message;
+        } catch {
+          // Keep the status-based message when the server does not return JSON.
+        }
+        throw new Error(message);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error searching pins by image in PinService:', error);
+      throw error;
+    }
+  }
+
   async getRelatedPins(id: string, page = 1, limit = 20): Promise<Pin[]> {
     try {
       const response = await fetch(`${this.baseUrl}/${id}/related?page=${page}&limit=${limit}`);

@@ -13,6 +13,16 @@ export class BoardsService {
   async getUserBoards(userId: string) {
     return this.prisma.board.findMany({
       where: { userId },
+      include: {
+        boardPins: {
+          include: {
+            pin: true,
+          },
+          orderBy: {
+            addedAt: 'desc',
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }

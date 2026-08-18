@@ -99,6 +99,14 @@ export interface PagedResponse<T> {
   hasMore: boolean;
 }
 
+/** Public-safe account match for search — never carries email or other
+ * private profile data (see UsersService.searchUsers on the backend). */
+export interface UserSearchResult {
+  id: string;
+  username: string;
+  avatarUrl?: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class UserService {
   private readonly baseUrl = 'http://localhost:3000/api/users';
@@ -140,6 +148,15 @@ export class UserService {
       `${this.baseUrl}/me/favorites?page=${page}&limit=${limit}`,
       token,
     );
+  }
+
+  async searchUsers(query: string, limit = 8): Promise<UserSearchResult[]> {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+    const result = await this.request<{ items: UserSearchResult[] }>(
+      `${this.baseUrl}/search?q=${encodeURIComponent(trimmed)}&limit=${limit}`,
+    );
+    return result.items || [];
   }
 
   async toggleFollow(

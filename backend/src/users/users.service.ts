@@ -408,6 +408,42 @@ export class UsersService {
     return { followed, followerCount };
   }
 
+  /** Account search for the navbar's search dropdown/results. Only ever
+   * selects public-safe fields (id, username, avatarUrl) — never email or
+   * other private profile data. Exact-prefix matches are ranked before
+   * matches that only contain the query elsewhere in the username. */
+  async searchUsers(rawQuery: string, rawLimit?: string) {
+    const query = rawQuery.trim();
+    if (!query) {
+      return { items: [] };
+    }
+
+    const parsedLimit = Number.parseInt(rawLimit || '10', 10);
+    const limit =
+      Number.isFinite(parsedLimit) && parsedLimit > 0
+        ? Math.min(parsedLimit, 25)
+        : 10;
+
+    const matches = await this.prisma.user.findMany({
+      where: { username: { contains: query, mode: 'insensitive' } },
+      select: { id: true, username: true, avatarUrl: true },
+      take: limit * 3,
+    });
+
+    const lowerQuery = query.toLowerCase();
+    const startsWith: typeof matches = [];
+    const contains: typeof matches = [];
+    for (const user of matches) {
+      if (user.username.toLowerCase().startsWith(lowerQuery)) {
+        startsWith.push(user);
+      } else {
+        contains.push(user);
+      }
+    }
+
+    return { items: [...startsWith, ...contains].slice(0, limit) };
+  }
+
   private async findUserByUsername(username: string) {
     const user = await this.prisma.user.findUnique({
       where: { username },

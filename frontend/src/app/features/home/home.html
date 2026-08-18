@@ -10,7 +10,7 @@
            resolved (dbUser sync completes shortly after sign-in); never a
            placeholder name. Hidden entirely in search mode to keep that
            header compact. -->
-      @if (!searchQuery() && displayName()) {
+      @if (!isSearchActive() && displayName()) {
         <p class="mono-label text-[11px] uppercase text-text-muted mb-1.5 select-none">
           Chào {{ displayName() }}
         </p>
@@ -20,7 +20,7 @@
            UserService.getUserPosts (same endpoint Profile uses). Hidden while
            searching, while still loading, and once we know there is nothing
            to show and the user already saw the empty-state CTA once. -->
-      @if (!searchQuery() && (isRecentLoading() || recentCreations().length > 0 || recentCreationsLoaded())) {
+      @if (!isSearchActive() && (isRecentLoading() || recentCreations().length > 0 || recentCreationsLoaded())) {
         <div class="mb-6">
           <div class="flex items-baseline gap-2.5 mb-3 select-none">
             <span class="mono-label text-[10px] uppercase text-accent">Tác phẩm gần đây</span>
@@ -67,13 +67,26 @@
       <!-- Discovery header: compact eyebrow + heading, collapses to just the
            chip row once results are on screen so it never eats much height. -->
       <div class="flex flex-col gap-4 mb-5">
-        @if (searchQuery()) {
+        @if (isSearchActive()) {
           <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="min-w-0">
-              <span class="mono-label text-[10px] uppercase text-accent select-none">Kết quả tìm kiếm</span>
-              <h1 class="text-lg sm:text-xl font-extrabold text-text truncate mt-0.5">
-                “{{ searchQuery() }}”
-              </h1>
+            <div class="min-w-0 flex items-center gap-3">
+              @if (isImageSearch() && imageSearchPreviewUrl()) {
+                <img
+                  [src]="imageSearchPreviewUrl()"
+                  alt="Ảnh dùng để tìm kiếm"
+                  class="w-11 h-11 rounded-control object-cover border border-border-strong shrink-0"
+                />
+              }
+              <div class="min-w-0">
+                <span class="mono-label text-[10px] uppercase text-accent select-none">Kết quả tìm kiếm</span>
+                <h1 class="text-lg sm:text-xl font-extrabold text-text truncate mt-0.5">
+                  @if (isImageSearch()) {
+                    Ảnh tương tự
+                  } @else {
+                    “{{ searchQuery() }}”
+                  }
+                </h1>
+              </div>
             </div>
             <button
               type="button"
@@ -92,7 +105,7 @@
         }
 
         <!-- Category chips — built only from categories present in the loaded feed, hidden entirely in search mode -->
-        @if (!searchQuery() && categoryChips().length > 0) {
+        @if (!isSearchActive() && categoryChips().length > 0) {
           <div class="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1" role="tablist" aria-label="Lọc theo danh mục">
             <button
               type="button"
@@ -170,12 +183,12 @@
         <div class="flex-1 flex flex-col items-center justify-center gap-4 py-24 text-center">
           <div class="w-14 h-14 rounded-full bg-surface-elevated border border-border flex items-center justify-center">
             <span class="material-symbols-outlined text-2xl text-text-muted">
-              {{ searchQuery() ? 'search_off' : activeCategory() ? 'filter_alt_off' : 'photo_library' }}
+              {{ isSearchActive() ? 'search_off' : activeCategory() ? 'filter_alt_off' : 'photo_library' }}
             </span>
           </div>
           <div class="flex flex-col gap-1.5 max-w-sm">
             <h2 class="text-sm font-bold text-text">
-              @if (searchQuery()) {
+              @if (isSearchActive()) {
                 Không tìm thấy kết quả nào
               } @else if (activeCategory()) {
                 Chưa có ảnh nào trong danh mục này
@@ -184,7 +197,9 @@
               }
             </h2>
             <p class="text-xs text-text-muted leading-relaxed">
-              @if (searchQuery()) {
+              @if (isImageSearch()) {
+                Không tìm thấy ảnh nào tương tự trong cơ sở dữ liệu. Thử một ảnh khác.
+              } @else if (searchQuery()) {
                 Thử một từ khóa khác hoặc kiểm tra lại chính tả.
               } @else if (activeCategory()) {
                 Hãy thử một danh mục khác hoặc xem tất cả ảnh.
@@ -193,7 +208,7 @@
               }
             </p>
           </div>
-          @if (searchQuery()) {
+          @if (isSearchActive()) {
             <button type="button" (click)="clearSearch()" class="h-10 px-5 bg-gradient-brand cta-shape text-text font-bold text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
               Quay lại Không gian khám phá
             </button>

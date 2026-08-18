@@ -1,0 +1,101 @@
+<!-- Full-screen backdrop + centered panel, mirrors the modal pattern used
+     elsewhere in the app (e.g. board creation) but self-contained here. -->
+<div
+  class="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-ink/70 backdrop-blur-sm p-4"
+  (click)="close()"
+>
+  <div
+    (click)="$event.stopPropagation()"
+    class="glass-elevated w-full max-w-md rounded-panel shadow-card p-5 flex flex-col gap-4 animate-fade-in my-6 sm:my-12 max-h-[85vh] overflow-y-auto"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Tải hình ảnh lên để tìm kiếm"
+  >
+    <div class="flex items-center justify-between">
+      <h2 class="text-sm font-extrabold text-text">Tải hình ảnh lên để tìm kiếm</h2>
+      <button
+        type="button"
+        (click)="close()"
+        class="w-8 h-8 rounded-control flex items-center justify-center text-text-muted hover:text-text hover:bg-surface-elevated cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        aria-label="Đóng"
+      >
+        <span class="material-symbols-outlined text-xl">close</span>
+      </button>
+    </div>
+
+    <!-- Drop zone / file picker -->
+    @if (!localPreviewUrl()) {
+      <label
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave($event)"
+        (drop)="onDrop($event)"
+        [class.border-accent]="isDragging()"
+        [class.border-border]="!isDragging()"
+        class="flex flex-col items-center justify-center gap-2 h-48 rounded-control border-2 border-dashed bg-surface/60 cursor-pointer transition-colors duration-200 text-center px-4"
+      >
+        <span class="material-symbols-outlined text-3xl text-text-muted">add_photo_alternate</span>
+        <span class="text-xs font-bold text-text">Kéo & thả ảnh vào đây</span>
+        <span class="text-[11px] text-text-muted">hoặc bấm để chọn từ máy — JPG, PNG, WebP, tối đa 10MB</span>
+        <input
+          type="file"
+          accept="image/jpeg,image/jpg,image/png,image/webp"
+          class="hidden"
+          (change)="onFileInputChange($event)"
+        />
+      </label>
+    } @else {
+      <div class="relative rounded-control overflow-hidden bg-surface">
+        <img [src]="localPreviewUrl()" alt="Ảnh xem trước" class="w-full max-h-64 object-contain" />
+        <button
+          type="button"
+          (click)="removeSelectedFile()"
+          [disabled]="store.isLoading()"
+          class="absolute top-2 right-2 w-8 h-8 rounded-control bg-surface-high/90 border border-border-strong flex items-center justify-center text-text-muted hover:text-text cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-accent"
+          aria-label="Chọn ảnh khác"
+        >
+          <span class="material-symbols-outlined text-lg">refresh</span>
+        </button>
+      </div>
+    }
+
+    <!-- Client-side validation error -->
+    @if (validationError()) {
+      <p class="text-xs text-error flex items-center gap-1.5" role="alert">
+        <span class="material-symbols-outlined text-base leading-none">error</span>
+        {{ validationError() }}
+      </p>
+    }
+
+    <!-- Search error (network/CLIP service) -->
+    @if (store.error()) {
+      <p class="text-xs text-error flex items-center gap-1.5" role="alert">
+        <span class="material-symbols-outlined text-base leading-none">cloud_off</span>
+        {{ store.error() }}
+      </p>
+    }
+
+    <div class="flex items-center justify-end gap-2.5">
+      <button
+        type="button"
+        (click)="close()"
+        [disabled]="store.isLoading()"
+        class="h-10 px-4 rounded-control bg-surface border border-border hover:border-border-strong text-xs font-bold text-text-muted hover:text-text cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        Hủy
+      </button>
+      <button
+        type="button"
+        (click)="runSearch()"
+        [disabled]="!selectedFile() || store.isLoading()"
+        class="h-10 px-5 bg-gradient-brand cta-shape text-text font-bold text-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        @if (store.isLoading()) {
+          <span class="material-symbols-outlined text-base animate-spin leading-none">progress_activity</span>
+          Đang tìm kiếm...
+        } @else {
+          Tìm kiếm bằng ảnh này
+        }
+      </button>
+    </div>
+  </div>
+</div>
