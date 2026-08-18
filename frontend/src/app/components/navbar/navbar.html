@@ -36,50 +36,182 @@
   </div>
 
   <!-- Center Search Bar — soft control shape with focus-sweep underline instead of a pill -->
-  <div
-    (click)="!supabaseService.user() ? onLoginClick() : null"
-    [class.cursor-pointer]="!supabaseService.user()"
-    class="nf-search flex-1 max-w-2xl mx-auto flex items-center gap-2 px-4 h-11 rounded-control text-text-muted bg-surface border border-border transition-colors duration-200 hover:border-border-strong"
-  >
-    <span class="material-symbols-outlined text-xl">search</span>
-    <input
-      *ngIf="supabaseService.user()"
-      type="search"
-      [ngModel]="searchQuery()"
-      (ngModelChange)="onSearchInput($event)"
-      (keyup.enter)="submitSearch()"
-      [placeholder]="isProfilePage() ? 'Tìm kiếm tác phẩm của bạn' : 'Tìm kiếm ý tưởng, tác phẩm, hoặc tác giả...'"
-      aria-label="Tìm kiếm"
-      class="bg-transparent border-none outline-none w-full text-sm text-text placeholder-text-muted"
+  <div class="relative flex-1 max-w-2xl mx-auto">
+    <div
+      (click)="!supabaseService.user() ? onLoginClick() : null"
+      [class.cursor-pointer]="!supabaseService.user()"
+      class="nf-search flex items-center gap-2 px-4 h-11 rounded-control text-text-muted bg-surface border border-border transition-colors duration-200 hover:border-border-strong"
+    >
+      <span class="material-symbols-outlined text-xl">search</span>
+      <input
+        *ngIf="supabaseService.user()"
+        type="search"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="onSearchInput($event)"
+        (focus)="onSearchFocus()"
+        (keydown.enter)="onEnterKey()"
+        (keydown.arrowdown)="onArrowDown($event)"
+        (keydown.arrowup)="onArrowUp($event)"
+        [placeholder]="isProfilePage() ? 'Tìm kiếm tác phẩm của bạn' : 'Tìm kiếm ý tưởng, tác phẩm, hoặc tác giả...'"
+        aria-label="Tìm kiếm"
+        role="combobox"
+        aria-haspopup="listbox"
+        [attr.aria-expanded]="showSearchDropdown()"
+        class="bg-transparent border-none outline-none w-full text-sm text-text placeholder-text-muted"
+        (click)="$event.stopPropagation()"
+      />
+      <span
+        *ngIf="!supabaseService.user()"
+        class="text-xs text-text-muted select-none truncate"
+      >
+        Tìm kiếm cách nấu món ăn, hay mẹo về thời trang, v.v.
+      </span>
+      <!-- Clear query -->
+      <button
+        *ngIf="supabaseService.user() && searchQuery()"
+        type="button"
+        (click)="$event.stopPropagation(); clearSearch()"
+        class="material-symbols-outlined text-lg text-text-muted hover:text-text transition-colors duration-200 cursor-pointer select-none border-none outline-none bg-transparent p-0 leading-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
+        aria-label="Xóa tìm kiếm"
+      >
+        close
+      </button>
+      <!-- Search-by-image -->
+      <button
+        *ngIf="supabaseService.user()"
+        type="button"
+        (click)="$event.stopPropagation(); openImageSearch()"
+        class="material-symbols-outlined text-xl text-text-muted hover:text-accent transition-colors duration-200 cursor-pointer select-none border-none outline-none bg-transparent p-0 leading-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
+        aria-label="Tìm kiếm bằng hình ảnh"
+        title="Tìm kiếm bằng hình ảnh"
+      >
+        photo_camera
+      </button>
+    </div>
+
+    <!-- Search suggestions dropdown — recent searches when empty, live
+         keyword/pin/account matches while typing (see Navbar.flatSuggestions
+         for the keyboard-navigable order this mirrors). -->
+    <div
+      *ngIf="supabaseService.user() && showSearchDropdown()"
       (click)="$event.stopPropagation()"
-    />
-    <span
-      *ngIf="!supabaseService.user()"
-      class="text-xs text-text-muted select-none truncate"
+      class="glass-elevated absolute left-0 right-0 top-12 mt-1 max-h-[70vh] overflow-y-auto rounded-panel shadow-card p-3 flex flex-col gap-3 z-50 animate-fade-in text-left"
+      role="listbox"
     >
-      Tìm kiếm cách nấu món ăn, hay mẹo về thời trang, v.v.
-    </span>
-    <!-- Clear query -->
-    <button
-      *ngIf="supabaseService.user() && searchQuery()"
-      type="button"
-      (click)="$event.stopPropagation(); clearSearch()"
-      class="material-symbols-outlined text-lg text-text-muted hover:text-text transition-colors duration-200 cursor-pointer select-none border-none outline-none bg-transparent p-0 leading-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
-      aria-label="Xóa tìm kiếm"
-    >
-      close
-    </button>
-    <!-- Submit search -->
-    <button
-      *ngIf="supabaseService.user()"
-      type="button"
-      (click)="$event.stopPropagation(); submitSearch()"
-      class="material-symbols-outlined text-xl text-text-muted hover:text-accent transition-colors duration-200 cursor-pointer select-none border-none outline-none bg-transparent p-0 leading-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
-      aria-label="Tìm kiếm"
-      title="Tìm kiếm"
-    >
-      photo_camera
-    </button>
+      <ng-container *ngIf="!searchQuery().trim()">
+        <ng-container *ngIf="recentSearches().length > 0; else noHistory">
+          <span class="mono-label text-[10px] uppercase text-text-muted font-medium px-2 select-none">
+            Tìm kiếm gần đây
+          </span>
+          <div class="flex flex-col">
+            <button
+              *ngFor="let term of recentSearches(); let i = index"
+              type="button"
+              (click)="selectSuggestion({ kind: 'recent', term })"
+              [class.bg-surface-elevated]="activeSuggestionIndex() === i"
+              class="w-full flex items-center justify-between gap-2 text-left px-3 py-2 rounded-control hover:bg-surface-elevated cursor-pointer border-none outline-none bg-transparent focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <span class="flex items-center gap-2 min-w-0 text-sm text-text">
+                <span class="material-symbols-outlined text-base text-text-muted leading-none">history</span>
+                <span class="truncate">{{ term }}</span>
+              </span>
+              <span
+                (click)="removeRecentSearch(term, $event)"
+                class="material-symbols-outlined text-base text-text-muted hover:text-text leading-none shrink-0"
+                aria-label="Xóa khỏi lịch sử"
+              >close</span>
+            </button>
+          </div>
+        </ng-container>
+        <ng-template #noHistory>
+          <p class="text-xs text-text-muted px-2 py-1 select-none">
+            Gõ để tìm ý tưởng, tác phẩm hoặc tác giả trên NovaFrame.
+          </p>
+        </ng-template>
+      </ng-container>
+
+      <ng-container *ngIf="searchQuery().trim()">
+        <!-- Loading -->
+        <div *ngIf="isSuggesting()" class="flex items-center gap-2 px-2 py-1 text-xs text-text-muted select-none">
+          <span class="material-symbols-outlined text-base animate-spin leading-none">progress_activity</span>
+          Đang tìm gợi ý...
+        </div>
+
+        <!-- Error -->
+        <div *ngIf="!isSuggesting() && suggestError()" class="flex items-center gap-2 px-2 py-1 text-xs text-error select-none">
+          <span class="material-symbols-outlined text-base leading-none">cloud_off</span>
+          {{ suggestError() }}
+        </div>
+
+        <ng-container *ngIf="!isSuggesting()">
+          <!-- Keyword suggestions -->
+          <ng-container *ngIf="suggestKeywords().length > 0">
+            <span class="mono-label text-[10px] uppercase text-text-muted font-medium px-2 select-none">Từ khóa liên quan</span>
+            <div class="flex flex-col">
+              <button
+                *ngFor="let term of suggestKeywords(); let i = index"
+                type="button"
+                (click)="selectSuggestion({ kind: 'keyword', term })"
+                [class.bg-surface-elevated]="activeSuggestionIndex() === i"
+                class="w-full text-left flex items-center gap-2 px-3 py-2 rounded-control hover:bg-surface-elevated cursor-pointer border-none outline-none bg-transparent text-sm text-text focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <span class="material-symbols-outlined text-base text-text-muted leading-none">search</span>
+                <span class="truncate">{{ term }}</span>
+              </button>
+            </div>
+          </ng-container>
+
+          <!-- Account matches -->
+          <ng-container *ngIf="suggestUsers().length > 0">
+            <span class="mono-label text-[10px] uppercase text-text-muted font-medium px-2 select-none">Tài khoản phù hợp</span>
+            <div class="flex flex-col">
+              <button
+                *ngFor="let u of suggestUsers(); let i = index"
+                type="button"
+                (click)="selectSuggestion({ kind: 'user', user: u })"
+                [class.bg-surface-elevated]="activeSuggestionIndex() === suggestKeywords().length + pinsSuggestionCount() + i"
+                class="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-control hover:bg-surface-elevated cursor-pointer border-none outline-none bg-transparent focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <app-user-avatar [src]="u.avatarUrl" [name]="u.username" [size]="28" [ring]="false"></app-user-avatar>
+                <span class="text-sm font-bold text-text truncate">{{ u.username }}</span>
+              </button>
+            </div>
+          </ng-container>
+
+          <!-- Matching pins -->
+          <ng-container *ngIf="suggestPins().length > 0">
+            <span class="mono-label text-[10px] uppercase text-text-muted font-medium px-2 select-none">Hình ảnh phù hợp</span>
+            <div class="grid grid-cols-3 gap-2 px-1">
+              <button
+                *ngFor="let pin of suggestPins().slice(0, 6); let i = index"
+                type="button"
+                (click)="selectSuggestion({ kind: 'pin', pin })"
+                [class.ring-2]="activeSuggestionIndex() === suggestKeywords().length + i"
+                [class.ring-accent]="activeSuggestionIndex() === suggestKeywords().length + i"
+                class="relative aspect-square overflow-hidden rounded-control bg-surface cursor-pointer border-none outline-none p-0 focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <img [src]="pin.imageUrl" [alt]="pin.title" loading="lazy" class="w-full h-full object-cover block" />
+              </button>
+            </div>
+          </ng-container>
+
+          <p
+            *ngIf="!suggestKeywords().length && !suggestUsers().length && !suggestPins().length && !suggestError()"
+            class="text-xs text-text-muted px-2 py-1 select-none"
+          >
+            Không tìm thấy gợi ý nào cho "{{ searchQuery() }}".
+          </p>
+        </ng-container>
+
+        <button
+          type="button"
+          (click)="submitSearch()"
+          class="mt-1 w-full text-left px-3 py-2 rounded-control hover:bg-surface-elevated cursor-pointer border-none outline-none bg-transparent text-xs font-bold text-accent focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          Xem tất cả kết quả cho "{{ searchQuery() }}"
+        </button>
+      </ng-container>
+    </div>
   </div>
 
   <!-- Right Profile Section / Login Button -->
@@ -157,3 +289,13 @@
     </button>
   </div>
 </header>
+
+<!-- Rendered as a sibling of <header>, not a descendant — header's
+     backdrop-blur creates a new containing block for `position: fixed`
+     descendants, which would trap this modal's fixed backdrop inside
+     the 64px-tall header box instead of the full viewport. -->
+<app-image-search-modal
+  *ngIf="showImageSearchModal()"
+  (closed)="closeImageSearchModal()"
+  (searched)="onImageSearched()"
+></app-image-search-modal>

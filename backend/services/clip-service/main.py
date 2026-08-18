@@ -29,6 +29,14 @@ except Exception as e:
 HF_API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/openai/clip-vit-base-patch32"
 HF_TOKEN = os.getenv("HF_TOKEN", "")
 
+def _extract_features(output):
+    """CLIPModel.get_text_features()/get_image_features() return a plain
+    Tensor on older `transformers` releases, but a BaseModelOutputWithPooling
+    (with the embedding at .pooler_output) on newer ones (5.x+) — normalize
+    both shapes to the raw Tensor here so callers don't care which is active."""
+    pooler_output = getattr(output, "pooler_output", None)
+    return pooler_output if pooler_output is not None else output
+
 def query_hf_api(data=None, json_payload=None, is_image=False):
     headers = {}
     if HF_TOKEN:
@@ -63,7 +71,7 @@ async def embed_image(file: UploadFile = File(...)):
             import torch
             inputs = local_processor(images=image, return_tensors="pt")
             with torch.no_grad():
-                features = local_model.get_image_features(**inputs)
+                features = _extract_features(local_model.get_image_features(**inputs))
             features = features / features.norm(p=2, dim=-1, keepdim=True)
             return {"embedding": features[0].tolist()}
         else:
@@ -96,7 +104,7 @@ async def embed_text(query: str):
             import torch
             inputs = local_processor(text=[query.strip()], return_tensors="pt", padding=True)
             with torch.no_grad():
-                features = local_model.get_text_features(**inputs)
+                features = _extract_features(local_model.get_text_features(**inputs))
             features = features / features.norm(p=2, dim=-1, keepdim=True)
             return {"embedding": features[0].tolist()}
         else:

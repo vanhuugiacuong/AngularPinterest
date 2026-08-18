@@ -45,6 +45,22 @@ export class PinsController {
     return this.pinsService.searchPins(query || '', pageNum, limitNum);
   }
 
+  @Post('search-by-image')
+  @UseInterceptors(
+    FileInterceptor('image', {
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit, matches pin upload
+    }),
+  )
+  async searchPinsByImage(
+    @UploadedFile() file: Express.Multer.File,
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 20;
+    return this.pinsService.searchPinsByImage(file, pageNum, limitNum);
+  }
+
   @Get(':id/similar')
   async getSimilarPins(
     @Param('id') id: string,

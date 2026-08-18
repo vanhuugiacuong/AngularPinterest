@@ -58,6 +58,17 @@ export class UsersController {
     return this.usersService.getUserBoards(username, viewer?.id, page, limit);
   }
 
+  // Must stay registered before the ':username' route below — otherwise Nest
+  // matches a literal request for "/api/users/search" against ':username'
+  // and treats "search" as a username instead of routing here.
+  @Get('search')
+  async searchUsers(
+    @Query('q') query: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.usersService.searchUsers(query || '', limit);
+  }
+
   @Get(':username')
   @UseGuards(OptionalSupabaseAuthGuard)
   async getUserProfile(

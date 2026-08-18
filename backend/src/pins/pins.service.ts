@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
@@ -612,53 +613,8 @@ export class PinsService {
       });
     }
 
-    // 2. Query pgvector using Raw SQL for cosine similarity
-    const vectorString = JSON.stringify(embedding);
-    const queryLimit = limit * 2;
-    const pins: any[] = await this.prisma.$queryRawUnsafe(`
-      SELECT 
-        p.id, p.title, p.description, p."imageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
-        u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl",
-        COUNT(l."pinId")::int AS "likesCount",
-        1 - (p.embedding <=> $1::vector) AS similarity
-      FROM "Pin" p
-      LEFT JOIN "User" u ON p."userId" = u.id
-      LEFT JOIN "Like" l ON p.id = l."pinId"
-      WHERE p.embedding IS NOT NULL
-      GROUP BY p.id, u.username, u."avatarUrl"
-      ORDER BY p.embedding <=> $1::vector
-      LIMIT $2 OFFSET $3
-    `, vectorString, queryLimit, skip);
-
-    const seenUrls = new Set<string>();
-    const uniquePins: any[] = [];
-    for (const p of pins) {
-      if (!seenUrls.has(p.imageUrl)) {
-        seenUrls.add(p.imageUrl);
-        uniquePins.push(p);
-      }
-    }
-
-    return uniquePins.slice(0, limit).map(p => ({
-      id: p.id,
-      title: p.title,
-      description: p.description,
-      imageUrl: p.imageUrl,
-      sourceUrl: p.sourceUrl,
-      userId: p.userId,
-      createdAt: p.createdAt,
-      isAiGenerated: p.isAiGenerated,
-      category: p.category,
-      user: {
-        id: p.userId,
-        username: p.authorUsername || 'Pinterest AI',
-        avatarUrl: p.authorAvatarUrl,
-      },
-      _count: {
-        likes: p.likesCount || 0
-      },
-      similarity: p.similarity
-    }));
+    // 2. Query pgvector for cosine similarity against the search text's embedding
+    return this.queryPinsByEmbedding(JSON.stringify(embedding), null, null, limit, skip);
   }
 
   async getSimilarPins(pinId: string, page: number = 1, limit: number = 20) {
@@ -681,28 +637,83 @@ export class PinsService {
       return this.getRelatedPins(pinId, page, limit);
     }
 
-    const embeddingString = rawPinArr[0].embedding;
-    const queryLimit = limit * 2;
+    return this.queryPinsByEmbedding(rawPinArr[0].embedding, pinId, pin.imageUrl, limit, skip);
+  }
 
-    // Query pgvector using Raw SQL for cosine similarity relative to this pin's embedding
-    const pins: any[] = await this.prisma.$queryRawUnsafe(`
-      SELECT 
-        p.id, p.title, p.description, p."imageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
-        u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl",
-        COUNT(l."pinId")::int AS "likesCount",
-        1 - (p.embedding <=> $1::vector) AS similarity
-      FROM "Pin" p
-      LEFT JOIN "User" u ON p."userId" = u.id
-      LEFT JOIN "Like" l ON p.id = l."pinId"
-      WHERE p.id != $2 AND p.embedding IS NOT NULL
-      GROUP BY p.id, u.username, u."avatarUrl"
-      ORDER BY p.embedding <=> $1::vector
-      LIMIT $3 OFFSET $4
-    `, embeddingString, pinId, queryLimit, skip);
+  /** Reverse image search: embeds an uploaded image (not yet a saved Pin)
+   * via the same CLIP service used for pin uploads, then finds existing
+   * Pins with the closest embedding. Returns real database matches only —
+   * if the CLIP service is unreachable this throws rather than pretending
+   * to have found similar images. */
+  async searchPinsByImage(file: Express.Multer.File | undefined, page: number = 1, limit: number = 20) {
+    if (!file) {
+      throw new BadRequestException('Vui lòng chọn một hình ảnh để tìm kiếm');
+    }
+
+    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException(
+        'Định dạng ảnh không được hỗ trợ. Vui lòng dùng JPG, JPEG, PNG hoặc WebP',
+      );
+    }
+
+    const skip = (page - 1) * limit;
+    const embedding = await this.getImageEmbedding(file.buffer, file.originalname, file.mimetype);
+    if (!embedding) {
+      throw new ServiceUnavailableException(
+        'Dịch vụ tìm kiếm bằng hình ảnh hiện không khả dụng. Vui lòng thử lại sau.',
+      );
+    }
+
+    return this.queryPinsByEmbedding(JSON.stringify(embedding), null, null, limit, skip);
+  }
+
+  /** Shared pgvector cosine-similarity query used by text search, pin-to-pin
+   * similarity, and reverse image search. `excludePinId`/`excludeImageUrl`
+   * (both from an already-fetched pin) exclude that pin's own image from
+   * results — used by getSimilarPins. */
+  private async queryPinsByEmbedding(
+    vectorString: string,
+    excludePinId: string | null,
+    excludeImageUrl: string | null,
+    limit: number,
+    skip: number,
+  ) {
+    const queryLimit = limit * 2;
+    const pins: any[] = excludePinId
+      ? await this.prisma.$queryRawUnsafe(`
+        SELECT
+          p.id, p.title, p.description, p."imageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
+          u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl",
+          COUNT(l."pinId")::int AS "likesCount",
+          1 - (p.embedding <=> $1::vector) AS similarity
+        FROM "Pin" p
+        LEFT JOIN "User" u ON p."userId" = u.id
+        LEFT JOIN "Like" l ON p.id = l."pinId"
+        WHERE p.id != $2 AND p.embedding IS NOT NULL
+        GROUP BY p.id, u.username, u."avatarUrl"
+        ORDER BY p.embedding <=> $1::vector
+        LIMIT $3 OFFSET $4
+      `, vectorString, excludePinId, queryLimit, skip)
+      : await this.prisma.$queryRawUnsafe(`
+        SELECT
+          p.id, p.title, p.description, p."imageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
+          u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl",
+          COUNT(l."pinId")::int AS "likesCount",
+          1 - (p.embedding <=> $1::vector) AS similarity
+        FROM "Pin" p
+        LEFT JOIN "User" u ON p."userId" = u.id
+        LEFT JOIN "Like" l ON p.id = l."pinId"
+        WHERE p.embedding IS NOT NULL
+        GROUP BY p.id, u.username, u."avatarUrl"
+        ORDER BY p.embedding <=> $1::vector
+        LIMIT $2 OFFSET $3
+      `, vectorString, queryLimit, skip);
 
     const seenUrls = new Set<string>();
-    // Exclude the current pin's image from similar results
-    seenUrls.add(pin.imageUrl);
+    if (excludeImageUrl) {
+      seenUrls.add(excludeImageUrl);
+    }
 
     const uniquePins: any[] = [];
     for (const p of pins) {
