@@ -1,1 +1,19 @@
 /* Component-specific styles for Landing page */
+
+/* Orchid CTA button: solid pastel surface, dark ink (matches swatch-card reference) */
+.btn-orchid {
+  color: #1d1d1d;
+  background: linear-gradient(150deg, #e5bddf 0%, #cf9bc7 100%);
+  box-shadow: 0 10px 26px -8px rgba(229, 189, 223, 0.35);
+}
+
+.btn-orchid:hover {
+  box-shadow: 0 14px 32px -6px rgba(229, 189, 223, 0.5);
+}
+
+/* Headline accent: solid, glowing orchid-magenta so it pops against dark bg
+   instead of washing out pale/near-white */
+.headline-accent {
+  color: #ff6fd8;
+  filter: drop-shadow(0 0 22px rgba(255, 111, 216, 0.55));
+}

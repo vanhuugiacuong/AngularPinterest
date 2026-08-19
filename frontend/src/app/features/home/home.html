@@ -1,15 +1,15 @@
 <div class="min-h-screen bg-white text-black flex flex-col font-sans relative">
-  <!-- Navbar handles top header and left vertical sidebar -->
+  <!-- Navbar handles fixed top header and floating bottom tab bar -->
   <app-navbar></app-navbar>
 
-  <!-- Main Content Area: Shifted right to clear fixed sidebar, shifted down to clear fixed header -->
-  <div class="flex-1 pl-16 pt-16 flex flex-col min-w-0">
+  <!-- Main Content Area: padded down to clear fixed header, padded up to clear floating bottom bar -->
+  <div class="flex-1 pt-16 pb-24 flex flex-col min-w-0">
     <main class="flex-1 w-full mx-auto px-4 py-6 flex flex-col max-w-none">
       
       <!-- Sub-header Navigation Tabs -->
       <div class="flex items-center gap-6 mb-6 select-none border-b border-transparent">
         <div class="relative pb-2 cursor-pointer">
-          <span class="text-base font-bold text-black">Tất cả</span>
+          <span class="text-base font-bold text-black">{{ isTrending() ? 'Khám phá' : 'Tất cả' }}</span>
           <!-- Thick black bottom indicator line -->
           <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-black rounded-full"></div>
           
@@ -91,7 +91,7 @@
                         <!-- Save button (Lies on the right) -->
                         <button 
                           (click)="savePinToBoard(pin.id, $event)"
-                          class="bg-[#e60023] hover:bg-[#cc001f] text-white font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer transition-colors active:scale-95 border-none outline-none shrink-0"
+                          class="bg-[#B15CAA] hover:bg-[#8F4A8B] text-white font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer transition-colors active:scale-95 border-none outline-none shrink-0"
                         >
                           Lưu
                         </button>
@@ -107,7 +107,7 @@
                         <!-- Heart Likes count if duck plush -->
                         @if (pin.likes) {
                           <span class="flex items-center gap-0.5 text-xs text-[#62625b]">
-                            <span class="material-symbols-outlined text-[14px] leading-none text-[#e60023]">favorite</span>
+                            <span class="material-symbols-outlined text-[14px] leading-none text-[#B15CAA]">favorite</span>
                             {{ pin.likes }}
                           </span>
                         }

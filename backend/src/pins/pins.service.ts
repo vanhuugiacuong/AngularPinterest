@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { AiGeneratorService } from '../ai-generator/ai-generator.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class PinsService {
@@ -11,6 +12,7 @@ export class PinsService {
     private readonly prisma: PrismaService,
     private readonly supabaseService: SupabaseService,
     private readonly aiGeneratorService: AiGeneratorService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private async getImageEmbedding(buffer: Buffer, filename: string, mimetype: string): Promise<number[] | null> {
@@ -137,6 +139,8 @@ export class PinsService {
     // 4. Return paginated slice
     return sortedPins.slice(skip, skip + limit);
   }
+
+
 
   async getRelatedPins(id: string, page: number = 1, limit: number = 20) {
     const pin = await this.prisma.pin.findUnique({ where: { id } });
@@ -343,6 +347,12 @@ export class PinsService {
           pinId,
         },
       });
+
+      const pin = await this.prisma.pin.findUnique({ where: { id: pinId } });
+      if (pin) {
+        await this.notificationsService.create(pin.userId, userId, 'like', pinId);
+      }
+
       return { liked: true };
     }
   }
@@ -355,7 +365,7 @@ export class PinsService {
     if (!content || content.trim().length === 0) {
       throw new BadRequestException('Comment content cannot be empty');
     }
-    return this.prisma.comment.create({
+    const comment = await this.prisma.comment.create({
       data: {
         content,
         pinId,
@@ -365,6 +375,16 @@ export class PinsService {
         user: { select: { id: true, username: true, avatarUrl: true } }
       }
     });
+
+    await this.notificationsService.create(
+      pin.userId,
+      userId,
+      'comment',
+      pinId,
+      content.trim().slice(0, 140),
+    );
+
+    return comment;
   }
 
   private classifyCategory(title: string, description?: string): string {
@@ -411,18 +431,25 @@ export class PinsService {
     return Math.abs(hash % 1000) / 1000;
   }
 
-  async searchPins(query: string, page: number = 1, limit: number = 20) {
+  async searchPins(query: string, page: number = 1, limit: number = 30) {
+    const needle = query ? query.trim() : '';
+    if (!needle) {
+      return [];
+    }
+
     const skip = (page - 1) * limit;
 
     // 1. Get text embedding from CLIP service
-    const embedding = await this.getTextEmbedding(query);
+    const embedding = await this.getTextEmbedding(needle);
     if (!embedding) {
       // Fallback: simple text keyword contains query
       return this.prisma.pin.findMany({
         where: {
           OR: [
-            { title: { contains: query, mode: 'insensitive' } },
-            { description: { contains: query, mode: 'insensitive' } },
+            { title: { contains: needle, mode: 'insensitive' } },
+            { description: { contains: needle, mode: 'insensitive' } },
+            { category: { contains: needle, mode: 'insensitive' } },
+            { user: { username: { contains: needle, mode: 'insensitive' } } },
           ],
         },
         skip,

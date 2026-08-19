@@ -1,15 +1,15 @@
 <div class="min-h-screen bg-white text-black flex flex-col font-sans relative">
-  <!-- Navbar handles top header and left vertical sidebar -->
+  <!-- Navbar handles fixed top header and floating bottom tab bar -->
   <app-navbar></app-navbar>
 
-  <!-- Main Content Area: Shifted right to clear fixed sidebar, shifted down to clear fixed header -->
-  <div class="flex-1 pl-16 pt-16 flex flex-col min-w-0">
+  <!-- Main Content Area: padded down to clear fixed header, padded up to clear floating bottom bar -->
+  <div class="flex-1 pt-16 pb-24 flex flex-col min-w-0">
     <main class="flex-1 w-full mx-auto px-6 py-6 flex flex-col max-w-none">
       
       <!-- Loading State -->
       @if (isLoading()) {
         <div class="flex-1 flex flex-col items-center justify-center py-20">
-          <div class="w-10 h-10 border-4 border-[#e60023] border-t-transparent rounded-full animate-spin"></div>
+          <div class="w-10 h-10 border-4 border-[#B15CAA] border-t-transparent rounded-full animate-spin"></div>
           <p class="text-xs text-[#62625b] mt-4 font-semibold">Đang tải chi tiết ảnh...</p>
         </div>
       }
@@ -67,7 +67,7 @@
                     >
                       <span 
                         class="material-symbols-outlined text-lg leading-none font-bold" 
-                        [class.text-[#e60023]]="isLikedByUser()"
+                        [class.text-[#B15CAA]]="isLikedByUser()"
                         [class.text-black]="!isLikedByUser()"
                       >
                         favorite
@@ -76,14 +76,43 @@
                     </button>
                     
                     <!-- Share -->
-                    <button class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center cursor-pointer transition-colors active:scale-90 border-none outline-none select-none text-black">
+                    <button
+                      (click)="copyLink()"
+                      title="Sao chép liên kết"
+                      class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center cursor-pointer transition-colors active:scale-90 border-none outline-none select-none text-black"
+                    >
                       <span class="material-symbols-outlined text-lg leading-none">upload</span>
                     </button>
 
                     <!-- Option menu -->
-                    <button class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center cursor-pointer transition-colors active:scale-90 border-none outline-none select-none text-black">
-                      <span class="material-symbols-outlined text-lg leading-none font-bold">more_horiz</span>
-                    </button>
+                    <div class="relative">
+                      <button
+                        (click)="toggleOptionsMenu($event)"
+                        class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center cursor-pointer transition-colors active:scale-90 border-none outline-none select-none text-black"
+                      >
+                        <span class="material-symbols-outlined text-lg leading-none font-bold">more_horiz</span>
+                      </button>
+
+                      @if (showOptionsMenu()) {
+                        <div class="absolute left-0 top-11 w-48 bg-white rounded-2xl shadow-2xl border border-gray-100 py-1.5 z-50 text-left">
+                          @if (isOwner()) {
+                            <button
+                              (click)="deleteCurrentPin()"
+                              class="w-full text-left px-4 py-2 text-xs font-bold text-[#B15CAA] hover:bg-gray-50 cursor-pointer border-none outline-none bg-transparent"
+                            >
+                              Xóa ảnh
+                            </button>
+                          } @else {
+                            <button
+                              (click)="showOptionsMenu.set(false)"
+                              class="w-full text-left px-4 py-2 text-xs font-bold text-gray-500 hover:bg-gray-50 cursor-pointer border-none outline-none bg-transparent"
+                            >
+                              Báo cáo ảnh
+                            </button>
+                          }
+                        </div>
+                      }
+                    </div>
                   </div>
 
                   <!-- Profile Board save -->
@@ -117,7 +146,7 @@
                     <!-- Save button -->
                     <button 
                       (click)="savePinToBoard()"
-                      class="h-10 px-6 bg-[#e60023] hover:bg-[#cc001f] text-white rounded-full text-sm font-bold cursor-pointer active:scale-95 border-none outline-none"
+                      class="h-10 px-6 bg-[#B15CAA] hover:bg-[#8F4A8B] text-white rounded-full text-sm font-bold cursor-pointer active:scale-95 border-none outline-none"
                     >
                       Lưu
                     </button>
@@ -271,7 +300,7 @@
                             <!-- Hover overlay -->
                             <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3.5 text-white z-10">
                               <div class="flex justify-end">
-                                <button class="bg-[#e60023] hover:bg-[#cc001f] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none">
+                                <button class="bg-[#B15CAA] hover:bg-[#8F4A8B] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none">
                                   Lưu
                                 </button>
                               </div>
@@ -352,7 +381,7 @@
                           <!-- Hover overlay -->
                           <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3.5 text-white z-10">
                             <div class="flex justify-end">
-                              <button class="bg-[#e60023] hover:bg-[#cc001f] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none">
+                              <button class="bg-[#B15CAA] hover:bg-[#8F4A8B] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none">
                                 Lưu
                               </button>
                             </div>

@@ -1,6 +1,6 @@
 import { Component, OnInit, AfterViewInit, OnDestroy, inject, signal, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
 import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
@@ -18,6 +18,9 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   private supabaseService = inject(SupabaseService);
   private boardService = inject(BoardService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
+
+  public isTrending = signal<boolean>(false);
 
   @ViewChild('scrollSentinel') scrollSentinel!: ElementRef;
 
@@ -106,6 +109,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
 
   async ngOnInit() {
     this.updateNumColumns();
+    this.isTrending.set(this.route.snapshot.queryParamMap.get('sort') === 'trending');
     await this.loadPins();
     await this.loadBoards();
   }
@@ -197,7 +201,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       const apiPins = await this.pinService.getPins(this.currentPage, this.limit, token, this.feedSeed);
       if (apiPins && apiPins.length > 0) {
         const mapped = this.mapPins(apiPins);
-        this.pins.set(mapped);
+        this.pins.set(this.isTrending() ? this.sortByLikes(mapped) : mapped);
         if (apiPins.length < this.limit) {
           this.hasMore = false;
         }
@@ -223,7 +227,10 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       const apiPins = await this.pinService.getPins(this.currentPage, this.limit, token, this.feedSeed);
       if (apiPins && apiPins.length > 0) {
         const mapped = this.mapPins(apiPins);
-        this.pins.update(current => [...current, ...mapped]);
+        this.pins.update(current => {
+          const combined = [...current, ...mapped];
+          return this.isTrending() ? this.sortByLikes(combined) : combined;
+        });
         if (apiPins.length < this.limit) {
           this.hasMore = false;
         }
@@ -236,6 +243,10 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     } finally {
       this.isScrollingLoad.set(false);
     }
+  }
+
+  private sortByLikes(pins: any[]): any[] {
+    return [...pins].sort((a, b) => (b.likes || 0) - (a.likes || 0));
   }
 
   private mapPins(apiPins: any[]): any[] {

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { BoardsService } from './boards.service';
 import { SupabaseAuthGuard } from '../supabase/supabase.guard';
 import { CurrentUser, UserPayload } from '../supabase/current-user.decorator';
@@ -29,6 +29,25 @@ export class BoardsController {
     @Body('isSecret') isSecret?: boolean,
   ) {
     return this.boardsService.createBoard(user.id, name, description, !!isSecret);
+  }
+
+  @Patch(':id')
+  async updateBoard(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+    @Body('name') name?: string,
+    @Body('description') description?: string,
+    @Body('isSecret') isSecret?: boolean,
+  ) {
+    return this.boardsService.updateBoard(id, user.id, { name, description, isSecret });
+  }
+
+  @Delete(':id')
+  async deleteBoard(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+  ) {
+    return this.boardsService.deleteBoard(id, user.id);
   }
 
   @Post(':id/pins')

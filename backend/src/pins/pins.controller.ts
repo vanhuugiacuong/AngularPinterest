@@ -56,13 +56,15 @@ export class PinsController {
 
   @Get('search')
   async searchPins(
-    @Query('q') query: string,
+    @Query('q') q: string,
+    @Query('query') query: string,
     @Query('page') page: string,
     @Query('limit') limit: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
-    const limitNum = limit ? parseInt(limit, 10) : 20;
-    return this.pinsService.searchPins(query || '', pageNum, limitNum);
+    const limitNum = limit ? parseInt(limit, 10) : 30;
+    const searchQuery = q || query || '';
+    return this.pinsService.searchPins(searchQuery, pageNum, limitNum);
   }
 
   @Get(':id/similar')

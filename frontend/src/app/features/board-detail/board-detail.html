@@ -1,9 +1,9 @@
 <div class="min-h-screen bg-white text-black flex flex-col font-sans relative">
-  <!-- Navbar handles top header and left vertical sidebar -->
+  <!-- Navbar handles fixed top header and floating bottom tab bar -->
   <app-navbar></app-navbar>
 
-  <!-- Main Content Area: Shifted right to clear fixed sidebar, shifted down to clear fixed header -->
-  <div class="flex-1 pl-16 pt-16 flex flex-col min-w-0">
+  <!-- Main Content Area: padded down to clear fixed header, padded up to clear floating bottom bar -->
+  <div class="flex-1 pt-16 pb-24 flex flex-col min-w-0">
     <main class="flex-1 w-full mx-auto px-8 py-8 flex flex-col max-w-none items-center">
       
       <!-- Back to Profile Button -->
@@ -19,7 +19,7 @@
 
       <!-- Loading State -->
       <div *ngIf="isLoading()" class="flex-1 flex flex-col items-center justify-center py-20">
-        <div class="w-10 h-10 border-4 border-[#e60023] border-t-transparent rounded-full animate-spin"></div>
+        <div class="w-10 h-10 border-4 border-[#B15CAA] border-t-transparent rounded-full animate-spin"></div>
         <p class="text-xs text-[#62625b] mt-4 font-semibold">Đang tải chi tiết bảng...</p>
       </div>
 

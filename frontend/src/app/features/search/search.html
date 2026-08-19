@@ -1,0 +1,47 @@
+<div class="min-h-screen bg-white text-black flex flex-col font-sans relative">
+  <app-navbar></app-navbar>
+
+  <div class="flex-1 pt-16 pb-24 flex flex-col min-w-0">
+    <main class="flex-1 w-full mx-auto px-6 py-6 flex flex-col max-w-none">
+
+      <h1 class="text-sm font-bold text-[#62625b] mb-6">
+        @if (query()) {
+          Kết quả cho "<span class="text-black">{{ query() }}</span>"
+        } @else {
+          Tất cả ảnh
+        }
+      </h1>
+
+      @if (isLoading()) {
+        <div class="flex-1 flex items-center justify-center py-20">
+          <div class="w-10 h-10 border-4 border-[#B15CAA] border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      } @else if (results().length === 0) {
+        <div class="py-20 flex flex-col items-center justify-center text-center gap-3 bg-gray-50 rounded-[32px] border border-dashed border-[#dadad3] w-full">
+          <span class="material-symbols-outlined text-4xl text-gray-400">search_off</span>
+          <p class="text-xs font-semibold text-gray-500">Không tìm thấy kết quả nào phù hợp.</p>
+        </div>
+      } @else {
+        <div class="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-4 w-full">
+          @for (pin of results(); track pin.id) {
+            <div
+              (click)="navigateToPin(pin.id)"
+              class="break-inside-avoid mb-4 group cursor-pointer flex flex-col"
+            >
+              <div class="relative overflow-hidden rounded-[24px] bg-[#f6f6f3] shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-300">
+                <img
+                  [src]="pin.imageUrl"
+                  [alt]="pin.title"
+                  class="w-full object-cover rounded-[24px] block transition-transform duration-300 group-hover:scale-102"
+                />
+              </div>
+              <span class="mt-2 px-1 text-xs font-bold text-[#211922] truncate block">
+                {{ pin.title }}
+              </span>
+            </div>
+          }
+        </div>
+      }
+    </main>
+  </div>
+</div>
