@@ -4,7 +4,7 @@ import { Injectable } from '@angular/core';
   providedIn: 'root'
 })
 export class UserService {
-  private baseUrl = 'http://localhost:3000/api/users';
+  private baseUrl = 'http://localhost:3001/api/users';
 
   async getUserProfile(username: string): Promise<any> {
     try {

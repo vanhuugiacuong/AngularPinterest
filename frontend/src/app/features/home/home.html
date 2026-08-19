@@ -5,7 +5,53 @@
   <!-- Main Content Area: padded down to clear fixed header, padded up to clear floating bottom bar -->
   <div class="flex-1 pt-16 pb-24 flex flex-col min-w-0">
     <main class="flex-1 w-full mx-auto px-4 py-6 flex flex-col max-w-none">
-      
+
+      <!-- "For You" Interest Strip: horizontal scroll of recommended images below the search bar.
+           Slides up when the user scrolls down through the feed, slides back down at the top. -->
+      @if (!isLoading() && interestPins().length > 0) {
+        <div
+          class="sticky top-16 z-30 bg-white -mx-4 px-4 pt-2 pb-3 mb-2 transition-transform duration-300 ease-in-out"
+          [class.-translate-y-full]="!isInterestBarVisible()"
+          [class.opacity-0]="!isInterestBarVisible()"
+        >
+          <h2 class="text-base font-bold text-black mb-2">Xu hướng nổi bật</h2>
+          <div class="interest-marquee-viewport overflow-hidden">
+            <div class="interest-marquee-track flex gap-3 w-max">
+              <!-- Pins rendered twice back-to-back so the marquee loops seamlessly -->
+              @for (pin of interestPins(); track pin.id + '-a') {
+                <div
+                  (click)="navigateToPin(pin.id)"
+                  class="relative shrink-0 w-48 h-60 rounded-2xl overflow-hidden cursor-pointer group shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
+                  [title]="pin.title"
+                >
+                  <img
+                    [src]="pin.image"
+                    [alt]="pin.title"
+                    loading="lazy"
+                    class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                </div>
+              }
+              @for (pin of interestPins(); track pin.id + '-b') {
+                <div
+                  (click)="navigateToPin(pin.id)"
+                  class="relative shrink-0 w-48 h-60 rounded-2xl overflow-hidden cursor-pointer group shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
+                  [title]="pin.title"
+                  aria-hidden="true"
+                >
+                  <img
+                    [src]="pin.image"
+                    [alt]="pin.title"
+                    loading="lazy"
+                    class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      }
+
       <!-- Sub-header Navigation Tabs -->
       <div class="flex items-center gap-6 mb-6 select-none border-b border-transparent">
         <div class="relative pb-2 cursor-pointer">

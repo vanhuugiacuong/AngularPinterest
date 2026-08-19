@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, inject, signal, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, inject, signal, computed, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
@@ -31,6 +31,13 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   public isLoading = signal<boolean>(true);
   public isScrollingLoad = signal<boolean>(false);
   public numColumns = signal<number>(4);
+
+  // Whether the "for you" horizontal strip is scrolled to the top (visible)
+  public isInterestBarVisible = signal<boolean>(true);
+  private lastScrollY = 0;
+
+  // Pins the user likely has an interest in, derived from the (personalized) feed order
+  public interestPins = computed(() => this.pins().slice(0, 15));
 
   private currentPage = 1;
   private limit = 20;
@@ -117,6 +124,21 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   @HostListener('window:resize')
   onResize() {
     this.updateNumColumns();
+  }
+
+  @HostListener('window:scroll')
+  onWindowScroll() {
+    const currentScrollY = window.scrollY;
+
+    if (currentScrollY <= 8) {
+      // Back at the top: slide the interest bar back down
+      this.isInterestBarVisible.set(true);
+    } else if (currentScrollY > this.lastScrollY) {
+      // Scrolling down to browse other images: slide the bar up out of view
+      this.isInterestBarVisible.set(false);
+    }
+
+    this.lastScrollY = currentScrollY;
   }
 
   updateNumColumns() {

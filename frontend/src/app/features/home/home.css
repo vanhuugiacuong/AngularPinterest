@@ -1,1 +1,16 @@
 /* Component-specific styles for Home */
+
+/* Infinite left-to-right auto scroll for the "for you" interest strip.
+   The track renders the pin list twice; animating to -50% loops seamlessly. */
+.interest-marquee-track {
+  animation: interest-marquee 40s linear infinite;
+}
+
+@keyframes interest-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}

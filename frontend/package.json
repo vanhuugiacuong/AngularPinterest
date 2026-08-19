@@ -25,7 +25,7 @@
     "postcss": "^8.5.20",
     "rxjs": "~7.8.0",
     "tailwindcss": "^4.3.3",
-    "three": "^0.160.0",
+    "three": "^0.160.1",
     "tslib": "^2.3.0"
   },
   "devDependencies": {
