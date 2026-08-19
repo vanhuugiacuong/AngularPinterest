@@ -71,6 +71,23 @@ export class PinService {
     }
   }
 
+  async deletePin(id: string, token: string): Promise<void> {
+    try {
+      const response = await fetch(`${this.baseUrl}/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to delete pin: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error(`Error deleting pin ${id}:`, error);
+      throw error;
+    }
+  }
+
   async toggleLike(id: string, token: string): Promise<{ liked: boolean }> {
     try {
       const response = await fetch(`${this.baseUrl}/${id}/like`, {

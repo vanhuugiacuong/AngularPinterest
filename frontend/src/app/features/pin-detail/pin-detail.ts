@@ -20,6 +20,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   private pinService = inject(PinService);
   private boardService = inject(BoardService);
   public supabaseService = inject(SupabaseService);
+  private elementRef = inject(ElementRef);
 
   @ViewChild('scrollSentinel') scrollSentinel!: ElementRef;
 
@@ -37,10 +38,19 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   public numBottomColumns = signal<number>(3);
   public newCommentText = '';
   public isSubmittingComment = false;
+  public showOptionsMenu = signal<boolean>(false);
 
   @HostListener('window:resize')
   onResize() {
     this.calculateColumns();
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (!this.elementRef.nativeElement.contains(target)) {
+      this.showOptionsMenu.set(false);
+    }
   }
 
   calculateColumns() {
@@ -158,6 +168,43 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
   goBack() {
     this.router.navigate(['/feed']);
+  }
+
+  async copyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      alert('Đã sao chép liên kết ảnh!');
+    } catch (error) {
+      console.error('Error copying link:', error);
+    }
+  }
+
+  toggleOptionsMenu(event: MouseEvent) {
+    event.stopPropagation();
+    this.showOptionsMenu.update(val => !val);
+  }
+
+  isOwner(): boolean {
+    const currentPin = this.pin();
+    const currentUser = this.supabaseService.user();
+    return !!currentPin && !!currentUser && currentPin.userId === currentUser.id;
+  }
+
+  async deleteCurrentPin() {
+    const currentPin = this.pin();
+    if (!currentPin || !this.isOwner()) return;
+    if (!confirm('Bạn có chắc muốn xóa ảnh này? Hành động này không thể hoàn tác.')) return;
+
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (!token) return;
+      await this.pinService.deletePin(currentPin.id, token);
+      this.showOptionsMenu.set(false);
+      this.router.navigate(['/feed']);
+    } catch (error) {
+      console.error('Error deleting pin:', error);
+      alert('Lỗi khi xóa ảnh.');
+    }
   }
 
   navigateToPin(pinId: string) {

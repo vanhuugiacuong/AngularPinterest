@@ -5,6 +5,9 @@ import { PinDetail } from './features/pin-detail/pin-detail';
 import { Profile } from './features/profile/profile';
 import { BoardDetail } from './features/board-detail/board-detail';
 import { Create } from './features/create/create';
+import { Search } from './features/search/search';
+import { Notifications } from './features/notifications/notifications';
+import { Settings } from './features/settings/settings';
 import { authGuard } from './core/guards/auth';
 
 export const routes: Routes = [
@@ -14,5 +17,8 @@ export const routes: Routes = [
   { path: 'profile/:username', component: Profile, canActivate: [authGuard] },
   { path: 'board/:id', component: BoardDetail, canActivate: [authGuard] },
   { path: 'create', component: Create, canActivate: [authGuard] },
+  { path: 'search', component: Search, canActivate: [authGuard] },
+  { path: 'notifications', component: Notifications, canActivate: [authGuard] },
+  { path: 'settings', component: Settings, canActivate: [authGuard] },
   { path: '**', redirectTo: '' }
 ];

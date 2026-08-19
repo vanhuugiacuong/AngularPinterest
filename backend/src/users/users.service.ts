@@ -1,9 +1,13 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async syncUser(id: string, email: string, username?: string, avatarUrl?: string) {
     const baseUsername = username || email.split('@')[0];
@@ -99,7 +103,37 @@ export class UsersService {
           followingId,
         },
       });
+      await this.notificationsService.create(followingId, followerId, 'follow');
       return { followed: true };
     }
+  }
+
+  async updateProfile(
+    id: string,
+    updates: { username?: string; bio?: string; avatarUrl?: string },
+  ) {
+    const data: { username?: string; bio?: string; avatarUrl?: string } = {};
+
+    if (updates.username !== undefined) {
+      const trimmed = updates.username.trim();
+      if (trimmed.length < 3) {
+        throw new BadRequestException('Tên người dùng phải có ít nhất 3 ký tự');
+      }
+      const existing = await this.prisma.user.findUnique({ where: { username: trimmed } });
+      if (existing && existing.id !== id) {
+        throw new ConflictException('Tên người dùng đã được sử dụng');
+      }
+      data.username = trimmed;
+    }
+
+    if (updates.bio !== undefined) {
+      data.bio = updates.bio.trim().slice(0, 280);
+    }
+
+    if (updates.avatarUrl !== undefined) {
+      data.avatarUrl = updates.avatarUrl;
+    }
+
+    return this.prisma.user.update({ where: { id }, data });
   }
 }

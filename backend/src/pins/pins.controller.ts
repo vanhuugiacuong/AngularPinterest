@@ -54,6 +54,17 @@ export class PinsController {
     return this.pinsService.getAllPins(pageNum, limitNum, userId, seed);
   }
 
+  @Get('search')
+  async searchPins(
+    @Query('q') q: string,
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 30;
+    return this.pinsService.searchPins(q || '', pageNum, limitNum);
+  }
+
   @Get(':id/related')
   async getRelatedPins(
     @Param('id') id: string,

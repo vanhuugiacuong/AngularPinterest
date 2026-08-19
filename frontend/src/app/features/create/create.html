@@ -1,9 +1,9 @@
 <div class="min-h-screen bg-[#f6f6f3] text-black flex flex-col font-sans relative">
-  <!-- Navbar handles top header and left vertical sidebar -->
+  <!-- Navbar handles fixed top header and floating bottom tab bar -->
   <app-navbar></app-navbar>
 
-  <!-- Main Content Area: Shifted right to clear fixed sidebar, shifted down to clear fixed header -->
-  <div class="flex-1 pl-16 pt-16 flex flex-col min-w-0 items-center justify-center">
+  <!-- Main Content Area: padded down to clear fixed header, padded up to clear floating bottom bar -->
+  <div class="flex-1 pt-16 pb-24 flex flex-col min-w-0 items-center justify-center">
     <main class="w-full max-w-[940px] px-6 py-10 flex flex-col items-center">
       
       <!-- Create Box Card Container -->
@@ -18,7 +18,7 @@
             [class.opacity-60]="activeTab() !== 'upload'"
           >
             <span class="text-sm font-bold text-black">Đăng ảnh thường</span>
-            <div *ngIf="activeTab() === 'upload'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-[#e60023] rounded-full"></div>
+            <div *ngIf="activeTab() === 'upload'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-[#B15CAA] rounded-full"></div>
           </div>
           
           <div 
@@ -28,10 +28,10 @@
             [class.opacity-60]="activeTab() !== 'ai'"
           >
             <span class="text-sm font-bold text-black flex items-center gap-1">
-              <span class="material-symbols-outlined text-sm leading-none text-[#e60023] font-bold">auto_awesome</span>
+              <span class="material-symbols-outlined text-sm leading-none text-[#B15CAA] font-bold">auto_awesome</span>
               Tạo ảnh nghệ thuật AI
             </span>
-            <div *ngIf="activeTab() === 'ai'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-[#e60023] rounded-full"></div>
+            <div *ngIf="activeTab() === 'ai'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-[#B15CAA] rounded-full"></div>
           </div>
         </div>
 
@@ -116,7 +116,7 @@
                 type="button"
                 (click)="generateAiImage()"
                 [disabled]="isGenerating() || !aiPrompt.trim() || isSubmitting()"
-                class="w-full h-11 rounded-full bg-gradient-to-r from-indigo-600 to-[#e60023] hover:opacity-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all border-none outline-none"
+                class="w-full h-11 rounded-full bg-gradient-to-r from-indigo-600 to-[#B15CAA] hover:opacity-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all border-none outline-none"
               >
                 <span class="material-symbols-outlined text-sm leading-none">auto_awesome</span>
                 <span>{{ isGenerating() ? 'Đang tạo ảnh AI...' : 'Bắt đầu tạo ảnh AI' }}</span>
@@ -219,7 +219,7 @@
                 type="button"
                 (click)="onSubmit()"
                 [disabled]="isSubmitting() || !title.trim() || (activeTab() === 'upload' && !selectedFile) || (activeTab() === 'ai' && !aiImagePreviewUrl())"
-                class="h-12 px-8 rounded-full bg-[#e60023] hover:bg-[#cc001f] text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95 transition-all border-none outline-none"
+                class="h-12 px-8 rounded-full bg-[#B15CAA] hover:bg-[#8F4A8B] text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95 transition-all border-none outline-none"
               >
                 <!-- Submitting spinner -->
                 <div *ngIf="isSubmitting()" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

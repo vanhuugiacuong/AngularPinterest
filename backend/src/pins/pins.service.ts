@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { AiGeneratorService } from '../ai-generator/ai-generator.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class PinsService {
@@ -9,6 +10,7 @@ export class PinsService {
     private readonly prisma: PrismaService,
     private readonly supabaseService: SupabaseService,
     private readonly aiGeneratorService: AiGeneratorService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async getAllPins(page: number = 1, limit: number = 20, userId?: string, seed?: string) {
@@ -89,6 +91,32 @@ export class PinsService {
 
     // 4. Return paginated slice
     return sortedPins.slice(skip, skip + limit);
+  }
+
+  async searchPins(query: string, page: number = 1, limit: number = 30) {
+    const skip = (page - 1) * limit;
+    const needle = query.trim();
+    if (!needle) {
+      return [];
+    }
+
+    return this.prisma.pin.findMany({
+      where: {
+        OR: [
+          { title: { contains: needle, mode: 'insensitive' } },
+          { description: { contains: needle, mode: 'insensitive' } },
+          { category: { contains: needle, mode: 'insensitive' } },
+          { user: { username: { contains: needle, mode: 'insensitive' } } },
+        ],
+      },
+      skip,
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { id: true, username: true, avatarUrl: true } },
+        _count: { select: { likes: true } },
+      },
+    });
   }
 
   async getRelatedPins(id: string, page: number = 1, limit: number = 20) {
@@ -246,6 +274,12 @@ export class PinsService {
           pinId,
         },
       });
+
+      const pin = await this.prisma.pin.findUnique({ where: { id: pinId } });
+      if (pin) {
+        await this.notificationsService.create(pin.userId, userId, 'like', pinId);
+      }
+
       return { liked: true };
     }
   }
@@ -258,7 +292,7 @@ export class PinsService {
     if (!content || content.trim().length === 0) {
       throw new BadRequestException('Comment content cannot be empty');
     }
-    return this.prisma.comment.create({
+    const comment = await this.prisma.comment.create({
       data: {
         content,
         pinId,
@@ -268,6 +302,16 @@ export class PinsService {
         user: { select: { id: true, username: true, avatarUrl: true } }
       }
     });
+
+    await this.notificationsService.create(
+      pin.userId,
+      userId,
+      'comment',
+      pinId,
+      content.trim().slice(0, 140),
+    );
+
+    return comment;
   }
 
   private classifyCategory(title: string, description?: string): string {

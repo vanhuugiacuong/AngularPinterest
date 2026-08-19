@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { SupabaseAuthGuard } from '../supabase/supabase.guard';
 import { CurrentUser, UserPayload } from '../supabase/current-user.decorator';
@@ -15,6 +15,17 @@ export class UsersController {
     @Body('avatarUrl') avatarUrl?: string,
   ) {
     return this.usersService.syncUser(user.id, user.email, username, avatarUrl);
+  }
+
+  @Patch('me')
+  @UseGuards(SupabaseAuthGuard)
+  async updateProfile(
+    @CurrentUser() user: UserPayload,
+    @Body('username') username?: string,
+    @Body('bio') bio?: string,
+    @Body('avatarUrl') avatarUrl?: string,
+  ) {
+    return this.usersService.updateProfile(user.id, { username, bio, avatarUrl });
   }
 
   @Get(':username')
