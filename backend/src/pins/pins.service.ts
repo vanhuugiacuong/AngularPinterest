@@ -6,12 +6,59 @@ import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class PinsService {
+  private readonly clipServiceUrl = process.env.CLIP_SERVICE_URL || 'http://localhost:8001';
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly supabaseService: SupabaseService,
     private readonly aiGeneratorService: AiGeneratorService,
     private readonly notificationsService: NotificationsService,
   ) {}
+
+  private async getImageEmbedding(buffer: Buffer, filename: string, mimetype: string): Promise<number[] | null> {
+    try {
+      const formData = new FormData();
+      const blob = new Blob([new Uint8Array(buffer)], { type: mimetype });
+      formData.append('file', blob, filename);
+
+      const response = await fetch(`${this.clipServiceUrl}/embed/image`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`CLIP image embedding failed: ${response.statusText} - ${errorText}`);
+        return null;
+      }
+
+      const result = await response.json();
+      return result.embedding;
+    } catch (error) {
+      console.error('CLIP image embedding network error:', error);
+      return null;
+    }
+  }
+
+  private async getTextEmbedding(query: string): Promise<number[] | null> {
+    try {
+      const response = await fetch(
+        `${this.clipServiceUrl}/embed/text?query=${encodeURIComponent(query)}`
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`CLIP text embedding failed: ${response.statusText} - ${errorText}`);
+        return null;
+      }
+
+      const result = await response.json();
+      return result.embedding;
+    } catch (error) {
+      console.error('CLIP text embedding network error:', error);
+      return null;
+    }
+  }
 
   async getAllPins(page: number = 1, limit: number = 20, userId?: string, seed?: string) {
     const skip = (page - 1) * limit;
@@ -93,31 +140,7 @@ export class PinsService {
     return sortedPins.slice(skip, skip + limit);
   }
 
-  async searchPins(query: string, page: number = 1, limit: number = 30) {
-    const skip = (page - 1) * limit;
-    const needle = query.trim();
-    if (!needle) {
-      return [];
-    }
 
-    return this.prisma.pin.findMany({
-      where: {
-        OR: [
-          { title: { contains: needle, mode: 'insensitive' } },
-          { description: { contains: needle, mode: 'insensitive' } },
-          { category: { contains: needle, mode: 'insensitive' } },
-          { user: { username: { contains: needle, mode: 'insensitive' } } },
-        ],
-      },
-      skip,
-      take: limit,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        user: { select: { id: true, username: true, avatarUrl: true } },
-        _count: { select: { likes: true } },
-      },
-    });
-  }
 
   async getRelatedPins(id: string, page: number = 1, limit: number = 20) {
     const pin = await this.prisma.pin.findUnique({ where: { id } });
@@ -175,6 +198,14 @@ export class PinsService {
 
     const category = this.classifyCategory(title, description);
 
+    // 1. Fetch CLIP embedding (gracefully handled)
+    let embedding: number[] | null = null;
+    try {
+      embedding = await this.getImageEmbedding(file.buffer, file.originalname, file.mimetype);
+    } catch (e) {
+      console.error('Error fetching CLIP embedding for uploaded pin:', e);
+    }
+
     const pin = await this.prisma.pin.create({
       data: {
         title,
@@ -184,6 +215,20 @@ export class PinsService {
         category,
       },
     });
+
+    // 2. If embedding exists, store it using Raw SQL
+    if (embedding) {
+      try {
+        await this.prisma.$executeRawUnsafe(
+          'UPDATE "Pin" SET "embedding" = $1::vector WHERE "id" = $2',
+          JSON.stringify(embedding),
+          pin.id
+        );
+        console.log(`Successfully stored vector embedding for Pin: ${pin.id}`);
+      } catch (err) {
+        console.error(`Failed to store vector embedding for Pin: ${pin.id}`, err);
+      }
+    }
 
     if (boardId) {
       await this.prisma.boardPin.create({
@@ -212,7 +257,21 @@ export class PinsService {
 
     const category = this.classifyCategory(title, description);
 
-    // 2. Save to database
+    // 2. Fetch embedding for AI generated image (gracefully handled)
+    let embedding: number[] | null = null;
+    try {
+      const response = await fetch(imageUrl);
+      if (response.ok) {
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const contentType = response.headers.get('Content-Type') || 'image/png';
+        embedding = await this.getImageEmbedding(buffer, 'ai_pin.png', contentType);
+      }
+    } catch (e) {
+      console.error('Error fetching CLIP embedding for AI pin:', e);
+    }
+
+    // 3. Save to database
     const pin = await this.prisma.pin.create({
       data: {
         title,
@@ -227,7 +286,21 @@ export class PinsService {
       },
     });
 
-    // 3. Connect to board if provided
+    // 4. If embedding exists, store it using Raw SQL
+    if (embedding) {
+      try {
+        await this.prisma.$executeRawUnsafe(
+          'UPDATE "Pin" SET "embedding" = $1::vector WHERE "id" = $2',
+          JSON.stringify(embedding),
+          pin.id
+        );
+        console.log(`Successfully stored vector embedding for AI Pin: ${pin.id}`);
+      } catch (err) {
+        console.error(`Failed to store vector embedding for AI Pin: ${pin.id}`, err);
+      }
+    }
+
+    // 5. Connect to board if provided
     if (boardId) {
       await this.prisma.boardPin.create({
         data: {
@@ -356,5 +429,158 @@ export class PinsService {
       hash |= 0; // Convert to 32bit integer
     }
     return Math.abs(hash % 1000) / 1000;
+  }
+
+  async searchPins(query: string, page: number = 1, limit: number = 30) {
+    const needle = query ? query.trim() : '';
+    if (!needle) {
+      return [];
+    }
+
+    const skip = (page - 1) * limit;
+
+    // 1. Get text embedding from CLIP service
+    const embedding = await this.getTextEmbedding(needle);
+    if (!embedding) {
+      // Fallback: simple text keyword contains query
+      return this.prisma.pin.findMany({
+        where: {
+          OR: [
+            { title: { contains: needle, mode: 'insensitive' } },
+            { description: { contains: needle, mode: 'insensitive' } },
+            { category: { contains: needle, mode: 'insensitive' } },
+            { user: { username: { contains: needle, mode: 'insensitive' } } },
+          ],
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: { select: { id: true, username: true, avatarUrl: true } },
+          _count: { select: { likes: true } }
+        }
+      });
+    }
+
+    // 2. Query pgvector using Raw SQL for cosine similarity
+    const vectorString = JSON.stringify(embedding);
+    const queryLimit = limit * 2;
+    const pins: any[] = await this.prisma.$queryRawUnsafe(`
+      SELECT 
+        p.id, p.title, p.description, p."imageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
+        u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl",
+        COUNT(l."pinId")::int AS "likesCount",
+        1 - (p.embedding <=> $1::vector) AS similarity
+      FROM "Pin" p
+      LEFT JOIN "User" u ON p."userId" = u.id
+      LEFT JOIN "Like" l ON p.id = l."pinId"
+      WHERE p.embedding IS NOT NULL
+      GROUP BY p.id, u.username, u."avatarUrl"
+      ORDER BY p.embedding <=> $1::vector
+      LIMIT $2 OFFSET $3
+    `, vectorString, queryLimit, skip);
+
+    const seenUrls = new Set<string>();
+    const uniquePins: any[] = [];
+    for (const p of pins) {
+      if (!seenUrls.has(p.imageUrl)) {
+        seenUrls.add(p.imageUrl);
+        uniquePins.push(p);
+      }
+    }
+
+    return uniquePins.slice(0, limit).map(p => ({
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      imageUrl: p.imageUrl,
+      sourceUrl: p.sourceUrl,
+      userId: p.userId,
+      createdAt: p.createdAt,
+      isAiGenerated: p.isAiGenerated,
+      category: p.category,
+      user: {
+        id: p.userId,
+        username: p.authorUsername || 'Pinterest AI',
+        avatarUrl: p.authorAvatarUrl,
+      },
+      _count: {
+        likes: p.likesCount || 0
+      },
+      similarity: p.similarity
+    }));
+  }
+
+  async getSimilarPins(pinId: string, page: number = 1, limit: number = 20) {
+    const skip = (page - 1) * limit;
+
+    const pin = await this.prisma.pin.findUnique({ where: { id: pinId } });
+    if (!pin) {
+      throw new NotFoundException('Pin not found');
+    }
+
+    // Check if this pin has an embedding
+    const rawPinArr: any[] = await this.prisma.$queryRawUnsafe(
+      'SELECT embedding FROM "Pin" WHERE id = $1',
+      pinId
+    );
+    const hasEmbedding = rawPinArr.length > 0 && rawPinArr[0].embedding !== null;
+
+    if (!hasEmbedding) {
+      // Fallback: category-based similar pins
+      return this.getRelatedPins(pinId, page, limit);
+    }
+
+    const embeddingString = rawPinArr[0].embedding;
+    const queryLimit = limit * 2;
+
+    // Query pgvector using Raw SQL for cosine similarity relative to this pin's embedding
+    const pins: any[] = await this.prisma.$queryRawUnsafe(`
+      SELECT 
+        p.id, p.title, p.description, p."imageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
+        u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl",
+        COUNT(l."pinId")::int AS "likesCount",
+        1 - (p.embedding <=> $1::vector) AS similarity
+      FROM "Pin" p
+      LEFT JOIN "User" u ON p."userId" = u.id
+      LEFT JOIN "Like" l ON p.id = l."pinId"
+      WHERE p.id != $2 AND p.embedding IS NOT NULL
+      GROUP BY p.id, u.username, u."avatarUrl"
+      ORDER BY p.embedding <=> $1::vector
+      LIMIT $3 OFFSET $4
+    `, embeddingString, pinId, queryLimit, skip);
+
+    const seenUrls = new Set<string>();
+    // Exclude the current pin's image from similar results
+    seenUrls.add(pin.imageUrl);
+
+    const uniquePins: any[] = [];
+    for (const p of pins) {
+      if (!seenUrls.has(p.imageUrl)) {
+        seenUrls.add(p.imageUrl);
+        uniquePins.push(p);
+      }
+    }
+
+    return uniquePins.slice(0, limit).map(p => ({
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      imageUrl: p.imageUrl,
+      sourceUrl: p.sourceUrl,
+      userId: p.userId,
+      createdAt: p.createdAt,
+      isAiGenerated: p.isAiGenerated,
+      category: p.category,
+      user: {
+        id: p.userId,
+        username: p.authorUsername || 'Pinterest AI',
+        avatarUrl: p.authorAvatarUrl,
+      },
+      _count: {
+        likes: p.likesCount || 0
+      },
+      similarity: p.similarity
+    }));
   }
 }

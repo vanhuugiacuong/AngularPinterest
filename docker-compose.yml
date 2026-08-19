@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  clip-service:
+    build:
+      context: ./backend/services/clip-service
+      dockerfile: Dockerfile
+    container_name: clip-service-container
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+    restart: unless-stopped
