@@ -88,7 +88,7 @@ export class SupabaseService {
       const avatarUrl = user.user_metadata?.['avatar_url'] || user.user_metadata?.['picture'] || '';
 
       console.log('Syncing user with backend...', { email, username, avatarUrl });
-      const response = await fetch('http://localhost:3000/api/users/sync', {
+      const response = await fetch('http://localhost:3001/api/users/sync', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
