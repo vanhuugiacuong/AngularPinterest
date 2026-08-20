@@ -6,6 +6,7 @@ import { Profile } from './features/profile/profile';
 import { BoardDetail } from './features/board-detail/board-detail';
 import { Create } from './features/create/create';
 import { Messages } from './features/messages/messages';
+import { Settings } from './features/settings/settings';
 import { authGuard } from './core/guards/auth';
 
 export const routes: Routes = [
@@ -17,5 +18,6 @@ export const routes: Routes = [
   { path: 'create', component: Create, canActivate: [authGuard] },
   { path: 'messages', component: Messages, canActivate: [authGuard] },
   { path: 'messages/:conversationId', component: Messages, canActivate: [authGuard] },
+  { path: 'settings', component: Settings, canActivate: [authGuard] },
   { path: '**', redirectTo: '' }
 ];

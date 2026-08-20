@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnInit, effect, inject, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
@@ -33,6 +33,22 @@ export class Create implements OnInit {
   // Only ever mounted while activeTab() === 'upload' and an image is
   // selected — <app-image-editor> is not present anywhere in the AI tab.
   @ViewChild('editor') editorRef?: ImageEditor;
+
+  @ViewChild('discardPanel') private discardPanel?: ElementRef<HTMLElement>;
+  private previouslyFocusedBeforeDiscard: HTMLElement | null = null;
+
+  constructor() {
+    // Focus management for the discard-confirm dialog: move focus into it on
+    // open, return focus to whatever triggered it on close.
+    effect(() => {
+      if (this.showDiscardConfirm()) {
+        this.previouslyFocusedBeforeDiscard = (document.activeElement as HTMLElement) || null;
+        setTimeout(() => this.discardPanel?.nativeElement.focus());
+      } else {
+        this.previouslyFocusedBeforeDiscard?.focus();
+      }
+    });
+  }
 
   // Form Fields
   public title = '';

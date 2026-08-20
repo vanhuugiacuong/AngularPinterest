@@ -1,9 +1,15 @@
-import { Component, inject, OnInit, HostListener } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { SidebarStateService } from '../../core/services/sidebar-state';
 import { NotificationService, Notification } from '../../core/services/notification';
 import { Observable } from 'rxjs';
+
+/** Reserves room for the fixed mobile bottom nav so it never covers page
+ * content — set once for the lifetime of the (always-mounted, one-per-app)
+ * Sidebar rather than per-route, so it isn't the kind of per-page style hack
+ * that causes theme flicker; it's a stable app-shell concern. */
+const BODY_DOCK_CLASS = 'nf-has-dock';
 
 @Component({
   selector: 'app-sidebar',
@@ -12,7 +18,7 @@ import { Observable } from 'rxjs';
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.css'
 })
-export class Sidebar implements OnInit {
+export class Sidebar implements OnInit, OnDestroy {
   public sidebarState = inject(SidebarStateService);
   private notificationService = inject(NotificationService);
   private router = inject(Router);
@@ -23,6 +29,11 @@ export class Sidebar implements OnInit {
 
   ngOnInit(): void {
     this.notificationService.loadNotifications();
+    document.body.classList.add(BODY_DOCK_CLASS);
+  }
+
+  ngOnDestroy(): void {
+    document.body.classList.remove(BODY_DOCK_CLASS);
   }
 
   @HostListener('window:keydown.escape')
@@ -104,6 +115,11 @@ export class Sidebar implements OnInit {
     this.router.navigate(['/messages']);
   }
 
+  navigateToSettings(): void {
+    this.closeNotifications();
+    this.router.navigate(['/settings']);
+  }
+
   isFeedPage(): boolean {
     return this.router.url === '/feed' || this.router.url === '/';
   }
@@ -114,5 +130,9 @@ export class Sidebar implements OnInit {
 
   isMessagesPage(): boolean {
     return this.router.url.startsWith('/messages');
+  }
+
+  isSettingsPage(): boolean {
+    return this.router.url.startsWith('/settings');
   }
 }

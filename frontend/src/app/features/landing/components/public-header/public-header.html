@@ -24,6 +24,11 @@
   </nav>
 
   <div class="nf-head__right">
+    <!-- Desktop only — mobile gets the same control inside the sheet below,
+         so the cramped 360-390px header row never has to fit both it and
+         the login button side by side. -->
+    <app-theme-toggle class="nf-head__theme-toggle"></app-theme-toggle>
+
     <button type="button" (click)="emitLoginClick()" class="nf-head__cta">
       <span>Đăng nhập</span>
     </button>
@@ -49,5 +54,10 @@
     >
       {{ anchor.label }}
     </button>
+
+    <div class="nf-head__sheet-theme-row">
+      <span class="nf-head__sheet-theme-label">Giao diện tối</span>
+      <app-theme-toggle></app-theme-toggle>
+    </div>
   </div>
 </header>

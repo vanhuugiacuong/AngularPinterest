@@ -1,19 +1,49 @@
 @import "tailwindcss";
 
+/* =============================================================================
+   NovaFrame design tokens — "Phúc Quang Atelier"
+   Dark = "Đêm Lam" (compile-time default, matches @theme below)
+   Light = "Sương Ngọc" (applied via [data-theme="light"] / prefers-color-scheme)
+
+   Legacy names (--color-primary/secondary/accent/primary-neon) are kept as
+   aliases onto the new brand tokens so every existing bg-primary/text-accent
+   utility across the app keeps working — only the underlying values change.
+   ========================================================================== */
 @theme {
-  --color-bg: #070712;
-  --color-bg-secondary: #0d0d1d;
-  --color-surface: #131329;
-  --color-surface-elevated: #191936;
-  --color-primary: #8b2cff;
-  --color-primary-neon: #c000ff;
-  --color-secondary: #2457ff;
-  --color-accent: #00e5ff;
-  --color-text: #f7f7ff;
-  --color-text-muted: #a9abc3;
-  --color-border: rgba(139, 92, 246, 0.22);
-  --color-success: #2fe6b0;
-  --color-error: #ff3b5c;
+  /* ---- Brand hues ---- */
+  --color-nova-blue: #4f6ef7;
+  --color-iris-violet: #7c5cfc;
+  --color-studio-aqua: #31c7c2;
+
+  /* ---- Surfaces & text (Đêm Lam) ---- */
+  --color-bg: #090d18;
+  --color-bg-secondary: #0d1220;
+  --color-surface: #111827;
+  --color-surface-elevated: #182235;
+  --color-surface-high: #1f2a40;
+  --color-text: #f7f9fc;
+  --color-text-muted: #9aa8bd;
+  --color-text-on-accent: #0a0f1c;
+  --color-border: rgba(154, 168, 189, 0.16);
+  --color-border-strong: rgba(154, 168, 189, 0.3);
+
+  /* Neutral, non-brand-tinted backdrop for the editor canvas / preview stage
+     — deliberately excluded from the blue/violet surface tint so artwork can
+     be judged accurately regardless of theme. */
+  --color-canvas-neutral: #1a1d24;
+  /* Deepest tier — pin-detail / board light-table stage, kept dark in both
+     themes (gallery-spotlight effect), independent of UI chrome theming. */
+  --color-ink: #05070e;
+
+  /* ---- Legacy aliases — do not rename, hundreds of templates reference these ---- */
+  --color-primary: var(--color-nova-blue);
+  --color-secondary: var(--color-iris-violet);
+  --color-accent: var(--color-studio-aqua);
+  --color-primary-neon: var(--color-iris-violet);
+
+  --color-success: #34d399;
+  --color-warning: #f2b84b;
+  --color-error: #f2495c;
 
   --radius-sm: 12px;
   --radius-md: 16px;
@@ -26,23 +56,18 @@
   --radius-cta: 22px 10px 22px 10px;
   --radius-panel: 26px 26px 26px 10px;
 
-  --color-surface-high: #1e2140;
-  --color-warning: #ffb84d;
-  --color-border-strong: rgba(150, 163, 255, 0.28);
+  --shadow-card: 0 8px 30px -12px rgba(3, 5, 16, 0.55);
+  --shadow-glow: 0 0 28px 0 color-mix(in srgb, var(--color-nova-blue) 35%, transparent);
+  --shadow-glow-soft:
+    0 18px 34px -16px color-mix(in srgb, var(--color-nova-blue) 32%, transparent),
+    0 0 30px -10px color-mix(in srgb, var(--color-iris-violet) 30%, transparent);
 
-  /* Aurora Archive — deepest background tier, used sparingly (Landing hero,
-     Pin Detail stage) to add one extra layer of depth behind the surface
-     stack without touching the existing bg/bg-secondary values. */
-  --color-ink: #06060f;
-
-  --shadow-card: 0 8px 30px -12px rgba(3, 3, 20, 0.55);
-  --shadow-glow: 0 0 28px 0 rgba(139, 44, 255, 0.35);
-  --shadow-glow-soft: 0 18px 34px -16px rgba(59, 99, 255, 0.35), 0 0 30px -10px rgba(139, 44, 255, 0.32);
-
+  --font-display:
+    "Be Vietnam Pro", "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-sans:
-    "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono:
-    ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
 
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-trace: cubic-bezier(0.4, 0, 0.2, 1);
@@ -127,38 +152,124 @@
   }
 }
 
+/* =============================================================================
+   Theme resolution
+   Default (bare :root, matches @theme above) = Đêm Lam (dark).
+   - System preference light wins unless the user has explicitly forced dark.
+   - Explicit [data-theme] always wins over prefers-color-scheme.
+   ThemeService (core/services/theme.ts) sets data-theme on <html> and an
+   inline bootstrap script in index.html applies it before Angular renders.
+   ========================================================================== */
+:root {
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --color-bg: #f4f6fb;
+    --color-bg-secondary: #edf0f7;
+    --color-surface: #ffffff;
+    --color-surface-elevated: #e9eef7;
+    --color-surface-high: #dce3f1;
+    --color-text: #172033;
+    --color-text-muted: #657187;
+    --color-text-on-accent: #ffffff;
+    --color-border: rgba(23, 32, 51, 0.1);
+    --color-border-strong: rgba(23, 32, 51, 0.2);
+
+    --color-canvas-neutral: #e3e5ea;
+    --color-ink: #1b2233;
+
+    --color-nova-blue: #3659d9;
+    --color-iris-violet: #6947d4;
+    --color-studio-aqua: #087f83;
+
+    --color-success: #0e9f6e;
+    --color-warning: #b4740e;
+    --color-error: #d6304a;
+
+    --shadow-card: 0 10px 28px -14px rgba(23, 32, 51, 0.16);
+
+    color-scheme: light;
+  }
+}
+
+:root[data-theme="light"] {
+  --color-bg: #f4f6fb;
+  --color-bg-secondary: #edf0f7;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #e9eef7;
+  --color-surface-high: #dce3f1;
+  --color-text: #172033;
+  --color-text-muted: #657187;
+  --color-text-on-accent: #ffffff;
+  --color-border: rgba(23, 32, 51, 0.1);
+  --color-border-strong: rgba(23, 32, 51, 0.2);
+
+  --color-canvas-neutral: #e3e5ea;
+  --color-ink: #1b2233;
+
+  --color-nova-blue: #3659d9;
+  --color-iris-violet: #6947d4;
+  --color-studio-aqua: #087f83;
+
+  --color-success: #0e9f6e;
+  --color-warning: #b4740e;
+  --color-error: #d6304a;
+
+  --shadow-card: 0 10px 28px -14px rgba(23, 32, 51, 0.16);
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #090d18;
+  --color-bg-secondary: #0d1220;
+  --color-surface: #111827;
+  --color-surface-elevated: #182235;
+  --color-surface-high: #1f2a40;
+  --color-text: #f7f9fc;
+  --color-text-muted: #9aa8bd;
+  --color-text-on-accent: #0a0f1c;
+  --color-border: rgba(154, 168, 189, 0.16);
+  --color-border-strong: rgba(154, 168, 189, 0.3);
+
+  --color-canvas-neutral: #1a1d24;
+  --color-ink: #05070e;
+
+  --color-nova-blue: #4f6ef7;
+  --color-iris-violet: #7c5cfc;
+  --color-studio-aqua: #31c7c2;
+
+  --color-success: #34d399;
+  --color-warning: #f2b84b;
+  --color-error: #f2495c;
+
+  --shadow-card: 0 8px 30px -12px rgba(3, 5, 16, 0.55);
+
+  color-scheme: dark;
+}
+
 @utility bg-gradient-brand {
-  background-image: linear-gradient(
-    135deg,
-    #2024b8 0%,
-    #2457ff 35%,
-    #8b2cff 70%,
-    #d000ff 100%
-  );
+  background-image: linear-gradient(135deg, var(--color-nova-blue) 0%, var(--color-iris-violet) 100%);
 }
 
 @utility text-gradient-brand {
-  background-image: linear-gradient(
-    135deg,
-    #2024b8 0%,
-    #2457ff 35%,
-    #8b2cff 70%,
-    #d000ff 100%
-  );
+  background-image: linear-gradient(135deg, var(--color-nova-blue) 0%, var(--color-iris-violet) 100%);
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
 }
 
 @utility glass {
-  background-color: rgba(19, 19, 41, 0.6);
+  background-color: color-mix(in srgb, var(--color-surface) 78%, transparent);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--color-border);
 }
 
 @utility glass-elevated {
-  background-color: rgba(25, 25, 54, 0.75);
+  background-color: color-mix(in srgb, var(--color-surface-elevated) 88%, transparent);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--color-border);
@@ -184,14 +295,14 @@
     border-radius 0.35s var(--ease-spring),
     transform 0.35s var(--ease-spring),
     box-shadow 0.35s var(--ease-spring);
-  box-shadow: 0 6px 20px -10px rgba(139, 44, 255, 0.5);
+  box-shadow: 0 6px 20px -10px color-mix(in srgb, var(--color-iris-violet) 45%, transparent);
 
   &:hover {
     border-radius: 26px 10px 26px 14px;
     transform: translateY(-2px) scale(1.02);
     box-shadow:
-      0 12px 32px -8px rgba(139, 44, 255, 0.6),
-      0 0 26px rgba(0, 229, 255, 0.25);
+      0 12px 32px -8px color-mix(in srgb, var(--color-iris-violet) 50%, transparent),
+      0 0 24px color-mix(in srgb, var(--color-studio-aqua) 26%, transparent);
   }
 
   &:active {
@@ -199,10 +310,11 @@
   }
 }
 
-/* Monospace "creative workspace" metadata readout */
+/* Monospace "creative workspace" metadata readout — reserved for genuine
+   metadata (timestamps, counts, status codes), never generic UI labels. */
 @utility mono-label {
   font-family: var(--font-mono);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
 }
 
 /* Shimmer skeleton — replaces flat pulse for a more polished loading feel */
@@ -218,7 +330,7 @@
     background: linear-gradient(
       100deg,
       transparent 30%,
-      rgba(0, 229, 255, 0.1) 50%,
+      color-mix(in srgb, var(--color-studio-aqua) 12%, transparent) 50%,
       transparent 70%
     );
     background-size: 200% 100%;
@@ -226,11 +338,12 @@
   }
 }
 
-/* NovaFrame signature — "Dual-Frame Trace": a thin light trace that traces
-   the element's own border on hover/focus, split into a blue-cyan arc and a
-   purple-magenta arc meeting at a corner — the same two-frame geometry as
-   the NovaFrame logomark. Scoped to a handful of moments (Observatory Canvas,
-   active/hovered artwork, Publish success) rather than every surface. */
+/* NovaFrame signature — "Split Aperture Frame": a thin light trace along the
+   element's own border, split into two short arcs (Nova blue→Studio aqua,
+   Iris violet→Nova blue) that meet near a corner and leave the rest of the
+   edge bare — the same two-frame geometry as the NovaFrame logomark.
+   Reserved for deliberate moments: the selected/active artwork, the primary
+   CTA, publish success, and important focus — never a blanket hover effect. */
 @utility frame-trace {
   position: relative;
   isolation: isolate;
@@ -243,13 +356,12 @@
     border-radius: inherit;
     background: conic-gradient(
       from 200deg at 28% 24%,
-      var(--color-secondary) 0deg,
-      var(--color-accent) 70deg,
-      transparent 130deg,
-      transparent 230deg,
-      var(--color-primary) 280deg,
-      var(--color-primary-neon) 330deg,
-      var(--color-secondary) 360deg
+      var(--color-nova-blue) 0deg,
+      var(--color-studio-aqua) 65deg,
+      transparent 125deg,
+      transparent 235deg,
+      var(--color-iris-violet) 285deg,
+      var(--color-nova-blue) 360deg
     );
     -webkit-mask:
       linear-gradient(#000 0 0) content-box,
@@ -277,14 +389,49 @@
   }
 }
 
+/* Accessible, theme-aware focus ring — ordinary keyboard focus everywhere.
+   Distinct from .frame-trace, which is a decorative flourish reserved for
+   the handful of moments named above. */
+@utility focus-ring {
+  &:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--color-bg),
+      0 0 0 4px var(--color-nova-blue);
+  }
+}
+
 body {
   background-color: var(--color-bg);
   color: var(--color-text);
+  font-family: var(--font-sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
 
 ::selection {
   background-color: var(--color-primary);
-  color: var(--color-text);
+  color: var(--color-text-on-accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-nova-blue);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {

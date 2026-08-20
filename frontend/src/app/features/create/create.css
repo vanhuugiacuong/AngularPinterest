@@ -21,7 +21,7 @@
   position: absolute;
   inset: -12px -12px auto -12px;
   height: 140px;
-  background: radial-gradient(60% 100% at 50% 0%, rgba(255, 184, 77, 0.05), transparent 70%);
+  background: radial-gradient(60% 100% at 50% 0%, color-mix(in srgb, var(--color-warning) 8%, transparent), transparent 70%);
   pointer-events: none;
   z-index: -1;
 }

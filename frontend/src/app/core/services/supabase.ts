@@ -3,7 +3,7 @@ import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { API_BASE_URL } from '../api-base';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class SupabaseService {
   private supabase: SupabaseClient;
@@ -19,8 +19,8 @@ export class SupabaseService {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true
-      }
+        detectSessionInUrl: true,
+      },
     });
 
     // Check current session on initialization
@@ -41,7 +41,9 @@ export class SupabaseService {
 
   private async initSession() {
     try {
-      const { data: { session } } = await this.supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await this.supabase.auth.getSession();
       if (session) {
         this.user.set(session.user);
         await this.syncUserWithBackend(session.access_token, session.user);
@@ -57,8 +59,8 @@ export class SupabaseService {
     const { error } = await this.supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin
-      }
+        redirectTo: window.location.origin,
+      },
     });
 
     if (error) {
@@ -78,24 +80,27 @@ export class SupabaseService {
   }
 
   async getSessionToken(): Promise<string | null> {
-    const { data: { session } } = await this.supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await this.supabase.auth.getSession();
     return session?.access_token || null;
   }
 
   private async syncUserWithBackend(token: string, user: User) {
     try {
       const email = user.email || '';
-      const username = user.user_metadata?.['full_name'] || user.user_metadata?.['name'] || email.split('@')[0];
+      const username =
+        user.user_metadata?.['full_name'] || user.user_metadata?.['name'] || email.split('@')[0];
       const avatarUrl = user.user_metadata?.['avatar_url'] || user.user_metadata?.['picture'] || '';
 
       console.log('Syncing user with backend...', { email, username, avatarUrl });
       const response = await fetch(`${API_BASE_URL}/api/users/sync`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, avatarUrl })
+        body: JSON.stringify({ username, avatarUrl }),
       });
 
       if (!response.ok) {

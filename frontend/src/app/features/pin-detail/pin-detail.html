@@ -15,8 +15,37 @@
         </div>
       }
 
+      <!-- Error state — fetch failure, not a 404-shaped empty state -->
+      @if (!isLoading() && loadError()) {
+        <div class="flex-1 flex flex-col items-center justify-center gap-4 py-24 text-center" role="alert">
+          <div class="w-14 h-14 rounded-full bg-error/10 flex items-center justify-center">
+            <span class="material-symbols-outlined text-2xl text-error">cloud_off</span>
+          </div>
+          <div class="flex flex-col gap-1.5 max-w-sm">
+            <h2 class="text-sm font-bold text-text">Không thể mở tác phẩm</h2>
+            <p class="text-xs text-text-muted leading-relaxed">{{ loadError() }}</p>
+          </div>
+          <div class="flex items-center gap-2.5">
+            <button
+              type="button"
+              (click)="goBack()"
+              class="h-10 px-5 rounded-control border border-border hover:border-border-strong text-text-muted hover:text-text font-bold text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              Quay lại
+            </button>
+            <button
+              type="button"
+              (click)="retryLoad()"
+              class="h-10 px-5 bg-gradient-brand cta-shape text-text-on-accent font-bold text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              Thử lại
+            </button>
+          </div>
+        </div>
+      }
+
       <!-- Artwork Inspection Space: full-bleed stage + hairline info dock -->
-      @if (!isLoading() && pin(); as p) {
+      @if (!isLoading() && !loadError() && pin(); as p) {
         <div class="w-full flex flex-col lg:flex-row gap-8 mt-2 items-start">
           <!-- Left Area: Stage + Dock, plus bottom related belt -->
           <div class="w-full lg:w-[63%] flex flex-col gap-10 min-w-0">
@@ -42,21 +71,16 @@
                   class="w-full h-auto max-h-[720px] object-contain block select-none"
                 />
 
-                <!-- Image overlay options on bottom right -->
-                <div class="absolute bottom-5 right-5 flex items-center gap-2 z-20">
+                <!-- Full-resolution badge — informational, not (yet) an action -->
+                <div class="absolute bottom-5 right-5 flex items-center gap-2 z-20" aria-hidden="true">
                   <div
-                    class="flex items-center gap-1 bg-surface-high/90 hover:bg-surface-elevated text-text px-3.5 py-2 rounded-control text-xs font-bold shadow-card cursor-pointer transition-colors duration-200 select-none"
+                    class="flex items-center gap-1 bg-surface-high/90 text-text px-3.5 py-2 rounded-control text-xs font-bold shadow-card select-none"
                   >
                     <span class="material-symbols-outlined text-sm leading-none font-bold"
                       >search</span
                     >
                     <span>Tìm kiếm hình ảnh</span>
                   </div>
-                  <button
-                    class="w-8 h-8 rounded-control bg-surface-high/90 text-text flex items-center justify-center shadow-card hover:bg-surface-elevated cursor-pointer active:scale-90 border-none outline-none select-none transition-colors duration-200"
-                  >
-                    <span class="material-symbols-outlined text-base font-bold">open_in_full</span>
-                  </button>
                 </div>
               </div>
 
@@ -74,9 +98,7 @@
                   <app-user-avatar [src]="p.user?.avatarUrl" [name]="p.user?.username" [size]="44"></app-user-avatar>
                   <div class="flex flex-col text-left">
                     <span class="text-sm font-bold text-text hover:underline">{{ p.user?.username }}</span>
-                    <span class="mono-label text-[10px] uppercase text-text-muted font-medium"
-                      >Người đăng tải</span
-                    >
+                    <span class="text-xs text-text-muted">Người đăng tải</span>
                   </div>
                 </button>
 
@@ -96,7 +118,7 @@
                     class="p-4 rounded-control bg-surface-elevated border border-border flex flex-col gap-2"
                   >
                     <div
-                      class="mono-label flex items-center gap-1.5 text-[11px] uppercase text-text font-bold"
+                      class="mono-label flex items-center gap-1.5 text-xs uppercase text-text font-bold"
                     >
                       <span class="material-symbols-outlined text-sm leading-none text-accent"
                         >auto_awesome</span
@@ -121,6 +143,8 @@
                       (click)="toggleLike()"
                       class="h-10 px-4 bg-surface-elevated hover:bg-surface-high rounded-control flex items-center gap-1.5 cursor-pointer transition-colors duration-200 active:scale-95 border-none outline-none select-none text-text focus-visible:ring-2 focus-visible:ring-accent"
                       [title]="isLikedByUser() ? 'Bỏ thích' : 'Thích'"
+                      [attr.aria-label]="(isLikedByUser() ? 'Bỏ thích ' : 'Thích ') + p.title"
+                      [attr.aria-pressed]="isLikedByUser()"
                     >
                       <span
                         class="material-symbols-outlined text-lg leading-none font-bold"
@@ -137,6 +161,7 @@
                     <!-- Share -->
                     <button
                       class="w-10 h-10 rounded-control bg-surface-elevated hover:bg-surface-high flex items-center justify-center cursor-pointer transition-colors duration-200 active:scale-90 border-none outline-none select-none text-text focus-visible:ring-2 focus-visible:ring-accent"
+                      aria-label="Chia sẻ tác phẩm"
                     >
                       <span class="material-symbols-outlined text-lg leading-none">upload</span>
                     </button>
@@ -144,6 +169,7 @@
                     <!-- Option menu -->
                     <button
                       class="w-10 h-10 rounded-control bg-surface-elevated hover:bg-surface-high flex items-center justify-center cursor-pointer transition-colors duration-200 active:scale-90 border-none outline-none select-none text-text focus-visible:ring-2 focus-visible:ring-accent"
+                      aria-label="Thêm tùy chọn"
                     >
                       <span class="material-symbols-outlined text-lg leading-none font-bold"
                         >more_horiz</span
@@ -156,6 +182,8 @@
                     <button
                       (click)="toggleBoardDropdown($event)"
                       class="h-10 px-4 bg-surface-elevated hover:bg-surface-high rounded-control text-sm font-bold flex items-center gap-1 cursor-pointer border-none outline-none text-text select-none focus-visible:ring-2 focus-visible:ring-accent"
+                      aria-haspopup="listbox"
+                      [attr.aria-expanded]="showBoardDropdown()"
                     >
                       <span>{{ getSelectedBoardName() }}</span>
                       <span class="material-symbols-outlined text-base leading-none"
@@ -166,19 +194,20 @@
                     @if (showBoardDropdown()) {
                       <div
                         class="absolute right-0 top-11 w-48 glass-elevated rounded-panel shadow-card py-1.5 z-50 text-left"
+                        role="listbox"
                       >
-                        <span
-                          class="mono-label text-[9px] uppercase text-text-muted font-bold px-4 py-1 block"
+                        <span class="text-xs font-semibold text-text-muted px-4 py-1 block"
                           >Lưu vào bộ sưu tập</span
                         >
                         <div class="max-h-[140px] overflow-y-auto">
                           @for (b of boards(); track b.id) {
-                            <div
+                            <button
+                              type="button"
                               (click)="selectBoard(b, $event)"
-                              class="px-4 py-2 text-xs font-bold text-text hover:bg-surface-elevated cursor-pointer truncate"
+                              class="w-full text-left px-4 py-2 text-xs font-bold text-text hover:bg-surface-elevated cursor-pointer truncate border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                             >
                               {{ b.name }}
-                            </div>
+                            </button>
                           }
                         </div>
                       </div>
@@ -186,7 +215,7 @@
 
                     <button
                       (click)="savePinToBoard()"
-                      class="h-10 px-6 bg-gradient-brand cta-shape text-text text-sm font-bold cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      class="h-10 px-6 bg-gradient-brand cta-shape text-text-on-accent text-sm font-bold cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     >
                       Lưu
                     </button>
@@ -195,8 +224,8 @@
 
                 <!-- Discussion -->
                 <div class="flex flex-col gap-4">
-                  <span class="mono-label text-[11px] uppercase text-text font-bold select-none">
-                    Thảo luận · {{ p.comments?.length || 0 }}
+                  <span class="text-sm font-bold text-text select-none">
+                    Thảo luận · <span class="mono-label">{{ p.comments?.length || 0 }}</span>
                   </span>
 
                   <div class="flex flex-col gap-3 max-h-[260px] overflow-y-auto pr-1">
@@ -258,7 +287,7 @@
                       />
                       <button
                         type="submit"
-                        class="h-10 px-4 bg-gradient-brand cta-shape text-text text-xs font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
+                        class="h-10 px-4 bg-gradient-brand cta-shape text-text-on-accent text-xs font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
                         [disabled]="isSubmittingComment || !newCommentText.trim()"
                       >
                         Gửi
@@ -269,9 +298,11 @@
               </div>
             </div>
 
-            <!-- Bottom Related Pins (below stage) -->
-            <div class="flex flex-col gap-6 mt-2">
-              <h3 class="mono-label text-xs uppercase text-text-muted text-center select-none">
+            <!-- Bottom Related Pins (below stage) — lg+ shows the side rail
+                 instead, so this belt doesn't duplicate it and compete with
+                 the stage for attention. -->
+            <div class="flex flex-col gap-6 mt-2 lg:hidden">
+              <h3 class="text-sm font-bold text-text-muted text-center select-none">
                 Từ kho lưu trữ — hình ảnh liên quan
               </h3>
 
@@ -314,7 +345,7 @@
                           class="group cursor-pointer flex flex-col mb-1"
                         >
                           <div
-                            class="relative overflow-hidden bg-surface shadow-card glow-hover frame-trace"
+                            class="relative overflow-hidden bg-surface shadow-card glow-hover"
                             [class.rounded-frame]="i % 2 === 0"
                             [class.rounded-frame-alt]="i % 2 !== 0"
                             [style.aspect-ratio]="rel.aspectRatio || '0.75'"
@@ -327,15 +358,11 @@
                               class="w-full h-full object-cover block transition-transform duration-500 ease-spring group-hover:scale-[1.04]"
                             />
                             <div
-                              class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 flex items-center justify-between gap-2 z-10"
+                              class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 focus-within:translate-y-0 [@media(hover:none)]:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 flex items-center justify-between gap-2 z-10"
                             >
                               <span
-                                class="mono-label text-[10px] uppercase text-text-muted truncate max-w-[60%]"
+                                class="mono-label text-xs text-text-muted truncate max-w-[60%]"
                                 >{{ rel.title }}</span
-                              >
-                              <span
-                                class="material-symbols-outlined text-base text-text-muted hover:text-text cursor-pointer"
-                                >more_horiz</span
                               >
                             </div>
                           </div>
@@ -418,15 +445,11 @@
                             class="w-full h-full object-cover block transition-transform duration-500 ease-spring group-hover:scale-[1.04]"
                           />
                           <div
-                            class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 flex items-center justify-between gap-2 z-10"
+                            class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 focus-within:translate-y-0 [@media(hover:none)]:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 flex items-center justify-between gap-2 z-10"
                           >
                             <span
-                              class="mono-label text-[10px] uppercase text-text-muted truncate max-w-[60%]"
+                              class="mono-label text-xs text-text-muted truncate max-w-[60%]"
                               >{{ rel.title }}</span
-                            >
-                            <span
-                              class="material-symbols-outlined text-base text-text-muted hover:text-text cursor-pointer"
-                              >more_horiz</span
                             >
                           </div>
                         </div>

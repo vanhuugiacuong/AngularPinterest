@@ -1,4 +1,4 @@
-import { Component, EventEmitter, HostListener, Output, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Output, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ImageSearchStore } from '../../core/services/image-search-store';
 
@@ -19,16 +19,25 @@ const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB — matches the backend's searc
   templateUrl: './image-search-modal.html',
   styleUrl: './image-search-modal.css',
 })
-export class ImageSearchModal {
+export class ImageSearchModal implements AfterViewInit {
   public store = inject(ImageSearchStore);
 
   @Output() closed = new EventEmitter<void>();
   @Output() searched = new EventEmitter<void>();
 
+  @ViewChild('panel') private panel?: ElementRef<HTMLElement>;
+
   public isDragging = signal(false);
   public selectedFile = signal<File | null>(null);
   public localPreviewUrl = signal<string | null>(null);
   public validationError = signal<string | null>(null);
+
+  private readonly previouslyFocused: HTMLElement | null =
+    typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
+
+  ngAfterViewInit(): void {
+    this.panel?.nativeElement.focus();
+  }
 
   @HostListener('document:keydown.escape')
   onEscapeKey() {
@@ -95,6 +104,7 @@ export class ImageSearchModal {
     this.selectedFile.set(null);
     this.validationError.set(null);
     this.closed.emit();
+    this.previouslyFocused?.focus();
   }
 
   private revokeLocalPreview() {

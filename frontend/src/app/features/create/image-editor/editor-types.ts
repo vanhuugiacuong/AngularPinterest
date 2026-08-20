@@ -43,7 +43,7 @@ export interface CaptionSettings {
 export const DEFAULT_CAPTION: CaptionSettings = {
   enabled: false,
   text: '',
-  font: "'Plus Jakarta Sans', ui-sans-serif, sans-serif",
+  font: "'Inter', ui-sans-serif, system-ui, sans-serif",
   fontSize: 42,
   color: '#f7f7ff',
   align: 'center',
@@ -66,7 +66,7 @@ export interface FontOption {
 // and every stack here renders Vietnamese diacritics correctly in evergreen
 // browsers.
 export const SUPPORTED_FONTS: FontOption[] = [
-  { label: 'NovaFrame Sans', value: "'Plus Jakarta Sans', ui-sans-serif, sans-serif" },
+  { label: 'Inter', value: "'Inter', ui-sans-serif, system-ui, sans-serif" },
   { label: 'Serif', value: "Georgia, 'Times New Roman', serif" },
   { label: 'Mono', value: "ui-monospace, 'Courier New', monospace" },
 ];

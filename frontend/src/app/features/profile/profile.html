@@ -120,7 +120,7 @@
                   (click)="toggleSafetyMenu($event)"
                   aria-haspopup="true"
                   [attr.aria-expanded]="showSafetyMenu()"
-                  aria-label="Thêm tùy chọn cho hồ sơ này"
+                  aria-label="Báo cáo, chia sẻ hoặc chặn tài khoản này"
                 >
                   <span class="material-symbols-outlined">expand_more</span>
                 </button>
@@ -274,7 +274,7 @@
                   <article class="pin-card">
                     <button
                       type="button"
-                      class="pin-media frame-trace"
+                      class="pin-media"
                       [class.rounded-frame]="i % 2 === 0"
                       [class.rounded-frame-alt]="i % 2 !== 0"
                       (click)="navigateToPin(pin.id)"
@@ -396,7 +396,7 @@
                   <article class="album-card">
                     <button
                       type="button"
-                      class="album-collage frame-trace"
+                      class="album-collage"
                       [class.rounded-frame]="i % 2 === 0"
                       [class.rounded-frame-alt]="i % 2 !== 0"
                       (click)="navigateToAlbum(album.id)"
@@ -501,7 +501,7 @@
                   <article class="pin-card">
                     <button
                       type="button"
-                      class="pin-media frame-trace"
+                      class="pin-media"
                       [class.rounded-frame]="i % 2 === 0"
                       [class.rounded-frame-alt]="i % 2 !== 0"
                       (click)="navigateToPin(pin.id)"

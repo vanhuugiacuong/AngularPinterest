@@ -185,12 +185,15 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   }
 
   updateNumColumns() {
+    // 4-5 columns is the sweet spot for readable card sizes; 6 is reserved
+    // for genuinely very wide screens (≥1920px) rather than an ordinary
+    // 1440-1536px laptop, so artwork doesn't shrink to thumbnails.
     const width = window.innerWidth;
-    if (width >= 1536) {
+    if (width >= 1920) {
       this.numColumns.set(6);
-    } else if (width >= 1280) {
+    } else if (width >= 1440) {
       this.numColumns.set(5);
-    } else if (width >= 768) {
+    } else if (width >= 1024) {
       this.numColumns.set(4);
     } else if (width >= 640) {
       this.numColumns.set(3);

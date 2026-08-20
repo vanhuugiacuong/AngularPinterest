@@ -1,12 +1,12 @@
 /* Public loading screen — light tone, scoped to this component only. */
 
 :host {
-  --nf-paper: #f7f7f2;
-  --nf-ink: #111111;
-  --nf-blue: #2454ff;
-  --nf-electric: #1a2ef5;
-  --nf-purple: #7c3cff;
-  --nf-cyan: #00cfe8;
+  --nf-paper: var(--color-bg);
+  --nf-ink: var(--color-text);
+  --nf-blue: var(--color-nova-blue);
+  --nf-electric: var(--color-nova-blue);
+  --nf-purple: var(--color-iris-violet);
+  --nf-cyan: var(--color-studio-aqua);
 }
 
 .nf-loader {
@@ -91,10 +91,10 @@
   align-items: baseline;
   gap: 18px;
   font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.16em;
+  font-size: 12px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--nf-ink) 55%, transparent);
+  color: color-mix(in srgb, var(--nf-ink) 65%, transparent);
   animation: nf-loader-fade 0.6s ease 0.5s both;
 }
 

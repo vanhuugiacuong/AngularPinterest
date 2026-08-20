@@ -15,14 +15,15 @@
       (mouseenter)="onSidebarTriggerEnter()"
       (mouseleave)="onSidebarTriggerLeave()"
       (focus)="onSidebarTriggerEnter()"
-      class="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-text transition-colors duration-150 hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg cursor-pointer"
+      class="hidden md:flex relative h-11 w-11 shrink-0 items-center justify-center rounded-control text-text transition-colors duration-150 hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg cursor-pointer"
       [attr.aria-label]="sidebarState.isOpen() ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'"
       [attr.aria-expanded]="sidebarState.isOpen()"
       aria-controls="app-sidebar-panel"
     >
       <!-- Always the menu glyph — the sidebar opens on hover/click and closes
            on mouseleave/backdrop/Escape, so there is no separate "close" icon
-           state to represent here. -->
+           state to represent here. Hidden on mobile: the bottom nav replaces
+           this entirely below md. -->
       <span class="material-symbols-outlined text-2xl">menu</span>
     </button>
 
@@ -57,6 +58,8 @@
         role="combobox"
         aria-haspopup="listbox"
         [attr.aria-expanded]="showSearchDropdown()"
+        aria-controls="nf-search-listbox"
+        [attr.aria-activedescendant]="activeSuggestionIndex() >= 0 ? 'nf-suggestion-' + activeSuggestionIndex() : null"
         class="bg-transparent border-none outline-none w-full text-sm text-text placeholder-text-muted"
         (click)="$event.stopPropagation()"
       />
@@ -95,18 +98,22 @@
     <div
       *ngIf="supabaseService.user() && showSearchDropdown()"
       (click)="$event.stopPropagation()"
+      id="nf-search-listbox"
       class="glass-elevated absolute left-0 right-0 top-12 mt-1 max-h-[70vh] overflow-y-auto rounded-panel shadow-card p-3 flex flex-col gap-3 z-50 animate-fade-in text-left"
       role="listbox"
     >
       <ng-container *ngIf="!searchQuery().trim()">
         <ng-container *ngIf="recentSearches().length > 0; else noHistory">
-          <span class="mono-label text-[10px] uppercase text-text-muted font-medium px-2 select-none">
+          <span class="text-xs font-semibold text-text-muted px-2 select-none">
             Tìm kiếm gần đây
           </span>
           <div class="flex flex-col">
             <button
               *ngFor="let term of recentSearches(); let i = index"
               type="button"
+              [id]="'nf-suggestion-' + i"
+              role="option"
+              [attr.aria-selected]="activeSuggestionIndex() === i"
               (click)="selectSuggestion({ kind: 'recent', term })"
               [class.bg-surface-elevated]="activeSuggestionIndex() === i"
               class="w-full flex items-center justify-between gap-2 text-left px-3 py-2 rounded-control hover:bg-surface-elevated cursor-pointer border-none outline-none bg-transparent focus-visible:ring-2 focus-visible:ring-accent"
@@ -146,11 +153,14 @@
         <ng-container *ngIf="!isSuggesting()">
           <!-- Keyword suggestions -->
           <ng-container *ngIf="suggestKeywords().length > 0">
-            <span class="mono-label text-[10px] uppercase text-text-muted font-medium px-2 select-none">Từ khóa liên quan</span>
+            <span class="text-xs font-semibold text-text-muted px-2 select-none">Từ khóa liên quan</span>
             <div class="flex flex-col">
               <button
                 *ngFor="let term of suggestKeywords(); let i = index"
                 type="button"
+                [id]="'nf-suggestion-' + i"
+                role="option"
+                [attr.aria-selected]="activeSuggestionIndex() === i"
                 (click)="selectSuggestion({ kind: 'keyword', term })"
                 [class.bg-surface-elevated]="activeSuggestionIndex() === i"
                 class="w-full text-left flex items-center gap-2 px-3 py-2 rounded-control hover:bg-surface-elevated cursor-pointer border-none outline-none bg-transparent text-sm text-text focus-visible:ring-2 focus-visible:ring-accent"
@@ -163,11 +173,14 @@
 
           <!-- Account matches -->
           <ng-container *ngIf="suggestUsers().length > 0">
-            <span class="mono-label text-[10px] uppercase text-text-muted font-medium px-2 select-none">Tài khoản phù hợp</span>
+            <span class="text-xs font-semibold text-text-muted px-2 select-none">Tài khoản phù hợp</span>
             <div class="flex flex-col">
               <button
                 *ngFor="let u of suggestUsers(); let i = index"
                 type="button"
+                [id]="'nf-suggestion-' + (suggestKeywords().length + pinsSuggestionCount() + i)"
+                role="option"
+                [attr.aria-selected]="activeSuggestionIndex() === suggestKeywords().length + pinsSuggestionCount() + i"
                 (click)="selectSuggestion({ kind: 'user', user: u })"
                 [class.bg-surface-elevated]="activeSuggestionIndex() === suggestKeywords().length + pinsSuggestionCount() + i"
                 class="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-control hover:bg-surface-elevated cursor-pointer border-none outline-none bg-transparent focus-visible:ring-2 focus-visible:ring-accent"
@@ -180,11 +193,15 @@
 
           <!-- Matching pins -->
           <ng-container *ngIf="suggestPins().length > 0">
-            <span class="mono-label text-[10px] uppercase text-text-muted font-medium px-2 select-none">Hình ảnh phù hợp</span>
+            <span class="text-xs font-semibold text-text-muted px-2 select-none">Hình ảnh phù hợp</span>
             <div class="grid grid-cols-3 gap-2 px-1">
               <button
                 *ngFor="let pin of suggestPins().slice(0, 6); let i = index"
                 type="button"
+                [id]="'nf-suggestion-' + (suggestKeywords().length + i)"
+                role="option"
+                [attr.aria-selected]="activeSuggestionIndex() === suggestKeywords().length + i"
+                [attr.aria-label]="pin.title"
                 (click)="selectSuggestion({ kind: 'pin', pin })"
                 [class.ring-2]="activeSuggestionIndex() === suggestKeywords().length + i"
                 [class.ring-accent]="activeSuggestionIndex() === suggestKeywords().length + i"
@@ -216,13 +233,19 @@
 
   <!-- Right Profile Section / Login Button -->
   <div class="flex items-center gap-3 shrink-0">
+    <!-- Quick theme switch — visibility controlled from /settings -->
+    <app-theme-toggle *ngIf="themeService.showQuickToggle()" class="hidden sm:inline-flex"></app-theme-toggle>
+
     <!-- Logged in state -->
     <div class="relative flex items-center" *ngIf="supabaseService.user() as user">
       <!-- Trigger button: avatar in soft frame + chevron down -->
       <button
+        type="button"
         (click)="toggleProfilePopup($event)"
         class="flex h-11 items-center gap-1.5 pl-1 pr-2.5 hover:bg-surface-elevated rounded-control transition-colors duration-200 cursor-pointer select-none border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
         aria-label="Menu tài khoản"
+        aria-haspopup="menu"
+        [attr.aria-expanded]="showProfilePopup()"
       >
         <app-user-avatar [src]="avatarUrl()" [name]="displayName()" [size]="36"></app-user-avatar>
         <span
@@ -234,10 +257,11 @@
       <!-- Profile Dropdown Popup -->
       <div
         *ngIf="showProfilePopup()"
+        role="menu"
         class="glass-elevated absolute right-0 top-12 mt-2 w-80 rounded-panel shadow-card p-4 flex flex-col gap-3.5 z-50 animate-fade-in text-left"
       >
         <!-- Header: Đang đăng nhập -->
-        <span class="mono-label text-[10px] uppercase text-text-muted font-medium px-2 select-none">
+        <span class="text-xs font-semibold text-text-muted px-2 select-none">
           Đang đăng nhập
         </span>
 
@@ -246,7 +270,7 @@
           <app-user-avatar [src]="avatarUrl()" [name]="displayName()" [size]="56"></app-user-avatar>
           <div class="flex-1 min-w-0 flex flex-col justify-center">
             <!-- Full Name -->
-            <span class="text-[15px] font-extrabold text-text truncate leading-tight">
+            <span class="text-[15px] font-extrabold text-text truncate leading-tight font-display">
               {{ displayName() || user.email }}
             </span>
             <!-- Email -->
@@ -257,20 +281,44 @@
         </div>
 
         <!-- Section: Tài khoản của bạn -->
-        <span class="mono-label text-[10px] uppercase text-text-muted font-medium px-2 select-none">
+        <span class="text-xs font-semibold text-text-muted px-2 select-none">
           Tài khoản của bạn
         </span>
 
         <!-- View Profile Option -->
         <button
+          type="button"
+          role="menuitem"
           (click)="navigateToMyProfile()"
           class="w-full text-left font-bold text-base text-text hover:bg-surface-elevated px-4 py-2 rounded-control transition-colors duration-200 cursor-pointer border-none outline-none select-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           Trang cá nhân
         </button>
 
+        <!-- Settings Option -->
+        <button
+          type="button"
+          role="menuitem"
+          (click)="navigateToSettings()"
+          class="w-full text-left font-bold text-base text-text hover:bg-surface-elevated px-4 py-2 rounded-control transition-colors duration-200 cursor-pointer border-none outline-none select-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          Cài đặt
+        </button>
+
+        <!-- Quick theme switch — mobile only; sm: and up already has it in
+             the header itself, no need to duplicate it here too. -->
+        <div
+          *ngIf="themeService.showQuickToggle()"
+          class="sm:hidden flex items-center justify-between px-4 py-2 select-none"
+        >
+          <span class="font-bold text-base text-text">Giao diện tối</span>
+          <app-theme-toggle></app-theme-toggle>
+        </div>
+
         <!-- Sign Out Option -->
         <button
+          type="button"
+          role="menuitem"
           (click)="signOut()"
           class="w-full text-left font-bold text-base text-error hover:bg-surface-elevated px-4 py-2 rounded-control transition-colors duration-200 cursor-pointer border-none outline-none select-none focus-visible:ring-2 focus-visible:ring-accent"
         >
@@ -282,8 +330,9 @@
     <!-- Logged out state: signature CTA -->
     <button
       *ngIf="!supabaseService.user()"
+      type="button"
       (click)="onLoginClick()"
-      class="h-10 px-5 bg-gradient-brand cta-shape text-text font-bold cursor-pointer text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+      class="h-10 px-5 bg-gradient-brand cta-shape text-text-on-accent font-bold cursor-pointer text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
     >
       Đăng nhập
     </button>

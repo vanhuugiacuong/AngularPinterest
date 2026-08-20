@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Delete, Param, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+} from '@nestjs/common';
 import { BoardsService } from './boards.service';
 import { SupabaseAuthGuard } from '../supabase/supabase.guard';
 import { CurrentUser, UserPayload } from '../supabase/current-user.decorator';
@@ -28,7 +36,12 @@ export class BoardsController {
     @Body('description') description?: string,
     @Body('isSecret') isSecret?: boolean,
   ) {
-    return this.boardsService.createBoard(user.id, name, description, !!isSecret);
+    return this.boardsService.createBoard(
+      user.id,
+      name,
+      description,
+      !!isSecret,
+    );
   }
 
   @Post(':id/pins')
