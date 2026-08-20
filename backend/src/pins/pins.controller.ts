@@ -116,6 +116,7 @@ export class PinsController {
     @Body('title') title: string,
     @Body('description') description?: string,
     @Body('boardId') boardId?: string,
+    @Body('price') price?: string,
   ) {
     return this.pinsService.createUploadPin(
       user.id,
@@ -123,6 +124,7 @@ export class PinsController {
       title,
       description,
       boardId,
+      price,
     );
   }
 

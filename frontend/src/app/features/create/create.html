@@ -231,6 +231,14 @@
             </div>
 
             <!-- Board Selector dropdown -->
+            <div *ngIf="activeTab() === 'upload' && membership.status()?.canSell" class="flex flex-col gap-1.5">
+              <label class="text-xs font-bold text-text-muted">Giá bán ảnh (VNĐ)</label>
+              <input type="number" min="1000" step="1000" [(ngModel)]="price" placeholder="Để trống nếu không bán" class="w-full bg-surface-elevated border border-border rounded-control px-4 h-12 text-xs text-text" />
+              <span class="text-[10px] text-text-muted">Quyền riêng của gói Pro.</span>
+            </div>
+            <a *ngIf="activeTab() === 'upload' && !membership.status()?.canSell" href="/pricing" class="text-xs text-accent">Nâng cấp Pro để đặt giá và bán ảnh</a>
+
+            <!-- Board Selector dropdown -->
             <div class="flex flex-col gap-1.5 relative">
               <label class="text-xs font-bold text-text-muted">Lưu vào bộ sưu tập</label>
               <button

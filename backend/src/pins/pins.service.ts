@@ -293,9 +293,17 @@ export class PinsService {
     title: string,
     description?: string,
     boardId?: string,
+    price?: string,
   ) {
     if (boardId) {
       await this.assertOwnedBoard(boardId, userId);
+    }
+    let salePrice: number | undefined;
+    if (price) {
+      const owner = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
+      if (owner?.plan !== 'PRO') throw new ForbiddenException('Chỉ thành viên Pro mới có thể bán ảnh.');
+      salePrice = Number(price);
+      if (!Number.isFinite(salePrice) || salePrice < 1000) throw new BadRequestException('Giá ảnh phải từ 1.000đ.');
     }
 
     // Server-side moderation gate — never trust a client-side "safe" check.
@@ -331,6 +339,8 @@ export class PinsService {
         imageUrl,
         userId,
         category,
+        price: salePrice,
+        isForSale: salePrice !== undefined,
         boardPins: boardId
           ? {
               create: { boardId },

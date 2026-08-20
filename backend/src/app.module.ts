@@ -6,6 +6,7 @@ import { DatabaseModule } from './database/database.module';
 import { SupabaseModule } from './supabase/supabase.module';
 import { AiGeneratorModule } from './ai-generator/ai-generator.module';
 import { PinsModule } from './pins/pins.module';
+import { MembershipsModule } from './memberships/memberships.module';
 import { BoardsModule } from './boards/boards.module';
 import { UsersModule } from './users/users.module';
 import { BlocksModule } from './blocks/blocks.module';
@@ -19,6 +20,7 @@ import { MessagingModule } from './messaging/messaging.module';
     SupabaseModule,
     AiGeneratorModule,
     PinsModule,
+    MembershipsModule,
     BoardsModule,
     UsersModule,
     BlocksModule,

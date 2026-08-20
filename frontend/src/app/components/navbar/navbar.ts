@@ -337,6 +337,7 @@ export class Navbar implements OnInit, OnDestroy {
   navigateToCreate() {
     this.router.navigate(['/create']);
   }
+  navigateToPricing() { this.showProfilePopup.set(false); this.router.navigate(['/pricing']); }
 
   async signOut() {
     await this.supabaseService.signOut();

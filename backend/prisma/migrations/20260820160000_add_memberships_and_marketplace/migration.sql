@@ -1,0 +1,11 @@
+CREATE TYPE "MembershipPlan" AS ENUM ('FREE', 'PLUS', 'PRO');
+ALTER TABLE "User" ADD COLUMN "plan" "MembershipPlan" NOT NULL DEFAULT 'FREE', ADD COLUMN "planStartedAt" TIMESTAMP(3);
+ALTER TABLE "Pin" ADD COLUMN "price" DECIMAL(12,2), ADD COLUMN "isForSale" BOOLEAN NOT NULL DEFAULT false;
+CREATE TABLE "AiUsage" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "usageDate" DATE NOT NULL, "count" INTEGER NOT NULL DEFAULT 0, CONSTRAINT "AiUsage_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "AiUsage_userId_usageDate_key" ON "AiUsage"("userId", "usageDate");
+ALTER TABLE "AiUsage" ADD CONSTRAINT "AiUsage_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE TABLE "ImagePurchase" ("id" TEXT NOT NULL, "pinId" TEXT NOT NULL, "buyerId" TEXT NOT NULL, "sellerId" TEXT NOT NULL, "amount" DECIMAL(12,2) NOT NULL, "status" TEXT NOT NULL DEFAULT 'PAID', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "ImagePurchase_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "ImagePurchase_pinId_buyerId_key" ON "ImagePurchase"("pinId", "buyerId");
+ALTER TABLE "ImagePurchase" ADD CONSTRAINT "ImagePurchase_pinId_fkey" FOREIGN KEY ("pinId") REFERENCES "Pin"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ImagePurchase" ADD CONSTRAINT "ImagePurchase_buyerId_fkey" FOREIGN KEY ("buyerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ImagePurchase" ADD CONSTRAINT "ImagePurchase_sellerId_fkey" FOREIGN KEY ("sellerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -1,0 +1,10 @@
+<app-navbar></app-navbar>
+<main class="pricing-page">
+  <div class="pricing-hero"><span class="eyebrow">NOVAFRAME MEMBERSHIP</span><h1>Chọn không gian sáng tạo của bạn</h1><p>Nâng giới hạn AI, tải ảnh sạch và mở cửa hàng tác phẩm.</p></div>
+  <div class="plans">
+    <article class="plan"><span class="badge">FREE</span><h2>Miễn phí</h2><div class="price">0đ</div><ul><li>Các chức năng cơ bản</li><li>3 lượt tạo AI / ngày</li><li>Tải ảnh tiêu chuẩn</li></ul><button (click)="choose('FREE')" [disabled]="busy()">{{ membership.status()?.plan === 'FREE' ? 'Gói hiện tại' : 'Chọn Free' }}</button></article>
+    <article class="plan featured"><span class="badge">PLUS</span><h2>Plus</h2><div class="price">99.000đ <small>/ tháng</small></div><ul><li>Toàn bộ chức năng cơ bản</li><li>10 lượt tạo AI / ngày</li><li>Tải ảnh không watermark</li><li>Không kèm ID / tên người đăng</li></ul><button (click)="choose('PLUS')" [disabled]="busy()">{{ membership.status()?.plan === 'PLUS' ? 'Gói hiện tại' : 'Đăng ký Plus' }}</button></article>
+    <article class="plan pro"><span class="badge">PRO</span><h2>Pro</h2><div class="price">199.000đ <small>/ tháng</small></div><ul><li>Mọi quyền lợi của Plus</li><li>20 lượt tạo AI / ngày</li><li>Đặt giá và bán ảnh đã đăng</li><li>Ghi nhận giao dịch mua ảnh</li></ul><button (click)="choose('PRO')" [disabled]="busy()">{{ membership.status()?.plan === 'PRO' ? 'Gói hiện tại' : 'Đăng ký Pro' }}</button></article>
+  </div>
+  <p class="notice" *ngIf="message()">{{ message() }}</p><p class="demo">Thanh toán đang ở chế độ mô phỏng dành cho môi trường phát triển.</p>
+</main>

@@ -8,6 +8,7 @@ import { SupabaseService } from '../../core/services/supabase';
 import { FormsModule } from '@angular/forms';
 import { ImageEditor } from './image-editor/image-editor';
 import { PublishDialogStatus, PublishProgressDialog } from './publish-progress-dialog/publish-progress-dialog';
+import { MembershipService } from '../../core/services/membership';
 
 /** 'idle' — no file selected / check not run yet.
  * 'checking' — request in flight.
@@ -29,6 +30,7 @@ export class Create implements OnInit {
   private pinService = inject(PinService);
   private boardService = inject(BoardService);
   public supabaseService = inject(SupabaseService);
+  public membership = inject(MembershipService);
 
   // Only ever mounted while activeTab() === 'upload' and an image is
   // selected — <app-image-editor> is not present anywhere in the AI tab.
@@ -37,6 +39,7 @@ export class Create implements OnInit {
   // Form Fields
   public title = '';
   public description = '';
+  public price: number | null = null;
   public activeTab = signal<'upload' | 'ai'>('upload');
 
   // Boards selector fields
@@ -78,6 +81,7 @@ export class Create implements OnInit {
   private pendingDiscardAction: (() => void) | null = null;
 
   async ngOnInit() {
+    await this.membership.load();
     await this.loadBoards();
   }
 
@@ -229,10 +233,11 @@ export class Create implements OnInit {
     void this.checkSelectedImage(this.selectedFile);
   }
 
-  generateAiImage() {
+  async generateAiImage() {
     if (this.dialogOpen() || !this.aiPrompt.trim()) return;
-    this.isGenerating.set(true);
     this.formError.set(null);
+    try { await this.membership.consumeAi(); } catch (error) { this.formError.set(error instanceof Error ? error.message : 'Bạn đã hết lượt tạo AI hôm nay.'); return; }
+    this.isGenerating.set(true);
 
     const seed = Math.floor(Math.random() * 1000000);
     let modelQuery = '';
@@ -357,6 +362,7 @@ export class Create implements OnInit {
       if (boardId) {
         formData.append('boardId', boardId);
       }
+      if (this.membership.status()?.canSell && this.price) formData.append('price', String(this.price));
       // Regular uploads never carry AI metadata, regardless of tab history.
 
       await this.pinService.createUploadPin(formData, token);

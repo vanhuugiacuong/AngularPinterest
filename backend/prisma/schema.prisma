@@ -17,6 +17,11 @@ model User {
   avatarUrl    String?
   bio          String?
   createdAt    DateTime  @default(now())
+  plan         MembershipPlan @default(FREE)
+  planStartedAt DateTime?
+  aiUsages     AiUsage[]
+  purchases    ImagePurchase[] @relation("BuyerPurchases")
+  sales        ImagePurchase[] @relation("SellerSales")
   
   pins         Pin[]
   boards       Board[]
@@ -58,6 +63,9 @@ model Pin {
   sourceUrl       String?
   userId          String
   createdAt       DateTime    @default(now())
+  price           Decimal?    @db.Decimal(12, 2)
+  isForSale       Boolean     @default(false)
+  purchases       ImagePurchase[]
 
   isAiGenerated   Boolean     @default(false)
   promptUsed      String?
@@ -71,6 +79,35 @@ model Pin {
   likes           Like[]
   comments        Comment[]
   notifications   Notification[]
+}
+
+enum MembershipPlan {
+  FREE
+  PLUS
+  PRO
+}
+
+model AiUsage {
+  id        String   @id @default(uuid())
+  userId    String
+  usageDate DateTime @db.Date
+  count     Int      @default(0)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, usageDate])
+}
+
+model ImagePurchase {
+  id        String   @id @default(uuid())
+  pinId     String
+  buyerId   String
+  sellerId  String
+  amount    Decimal  @db.Decimal(12, 2)
+  status    String   @default("PAID")
+  createdAt DateTime @default(now())
+  pin       Pin      @relation(fields: [pinId], references: [id], onDelete: Cascade)
+  buyer     User     @relation("BuyerPurchases", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller    User     @relation("SellerSales", fields: [sellerId], references: [id], onDelete: Cascade)
+  @@unique([pinId, buyerId])
 }
 
 model Board {

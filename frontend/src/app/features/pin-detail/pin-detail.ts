@@ -17,6 +17,7 @@ import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
 import { FormsModule } from '@angular/forms';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
+import { MembershipService } from '../../core/services/membership';
 
 @Component({
   selector: 'app-pin-detail',
@@ -31,6 +32,8 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   private pinService = inject(PinService);
   private boardService = inject(BoardService);
   public supabaseService = inject(SupabaseService);
+  public membership = inject(MembershipService);
+  public downloadMessage = signal('');
 
   @ViewChild('scrollSentinel') scrollSentinel!: ElementRef;
 
@@ -109,6 +112,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   private observer?: IntersectionObserver;
 
   async ngOnInit() {
+    await this.membership.load();
     this.calculateColumns();
     this.route.paramMap.subscribe((params) => {
       const id = params.get('id');
@@ -120,6 +124,17 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       }
     });
     await this.loadBoards();
+  }
+
+  async downloadPin() {
+    const p = this.pin(); if (!p) return;
+    this.downloadMessage.set('Đang chuẩn bị ảnh...');
+    try {
+      const access = await this.membership.purchase(p.id);
+      const response = await fetch(access.imageUrl); const blob = await response.blob();
+      const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${p.title || 'novaframe'}.jpg`; anchor.click(); URL.revokeObjectURL(url);
+      this.downloadMessage.set(access.paid ? 'Thanh toán mô phỏng thành công. Đã tải ảnh.' : 'Đã tải ảnh.');
+    } catch (e) { this.downloadMessage.set(e instanceof Error ? e.message : 'Không thể tải ảnh.'); }
   }
 
   async loadBoards() {

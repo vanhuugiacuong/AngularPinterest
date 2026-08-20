@@ -135,6 +135,12 @@
                     </button>
 
                     <!-- Share -->
+                    <button type="button" (click)="downloadPin()" class="h-10 px-4 rounded-control bg-accent text-white font-bold text-xs border-none cursor-pointer">
+                      {{ p.isForSale && p.user?.id !== supabaseService.user()?.id ? ('Mua & tải · ' + (p.price | number) + 'đ') : 'Tải ảnh' }}
+                    </button>
+                    <span *ngIf="downloadMessage()" class="text-[10px] text-text-muted">{{ downloadMessage() }}</span>
+
+                    <!-- Share -->
                     <button
                       class="w-10 h-10 rounded-control bg-surface-elevated hover:bg-surface-high flex items-center justify-center cursor-pointer transition-colors duration-200 active:scale-90 border-none outline-none select-none text-text focus-visible:ring-2 focus-visible:ring-accent"
                     >
