@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { API_BASE_URL } from '../api-base';
 
 export interface Board {
   id: string;
@@ -20,7 +21,7 @@ export interface Board {
   providedIn: 'root',
 })
 export class BoardService {
-  private baseUrl = 'http://localhost:3000/api/boards';
+  private baseUrl = `${API_BASE_URL}/api/boards`;
 
   async getBoards(token: string): Promise<Board[]> {
     try {

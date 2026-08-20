@@ -44,6 +44,86 @@ export class PinsService {
     }
   }
 
+  /** Zero-shot NSFW check against the clip-service. Fails closed: if the
+   * moderation service is unreachable or errors, the caller should treat
+   * the image as not-yet-cleared rather than silently letting it through. */
+  private async moderateImage(
+    buffer: Buffer,
+    filename: string,
+    mimetype: string,
+  ): Promise<{ nsfw: boolean; nsfwScore: number; topLabel: string }> {
+    // TEMP DEBUG LOGGING — remove once moderation behavior is confirmed stable.
+    console.log(
+      `[moderation] started file=${filename} mimetype=${mimetype} size=${buffer.length} bytes url=${this.clipServiceUrl}/moderate/image`,
+    );
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      const formData = new FormData();
+      const blob = new Blob([new Uint8Array(buffer)], { type: mimetype });
+      formData.append('file', blob, filename);
+
+      const response = await fetch(`${this.clipServiceUrl}/moderate/image`, {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(
+          `[moderation] error: HTTP ${response.status} ${response.statusText} - ${errorText}`,
+        );
+        throw new ServiceUnavailableException(
+          'Không thể kiểm duyệt ảnh lúc này. Vui lòng thử lại sau.',
+        );
+      }
+
+      const result = await response.json();
+      console.log(
+        `[moderation] raw result=${JSON.stringify(result)} score=${result?.nsfwScore} nsfw=${result?.nsfw}`,
+      );
+      return result;
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) {
+        throw error;
+      }
+      const reason =
+        error instanceof Error && error.name === 'AbortError'
+          ? 'timeout after 15s'
+          : error instanceof Error
+            ? error.message
+            : String(error);
+      console.error(`[moderation] error: ${reason}`, error);
+      throw new ServiceUnavailableException(
+        'Không thể kiểm duyệt ảnh lúc này. Vui lòng thử lại sau.',
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /** Used by both the FE's pre-submit check and createUploadPin's own
+   * server-side gate, so a request straight to POST /api/pins can never
+   * skip moderation regardless of what the client claims. */
+  async checkImageModeration(
+    file: Express.Multer.File | undefined,
+  ): Promise<{ safe: boolean; message?: string }> {
+    if (!file) {
+      throw new BadRequestException('Vui lòng chọn ảnh để kiểm tra.');
+    }
+    const moderation = await this.moderateImage(file.buffer, file.originalname, file.mimetype);
+    if (moderation.nsfw) {
+      return {
+        safe: false,
+        message:
+          'Ảnh có thể chứa nội dung không phù hợp hoặc nội dung 18+. Vui lòng chọn ảnh khác.',
+      };
+    }
+    return { safe: true };
+  }
+
   private async getTextEmbedding(query: string): Promise<number[] | null> {
     try {
       const response = await fetch(
@@ -216,6 +296,13 @@ export class PinsService {
   ) {
     if (boardId) {
       await this.assertOwnedBoard(boardId, userId);
+    }
+
+    // Server-side moderation gate — never trust a client-side "safe" check.
+    // Runs before the image is uploaded to storage or the Pin is saved.
+    const moderation = await this.checkImageModeration(file);
+    if (!moderation.safe) {
+      throw new BadRequestException(moderation.message);
     }
 
     const extension = file.originalname.split('.').pop() || 'png';
