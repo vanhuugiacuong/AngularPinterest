@@ -1,9 +1,10 @@
 import { Injectable } from '@angular/core';
 import { ReportReason } from './messaging';
+import { API_BASE_URL } from '../api-base';
 
 @Injectable({ providedIn: 'root' })
 export class SafetyService {
-  private readonly baseUrl = 'http://localhost:3000/api/users';
+  private readonly baseUrl = `${API_BASE_URL}/api/users`;
 
   async blockUser(id: string, token: string): Promise<{ blocked: boolean }> {
     return this.request(`${this.baseUrl}/${id}/block`, token, { method: 'POST' });

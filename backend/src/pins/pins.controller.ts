@@ -92,6 +92,17 @@ export class PinsController {
     return this.pinsService.getPinById(id, user?.id);
   }
 
+  @Post('check-image')
+  @UseGuards(SupabaseAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('image', {
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit, matches pin upload
+    }),
+  )
+  async checkImage(@UploadedFile() file: Express.Multer.File) {
+    return this.pinsService.checkImageModeration(file);
+  }
+
   @Post()
   @UseGuards(SupabaseAuthGuard)
   @UseInterceptors(

@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { API_BASE_URL } from '../api-base';
 
 export interface Pin {
   id: string;
@@ -24,7 +25,7 @@ export interface Pin {
   providedIn: 'root',
 })
 export class PinService {
-  private baseUrl = 'http://localhost:3000/api/pins';
+  private baseUrl = `${API_BASE_URL}/api/pins`;
 
   async getPins(page = 1, limit = 20, token?: string, seed?: string): Promise<Pin[]> {
     try {
@@ -177,6 +178,32 @@ export class PinService {
     }
   }
 
+  /** Pre-submit NSFW check so the user gets feedback before hitting "Đăng".
+   * This is a UX convenience only — createUploadPin() below is checked again
+   * server-side, since the backend can never trust a client-reported result. */
+  async checkImageModeration(file: File, token: string): Promise<{ safe: boolean; message?: string }> {
+    const formData = new FormData();
+    formData.append('image', file);
+    const response = await fetch(`${this.baseUrl}/check-image`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+    if (!response.ok) {
+      let message = 'Không thể kiểm tra ảnh lúc này. Vui lòng thử lại.';
+      try {
+        const body = await response.json();
+        message = body.message || message;
+      } catch {
+        // Keep the default message when the server does not return JSON.
+      }
+      throw new Error(message);
+    }
+    return await response.json();
+  }
+
   async createUploadPin(formData: FormData, token: string): Promise<any> {
     try {
       const response = await fetch(this.baseUrl, {
@@ -187,7 +214,14 @@ export class PinService {
         body: formData,
       });
       if (!response.ok) {
-        throw new Error(`Failed to upload pin: ${response.statusText}`);
+        let message = `Failed to upload pin: ${response.statusText}`;
+        try {
+          const body = await response.json();
+          message = body.message || message;
+        } catch {
+          // Keep the status-based message when the server does not return JSON.
+        }
+        throw new Error(message);
       }
       return await response.json();
     } catch (error) {

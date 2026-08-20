@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { API_BASE_URL } from '../api-base';
 
 export type MessageRequestStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'REPORTED';
 
@@ -59,8 +60,8 @@ export interface PagedMessages {
 
 @Injectable({ providedIn: 'root' })
 export class MessagingService {
-  private readonly requestsUrl = 'http://localhost:3000/api/message-requests';
-  private readonly conversationsUrl = 'http://localhost:3000/api/conversations';
+  private readonly requestsUrl = `${API_BASE_URL}/api/message-requests`;
+  private readonly conversationsUrl = `${API_BASE_URL}/api/conversations`;
 
   async sendMessageRequest(receiverId: string, token: string): Promise<MessageRequestRecord> {
     return this.request<MessageRequestRecord>(`${this.requestsUrl}/${receiverId}`, token, {
