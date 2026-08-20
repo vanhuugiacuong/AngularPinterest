@@ -1,0 +1,262 @@
+/* Public-only header. Light palette, scoped to this component — the
+   authenticated app's header (app-navbar) is a separate file and is never
+   touched by anything here. */
+
+:host {
+  --nf-paper: #f7f7f2;
+  --nf-ink: #111111;
+  --nf-blue: #2454ff;
+  --nf-electric: #1a2ef5;
+  --nf-purple: #7c3cff;
+  --nf-cyan: #00cfe8;
+}
+
+.nf-head {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  height: 76px;
+  padding: 0 clamp(18px, 4vw, 48px);
+  color: var(--nf-ink);
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  transition: background-color 0.45s ease, border-color 0.45s ease, height 0.45s ease,
+    backdrop-filter 0.45s ease;
+}
+
+.nf-head--pinned {
+  height: 64px;
+  background: color-mix(in srgb, var(--nf-paper) 78%, transparent);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border-bottom-color: color-mix(in srgb, var(--nf-ink) 10%, transparent);
+}
+
+/* --- Logo ------------------------------------------------------------ */
+
+.nf-head__logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  border-radius: 10px;
+}
+
+.nf-head__logo img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+
+.nf-head__logo:focus-visible,
+.nf-head__link:focus-visible,
+.nf-head__cta:focus-visible,
+.nf-head__burger:focus-visible,
+.nf-head__sheet-link:focus-visible {
+  outline: 2px solid var(--nf-electric);
+  outline-offset: 3px;
+}
+
+/* --- Nav links with the sliding-glyph hover -------------------------- */
+
+.nf-head__nav {
+  display: none;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (min-width: 860px) {
+  .nf-head__nav {
+    display: flex;
+  }
+}
+
+.nf-head__link {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 10px 16px;
+  color: inherit;
+  font: inherit;
+  border-radius: 10px;
+}
+
+.nf-head__link-stack {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  height: 1.15em;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.nf-head__link-layer {
+  display: block;
+  transition: transform 0.42s cubic-bezier(0.65, 0, 0.35, 1), color 0.42s ease;
+}
+
+.nf-head__link-layer--ghost {
+  position: absolute;
+  inset: 0;
+  transform: translateY(100%);
+  color: var(--nf-electric);
+}
+
+.nf-head__link:hover .nf-head__link-layer,
+.nf-head__link:focus-visible .nf-head__link-layer {
+  transform: translateY(-100%);
+}
+
+.nf-head__link:hover .nf-head__link-layer--ghost,
+.nf-head__link:focus-visible .nf-head__link-layer--ghost {
+  transform: translateY(0);
+}
+
+/* --- Right cluster --------------------------------------------------- */
+
+.nf-head__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nf-head__cta {
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  cursor: pointer;
+  height: 42px;
+  padding: 0 22px;
+  border-radius: 999px;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  background: linear-gradient(120deg, var(--nf-electric), var(--nf-blue) 45%, var(--nf-purple));
+  box-shadow: 0 8px 22px -10px color-mix(in srgb, var(--nf-blue) 70%, transparent);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+}
+
+.nf-head__cta span {
+  position: relative;
+  z-index: 1;
+}
+
+.nf-head__cta::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, var(--nf-purple), var(--nf-blue) 55%, var(--nf-cyan));
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.nf-head__cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px -12px color-mix(in srgb, var(--nf-purple) 75%, transparent);
+}
+
+.nf-head__cta:hover::after {
+  opacity: 1;
+}
+
+.nf-head__cta:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.nf-head__burger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+@media (min-width: 860px) {
+  .nf-head__burger {
+    display: none;
+  }
+}
+
+.nf-head__burger:hover {
+  background: color-mix(in srgb, var(--nf-ink) 6%, transparent);
+}
+
+/* --- Mobile sheet ---------------------------------------------------- */
+
+.nf-head__sheet {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  gap: 2px;
+  background: color-mix(in srgb, var(--nf-paper) 92%, transparent);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border-bottom: 1px solid color-mix(in srgb, var(--nf-ink) 10%, transparent);
+  animation: nf-head-sheet 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes nf-head-sheet {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nf-head__sheet-link {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 12px;
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.nf-head__sheet-link:hover {
+  background: color-mix(in srgb, var(--nf-ink) 6%, transparent);
+  color: var(--nf-electric);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nf-head,
+  .nf-head__link-layer,
+  .nf-head__cta,
+  .nf-head__sheet {
+    transition: none;
+    animation: none;
+  }
+}

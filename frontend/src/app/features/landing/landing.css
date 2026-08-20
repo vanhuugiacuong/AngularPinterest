@@ -1,1 +1,1119 @@
-/* Component-specific styles for Landing page */
+/* ====================================================================== *
+ * NovaFrame — public landing experience.
+ *
+ * Light-toned and entirely self-contained: Angular's emulated view
+ * encapsulation stamps every selector below with this component's own
+ * attribute, so none of it can reach the authenticated app. The dark app
+ * palette is untouched; the body override is applied and reverted from the
+ * component's own lifecycle (see landing.ts).
+ *
+ * Motion model: `--p` is a 0..1 scroll-progress value written onto each
+ * .nf-scene by ScrollScenes (see scroll-scenes.ts). Every scene animates
+ * against it with transform/opacity only — no scroll-linked layout reads.
+ * ====================================================================== */
+
+:host {
+  --paper: #f7f7f2;
+  --paper-lift: #fafaf7;
+  --ink: #111111;
+  --ink-soft: rgba(17, 17, 17, 0.62);
+  --ink-faint: rgba(17, 17, 17, 0.34);
+
+  --electric: #1a2ef5;
+  --blue: #2454ff;
+  --purple: #7c3cff;
+  --cyan: #00cfe8;
+
+  --edge: rgba(17, 17, 17, 0.1);
+  --glass-edge: rgba(255, 255, 255, 0.8);
+  --shadow-soft: 0 30px 60px -30px rgba(36, 84, 255, 0.45);
+  --shadow-lift: 0 18px 40px -22px rgba(124, 60, 255, 0.4);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+
+  display: block;
+}
+
+.nf {
+  position: relative;
+  background: var(--paper);
+  color: var(--ink);
+  /* No overflow clipping here on purpose: an overflow value on an ancestor
+     turns it into a scroll container and silently breaks `position: sticky`
+     in every pinned scene below. Clipping happens per-scene instead. */
+}
+
+/* The page sits still until the loader has finished its exit. */
+.nf {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.nf--ready {
+  opacity: 1;
+}
+
+/* ====================================================================== */
+/* Scene scaffold                                                         */
+/* ====================================================================== */
+
+.nf-scene {
+  position: relative;
+  --p: 0;
+}
+
+.nf-scene__pin {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Scroll length of each pinned scene = how much room its animation gets. */
+.nf-scene--hero {
+  height: 260vh;
+}
+.nf-scene--explore {
+  height: 320vh;
+}
+.nf-scene--collect {
+  height: 240vh;
+}
+.nf-scene--creation {
+  height: 240vh;
+}
+.nf-scene--ai {
+  height: 240vh;
+}
+
+.nf-scene__head {
+  position: relative;
+  z-index: 2;
+  max-width: 620px;
+  padding: 0 clamp(20px, 6vw, 80px);
+}
+
+.nf-scene__head--center {
+  margin: 0 auto;
+  text-align: center;
+}
+
+.nf-scene__index {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  color: var(--electric);
+  margin-bottom: 14px;
+}
+
+.nf-scene__title {
+  font-size: clamp(46px, 9vw, 118px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 0.94;
+  margin-bottom: 20px;
+}
+
+.nf-scene__lede {
+  font-size: clamp(15px, 1.5vw, 19px);
+  line-height: 1.65;
+  color: var(--ink-soft);
+  max-width: 46ch;
+}
+
+/* ====================================================================== */
+/* Buttons                                                                */
+/* ====================================================================== */
+
+.nf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 56px;
+  padding: 0 30px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  font-size: 15px;
+  transition: transform 0.25s var(--ease-out), box-shadow 0.3s ease, background-color 0.3s ease,
+    color 0.3s ease, border-color 0.3s ease;
+}
+
+.nf-btn:focus-visible {
+  outline: 2px solid var(--electric);
+  outline-offset: 4px;
+}
+
+.nf-btn--solid {
+  color: #fff;
+  background: linear-gradient(120deg, var(--electric), var(--blue) 45%, var(--purple));
+  box-shadow: 0 16px 34px -16px rgba(36, 84, 255, 0.75);
+}
+
+.nf-btn--solid:hover {
+  box-shadow: 0 22px 44px -16px rgba(124, 60, 255, 0.8);
+}
+
+.nf-btn--outline {
+  color: var(--ink);
+  border-color: var(--edge);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.nf-btn--outline:hover {
+  background: #fff;
+  border-color: var(--electric);
+  color: var(--electric);
+}
+
+.nf-btn--ghost {
+  color: var(--ink-soft);
+  background: none;
+  padding-inline: 12px;
+}
+
+.nf-btn--ghost:hover {
+  color: var(--electric);
+}
+
+.nf-btn--ghost .material-symbols-outlined {
+  font-size: 20px;
+  transition: transform 0.3s var(--ease-out);
+}
+
+.nf-btn--ghost:hover .material-symbols-outlined {
+  transform: translateY(3px);
+}
+
+/* ====================================================================== */
+/* SCENE 01 — Hero: the 3D ring object                                    */
+/* ====================================================================== */
+
+.nf-scene--hero .nf-scene__pin {
+  justify-content: flex-start;
+}
+
+.nf-ring-stage {
+  --mx: 0;
+  --my: 0;
+  /* Vertical parking spot for the ring, overridden per breakpoint below so
+     the object always sits in the gap between the headline and the CTAs.
+     Tied to viewport *height*, not width: the gap between the headline and
+     the CTAs is what the ring has to fit into, and on a short-but-wide
+     window that gap closes up even though nothing about the width changed. */
+  --ring-y: clamp(-26px, 14vh - 104px, 72px);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  perspective: 1400px;
+  z-index: 1;
+}
+
+.nf-ring {
+  position: relative;
+  width: 1px;
+  height: 1px;
+  transform-style: preserve-3d;
+  /* One continuous move: the ring spins, tips over and pushes back as the
+     scene advances, with the pointer adding a small independent tilt. */
+  /* Parked below the headline rather than dead-centre, so the type owns the
+     upper band and the object owns the middle — neither obscures the other. */
+  transform: translateY(var(--ring-y)) translateZ(calc(var(--p) * -420px))
+    rotateX(calc(-6deg + var(--p) * 18deg + var(--my) * 10deg))
+    rotateY(calc(var(--p) * 300deg + var(--mx) * 16deg))
+    scale(calc(1 + var(--p) * 0.14));
+  transition: transform 0.45s var(--ease-out);
+  /* Fades out over the last third so the hero hands off to the exhibition
+     cleanly instead of leaving stray frames at the viewport edges. */
+  opacity: calc(2.8 - var(--p) * 2.8);
+}
+
+.nf-ring__frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Capped against viewport height as well as width, so a short window gets
+     a smaller ring rather than one that runs into the copy below it. */
+  /* The vh caps hold the frame's own 152:202 proportion (17.3vh : 23vh). */
+  width: min(clamp(94px, 11vw, 152px), 17.3vh);
+  height: min(clamp(126px, 15vw, 202px), 23vh);
+  margin-left: calc(min(clamp(94px, 11vw, 152px), 17.3vh) / -2);
+  margin-top: calc(min(clamp(126px, 15vw, 202px), 23vh) / -2);
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid var(--glass-edge);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-soft);
+  backface-visibility: visible;
+  /* Each frame is placed on the ring by its index, then pushed further out
+     from the axis as the scene progresses — the ring opens up rather than
+     the frames drifting off on their own. */
+  transform: rotateY(calc(var(--i) / var(--n) * 360deg))
+    translateZ(calc(clamp(210px, 24vw, 330px) + var(--p) * 110px))
+    rotateY(calc(var(--p) * -40deg));
+  transition: transform 0.45s var(--ease-out);
+}
+
+.nf-ring__frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* A whisper of brand light over each photo so the ring still reads as one
+   NovaFrame object rather than twelve unrelated pictures. Alternating tints
+   keep the blue/purple/cyan rhythm around the circle. */
+.nf-ring__frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(150deg, rgba(36, 84, 255, 0.3), rgba(0, 207, 232, 0.12));
+  mix-blend-mode: soft-light;
+}
+
+.nf-ring__frame:nth-child(3n + 2)::after {
+  background: linear-gradient(150deg, rgba(124, 60, 255, 0.34), rgba(36, 84, 255, 0.14));
+}
+
+.nf-ring__frame:nth-child(3n)::after {
+  background: linear-gradient(150deg, rgba(0, 207, 232, 0.26), rgba(124, 60, 255, 0.14));
+}
+
+.nf-ring__glow {
+  position: absolute;
+  width: min(760px, 84vw);
+  height: min(760px, 84vw);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(36, 84, 255, 0.22), transparent 62%);
+  filter: blur(40px);
+  opacity: calc(0.75 - var(--p) * 0.4);
+  pointer-events: none;
+}
+
+/* --- Reading veil ----------------------------------------------------- */
+
+/* Sits above the ring (z-index 1) and below the type (z-index 3). Real
+   backdrop blur, not a painted overlay, so it belongs to the same Liquid
+   Glass language as the auth panel — and it softens whatever passes behind
+   the words without dulling the rest of the object. The mask feathers the
+   bottom edge so there is no visible seam across the ring. */
+.nf-hero__veil {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Stops where the headline stops. With the two-line lockup the type and the
+     ring barely meet, so this is insurance for short or narrow viewports
+     where the headline wraps down — not a blanket wash over the object. */
+  height: min(48vh, 500px);
+  z-index: 2;
+  pointer-events: none;
+  backdrop-filter: blur(20px) saturate(106%);
+  -webkit-backdrop-filter: blur(20px) saturate(106%);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--paper) 72%, transparent) 0%,
+    color-mix(in srgb, var(--paper) 60%, transparent) 64%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 64%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 64%, transparent 100%);
+  /* Clears away with the headline, leaving the ring completely unveiled for
+     the second half of the scene. */
+  opacity: calc(1.3 - var(--p) * 2.2);
+  transition: opacity 0.4s ease;
+}
+
+@media (max-width: 640px) {
+  .nf-hero__veil {
+    backdrop-filter: blur(14px) saturate(108%);
+    -webkit-backdrop-filter: blur(14px) saturate(108%);
+  }
+
+  /* Portrait viewports are tall and narrow: the ring's perspective drops it
+     lower than on desktop, close enough to sit on the lede and the CTAs.
+     Lifting it clears that band. */
+  .nf-ring-stage {
+    --ring-y: -9vh;
+  }
+}
+
+/* --- Hero typography -------------------------------------------------- */
+
+.nf-hero__type {
+  position: relative;
+  z-index: 3;
+  padding: clamp(96px, 14vh, 170px) clamp(20px, 6vw, 80px) 0;
+  pointer-events: none;
+}
+
+/* Sized so the longer of the two lines ("Nơi ý tưởng của bạn") still sets on
+   a single line inside the page gutters — if it wraps, the headline grows
+   back to three rows and starts colliding with the ring again. */
+.nf-hero__title {
+  font-size: clamp(34px, 8.2vw, 124px);
+  font-weight: 800;
+  line-height: 0.92;
+  letter-spacing: -0.05em;
+}
+
+/* Each line is its own clipping window; the inner span slides up out of it
+   as the scene advances, so the headline is masked away rather than merely
+   faded. */
+.nf-hero__line {
+  display: block;
+  overflow: hidden;
+}
+
+/* The travel exceeds 100% by a wide margin on purpose: line-height is 0.9,
+   so glyph ascenders/descenders render outside the line box and a 125%
+   slide would leave their bottom edges peeking into the clip window. */
+.nf-hero__line > span {
+  display: block;
+  transform: translateY(calc(var(--p) * -250%));
+  transition: transform 0.45s var(--ease-out);
+}
+
+/* ---------------------------------------------------------------------- *
+ * Hero entrance. Applied by adding .nf-hero--enter (landing.ts), and
+ * replayed by removing the class, forcing a reflow and re-adding it.
+ *
+ * Every keyframe below declares only a `from` state: the implicit `to` is
+ * the element's own computed value, and `animation-fill-mode: backwards`
+ * means once the run finishes the scroll-driven rules take the property
+ * back cleanly. Animating `to` explicitly would freeze these elements and
+ * break the --p choreography.
+ * ---------------------------------------------------------------------- */
+
+.nf-hero--enter .nf-hero__line > span {
+  animation: nf-hero-rise 0.85s var(--ease-out) backwards;
+  animation-delay: calc(var(--line, 0) * 95ms + 30ms);
+}
+
+.nf-hero--enter .nf-hero__line:nth-child(2) > span {
+  --line: 1;
+}
+
+@keyframes nf-hero-rise {
+  from {
+    transform: translateY(108%);
+  }
+}
+
+.nf-hero--enter .nf-hero__foot {
+  animation: nf-hero-lift 0.85s var(--ease-out) 0.26s backwards;
+}
+
+@keyframes nf-hero-lift {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+}
+
+/* Frames fade up around the ring one after another, so it reads as the
+   object assembling rather than a finished image being switched on. */
+.nf-hero--enter .nf-ring__frame {
+  animation: nf-hero-frame-in 0.7s ease backwards;
+  animation-delay: calc(var(--i) * 38ms + 150ms);
+}
+
+@keyframes nf-hero-frame-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.nf-hero--enter .nf-ring__frame img {
+  animation: nf-hero-frame-settle 0.9s var(--ease-out) backwards;
+  animation-delay: calc(var(--i) * 38ms + 150ms);
+}
+
+@keyframes nf-hero-frame-settle {
+  from {
+    transform: scale(1.22);
+  }
+}
+
+.nf-hero--enter .nf-hero__cue {
+  animation: nf-hero-lift 0.8s var(--ease-out) 0.55s backwards;
+}
+
+.nf-hero__line:nth-child(2) > span {
+  transform: translateY(calc(var(--p) * -285%));
+}
+
+.nf-hero__line--accent > span {
+  background-image: linear-gradient(110deg, var(--electric), var(--blue) 40%, var(--purple) 78%, var(--cyan));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.nf-hero__foot {
+  position: absolute;
+  left: clamp(20px, 6vw, 80px);
+  bottom: clamp(48px, 9vh, 96px);
+  z-index: 3;
+  max-width: 520px;
+  opacity: calc(1 - var(--p) * 2.4);
+  transform: translateY(calc(var(--p) * 40px));
+  transition: opacity 0.35s ease, transform 0.45s var(--ease-out);
+}
+
+.nf-hero__lede {
+  font-size: clamp(15px, 1.5vw, 19px);
+  line-height: 1.6;
+  color: var(--ink-soft);
+  margin-bottom: 26px;
+  max-width: 38ch;
+}
+
+.nf-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.nf-hero__cue {
+  position: absolute;
+  right: clamp(20px, 6vw, 80px);
+  bottom: clamp(48px, 9vh, 96px);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  opacity: calc(1 - var(--p) * 3);
+}
+
+.nf-hero__cue-line {
+  width: 1px;
+  height: 62px;
+  background: linear-gradient(180deg, var(--ink-faint), transparent);
+  overflow: hidden;
+  position: relative;
+}
+
+.nf-hero__cue-line::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  height: 22px;
+  background: var(--electric);
+  animation: nf-cue 2s ease-in-out infinite;
+}
+
+@keyframes nf-cue {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(300%);
+  }
+}
+
+@media (max-width: 860px) {
+  .nf-hero__cue {
+    display: none;
+  }
+
+  .nf-hero__foot {
+    right: clamp(20px, 6vw, 80px);
+  }
+}
+
+/* ====================================================================== */
+/* SCENE 02 — Khám phá: the moving exhibition                             */
+/* ====================================================================== */
+
+.nf-scene--explore .nf-scene__pin {
+  justify-content: center;
+  gap: clamp(20px, 4vh, 44px);
+  background: linear-gradient(180deg, var(--paper), var(--paper-lift));
+}
+
+.nf-scene--explore .nf-scene__head {
+  flex: none;
+  opacity: calc(1 - var(--p) * 1.5);
+  transform: translateY(calc(var(--p) * -30px));
+}
+
+/* The exhibition wall and its heading share one 100vh pin, so the heading
+   runs a size down from the other scenes' display type — otherwise the
+   artworks and their captions get clipped at the bottom edge. */
+.nf-scene--explore .nf-scene__title {
+  font-size: clamp(38px, 6vw, 82px);
+  margin-bottom: 14px;
+}
+
+.nf-scene--explore .nf-scene__lede {
+  font-size: clamp(14px, 1.3vw, 17px);
+}
+
+.nf-gallery {
+  --travel: 96vw;
+  display: flex;
+  align-items: center;
+  gap: clamp(20px, 3vw, 44px);
+  padding-inline: clamp(20px, 6vw, 80px);
+  width: max-content;
+  transform: translate3d(calc(var(--p) * var(--travel) * -1), 0, 0);
+  will-change: transform;
+}
+
+.nf-gallery__item {
+  position: relative;
+  flex: none;
+  width: clamp(160px, 19vw, 268px);
+  margin: 0;
+}
+
+/* Alternating vertical offset so the wall reads as a hung exhibition
+   rather than a conveyor of equal tiles. */
+.nf-gallery__item:nth-child(even) {
+  transform: translateY(clamp(16px, 3vh, 38px));
+}
+
+.nf-gallery__item img {
+  display: block;
+  width: 100%;
+  /* Height is capped against the viewport too, so the wall always fits
+     inside the pinned 100vh no matter how wide the window is. */
+  height: min(calc(100vw * 0.19 * 1.28), 44vh);
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: 20px;
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.5s var(--ease-out), box-shadow 0.5s ease;
+}
+
+.nf-gallery__item:hover img {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: var(--shadow-lift);
+}
+
+.nf-gallery__item figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 14px;
+}
+
+.nf-gallery__title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.nf-gallery__meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+@media (max-width: 1100px) {
+  .nf-gallery {
+    --travel: 150vw;
+  }
+}
+
+@media (max-width: 640px) {
+  .nf-gallery {
+    --travel: 300vw;
+  }
+}
+
+/* ====================================================================== */
+/* SCENE 03 — Lưu giữ: frames converging into a collection                */
+/* ====================================================================== */
+
+.nf-scene--collect .nf-scene__pin {
+  background: var(--paper-lift);
+}
+
+.nf-collect {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: clamp(30px, 6vw, 80px);
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.nf-collect__stack {
+  position: relative;
+  height: min(60vh, 460px);
+  display: grid;
+  place-items: center;
+}
+
+.nf-collect__card {
+  position: absolute;
+  width: clamp(130px, 15vw, 208px);
+  height: clamp(170px, 20vw, 268px);
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--shadow-soft);
+  background: #fff;
+  /* Scattered at p=0, gathered into one neat stack at p=1. The (--i - 2)
+     term spreads the cards symmetrically around the centre card. */
+  transform: translate(
+      calc((var(--i) - 2) * (1 - var(--p)) * clamp(52px, 6.5vw, 106px)),
+      calc((var(--i) - 2) * (1 - var(--p)) * -30px)
+    )
+    rotate(calc((var(--i) - 2) * (1 - var(--p)) * 9deg + (var(--i) - 2) * var(--p) * 2.2deg))
+    scale(calc(0.9 + var(--p) * 0.1));
+  transition: transform 0.5s var(--ease-out);
+}
+
+.nf-collect__card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nf-scene__head--side {
+  opacity: calc(0.25 + var(--p) * 1.1);
+  transform: translateY(calc((1 - var(--p)) * 34px));
+  transition: opacity 0.4s ease, transform 0.5s var(--ease-out);
+}
+
+@media (max-width: 900px) {
+  .nf-collect {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .nf-collect__stack {
+    height: min(34vh, 260px);
+  }
+}
+
+/* ====================================================================== */
+/* SCENE 04 — Creation Studio: layer separation                           */
+/* ====================================================================== */
+
+.nf-scene--creation .nf-scene__pin {
+  gap: clamp(18px, 3.5vh, 40px);
+  background: linear-gradient(180deg, var(--paper-lift), var(--paper));
+}
+
+/* Heading and the layer stack share one 100vh pin, so the display type runs
+   a size down — at full scale the separated sheets clip off the bottom. */
+.nf-scene--creation .nf-scene__title {
+  font-size: clamp(38px, 6vw, 82px);
+  margin-bottom: 14px;
+}
+
+.nf-scene--creation .nf-scene__lede {
+  font-size: clamp(14px, 1.3vw, 17px);
+}
+
+.nf-layers {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: min(46vh, 380px);
+  perspective: 1200px;
+}
+
+.nf-layers__sheet {
+  position: absolute;
+  width: clamp(150px, 18vw, 240px);
+  height: min(calc(100vw * 0.18 * 1.25), 34vh);
+  border-radius: 22px;
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--shadow-soft);
+  object-fit: cover;
+  transition: transform 0.5s var(--ease-out);
+}
+
+/* At p=0 the three sheets are perfectly stacked; as the scene advances they
+   pull apart into distinct editable layers. */
+.nf-layers__sheet--1 {
+  z-index: 3;
+  transform: translate3d(calc(var(--p) * -13vw), calc(var(--p) * -46px), 0)
+    rotate(calc(var(--p) * -7deg));
+}
+
+.nf-layers__sheet--2 {
+  z-index: 2;
+  background: linear-gradient(150deg, rgba(124, 60, 255, 0.7), rgba(0, 207, 232, 0.55));
+  transform: translate3d(calc(var(--p) * 1vw), calc(var(--p) * 14px), 0) rotate(calc(var(--p) * 2deg));
+}
+
+.nf-layers__sheet--3 {
+  z-index: 1;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.95), rgba(224, 231, 255, 0.9));
+  transform: translate3d(calc(var(--p) * 14vw), calc(var(--p) * 62px), 0)
+    rotate(calc(var(--p) * 8deg));
+}
+
+.nf-layers__label {
+  position: absolute;
+  z-index: 4;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--shadow-lift);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  /* Labels only appear once the layers have actually separated. */
+  opacity: calc(var(--p) * 2 - 0.7);
+  transition: opacity 0.35s ease, transform 0.5s var(--ease-out);
+}
+
+.nf-layers__label--a {
+  transform: translate3d(calc(var(--p) * 17vw), calc(var(--p) * 118px), 0);
+}
+
+.nf-layers__label--b {
+  transform: translate3d(calc(var(--p) * 4vw), calc(var(--p) * 62px), 0);
+}
+
+.nf-layers__label--c {
+  transform: translate3d(calc(var(--p) * -13vw), calc(var(--p) * -108px), 0);
+}
+
+/* ====================================================================== */
+/* SCENE 05 — AI Studio: abstract mass resolving into a work              */
+/* ====================================================================== */
+
+.nf-scene--ai .nf-scene__pin {
+  background: var(--paper);
+}
+
+.nf-ai {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: clamp(30px, 6vw, 80px);
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.nf-ai__prompt {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 26px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--shadow-lift);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.nf-ai__prompt .material-symbols-outlined {
+  font-size: 18px;
+  color: var(--purple);
+}
+
+/* The prompt text types itself out, tied to scroll progress rather than a
+   timer, so it stays in step with the morph beside it. */
+.nf-ai__prompt-text {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: calc(var(--p) * 42ch);
+  vertical-align: bottom;
+  border-right: 2px solid var(--purple);
+}
+
+.nf-morph {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: min(56vh, 460px);
+}
+
+.nf-morph__blob {
+  position: absolute;
+  width: clamp(200px, 26vw, 350px);
+  height: clamp(200px, 26vw, 350px);
+  background: conic-gradient(from 0deg, var(--blue), var(--purple), var(--cyan), var(--blue));
+  filter: blur(18px);
+  opacity: calc(0.9 - var(--p) * 1.3);
+  /* Organic mass at p=0, resolving toward the frame's rectangle at p=1 */
+  border-radius: calc(50% - var(--p) * 28%);
+  transform: rotate(calc(var(--p) * 180deg)) scale(calc(1.1 - var(--p) * 0.2));
+  transition: transform 0.5s var(--ease-out), opacity 0.4s ease;
+}
+
+.nf-morph__result {
+  position: relative;
+  width: clamp(190px, 24vw, 320px);
+  height: clamp(238px, 30vw, 400px);
+  object-fit: cover;
+  border-radius: 22px;
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--shadow-soft);
+  opacity: calc(var(--p) * 1.8 - 0.5);
+  transform: scale(calc(0.86 + var(--p) * 0.14));
+  transition: transform 0.5s var(--ease-out), opacity 0.4s ease;
+}
+
+@media (max-width: 900px) {
+  .nf-ai {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .nf-morph {
+    height: min(34vh, 280px);
+  }
+}
+
+/* ====================================================================== */
+/* SCENE 06 — Closing CTA: the frames assemble into the mark              */
+/* ====================================================================== */
+
+.nf-scene--cta {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: clamp(80px, 14vh, 160px) clamp(20px, 6vw, 80px);
+  background: radial-gradient(ellipse 70% 60% at 50% 45%, #ffffff, var(--paper) 70%);
+  text-align: center;
+}
+
+.nf-cta {
+  max-width: 760px;
+}
+
+.nf-cta__assembly {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 148px;
+  margin-bottom: 34px;
+}
+
+/* `through` mode puts the scene's midpoint at --p = 0.5, so the shards are
+   fully gathered exactly when the CTA sits centred in the viewport. */
+.nf-cta__shard {
+  position: absolute;
+  width: 62px;
+  height: 62px;
+  border-radius: 16px;
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--shadow-soft);
+  background: linear-gradient(140deg, var(--blue), var(--purple));
+  opacity: calc(1 - var(--p) * 1.6);
+  transform: translate(
+      calc((var(--i) - 1.5) * (1 - var(--p) * 2) * 130px),
+      calc((var(--i) - 1.5) * (1 - var(--p) * 2) * 60px)
+    )
+    rotate(calc((1 - var(--p) * 2) * 40deg)) scale(calc(1 - var(--p) * 0.4));
+}
+
+.nf-cta__shard:nth-child(2) {
+  background: linear-gradient(140deg, var(--cyan), var(--blue));
+}
+
+.nf-cta__shard:nth-child(4) {
+  background: linear-gradient(140deg, var(--purple), var(--electric));
+}
+
+.nf-cta__mark {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  object-fit: contain;
+  opacity: calc(var(--p) * 2.6 - 0.6);
+  transform: scale(calc(0.6 + var(--p) * 0.8));
+  filter: drop-shadow(0 18px 34px rgba(36, 84, 255, 0.45));
+}
+
+.nf-cta__title {
+  font-size: clamp(40px, 7.5vw, 96px);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+  margin-bottom: 20px;
+  text-wrap: balance;
+}
+
+.nf-cta__title em {
+  font-style: normal;
+  background-image: linear-gradient(110deg, var(--electric), var(--blue) 42%, var(--purple));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.nf-cta__lede {
+  font-size: clamp(15px, 1.6vw, 19px);
+  line-height: 1.65;
+  color: var(--ink-soft);
+  max-width: 44ch;
+  margin: 0 auto 36px;
+}
+
+.nf-cta__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+}
+
+/* ====================================================================== */
+/* Footer                                                                 */
+/* ====================================================================== */
+
+.nf-foot {
+  border-top: 1px solid var(--edge);
+  background: var(--paper);
+}
+
+.nf-foot__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 40px clamp(20px, 6vw, 80px);
+}
+
+.nf-foot__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.nf-foot__brand img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
+.nf-foot__tag,
+.nf-foot__copy {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* ====================================================================== */
+/* Reduced motion                                                         */
+/* ====================================================================== */
+
+/* ScrollScenes parks --p at a neutral value and never attaches a scroll
+   listener in this mode; these rules drop the remaining transforms so every
+   scene renders in its resolved, readable state. */
+@media (prefers-reduced-motion: reduce) {
+  .nf-scene {
+    height: auto !important;
+  }
+
+  .nf-scene__pin {
+    position: static;
+    height: auto;
+    min-height: 100vh;
+    padding-block: 64px;
+  }
+
+  .nf-ring,
+  .nf-ring__frame,
+  .nf-ring__frame img,
+  .nf-hero__line > span,
+  .nf-collect__card,
+  .nf-layers__sheet,
+  .nf-morph__blob,
+  .nf-morph__result,
+  .nf-cta__shard,
+  .nf-cta__mark,
+  .nf-scene__head--side,
+  .nf-hero__cue,
+  .nf-hero__foot {
+    transform: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+  }
+
+  /* The entrance never runs in this mode — landing.ts also skips the replay,
+     but the class can still be present from the initial reveal. */
+  .nf-hero--enter .nf-hero__line > span,
+  .nf-hero--enter .nf-hero__foot,
+  .nf-hero--enter .nf-hero__cue,
+  .nf-hero--enter .nf-ring__frame,
+  .nf-hero--enter .nf-ring__frame img {
+    animation: none !important;
+  }
+
+  .nf-gallery {
+    transform: none !important;
+    width: 100%;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+  }
+
+  .nf-gallery__item {
+    scroll-snap-align: start;
+  }
+
+  .nf-gallery__item:nth-child(even) {
+    transform: none;
+  }
+
+  .nf-cta__shard {
+    display: none;
+  }
+
+  .nf-ai__prompt-text {
+    max-width: none;
+    border-right: 0;
+  }
+
+  .nf-layers__label {
+    opacity: 1;
+  }
+
+  .nf-hero__cue-line::after {
+    animation: none;
+  }
+
+  .nf {
+    opacity: 1;
+  }
+}
