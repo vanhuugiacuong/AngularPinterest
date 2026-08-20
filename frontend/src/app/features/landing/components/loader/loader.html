@@ -1,0 +1,36 @@
+<div
+  *ngIf="!hidden()"
+  class="nf-loader"
+  [class.nf-loader--leaving]="leaving()"
+  role="status"
+  aria-live="polite"
+  [attr.aria-label]="'Đang tải NovaFrame ' + (progress() | number: '1.0-0') + '%'"
+>
+  <!-- Wordmark — each glyph rises on its own delay, then the whole lockup
+       lifts away as the curtain splits. -->
+  <div class="nf-loader__mark">
+    <img src="/logo-mark.png" alt="" aria-hidden="true" class="nf-loader__logo" />
+    <span class="nf-loader__word">
+      <span
+        *ngFor="let letter of letters; let i = index"
+        class="nf-loader__letter"
+        [style.--i]="i"
+        aria-hidden="true"
+        >{{ letter }}</span
+      >
+    </span>
+  </div>
+
+  <div class="nf-loader__meta">
+    <span class="nf-loader__label">Creative Observatory</span>
+    <span class="nf-loader__count">{{ progress() | number: '1.0-0' }}</span>
+  </div>
+
+  <div class="nf-loader__rail" aria-hidden="true">
+    <span class="nf-loader__bar" [style.transform]="'scaleX(' + progress() / 100 + ')'"></span>
+  </div>
+
+  <!-- Curtain halves that split apart to reveal the hero underneath -->
+  <span class="nf-loader__curtain nf-loader__curtain--top" aria-hidden="true"></span>
+  <span class="nf-loader__curtain nf-loader__curtain--bottom" aria-hidden="true"></span>
+</div>

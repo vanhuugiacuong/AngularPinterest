@@ -1,266 +1,261 @@
-<div
-  class="min-h-screen bg-[radial-gradient(ellipse_120%_55%_at_50%_-8%,var(--color-ink),var(--color-bg)_65%)] text-text flex flex-col font-sans relative pt-16 overflow-hidden"
->
-  <!-- Header (Primary Nav) -->
-  <app-navbar (loginClick)="openLoginModal()"></app-navbar>
+<app-nf-loader (finished)="onLoaderFinished()"></app-nf-loader>
 
-  <!-- Decorative ambient light — a single source anchored behind the frame cluster
-       (not a floating backdrop wash behind the headline), hidden below md where the
-       two-column layout collapses and the anchor point no longer lines up. Respects
-       prefers-reduced-motion via the shared .animate-drift keyframe. -->
-  <div class="hidden md:block pointer-events-none absolute top-20 right-[8%] w-[420px] h-[420px] rounded-full bg-accent/10 blur-[110px] animate-drift" aria-hidden="true"></div>
+<div class="nf" [class.nf--ready]="loaderDone()">
+  <app-public-header (loginClick)="openLoginModal()"></app-public-header>
 
-  <!-- Hero Section -->
-  <main
-    class="flex-1 max-w-6xl w-full mx-auto px-6 py-12 md:py-20 flex flex-col md:flex-row items-center justify-between gap-16 z-10"
-  >
-    <!-- Left Hero Column -->
-    <div class="flex-1 text-center md:text-left">
-      <span class="mono-label inline-flex items-center gap-2 text-[11px] uppercase text-accent mb-5 select-none">
-        <span class="h-1.5 w-1.5 rounded-full bg-gradient-brand" aria-hidden="true"></span>
-        NovaFrame · Creative Observatory
-      </span>
-
-      <h1
-        class="text-4xl sm:text-5xl lg:text-[60px] font-extrabold text-text leading-[1.08] tracking-tight mb-6 text-balance"
+  <!-- ================================================================== -->
+  <!-- SCENE 01 — HERO                                                     -->
+  <!-- A pinned 260vh range. Scroll progress (--p) drives one continuous   -->
+  <!-- move: the ring of frames rotates on Y, tilts, pushes back in Z and  -->
+  <!-- its frames fan outward, while the headline is clipped away upward   -->
+  <!-- and the next scene's line rises through the same space. Nothing     -->
+  <!-- here floats independently — every frame belongs to the one object.  -->
+  <!-- ================================================================== -->
+  <section #heroScene class="nf-scene nf-scene--hero" id="nf-hero">
+    <div class="nf-scene__pin">
+      <!-- The object: a true 3D ring (preserve-3d), not stacked 2D cards -->
+      <div
+        class="nf-ring-stage"
+        (mousemove)="onHeroPointerMove($event)"
+        (mouseleave)="onHeroPointerLeave($event)"
+        aria-hidden="true"
       >
-        Nơi ý tưởng của bạn <span class="text-gradient-brand">trở thành tác phẩm</span>
-      </h1>
+        <div class="nf-ring">
+          <span
+            *ngFor="let frame of ringFrames; let i = index"
+            class="nf-ring__frame"
+            [style.--i]="i"
+            [style.--n]="ringFrames.length"
+          >
+            <!-- Eager, not lazy: these are above the fold and a lazy frame
+                 would pop in after the ring has already started turning. -->
+            <img [src]="frame.src" alt="" aria-hidden="true" decoding="async" />
+          </span>
+        </div>
+        <span class="nf-ring__glow"></span>
+      </div>
 
-      <p class="text-text-muted text-base max-w-md mx-auto md:mx-0 mb-9 leading-relaxed">
-        Khám phá, lưu trữ và tạo ra hình ảnh của riêng bạn — bằng ảnh thật hoặc bằng AI — trong một
-        không gian sáng tạo được thiết kế riêng cho NovaFrame.
+      <!-- Reading veil — a pane of the page's own glass sitting between the
+           ring and the headline. It blurs and lightens only the band the
+           type occupies, so the words stay crisp while the ring below stays
+           sharp and fully visible. Fades out with the headline. -->
+      <span class="nf-hero__veil" aria-hidden="true"></span>
+
+      <!-- Headline, clipped away as the scene advances -->
+      <div class="nf-hero__type">
+        <!-- Two lines, not three: at three the headline reached down into the
+             ring and the two had to fight for the same band. Split this way
+             the type owns the upper third and the object owns the lower — both
+             stay fully legible without either being dimmed. -->
+        <h1 class="nf-hero__title">
+          <span class="nf-hero__line"><span>Nơi ý tưởng của bạn</span></span>
+          <span class="nf-hero__line nf-hero__line--accent"><span>trở thành tác phẩm</span></span>
+        </h1>
+      </div>
+
+      <div class="nf-hero__foot">
+        <p class="nf-hero__lede">
+          Khám phá, lưu trữ và tạo ra hình ảnh của riêng bạn — bằng ảnh thật hoặc bằng AI.
+        </p>
+        <div class="nf-hero__actions">
+          <button
+            type="button"
+            class="nf-btn nf-btn--solid"
+            (click)="openLoginModal()"
+            (mousemove)="onMagneticMove($event)"
+            (mouseleave)="onMagneticLeave($event)"
+          >
+            Bắt đầu khám phá
+          </button>
+          <button type="button" class="nf-btn nf-btn--ghost" (click)="scrollToId('nf-explore')">
+            Xem tác phẩm
+            <span class="material-symbols-outlined">arrow_downward</span>
+          </button>
+        </div>
+      </div>
+
+      <span class="nf-hero__cue" aria-hidden="true">
+        <span class="nf-hero__cue-label">Cuộn</span>
+        <span class="nf-hero__cue-line"></span>
+      </span>
+    </div>
+  </section>
+
+  <!-- ================================================================== -->
+  <!-- SCENE 02 — KHÁM PHÁ                                                 -->
+  <!-- The exhibition: artworks travel horizontally through the pinned     -->
+  <!-- viewport as the user scrolls vertically, each one scaling as it     -->
+  <!-- crosses centre. Not a masonry grid — a moving gallery wall.         -->
+  <!-- ================================================================== -->
+  <section #exploreScene class="nf-scene nf-scene--explore" id="nf-explore">
+    <div class="nf-scene__pin">
+      <header class="nf-scene__head">
+        <span class="nf-scene__index">01</span>
+        <h2 class="nf-scene__title">Khám phá</h2>
+        <p class="nf-scene__lede">
+          Không gian khám phá — nơi tác phẩm thật và ảnh do AI tạo ra cùng xuất hiện, sắp xếp theo
+          danh mục bạn quan tâm.
+        </p>
+      </header>
+
+      <div class="nf-gallery">
+        <figure class="nf-gallery__item" *ngFor="let art of artworks; let i = index" [style.--i]="i">
+          <img [src]="art.src" [alt]="art.title" loading="lazy" decoding="async" width="800" height="1000" />
+          <figcaption>
+            <span class="nf-gallery__title">{{ art.title }}</span>
+            <span class="nf-gallery__meta">{{ art.meta }}</span>
+          </figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================== -->
+  <!-- SCENE 03 — LƯU GIỮ                                                  -->
+  <!-- Scattered frames converge into a single stacked collection as the   -->
+  <!-- scene progresses — the gather is the whole point of the section.    -->
+  <!-- ================================================================== -->
+  <section #collectScene class="nf-scene nf-scene--collect" id="nf-collect">
+    <div class="nf-scene__pin">
+      <div class="nf-collect">
+        <div class="nf-collect__stack" aria-hidden="true">
+          <span class="nf-collect__card" style="--i: 0">
+            <img src="/landing/work-11.jpg" alt="" loading="lazy" decoding="async" />
+          </span>
+          <span class="nf-collect__card" style="--i: 1">
+            <img src="/landing/work-08.jpg" alt="" loading="lazy" decoding="async" />
+          </span>
+          <span class="nf-collect__card" style="--i: 2">
+            <img src="/landing/work-09.jpg" alt="" loading="lazy" decoding="async" />
+          </span>
+          <span class="nf-collect__card" style="--i: 3">
+            <img src="/landing/work-10.jpg" alt="" loading="lazy" decoding="async" />
+          </span>
+          <span class="nf-collect__card" style="--i: 4">
+            <img src="/landing/work-01.jpg" alt="" loading="lazy" decoding="async" />
+          </span>
+        </div>
+
+        <header class="nf-scene__head nf-scene__head--side">
+          <span class="nf-scene__index">02</span>
+          <h2 class="nf-scene__title">Lưu giữ</h2>
+          <p class="nf-scene__lede">
+            Gom những gì bạn thích vào bộ sưu tập của riêng mình — công khai để chia sẻ, hoặc riêng
+            tư để giữ cho bản thân.
+          </p>
+        </header>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================== -->
+  <!-- SCENE 04 — CREATION STUDIO                                          -->
+  <!-- One artwork separates into editable layers as the scene advances,   -->
+  <!-- mirroring the real upload → edit → publish flow in features/create. -->
+  <!-- ================================================================== -->
+  <section #creationScene class="nf-scene nf-scene--creation" id="nf-creation">
+    <div class="nf-scene__pin">
+      <header class="nf-scene__head nf-scene__head--center">
+        <span class="nf-scene__index">03</span>
+        <h2 class="nf-scene__title">Creation Studio</h2>
+        <p class="nf-scene__lede">
+          Tải ảnh lên, tách lớp và chỉnh sửa trực quan, rồi xuất bản thành tác phẩm của bạn.
+        </p>
+      </header>
+
+      <div class="nf-layers" aria-hidden="true">
+        <span class="nf-layers__sheet nf-layers__sheet--3"></span>
+        <span class="nf-layers__sheet nf-layers__sheet--2"></span>
+        <img class="nf-layers__sheet nf-layers__sheet--1" src="/landing/work-05.jpg" alt="" loading="lazy" decoding="async" />
+        <span class="nf-layers__label nf-layers__label--a">Nền</span>
+        <span class="nf-layers__label nf-layers__label--b">Chỉnh sáng</span>
+        <span class="nf-layers__label nf-layers__label--c">Tác phẩm</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================== -->
+  <!-- SCENE 05 — AI STUDIO                                                -->
+  <!-- An abstract mass resolves into a finished frame — the prompt-to-     -->
+  <!-- image path that features/create actually implements.                -->
+  <!-- ================================================================== -->
+  <section #aiScene class="nf-scene nf-scene--ai" id="nf-ai">
+    <div class="nf-scene__pin">
+      <div class="nf-ai">
+        <header class="nf-scene__head nf-scene__head--side">
+          <span class="nf-scene__index">04</span>
+          <h2 class="nf-scene__title">AI Studio</h2>
+          <p class="nf-scene__lede">
+            Mô tả điều bạn hình dung, AI Studio dựng nó thành hình ảnh — rồi đưa thẳng vào bộ sưu tập
+            của bạn.
+          </p>
+          <p class="nf-ai__prompt" aria-hidden="true">
+            <span class="material-symbols-outlined">auto_awesome</span>
+            <span class="nf-ai__prompt-text">một đài quan sát ánh sáng giữa sương màu…</span>
+          </p>
+        </header>
+
+        <div class="nf-morph" aria-hidden="true">
+          <span class="nf-morph__blob"></span>
+          <img class="nf-morph__result" src="/landing/work-03.jpg" alt="" loading="lazy" decoding="async" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================== -->
+  <!-- SCENE 06 — CTA                                                      -->
+  <!-- The frames that have travelled the whole page converge one last     -->
+  <!-- time into the NovaFrame mark, and the journey resolves into the     -->
+  <!-- sign-in call.                                                       -->
+  <!-- ================================================================== -->
+  <section #ctaScene class="nf-scene nf-scene--cta" id="nf-cta">
+    <div class="nf-cta">
+      <div class="nf-cta__assembly" aria-hidden="true">
+        <span class="nf-cta__shard" style="--i: 0"></span>
+        <span class="nf-cta__shard" style="--i: 1"></span>
+        <span class="nf-cta__shard" style="--i: 2"></span>
+        <span class="nf-cta__shard" style="--i: 3"></span>
+        <img class="nf-cta__mark" src="/logo-mark.png" alt="" loading="lazy" />
+      </div>
+
+      <h2 class="nf-cta__title">Sẵn sàng để <em>bắt đầu</em>?</h2>
+      <p class="nf-cta__lede">
+        Đăng nhập bằng Google và bước vào không gian sáng tạo của riêng bạn trên NovaFrame.
       </p>
-
-      <!-- Hero CTAs -->
-      <div class="flex flex-col sm:flex-row items-center justify-center md:justify-start gap-4">
+      <div class="nf-cta__actions">
         <button
+          type="button"
+          class="nf-btn nf-btn--solid"
           (click)="openLoginModal()"
-          class="h-12 px-7 bg-gradient-brand cta-shape text-text font-bold cursor-pointer text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+          (mousemove)="onMagneticMove($event)"
+          (mouseleave)="onMagneticLeave($event)"
         >
           Bắt đầu khám phá
         </button>
-      </div>
-    </div>
-
-    <!-- Right: Observatory Canvas — an asymmetric composition, not a 3-column collage.
-         Signature entrance: the four frames settle into place from a slightly
-         offset start (--split-x/--split-y per frame), echoing how the two
-         frames in the NovaFrame logomark overlap and resolve. Runs once on
-         load; .frame-trace adds the dual-frame light trace on hover/focus. -->
-    <div class="flex-1 w-full flex justify-center items-center relative min-h-[420px]">
-      <div class="relative w-full max-w-[460px] h-[400px] select-none" aria-hidden="true">
-        <!-- Dominant frame -->
-        <div
-          class="absolute left-0 top-6 w-[60%] h-[72%] rounded-frame bg-surface-elevated glow-hover frame-trace shadow-card border border-border overflow-hidden flex items-center justify-center animate-frame-split"
-          style="--split-x: -18px; --split-y: 16px"
-        >
-          <div class="absolute inset-0 bg-gradient-to-br from-primary/25 via-transparent to-accent/10"></div>
-          <span class="material-symbols-outlined text-6xl text-text-muted/60 relative">auto_awesome</span>
-          <span class="mono-label absolute bottom-3 left-3 text-[10px] uppercase text-text-muted/80">AI · 1200×1600</span>
-        </div>
-
-        <!-- Satellite: sketch -->
-        <div
-          class="absolute right-2 top-0 w-[34%] h-[36%] rounded-frame-alt bg-surface-elevated glow-hover frame-trace shadow-card border border-border flex items-center justify-center animate-frame-split"
-          style="--split-x: 22px; --split-y: -16px; animation-delay: 90ms"
-        >
-          <span class="material-symbols-outlined text-3xl text-text-muted/60">palette</span>
-        </div>
-
-        <!-- Satellite: AI Studio -->
-        <div
-          class="absolute right-0 bottom-6 w-[40%] h-[34%] rounded-frame bg-surface-elevated glow-hover frame-trace shadow-card border border-primary/40 flex flex-col items-center justify-center gap-1 animate-frame-split"
-          style="--split-x: 20px; --split-y: 12px; animation-delay: 160ms"
-        >
-          <span class="material-symbols-outlined text-3xl text-accent">auto_awesome</span>
-          <span class="mono-label text-[9px] uppercase text-gradient-brand font-bold">AI Studio</span>
-        </div>
-
-        <!-- Satellite: camera -->
-        <div
-          class="absolute left-[6%] bottom-0 w-[26%] h-[22%] rounded-frame-alt bg-surface-elevated glow-hover frame-trace shadow-card border border-border flex items-center justify-center animate-frame-split"
-          style="--split-x: -16px; --split-y: 14px; animation-delay: 220ms"
-        >
-          <span class="material-symbols-outlined text-2xl text-text-muted/60">photo_camera</span>
-        </div>
-
-        <!-- Readout caption -->
-        <span class="mono-label absolute -bottom-9 left-0 text-[10px] uppercase text-text-muted/60">#NF-04 · lưu trữ ý tưởng số</span>
-      </div>
-    </div>
-  </main>
-
-  <!-- Khám phá → Lưu giữ → Sáng tạo — the three-beat rhythm of the product,
-       not a generic SaaS "how it works" grid. Purely informational (no fake
-       CTAs) since these actions only become real after signing in. -->
-  <section class="relative z-10 max-w-6xl w-full mx-auto px-6 py-14 md:py-20" aria-labelledby="flow-heading">
-    <h2 id="flow-heading" class="sr-only">Khám phá, lưu giữ và sáng tạo cùng NovaFrame</h2>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-      <div class="glass rounded-frame p-6 flex flex-col gap-3">
-        <span class="mono-label text-[10px] uppercase text-accent">01</span>
-        <span class="material-symbols-outlined text-2xl text-text-muted">explore</span>
-        <h3 class="text-lg font-bold text-text">Khám phá</h3>
-        <p class="text-sm text-text-muted leading-relaxed">
-          Lướt qua Không gian khám phá — nơi tác phẩm thật và ảnh do AI tạo ra cùng xuất hiện, được sắp
-          xếp theo danh mục bạn quan tâm.
-        </p>
-      </div>
-      <div class="glass rounded-frame-alt p-6 flex flex-col gap-3">
-        <span class="mono-label text-[10px] uppercase text-accent">02</span>
-        <span class="material-symbols-outlined text-2xl text-text-muted">collections_bookmark</span>
-        <h3 class="text-lg font-bold text-text">Lưu giữ</h3>
-        <p class="text-sm text-text-muted leading-relaxed">
-          Gom những gì bạn thích vào bộ sưu tập của riêng mình — công khai để chia sẻ, hoặc riêng tư để
-          giữ cho bản thân.
-        </p>
-      </div>
-      <div class="glass rounded-frame p-6 flex flex-col gap-3">
-        <span class="mono-label text-[10px] uppercase text-accent">03</span>
-        <span class="material-symbols-outlined text-2xl text-text-muted">auto_awesome</span>
-        <h3 class="text-lg font-bold text-text">Sáng tạo</h3>
-        <p class="text-sm text-text-muted leading-relaxed">
-          Tải ảnh lên và chỉnh sửa trong Creation Studio, hoặc tạo hình ảnh hoàn toàn mới bằng AI Studio
-          — rồi xuất bản thành tác phẩm của bạn.
-        </p>
+        <button type="button" class="nf-btn nf-btn--outline" (click)="openLoginModal()">
+          Đăng nhập
+        </button>
       </div>
     </div>
   </section>
 
-  <!-- Ambient light for the sections below the hero — separate source from the
-       hero orb above, kept subtle and non-interactive. -->
-  <div
-    class="pointer-events-none absolute bottom-24 left-[6%] w-[380px] h-[380px] rounded-full bg-secondary/8 blur-[120px] animate-drift"
-    style="animation-delay: -6s"
-    aria-hidden="true"
-  ></div>
-
-  <!-- Four pillars of the product — informational, not clickable (these
-       become real destinations only after signing in). -->
-  <section class="relative z-10 max-w-6xl w-full mx-auto px-6 pb-14 md:pb-20" aria-labelledby="pillars-heading">
-    <h2 id="pillars-heading" class="sr-only">Bốn không gian của NovaFrame</h2>
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="rounded-control border border-border bg-surface/60 p-5 flex flex-col gap-2">
-        <span class="material-symbols-outlined text-xl text-accent">explore</span>
-        <h3 class="text-sm font-bold text-text">Không gian khám phá</h3>
-        <p class="text-xs text-text-muted leading-relaxed">Dòng chảy tác phẩm theo danh mục và tìm kiếm.</p>
-      </div>
-      <div class="rounded-control border border-border bg-surface/60 p-5 flex flex-col gap-2">
-        <span class="material-symbols-outlined text-xl text-accent">collections_bookmark</span>
-        <h3 class="text-sm font-bold text-text">Bộ sưu tập</h3>
-        <p class="text-xs text-text-muted leading-relaxed">Tổ chức ý tưởng thành các bộ sưu tập riêng.</p>
-      </div>
-      <div class="rounded-control border border-border bg-surface/60 p-5 flex flex-col gap-2">
-        <span class="material-symbols-outlined text-xl text-accent">design_services</span>
-        <h3 class="text-sm font-bold text-text">Creation Studio</h3>
-        <p class="text-xs text-text-muted leading-relaxed">Tải ảnh lên, chỉnh sửa và xuất bản tác phẩm.</p>
-      </div>
-      <div class="rounded-control border border-border bg-surface/60 p-5 flex flex-col gap-2">
-        <span class="material-symbols-outlined text-xl text-accent">auto_awesome</span>
-        <h3 class="text-sm font-bold text-text">AI Studio</h3>
-        <p class="text-xs text-text-muted leading-relaxed">Tạo hình ảnh mới từ mô tả bằng AI.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Minimal footer — brand mark, name, tagline. No fabricated links: the
-       app is auth-gated, so there are no other public routes to point to. -->
-  <footer class="relative z-10 border-t border-border">
-    <div class="max-w-6xl w-full mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-      <div class="flex items-center gap-2">
-        <img src="/logo-mark.png" alt="NovaFrame" class="h-6 w-6 object-contain" />
-        <span class="font-extrabold text-text tracking-tight">NovaFrame</span>
-        <span class="mono-label text-[11px] uppercase text-text-muted ml-1">· Creative Observatory</span>
-      </div>
-      <span class="text-xs text-text-muted">© {{ currentYear }} NovaFrame</span>
+  <footer class="nf-foot">
+    <div class="nf-foot__row">
+      <span class="nf-foot__brand">
+        <img src="/logo-mark.png" alt="" aria-hidden="true" />
+        NovaFrame
+      </span>
+      <span class="nf-foot__tag">Creative Observatory</span>
+      <span class="nf-foot__copy">© {{ currentYear }} NovaFrame</span>
     </div>
   </footer>
 
-  <!-- Login Modal Dialog Overlay (Scrim) — closes on Escape or backdrop click -->
-  <div
-    *ngIf="showLoginModal()"
-    (click)="closeLoginModal()"
-    class="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in"
-    role="presentation"
-  >
-    <!-- Modal Card -->
-    <div
-      (click)="$event.stopPropagation()"
-      class="glass-elevated max-w-[440px] w-full rounded-panel p-10 relative shadow-card text-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="login-modal-title"
-    >
-      <!-- Close button on top-right -->
-      <button
-        (click)="closeLoginModal()"
-        class="absolute top-4 right-4 w-8 h-8 rounded-full bg-surface text-text hover:bg-surface-elevated transition-colors flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        aria-label="Đóng"
-      >
-        <span class="material-symbols-outlined text-lg leading-none font-semibold">close</span>
-      </button>
-
-      <!-- Brand mark -->
-      <div
-        class="inline-flex items-center justify-center w-12 h-12 rounded-frame-alt bg-gradient-brand shadow-glow mb-4"
-      >
-        <img src="/logo-mark.png" alt="NovaFrame" class="w-7 h-7 object-contain" />
-      </div>
-
-      <!-- Title & Description inside modal -->
-      <h2 id="login-modal-title" class="text-[22px] font-semibold text-text tracking-tight mb-2">
-        Đăng nhập vào <span class="text-gradient-brand">NovaFrame</span>
-      </h2>
-      <p class="text-text-muted text-sm mb-8 leading-relaxed px-4">
-        Tiếp tục bằng tài khoản Google để bắt đầu sáng tạo hình ảnh.
-      </p>
-
-      <!-- Google Login Button -->
-      <button
-        (click)="login()"
-        class="w-full h-11 flex items-center justify-center gap-3 px-4 bg-surface hover:bg-surface-elevated border border-border text-text font-bold rounded-control transition-all duration-200 cursor-pointer active:scale-95 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-      >
-        <svg
-          class="w-5 h-5 transition-transform duration-300 group-hover:scale-105"
-          viewBox="0 0 24 24"
-          fill="none"
-        >
-          <path
-            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-            fill="#4285F4"
-          />
-          <path
-            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-            fill="#34A853"
-          />
-          <path
-            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-            fill="#FBBC05"
-          />
-          <path
-            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-            fill="#EA4335"
-          />
-        </svg>
-        Đăng nhập bằng Google
-      </button>
-
-      <!-- Error message rendering in modal -->
-      @if (errorMsg()) {
-        <div
-          class="mt-4 p-3 rounded-control bg-error/10 border border-error/30 text-error text-xs font-semibold text-left flex items-start gap-2 animate-fade-in"
-        >
-          <span class="material-symbols-outlined text-base leading-none shrink-0">error</span>
-          <span>Lỗi đăng nhập: {{ errorMsg() }}</span>
-        </div>
-      }
-
-      <div class="mt-8 text-[12px] text-text-muted leading-normal px-4">
-        Bằng việc tiếp tục, bạn đồng ý với
-        <a href="#" class="font-semibold text-text hover:text-accent hover:underline">Điều khoản Dịch vụ</a> và
-        <a href="#" class="font-semibold text-text hover:text-accent hover:underline">Chính sách Bảo mật</a> của
-        chúng tôi.
-      </div>
-    </div>
-  </div>
+  <app-auth-modal
+    [open]="showLoginModal()"
+    [errorMsg]="errorMsg()"
+    [isSigningIn]="isSigningIn()"
+    (closeModal)="closeLoginModal()"
+    (loginRequested)="login()"
+  ></app-auth-modal>
 </div>
