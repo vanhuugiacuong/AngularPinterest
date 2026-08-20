@@ -84,10 +84,11 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
     { src: '/landing/work-12.jpg', title: 'Họa sĩ sáng tác tranh khổ lớn', meta: 'NF-012 · Drawing' }
   ];
 
-  private readonly reducedMotion =
-    typeof window !== 'undefined' && 'matchMedia' in window
-      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      : false;
+  // Keep the showcase choreography enabled in desktop preview browsers.
+  // VS Code's embedded Chromium can report `prefers-reduced-motion: reduce`
+  // even when Windows animations are enabled, which previously collapsed
+  // every pinned scene into a static layout.
+  private readonly reducedMotion = false;
 
   private scenes?: ScrollScenes;
   private pointerFrame = 0;

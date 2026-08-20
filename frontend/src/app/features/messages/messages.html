@@ -262,7 +262,7 @@
                   class="flex items-center gap-2.5 text-left cursor-pointer bg-transparent border-none p-0 min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
                 >
                   <app-user-avatar [src]="otherUser.avatarUrl" [name]="otherUser.username" [size]="36"></app-user-avatar>
-                  <span class="text-sm font-bold text-text truncate hover:underline">{{ otherUser.username }}</span>
+                  <span class="flex flex-col min-w-0"><span class="text-sm font-bold text-text truncate hover:underline">{{ otherUser.username }}</span><span class="text-[10px] font-medium" [class.text-success]="otherUserOnline()" [class.text-text-muted]="!otherUserOnline()"><i class="inline-block w-1.5 h-1.5 rounded-full mr-1" [class.bg-success]="otherUserOnline()" [class.bg-text-muted]="!otherUserOnline()"></i>{{ otherUserOnline() ? 'Đang hoạt động' : 'Ngoại tuyến' }}</span></span>
                 </button>
               }
             </div>
@@ -315,9 +315,12 @@
                       [class.bg-surface-elevated]="message.senderId !== currentUserId"
                     >
                       {{ message.content }}
-                      <div class="text-[10px] opacity-70 mt-1 text-right">{{ formatMessageTime(message.createdAt) }}</div>
+                      <div class="text-[10px] opacity-70 mt-1 text-right">{{ formatMessageTime(message.createdAt) }}<span *ngIf="message.senderId === currentUserId"> · {{ message.readAt ? 'Đã xem' : 'Đã gửi' }}</span></div>
                     </div>
                   </div>
+                }
+                @if (otherUserTyping()) {
+                  <div class="flex items-center gap-2 text-xs text-text-muted py-1" aria-live="polite"><span class="typing-dots"><i></i><i></i><i></i></span> Đang nhập…</div>
                 }
               }
             </div>
@@ -327,6 +330,7 @@
               <textarea
                 name="messageDraft"
                 [(ngModel)]="messageDraft"
+                (ngModelChange)="onDraftInput()"
                 [maxlength]="maxMessageLength"
                 [disabled]="sendPending()"
                 rows="1"

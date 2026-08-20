@@ -1041,7 +1041,10 @@
 /* ScrollScenes parks --p at a neutral value and never attaches a scroll
    listener in this mode; these rules drop the remaining transforms so every
    scene renders in its resolved, readable state. */
-@media (prefers-reduced-motion: reduce) {
+/* Only flatten the story on non-animated/e-ink style displays. Some embedded
+   desktop browsers incorrectly report reduced motion and used to disable the
+   entire landing experience. */
+@media (prefers-reduced-motion: reduce) and (update: none) {
   .nf-scene {
     height: auto !important;
   }

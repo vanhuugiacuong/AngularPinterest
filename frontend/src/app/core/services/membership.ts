@@ -2,7 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { API_BASE_URL } from '../api-base';
 import { SupabaseService } from './supabase';
 export type MembershipPlan = 'FREE' | 'PLUS' | 'PRO';
-export interface MembershipStatus { plan: MembershipPlan; aiUsed: number; aiLimit: number; aiRemaining: number; canDownloadClean: boolean; canSell: boolean; }
+export interface MembershipStatus { plan: MembershipPlan; ownedPlans: MembershipPlan[]; aiUsed: number; aiLimit: number; aiRemaining: number; canDownloadClean: boolean; canSell: boolean; }
 @Injectable({ providedIn: 'root' })
 export class MembershipService {
   private auth = inject(SupabaseService);

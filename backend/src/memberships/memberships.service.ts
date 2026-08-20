@@ -14,7 +14,7 @@ export class MembershipsService {
   }
 
   async status(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true, planStartedAt: true } });
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true, ownedPlans: true, planStartedAt: true } });
     if (!user) throw new NotFoundException('Không tìm thấy người dùng.');
     const usage = await this.prisma.aiUsage.findUnique({ where: { userId_usageDate: { userId, usageDate: this.today() } } });
     const limit = LIMITS[user.plan];
@@ -23,6 +23,9 @@ export class MembershipsService {
 
   async changePlan(userId: string, plan: MembershipPlan) {
     if (!Object.values(MembershipPlan).includes(plan)) throw new BadRequestException('Gói không hợp lệ.');
+    const account = await this.prisma.user.findUnique({ where: { id: userId }, select: { ownedPlans: true } });
+    if (!account) throw new NotFoundException('Không tìm thấy người dùng.');
+    if (!account.ownedPlans.includes(plan)) throw new ForbiddenException('Bạn chưa thanh toán cho gói này.');
     await this.prisma.user.update({ where: { id: userId }, data: { plan, planStartedAt: new Date() } });
     return this.status(userId);
   }

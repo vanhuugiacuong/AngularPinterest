@@ -11,6 +11,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
+import { RealtimeChannel } from '@supabase/supabase-js';
 import { Navbar } from '../../components/navbar/navbar';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
 import { SupabaseService } from '../../core/services/supabase';
@@ -25,7 +26,6 @@ import {
 type Section = 'chats' | 'requests';
 type RequestsTab = 'incoming' | 'outgoing';
 
-const POLL_INTERVAL_MS = 5000;
 const MAX_MESSAGE_LENGTH = 4000;
 
 @Component({
@@ -67,6 +67,8 @@ export class Messages implements OnInit, OnDestroy {
 
   readonly sendPending = signal(false);
   readonly sendError = signal<string | null>(null);
+  readonly otherUserTyping = signal(false);
+  readonly otherUserOnline = signal(false);
   messageDraft = '';
 
   readonly reportTarget = signal<MessageRequestRecord | null>(null);
@@ -76,7 +78,8 @@ export class Messages implements OnInit, OnDestroy {
   reportDetails = '';
 
   private routeSubscription?: Subscription;
-  private pollHandle?: ReturnType<typeof setInterval>;
+  private realtimeChannel?: RealtimeChannel;
+  private typingTimer?: ReturnType<typeof setTimeout>;
   private messagesRequestVersion = 0;
   private messagesPage = 1;
 
@@ -93,26 +96,22 @@ export class Messages implements OnInit, OnDestroy {
           this.messagesPage = 1;
           void this.loadMessages(conversationId);
           void this.markConversationRead(conversationId);
+          void this.connectRealtime(conversationId);
         } else {
           this.messages.set([]);
+          void this.disconnectRealtime();
         }
       }
     });
 
     await Promise.all([this.loadConversations(), this.loadRequests()]);
 
-    this.pollHandle = setInterval(() => {
-      void this.loadConversations(true);
-      const conversationId = this.selectedConversationId();
-      if (conversationId) {
-        void this.loadMessages(conversationId, true);
-      }
-    }, POLL_INTERVAL_MS);
   }
 
   ngOnDestroy() {
     this.routeSubscription?.unsubscribe();
-    if (this.pollHandle) clearInterval(this.pollHandle);
+    void this.disconnectRealtime();
+    if (this.typingTimer) clearTimeout(this.typingTimer);
     this.messagesRequestVersion += 1;
   }
 
@@ -241,6 +240,8 @@ export class Messages implements OnInit, OnDestroy {
       const message = await this.messagingService.sendMessage(conversationId, content, token);
       this.messages.update((current) => [...current, message]);
       this.messageDraft = '';
+      await this.realtimeChannel?.send({ type: 'broadcast', event: 'message', payload: message });
+      await this.broadcastTyping(false);
       setTimeout(() => this.scrollToBottom());
       this.conversations.update((current) =>
         current.map((c) =>
@@ -258,6 +259,12 @@ export class Messages implements OnInit, OnDestroy {
     } finally {
       this.sendPending.set(false);
     }
+  }
+
+  onDraftInput() {
+    void this.broadcastTyping(this.messageDraft.trim().length > 0);
+    if (this.typingTimer) clearTimeout(this.typingTimer);
+    this.typingTimer = setTimeout(() => void this.broadcastTyping(false), 1400);
   }
 
   async acceptRequest(request: MessageRequestRecord) {
@@ -380,12 +387,63 @@ export class Messages implements OnInit, OnDestroy {
     try {
       const token = await this.requireToken();
       await this.messagingService.markRead(conversationId, token);
+      await this.realtimeChannel?.send({ type: 'broadcast', event: 'read', payload: { readerId: this.currentUserId, readAt: new Date().toISOString() } });
       this.conversations.update((current) =>
         current.map((c) => (c.id === conversationId ? { ...c, unreadCount: 0 } : c)),
       );
     } catch {
       // Best-effort — an unread badge lingering a bit longer is not critical.
     }
+  }
+
+  private async connectRealtime(conversationId: string) {
+    await this.disconnectRealtime();
+    const userId = this.currentUserId;
+    if (!userId || conversationId !== this.selectedConversationId()) return;
+    const channel = this.supabaseService.getRealtimeClient().channel(`conversation:${conversationId}`, {
+      config: { presence: { key: userId }, broadcast: { self: false, ack: true } },
+    });
+    this.realtimeChannel = channel;
+    channel
+      .on('broadcast', { event: 'message' }, ({ payload }) => {
+        const message = payload as ConversationMessage;
+        if (message.conversationId !== this.selectedConversationId()) return;
+        this.messages.update(current => current.some(item => item.id === message.id) ? current : [...current, message]);
+        setTimeout(() => this.scrollToBottom());
+        void this.markConversationRead(message.conversationId);
+        void this.loadConversations(true);
+      })
+      .on('broadcast', { event: 'typing' }, ({ payload }) => {
+        if (payload['userId'] !== this.currentUserId) this.otherUserTyping.set(payload['typing'] === true);
+      })
+      .on('broadcast', { event: 'read' }, ({ payload }) => {
+        if (payload['readerId'] === this.currentUserId) return;
+        const readAt = String(payload['readAt'] || new Date().toISOString());
+        this.messages.update(current => current.map(message => message.senderId === this.currentUserId && !message.readAt ? { ...message, readAt } : message));
+      })
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        this.otherUserOnline.set(Object.keys(state).some(key => key !== userId));
+      });
+    channel.subscribe(async status => {
+      if (status === 'SUBSCRIBED') {
+        await channel.track({ userId, onlineAt: new Date().toISOString() });
+        // Re-broadcast the read receipt after the realtime socket is ready;
+        // the initial REST mark may finish before channel subscription.
+        void this.markConversationRead(conversationId);
+      }
+    });
+  }
+
+  private async disconnectRealtime() {
+    const channel = this.realtimeChannel;
+    this.realtimeChannel = undefined;
+    this.otherUserTyping.set(false); this.otherUserOnline.set(false);
+    if (channel) await this.supabaseService.getRealtimeClient().removeChannel(channel);
+  }
+
+  private async broadcastTyping(typing: boolean) {
+    await this.realtimeChannel?.send({ type: 'broadcast', event: 'typing', payload: { userId: this.currentUserId, typing } });
   }
 
   private setRequestPending(id: string, pending: boolean) {

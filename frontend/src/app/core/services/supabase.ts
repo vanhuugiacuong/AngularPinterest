@@ -82,6 +82,11 @@ export class SupabaseService {
     return session?.access_token || null;
   }
 
+  /** Shared authenticated client for Realtime Presence/Broadcast channels. */
+  getRealtimeClient(): SupabaseClient {
+    return this.supabase;
+  }
+
   private async syncUserWithBackend(token: string, user: User) {
     try {
       const email = user.email || '';

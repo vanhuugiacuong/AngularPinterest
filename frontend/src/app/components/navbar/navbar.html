@@ -216,6 +216,15 @@
 
   <!-- Right Profile Section / Login Button -->
   <div class="flex items-center gap-3 shrink-0">
+    <button
+      *ngIf="supabaseService.user()"
+      (click)="navigateToPricing()"
+      class="hidden sm:flex h-10 items-center gap-2 px-4 rounded-full border border-accent/35 bg-accent/10 hover:bg-accent/20 text-accent font-bold text-xs cursor-pointer transition-all shadow-[0_0_24px_rgba(157,99,255,.12)]"
+      aria-label="Xem các gói thành viên"
+    >
+      <span class="material-symbols-outlined text-base">diamond</span>
+      <span>Thành viên</span>
+    </button>
     <!-- Logged in state -->
     <div class="relative flex items-center" *ngIf="supabaseService.user() as user">
       <!-- Trigger button: avatar in soft frame + chevron down -->

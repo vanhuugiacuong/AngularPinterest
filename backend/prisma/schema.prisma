@@ -18,6 +18,7 @@ model User {
   bio          String?
   createdAt    DateTime  @default(now())
   plan         MembershipPlan @default(FREE)
+  ownedPlans   MembershipPlan[] @default([FREE])
   planStartedAt DateTime?
   aiUsages     AiUsage[]
   purchases    ImagePurchase[] @relation("BuyerPurchases")
