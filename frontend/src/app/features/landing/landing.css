@@ -44,14 +44,17 @@
      in every pinned scene below. Clipping happens per-scene instead. */
 }
 
-/* The page sits still until the loader has finished its exit. */
-.nf {
+/* The hero is rendered from the first paint behind the loader. GSAP reveals
+   these exact nodes through the loader aperture; the ready class only removes
+   this no-flash guard after the shared transition has completed. */
+.nf:not(.nf--ready) app-public-header,
+.nf:not(.nf--ready) .nf-ring-stage,
+.nf:not(.nf--ready) .nf-hero__line > span,
+.nf:not(.nf--ready) .nf-hero__lede,
+.nf:not(.nf--ready) .nf-hero__actions,
+.nf:not(.nf--ready) .nf-hero__cue {
   opacity: 0;
-  transition: opacity 0.5s ease;
-}
-
-.nf--ready {
-  opacity: 1;
+  visibility: hidden;
 }
 
 /* ====================================================================== */
@@ -383,71 +386,6 @@
   display: block;
   transform: translateY(calc(var(--p) * -250%));
   transition: transform 0.45s var(--ease-out);
-}
-
-/* ---------------------------------------------------------------------- *
- * Hero entrance. Applied by adding .nf-hero--enter (landing.ts), and
- * replayed by removing the class, forcing a reflow and re-adding it.
- *
- * Every keyframe below declares only a `from` state: the implicit `to` is
- * the element's own computed value, and `animation-fill-mode: backwards`
- * means once the run finishes the scroll-driven rules take the property
- * back cleanly. Animating `to` explicitly would freeze these elements and
- * break the --p choreography.
- * ---------------------------------------------------------------------- */
-
-.nf-hero--enter .nf-hero__line > span {
-  animation: nf-hero-rise 0.85s var(--ease-out) backwards;
-  animation-delay: calc(var(--line, 0) * 95ms + 30ms);
-}
-
-.nf-hero--enter .nf-hero__line:nth-child(2) > span {
-  --line: 1;
-}
-
-@keyframes nf-hero-rise {
-  from {
-    transform: translateY(108%);
-  }
-}
-
-.nf-hero--enter .nf-hero__foot {
-  animation: nf-hero-lift 0.85s var(--ease-out) 0.26s backwards;
-}
-
-@keyframes nf-hero-lift {
-  from {
-    opacity: 0;
-    transform: translateY(26px);
-  }
-}
-
-/* Frames fade up around the ring one after another, so it reads as the
-   object assembling rather than a finished image being switched on. */
-.nf-hero--enter .nf-ring__frame {
-  animation: nf-hero-frame-in 0.7s ease backwards;
-  animation-delay: calc(var(--i) * 38ms + 150ms);
-}
-
-@keyframes nf-hero-frame-in {
-  from {
-    opacity: 0;
-  }
-}
-
-.nf-hero--enter .nf-ring__frame img {
-  animation: nf-hero-frame-settle 0.9s var(--ease-out) backwards;
-  animation-delay: calc(var(--i) * 38ms + 150ms);
-}
-
-@keyframes nf-hero-frame-settle {
-  from {
-    transform: scale(1.22);
-  }
-}
-
-.nf-hero--enter .nf-hero__cue {
-  animation: nf-hero-lift 0.8s var(--ease-out) 0.55s backwards;
 }
 
 .nf-hero__line:nth-child(2) > span {
@@ -1069,16 +1007,6 @@
     transform: none !important;
     transition: none !important;
     opacity: 1 !important;
-  }
-
-  /* The entrance never runs in this mode — landing.ts also skips the replay,
-     but the class can still be present from the initial reveal. */
-  .nf-hero--enter .nf-hero__line > span,
-  .nf-hero--enter .nf-hero__foot,
-  .nf-hero--enter .nf-hero__cue,
-  .nf-hero--enter .nf-ring__frame,
-  .nf-hero--enter .nf-ring__frame img {
-    animation: none !important;
   }
 
   .nf-gallery {
