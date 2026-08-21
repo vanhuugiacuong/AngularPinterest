@@ -249,7 +249,7 @@ textarea:disabled {
 }
 
 .primary-action {
-  color: var(--color-text);
+  color: var(--color-text-on-accent);
   background: linear-gradient(135deg, var(--color-secondary), var(--color-primary) 85%);
   box-shadow: 0 8px 20px -12px color-mix(in srgb, var(--color-primary) 70%, transparent);
 }
@@ -341,7 +341,7 @@ textarea:disabled {
 }
 
 .danger-action {
-  color: var(--color-text);
+  color: var(--color-text-on-accent);
   background: var(--color-error);
 }
 
@@ -960,7 +960,7 @@ textarea:disabled {
   background-color: color-mix(in srgb, var(--color-surface-elevated) 75%, transparent);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 28px 80px color-mix(in srgb, var(--color-ink) 60%, transparent);
   animation: dialog-enter 220ms var(--ease-spring);
 }
 
@@ -1345,6 +1345,10 @@ textarea:disabled {
 
   .profile-tabs button {
     flex: 1;
+    /* Overrides the base rule's min-width: max-content — without this, a
+       full-width flex row of 3 tabs (icon + label + count) can't actually
+       shrink to fit a 360-390px viewport and silently overflows. */
+    min-width: 0;
     justify-content: center;
     padding-inline: 10px;
   }

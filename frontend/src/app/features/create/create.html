@@ -7,7 +7,7 @@
     <main class="w-full max-w-[1180px] px-4 sm:px-6 py-8 flex flex-col">
 
       <div class="mb-7">
-        <span class="mono-label text-[11px] uppercase text-accent select-none">NovaFrame · Creation Studio</span>
+        <span class="text-xs font-semibold text-accent select-none">NovaFrame · Creation Studio</span>
         <h1 class="text-2xl sm:text-3xl font-extrabold text-text tracking-tight mt-1">Tạo tác phẩm mới</h1>
       </div>
 
@@ -29,7 +29,7 @@
             class="flex-1 lg:flex-none flex lg:flex-col items-center justify-center gap-1.5 h-14 lg:h-20 rounded-control border border-border hover:border-border-strong bg-surface transition-all duration-300 ease-spring cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <span class="material-symbols-outlined text-xl">upload</span>
-            <span class="mono-label text-[10px] uppercase">Ảnh</span>
+            <span class="text-xs font-semibold">Ảnh</span>
           </button>
 
           <button
@@ -45,7 +45,7 @@
             class="flex-1 lg:flex-none flex lg:flex-col items-center justify-center gap-1.5 h-14 lg:h-20 rounded-control border border-border hover:border-border-strong bg-surface transition-all duration-300 ease-spring cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <span class="material-symbols-outlined text-xl">auto_awesome</span>
-            <span class="mono-label text-[10px] uppercase">AI</span>
+            <span class="text-xs font-semibold">AI</span>
           </button>
         </div>
 
@@ -54,7 +54,7 @@
 
           <!-- TAB 1: STANDARD UPLOAD -->
           <div *ngIf="activeTab() === 'upload'" class="flex-1 flex flex-col">
-            <span class="mono-label text-[11px] uppercase text-text-muted mb-2 block select-none">Canvas — hình ảnh tác phẩm</span>
+            <span class="text-xs font-semibold text-text-muted mb-2 block select-none">Canvas — hình ảnh tác phẩm</span>
 
             <!-- File Drag Drop & Upload Box -->
             <div
@@ -64,7 +64,7 @@
             >
               <span class="material-symbols-outlined text-4xl text-text-muted mb-3">cloud_upload</span>
               <p class="text-xs font-bold text-text">Kéo thả hoặc nhấp để chọn ảnh</p>
-              <span class="text-[10px] text-text-muted mt-2">Khuyên dùng: Ảnh JPG, PNG chất lượng cao có tỷ lệ dọc</span>
+              <span class="text-xs text-text-muted mt-2">Khuyên dùng: Ảnh JPG, PNG chất lượng cao có tỷ lệ dọc</span>
 
               <input
                 #fileInput
@@ -94,7 +94,7 @@
                    distinct states; only 'error' offers a retry, since the image was never judged. -->
               <div *ngIf="imageModerationStatus() === 'checking'" class="flex items-center gap-2">
                 <div class="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin"></div>
-                <span class="mono-label text-[10px] uppercase text-text-muted">Đang kiểm tra ảnh...</span>
+                <span class="mono-label text-xs text-text-muted">Đang kiểm tra ảnh...</span>
               </div>
               <div
                 *ngIf="imageModerationStatus() === 'unsafe'"
@@ -135,7 +135,7 @@
                distinguishes this from Upload's neutral surface by color
                temperature rather than restructuring the layout. -->
           <div *ngIf="activeTab() === 'ai'" class="ai-mode-panel flex flex-col gap-4 flex-1">
-            <span class="mono-label text-[11px] uppercase text-text-muted select-none">Canvas — trình tạo ảnh AI</span>
+            <span class="text-xs font-semibold text-text-muted select-none">Canvas — trình tạo ảnh AI</span>
 
             <!-- Prompt Input -->
             <div class="flex flex-col gap-1.5">
@@ -169,18 +169,18 @@
               type="button"
               (click)="generateAiImage()"
               [disabled]="isGenerating() || !aiPrompt.trim() || isSubmitting()"
-              class="w-full h-11 bg-gradient-brand cta-shape text-text font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              class="w-full h-11 bg-gradient-brand cta-shape text-text-on-accent font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               <span class="material-symbols-outlined text-sm leading-none">auto_awesome</span>
               <span>{{ isGenerating() ? 'Đang tạo ảnh AI...' : 'Bắt đầu tạo ảnh AI' }}</span>
             </button>
 
             <!-- AI Preview display box — no Image Editor in this tab by design. -->
-            <div class="relative rounded-frame frame-trace bg-surface-elevated border border-border overflow-hidden flex items-center justify-center min-h-[260px] p-2 mt-1">
+            <div class="relative rounded-frame frame-trace bg-canvas-neutral border border-border overflow-hidden flex items-center justify-center min-h-[260px] p-2 mt-1">
               <!-- Generating spinner -->
               <div *ngIf="isGenerating()" class="flex flex-col items-center justify-center py-10 gap-2">
                 <div class="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
-                <span class="mono-label text-[10px] uppercase text-text-muted font-semibold">AI đang vẽ bức ảnh của bạn...</span>
+                <span class="mono-label text-xs text-text-muted font-semibold">AI đang vẽ bức ảnh của bạn...</span>
               </div>
 
               <!-- Preview image -->
@@ -202,7 +202,7 @@
 
         <!-- PUBLISH PANEL -->
         <div class="flex flex-col gap-6 bg-surface border border-border rounded-panel p-6 text-left lg:sticky lg:top-24">
-          <span class="mono-label text-[11px] uppercase text-text-muted select-none">Thông tin xuất bản</span>
+          <span class="text-xs font-semibold text-text-muted select-none">Thông tin xuất bản</span>
 
           <div class="flex flex-col gap-5">
             <!-- Title -->
@@ -253,16 +253,18 @@
               <div
                 *ngIf="showBoardDropdown()"
                 class="absolute left-0 top-[70px] w-full glass-elevated rounded-panel shadow-card py-1.5 z-50 text-left"
+                role="listbox"
               >
-                <span class="mono-label text-[9px] uppercase text-text-muted font-bold px-4 py-1 block">Danh sách bộ sưu tập của bạn</span>
+                <span class="text-xs font-semibold text-text-muted px-4 py-1 block">Danh sách bộ sưu tập của bạn</span>
                 <div class="max-h-[140px] overflow-y-auto">
-                  <div
+                  <button
+                    type="button"
                     *ngFor="let b of boards()"
                     (click)="selectBoard(b, $event)"
-                    class="px-4 py-2 text-xs font-bold text-text hover:bg-surface-elevated cursor-pointer truncate"
+                    class="w-full text-left px-4 py-2 text-xs font-bold text-text hover:bg-surface-elevated cursor-pointer truncate border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
                     {{ b.name }}
-                  </div>
+                  </button>
                 </div>
                 <div *ngIf="boards().length === 0" class="px-4 py-3 text-xs text-text-muted italic">
                   Chưa có bộ sưu tập nào. Chúng tôi sẽ tự động tạo bộ sưu tập "Hồ sơ" cho bạn khi lưu.
@@ -288,9 +290,9 @@
                 type="button"
                 (click)="onSubmit()"
                 [disabled]="isSubmitting() || !title.trim() || (activeTab() === 'upload' && !selectedFile) || (activeTab() === 'ai' && !aiImagePreviewUrl()) || (activeTab() === 'upload' && imageModerationStatus() !== 'safe')"
-                class="w-full h-12 bg-gradient-brand cta-shape text-text font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                class="w-full h-12 bg-gradient-brand cta-shape text-text-on-accent font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
-                <div *ngIf="isSubmitting()" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <div *ngIf="isSubmitting()" class="w-4 h-4 border-2 border-text-on-accent border-t-transparent rounded-full animate-spin"></div>
                 <span>{{ isSubmitting() ? 'Đang xử lý...' : 'Tạo tác phẩm ngay' }}</span>
               </button>
             </div>
@@ -306,12 +308,14 @@
   <div
     *ngIf="showDiscardConfirm()"
     (click)="cancelDiscard()"
-    class="fixed inset-0 bg-black/60 backdrop-blur-md z-[150] flex items-center justify-center p-4 animate-fade-in"
+    class="fixed inset-0 bg-ink/60 backdrop-blur-md z-[150] flex items-center justify-center p-4 animate-fade-in"
     role="presentation"
   >
     <div
+      #discardPanel
+      tabindex="-1"
       (click)="$event.stopPropagation()"
-      class="glass-elevated max-w-[420px] w-full rounded-panel p-7 shadow-card text-center"
+      class="glass-elevated max-w-[420px] w-full rounded-panel p-7 shadow-card text-center focus:outline-none"
       role="dialog"
       aria-modal="true"
       aria-labelledby="discard-confirm-title"
@@ -334,7 +338,7 @@
         <button
           type="button"
           (click)="confirmDiscard()"
-          class="h-10 px-5 rounded-control bg-error/90 hover:bg-error text-white text-sm font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          class="h-10 px-5 rounded-control bg-error/90 hover:bg-error text-text-on-accent text-sm font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           Tiếp tục, bỏ chỉnh sửa
         </button>

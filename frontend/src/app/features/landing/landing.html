@@ -1,4 +1,4 @@
-<app-nf-loader (finished)="onLoaderFinished()"></app-nf-loader>
+<app-nf-loader (finished)="onLoaderFinished($event)"></app-nf-loader>
 
 <div class="nf" [class.nf--ready]="loaderDone()">
   <app-public-header (loginClick)="openLoginModal()"></app-public-header>

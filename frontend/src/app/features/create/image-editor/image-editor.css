@@ -19,3 +19,47 @@
 .ie-stage {
   touch-action: none;
 }
+
+/* Crop mode: wrap is sized exactly to the crop canvas (inline-block
+   shrink-to-fit), so the overlay below — positioned with plain percentages —
+   always lines up with the rendered image regardless of viewport size. */
+.ie-crop-wrap {
+  touch-action: none;
+  overflow: hidden;
+  line-height: 0;
+}
+
+/* The 9999px spread box-shadow, clipped by .ie-crop-wrap's overflow:hidden,
+   is what darkens everything outside the crop rectangle without needing
+   four separate mask elements. */
+.ie-crop-rect {
+  touch-action: none;
+  box-shadow: 0 0 0 9999px rgba(6, 6, 15, 0.55);
+}
+
+.ie-crop-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #ffffff;
+  border: 2px solid rgba(6, 6, 15, 0.45);
+  border-radius: 4px;
+  touch-action: none;
+}
+
+.ie-crop-handle-nw {
+  top: -7px;
+  left: -7px;
+}
+.ie-crop-handle-ne {
+  top: -7px;
+  right: -7px;
+}
+.ie-crop-handle-sw {
+  bottom: -7px;
+  left: -7px;
+}
+.ie-crop-handle-se {
+  bottom: -7px;
+  right: -7px;
+}

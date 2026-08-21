@@ -10,16 +10,45 @@
     <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Plus Jakarta Sans -->
+    <!-- Inter — body/UI typeface -->
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap"
+    />
+    <!-- Be Vietnam Pro — heading/display typeface (full Vietnamese diacritics) -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,500;0,600;0,700;0,800;1,600&display=swap"
+    />
+    <!-- IBM Plex Mono — metadata readout, used sparingly -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap"
     />
     <!-- Material Symbols Outlined -->
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
     />
+    <script>
+      (function () {
+        try {
+          var STORAGE_KEY = 'novaframe:theme';
+          var pref = localStorage.getItem(STORAGE_KEY);
+          var resolved =
+            pref === 'light' || pref === 'dark'
+              ? pref
+              : window.matchMedia('(prefers-color-scheme: light)').matches
+                ? 'light'
+                : 'dark';
+          var root = document.documentElement;
+          root.setAttribute('data-theme', resolved);
+          root.style.colorScheme = resolved;
+        } catch (e) {
+          /* localStorage/matchMedia unavailable — CSS default (dark) applies */
+        }
+      })();
+    </script>
   </head>
   <body>
     <app-root></app-root>

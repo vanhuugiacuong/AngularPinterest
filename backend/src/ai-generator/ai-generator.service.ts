@@ -13,18 +13,18 @@ export class AiGeneratorService {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
-    
+
     const extension = file.originalname.split('.').pop() || 'png';
     const filename = `temp_${Date.now()}_${Math.floor(Math.random() * 100000)}.${extension}`;
-    
+
     // We upload to a Supabase bucket called "temp-uploads"
     const publicUrl = await this.supabaseService.uploadImage(
       'temp-uploads',
       filename,
       file.buffer,
-      file.mimetype || 'image/png'
+      file.mimetype || 'image/png',
     );
-    
+
     return publicUrl;
   }
 
@@ -32,30 +32,36 @@ export class AiGeneratorService {
    * Downloads the generated image from Pollinations.ai URL and uploads it
    * permanently to the Supabase "pins" bucket.
    */
-  async saveAiImageToStorage(imageUrl: string, userId: string): Promise<string> {
+  async saveAiImageToStorage(
+    imageUrl: string,
+    userId: string,
+  ): Promise<string> {
     try {
       const response = await fetch(imageUrl);
       if (!response.ok) {
-        throw new Error(`Failed to fetch image from Pollinations: ${response.statusText}`);
+        throw new Error(
+          `Failed to fetch image from Pollinations: ${response.statusText}`,
+        );
       }
-      
+
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
       const contentType = response.headers.get('Content-Type') || 'image/png';
-      
+
       const filename = `${userId}/ai_${Date.now()}.png`;
-      
+
       // Upload to permanent bucket "pins"
       const permanentUrl = await this.supabaseService.uploadImage(
         'pins',
         filename,
         buffer,
-        contentType
+        contentType,
       );
-      
+
       return permanentUrl;
     } catch (error) {
-      throw new BadRequestException(`Failed to save AI image: ${error.message}`);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      throw new BadRequestException(`Failed to save AI image: ${message}`);
     }
   }
 }

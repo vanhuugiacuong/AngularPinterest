@@ -5,7 +5,7 @@
     <main class="flex-1 w-full mx-auto px-0 sm:px-6 lg:px-8 py-0 sm:py-6 flex flex-col max-w-[1400px] min-h-0">
       <div
         class="flex-1 flex min-h-0 border border-border rounded-none sm:rounded-panel overflow-hidden bg-surface shadow-card"
-        style="height: calc(100vh - 64px); max-height: calc(100vh - 96px);"
+        style="height: calc(100vh - 64px); height: calc(100dvh - 64px); max-height: calc(100vh - 96px); max-height: calc(100dvh - 96px);"
       >
         <!-- Left panel: conversation list / requests -->
         <aside
@@ -39,7 +39,7 @@
               Yêu cầu
               @if (incomingRequests().length > 0) {
                 <span
-                  class="absolute top-1 right-3 min-w-[16px] h-4 px-1 rounded-full bg-accent text-bg text-[10px] font-bold flex items-center justify-center"
+                  class="absolute top-1 right-3 min-w-[16px] h-4 px-1 rounded-full bg-accent text-text-on-accent text-[10px] font-bold flex items-center justify-center"
                 >
                   {{ incomingRequests().length }}
                 </span>
@@ -91,14 +91,19 @@
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center justify-between gap-2">
                         <span class="text-sm font-bold text-text truncate">{{ conversation.otherUser.username }}</span>
-                        <span class="text-[10px] text-text-muted shrink-0">{{ formatConversationTime(conversation.updatedAt) }}</span>
+                        <span class="mono-label text-xs text-text-muted shrink-0">{{ formatConversationTime(conversation.updatedAt) }}</span>
                       </div>
                       <div class="flex items-center justify-between gap-2 mt-0.5">
-                        <span class="text-xs text-text-muted truncate">
+                        <span
+                          class="text-xs truncate"
+                          [class.text-text-muted]="conversation.unreadCount === 0"
+                          [class.text-text]="conversation.unreadCount > 0"
+                          [class.font-semibold]="conversation.unreadCount > 0"
+                        >
                           {{ conversation.lastMessage?.content || 'Bắt đầu cuộc trò chuyện' }}
                         </span>
                         @if (conversation.unreadCount > 0) {
-                          <span class="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-accent text-bg text-[10px] font-bold flex items-center justify-center">
+                          <span class="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-accent text-text-on-accent text-[10px] font-bold flex items-center justify-center">
                             {{ conversation.unreadCount }}
                           </span>
                         }
@@ -180,7 +185,7 @@
                             type="button"
                             [disabled]="isRequestPending(request.id)"
                             (click)="acceptRequest(request)"
-                            class="flex-1 h-9 rounded-control bg-gradient-brand text-text text-xs font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="flex-1 h-9 rounded-control bg-gradient-brand text-text-on-accent text-xs font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Đồng ý
                           </button>
@@ -222,7 +227,7 @@
                         <app-user-avatar [src]="request.receiver?.avatarUrl" [name]="request.receiver?.username || ''" [size]="40"></app-user-avatar>
                         <div class="flex-1 min-w-0">
                           <span class="text-sm font-bold text-text truncate block">{{ request.receiver?.username }}</span>
-                          <span class="text-[11px] text-text-muted">{{ requestStatusLabel(request.status) }}</span>
+                          <span class="text-xs text-text-muted">{{ requestStatusLabel(request.status) }}</span>
                         </div>
                       </button>
                     }
@@ -268,7 +273,7 @@
             </div>
 
             <!-- Messages -->
-            <div #messageList class="flex-1 overflow-y-auto min-h-0 p-4 flex flex-col gap-2">
+            <div #messageList class="flex-1 overflow-y-auto min-h-0 p-4 flex flex-col gap-2" role="log" aria-live="polite" aria-label="Tin nhắn trong cuộc trò chuyện">
               @if (messagesLoading()) {
                 <div class="flex-1 flex items-center justify-center">
                   <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -288,7 +293,7 @@
                       type="button"
                       [disabled]="messagesLoadingMore()"
                       (click)="loadMoreMessages()"
-                      class="h-8 px-3.5 rounded-control bg-surface-elevated border border-border text-[11px] font-bold text-text-muted cursor-pointer disabled:opacity-50"
+                      class="h-8 px-3.5 rounded-control bg-surface-elevated border border-border text-xs font-bold text-text-muted cursor-pointer disabled:opacity-50"
                     >
                       @if (messagesLoadingMore()) {
                         Đang tải...
@@ -311,11 +316,12 @@
                     <div
                       class="max-w-[75%] px-3.5 py-2 rounded-control text-sm leading-relaxed break-words whitespace-pre-line"
                       [class.bg-gradient-brand]="message.senderId === currentUserId"
-                      [class.text-text]="message.senderId === currentUserId"
+                      [class.text-text-on-accent]="message.senderId === currentUserId"
                       [class.bg-surface-elevated]="message.senderId !== currentUserId"
+                      [class.text-text]="message.senderId !== currentUserId"
                     >
                       {{ message.content }}
-                      <div class="text-[10px] opacity-70 mt-1 text-right">{{ formatMessageTime(message.createdAt) }}<span *ngIf="message.senderId === currentUserId"> · {{ message.readAt ? 'Đã xem' : 'Đã gửi' }}</span></div>
+                      <div class="mono-label text-xs opacity-70 mt-1 text-right">{{ formatMessageTime(message.createdAt) }}<span *ngIf="message.senderId === currentUserId"> · {{ message.readAt ? 'Đã xem' : 'Đã gửi' }}</span></div>
                     </div>
                   </div>
                 }
@@ -335,16 +341,18 @@
                 [disabled]="sendPending()"
                 rows="1"
                 placeholder="Nhập tin nhắn..."
+                aria-label="Nội dung tin nhắn"
                 (keydown.enter)="$event.preventDefault(); sendMessage()"
                 class="flex-1 resize-none bg-surface-elevated border border-border focus:border-accent outline-none rounded-control px-3.5 py-2.5 text-sm text-text placeholder-text-muted transition-all focus:ring-2 focus:ring-accent/40 max-h-32"
               ></textarea>
               <button
                 type="submit"
                 [disabled]="sendPending() || !messageDraft.trim()"
-                class="h-10 px-4 bg-gradient-brand cta-shape text-text text-sm font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                [attr.aria-label]="sendPending() ? 'Đang gửi tin nhắn' : 'Gửi tin nhắn'"
+                class="h-10 px-4 bg-gradient-brand cta-shape text-text-on-accent text-sm font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
               >
                 @if (sendPending()) {
-                  <span class="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                  <span class="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" aria-hidden="true"></span>
                 } @else {
                   Gửi
                 }
@@ -417,7 +425,7 @@
             <button
               type="submit"
               [disabled]="reportPending()"
-              class="h-10 px-4 rounded-control bg-error text-text text-sm font-bold cursor-pointer disabled:opacity-50"
+              class="h-10 px-4 rounded-control bg-error text-text-on-accent text-sm font-bold cursor-pointer disabled:opacity-50"
             >
               @if (reportPending()) {
                 Đang gửi

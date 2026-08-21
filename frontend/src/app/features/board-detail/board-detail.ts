@@ -21,24 +21,35 @@ export class BoardDetail implements OnInit {
   public board = signal<any | null>(null);
   public pins = signal<any[]>([]);
   public isLoading = signal<boolean>(true);
+  public loadError = signal<string | null>(null);
+
+  private currentBoardId: string | null = null;
 
   async ngOnInit() {
     this.route.paramMap.subscribe(params => {
       const id = params.get('id');
       if (id) {
+        this.currentBoardId = id;
         this.loadBoardDetail(id);
       }
     });
   }
 
+  retryLoad() {
+    if (this.currentBoardId) {
+      this.loadBoardDetail(this.currentBoardId);
+    }
+  }
+
   async loadBoardDetail(id: string) {
     this.isLoading.set(true);
+    this.loadError.set(null);
     try {
       const token = await this.supabaseService.getSessionToken();
       if (token) {
         const boardData = await this.boardService.getBoardById(id, token);
         this.board.set(boardData);
-        
+
         const boardPinsList = boardData.boardPins || [];
         const pinsList = boardPinsList.map((bp: any) => ({
           id: bp.pin.id,
@@ -46,12 +57,12 @@ export class BoardDetail implements OnInit {
           image: bp.pin.imageUrl,
           isAiGenerated: bp.pin.isAiGenerated
         }));
-        
+
         this.pins.set(pinsList);
       }
     } catch (error) {
       console.error('Error loading board detail:', error);
-      this.router.navigate(['/feed']);
+      this.loadError.set('Không thể tải bộ sưu tập này. Có thể bộ sưu tập không còn tồn tại hoặc mạng đang gặp sự cố.');
     } finally {
       this.isLoading.set(false);
     }

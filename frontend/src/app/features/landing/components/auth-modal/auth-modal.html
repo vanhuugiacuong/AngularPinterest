@@ -10,35 +10,28 @@
 >
   <!-- ================================================================ -->
   <!-- Floating object field. Sits BEHIND the glass panel, never          -->
-  <!-- interactive. Objects travel on long looping paths that cross the   -->
-  <!-- panel's footprint, so the panel's own backdrop-filter blurs and    -->
-  <!-- refracts them as they pass behind it — the refraction is real,     -->
-  <!-- not a painted-on imitation. Depth comes from pairing a far layer   -->
-  <!-- (small, soft, slow) with a near layer (large, sharper, faster).    -->
+  <!-- interactive. Two objects only — Nova blue (far) and Iris violet    -->
+  <!-- (near) — echoing the Split Aperture Frame's two offset frames as   -->
+  <!-- ambient light rather than a busy particle field. The panel's own   -->
+  <!-- backdrop-filter blurs and refracts them as they pass behind it.    -->
   <!-- ================================================================ -->
   <div class="nf-auth__field" aria-hidden="true">
     <span class="nf-auth__obj nf-auth__obj--orb-blue nf-auth__obj--far"></span>
     <span class="nf-auth__obj nf-auth__obj--orb-purple nf-auth__obj--near"></span>
-    <span class="nf-auth__obj nf-auth__obj--orb-cyan nf-auth__obj--far"></span>
-    <span class="nf-auth__obj nf-auth__obj--orb-white nf-auth__obj--near"></span>
-    <span class="nf-auth__obj nf-auth__obj--ribbon nf-auth__obj--far"></span>
-    <span class="nf-auth__obj nf-auth__obj--pill nf-auth__obj--near"></span>
-    <span class="nf-auth__obj nf-auth__obj--ring nf-auth__obj--far"></span>
   </div>
 
   <!-- ================================================================ -->
   <!-- Liquid Glass panel                                                -->
   <!-- ================================================================ -->
   <div
+    #panel
+    tabindex="-1"
     class="nf-auth__panel"
     (click)="$event.stopPropagation()"
     role="dialog"
     aria-modal="true"
     aria-labelledby="nf-auth-title"
   >
-    <!-- Slow specular sweep across the glass -->
-    <span class="nf-auth__sheen" aria-hidden="true"></span>
-
     <button type="button" class="nf-auth__close" (click)="closeModal.emit()" aria-label="Đóng">
       <span class="material-symbols-outlined">close</span>
     </button>

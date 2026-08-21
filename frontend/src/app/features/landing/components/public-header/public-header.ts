@@ -1,5 +1,6 @@
 import { Component, signal, OnInit, OnDestroy, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ThemeToggle } from '../../../../shared/theme-toggle/theme-toggle';
 
 interface NavAnchor {
   label: string;
@@ -10,14 +11,15 @@ interface NavAnchor {
  * Public-only header for the pre-login experience.
  *
  * Deliberately NOT the shared `app-navbar` used by the authenticated app —
- * no search field, no sidebar trigger, no profile menu, and a light palette
- * that must never reach the post-login shell. It renders over the landing
- * page's own light background, and firms up into a hairline bar on scroll.
+ * no search field, no sidebar trigger, no profile menu. Shares the app-wide
+ * ThemeService (via <app-theme-toggle>) like every other route, so a
+ * visitor can flip Đêm Lam/Sương Ngọc before ever signing in. Firms up into
+ * a hairline bar on scroll.
  */
 @Component({
   selector: 'app-public-header',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, ThemeToggle],
   templateUrl: './public-header.html',
   styleUrl: './public-header.css'
 })

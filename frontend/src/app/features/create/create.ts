@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnInit, effect, inject, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
@@ -9,6 +9,7 @@ import { FormsModule } from '@angular/forms';
 import { ImageEditor } from './image-editor/image-editor';
 import { PublishDialogStatus, PublishProgressDialog } from './publish-progress-dialog/publish-progress-dialog';
 import { MembershipService } from '../../core/services/membership';
+import { CollageTransferService } from '../collage/services/collage-transfer.service';
 
 /** 'idle' — no file selected / check not run yet.
  * 'checking' — request in flight.
@@ -31,10 +32,27 @@ export class Create implements OnInit {
   private boardService = inject(BoardService);
   public supabaseService = inject(SupabaseService);
   public membership = inject(MembershipService);
+  private collageTransfer = inject(CollageTransferService);
 
   // Only ever mounted while activeTab() === 'upload' and an image is
   // selected — <app-image-editor> is not present anywhere in the AI tab.
   @ViewChild('editor') editorRef?: ImageEditor;
+
+  @ViewChild('discardPanel') private discardPanel?: ElementRef<HTMLElement>;
+  private previouslyFocusedBeforeDiscard: HTMLElement | null = null;
+
+  constructor() {
+    // Focus management for the discard-confirm dialog: move focus into it on
+    // open, return focus to whatever triggered it on close.
+    effect(() => {
+      if (this.showDiscardConfirm()) {
+        this.previouslyFocusedBeforeDiscard = (document.activeElement as HTMLElement) || null;
+        setTimeout(() => this.discardPanel?.nativeElement.focus());
+      } else {
+        this.previouslyFocusedBeforeDiscard?.focus();
+      }
+    });
+  }
 
   // Form Fields
   public title = '';
@@ -82,6 +100,14 @@ export class Create implements OnInit {
 
   async ngOnInit() {
     await this.membership.load();
+    const collageFile = this.collageTransfer.take();
+    if (collageFile) {
+      this.selectedFile = collageFile;
+      this.formError.set(null);
+      this.resetImageModeration();
+      this.imagePreviewUrl.set(URL.createObjectURL(collageFile));
+      await this.checkSelectedImage(collageFile);
+    }
     await this.loadBoards();
   }
 

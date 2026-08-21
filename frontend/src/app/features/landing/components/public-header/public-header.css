@@ -3,12 +3,12 @@
    touched by anything here. */
 
 :host {
-  --nf-paper: #f7f7f2;
-  --nf-ink: #111111;
-  --nf-blue: #2454ff;
-  --nf-electric: #1a2ef5;
-  --nf-purple: #7c3cff;
-  --nf-cyan: #00cfe8;
+  --nf-paper: var(--color-bg);
+  --nf-ink: var(--color-text);
+  --nf-blue: var(--color-nova-blue);
+  --nf-electric: var(--color-nova-blue);
+  --nf-purple: var(--color-iris-violet);
+  --nf-cyan: var(--color-studio-aqua);
 }
 
 .nf-head {
@@ -136,6 +136,20 @@
   gap: 8px;
 }
 
+/* Theme switch — desktop row only; the 360-390px header doesn't have room
+   for it alongside the login button, so mobile gets it inside the sheet
+   instead (see .nf-head__sheet-theme-row below). */
+.nf-head__theme-toggle {
+  display: none;
+}
+
+@media (min-width: 860px) {
+  .nf-head__theme-toggle {
+    display: inline-flex;
+    margin-right: 4px;
+  }
+}
+
 .nf-head__cta {
   position: relative;
   overflow: hidden;
@@ -144,7 +158,7 @@
   height: 42px;
   padding: 0 22px;
   border-radius: 999px;
-  color: #fff;
+  color: var(--color-text-on-accent);
   font: inherit;
   font-weight: 700;
   font-size: 14px;
@@ -244,6 +258,28 @@
   font-size: 12px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+.nf-head__sheet-theme-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px 4px;
+  margin-top: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--nf-ink) 10%, transparent);
+}
+
+.nf-head__sheet-theme-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+@media (min-width: 860px) {
+  /* Desktop never opens the sheet (no burger to trigger it), but guard
+     against it lingering visible across a resize anyway. */
+  .nf-head__sheet-theme-row {
+    display: none;
+  }
 }
 
 .nf-head__sheet-link:hover {

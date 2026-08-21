@@ -1,16 +1,22 @@
 import { Component, inject, effect } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { SupabaseService } from './core/services/supabase';
+import { ThemeService } from './core/services/theme';
+import { OfflineBanner } from './shared/offline-banner/offline-banner';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, OfflineBanner],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
 export class App {
   private supabaseService = inject(SupabaseService);
   private router = inject(Router);
+  // Injected (not just imported) so it's instantiated once at bootstrap —
+  // its constructor effect keeps <html data-theme> in sync app-wide, on
+  // every route, not just once the user visits /settings.
+  private themeService = inject(ThemeService);
 
   constructor() {
     // Automatically redirect users based on authentication status changes

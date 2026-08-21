@@ -1,0 +1,87 @@
+<div class="min-h-screen bg-bg text-text flex flex-col font-sans relative">
+  <app-navbar></app-navbar>
+
+  <div class="flex-1 pt-16 flex flex-col min-w-0">
+    <main class="flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col max-w-3xl">
+      <header class="mb-8">
+        <span class="mono-label text-xs text-accent">Cài đặt</span>
+        <h1 class="text-2xl font-extrabold text-text mt-1 font-display">Tuỳ chỉnh không gian của bạn</h1>
+        <p class="text-sm text-text-muted mt-1.5">Điều chỉnh cách NovaFrame hiển thị trên thiết bị này.</p>
+      </header>
+
+      <section aria-labelledby="nf-appearance-heading" class="bg-surface border border-border rounded-panel p-5 sm:p-6">
+        <h2 id="nf-appearance-heading" class="text-lg font-bold text-text font-display">Giao diện</h2>
+        <p class="text-sm text-text-muted mt-1 mb-5">
+          Chọn cách phối màu cho toàn bộ NovaFrame — áp dụng ngay lập tức, không cần tải lại trang.
+        </p>
+
+        <div role="group" aria-labelledby="nf-appearance-heading" class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <button
+            *ngFor="let option of themeOptions"
+            type="button"
+            data-testid="theme-option"
+            (click)="selectTheme(option.value)"
+            [attr.aria-pressed]="theme.preference() === option.value"
+            [class.frame-trace]="theme.preference() === option.value"
+            [class.frame-trace-active]="theme.preference() === option.value"
+            [class.border-accent]="theme.preference() === option.value"
+            [class.bg-surface-elevated]="theme.preference() === option.value"
+            [class.border-border]="theme.preference() !== option.value"
+            class="group relative flex flex-col items-start gap-3 rounded-frame border p-4 text-left transition-all duration-200 ease-spring cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+          >
+            <span
+              class="nf-theme-preview block w-full h-16 rounded-control overflow-hidden border border-border-strong"
+              [ngClass]="'nf-theme-preview--' + option.value"
+              aria-hidden="true"
+            >
+              <span class="nf-theme-preview__surface"></span>
+              <span class="nf-theme-preview__accent"></span>
+              <span class="nf-theme-preview__text">Aa</span>
+            </span>
+
+            <span class="flex w-full items-center justify-between gap-2">
+              <span class="text-sm font-bold text-text">{{ option.label }}</span>
+              <span
+                *ngIf="theme.preference() === option.value"
+                class="material-symbols-outlined text-lg text-accent"
+                aria-hidden="true"
+                >check_circle</span
+              >
+            </span>
+            <span class="text-xs text-text-muted leading-relaxed">{{ option.description }}</span>
+          </button>
+        </div>
+
+        <p class="mono-label text-xs text-text-muted mt-5" aria-live="polite">
+          Đang áp dụng: {{ theme.resolvedTheme() === 'light' ? 'Sương Ngọc (sáng)' : 'Đêm Lam (tối)' }}
+        </p>
+
+        <div class="flex items-center justify-between gap-4 mt-6 pt-5 border-t border-border">
+          <div class="flex flex-col gap-0.5">
+            <span id="nf-quick-toggle-label" class="text-sm font-bold text-text">Nút chuyển nhanh trên thanh điều hướng</span>
+            <span class="text-xs text-text-muted leading-relaxed">
+              Hiển thị nút bật/tắt giao diện tối ngay trên thanh điều hướng, không cần vào Cài đặt.
+            </span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            data-testid="quick-toggle-switch"
+            aria-labelledby="nf-quick-toggle-label"
+            [attr.aria-checked]="theme.showQuickToggle()"
+            (click)="toggleQuickToggle()"
+            [class.bg-gradient-brand]="theme.showQuickToggle()"
+            [class.bg-surface-elevated]="!theme.showQuickToggle()"
+            class="w-11 h-6 rounded-full relative border border-border-strong cursor-pointer transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            <span
+              class="absolute top-0.5 h-4 w-4 rounded-full bg-text transition-all duration-200"
+              [class.left-[22px]]="theme.showQuickToggle()"
+              [class.left-0.5]="!theme.showQuickToggle()"
+            ></span>
+          </button>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
