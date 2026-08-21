@@ -263,7 +263,7 @@ export class NfLoader implements OnInit, AfterViewInit, OnDestroy {
         .to(
           strips,
           {
-            yPercent: (index) => (index === Math.floor(strips.length / 2) ? -34 : -22),
+            yPercent: (index: number) => (index === Math.floor(strips.length / 2) ? -34 : -22),
             duration: 2.15,
             stagger: 0.035,
             ease: 'power3.inOut',
@@ -344,7 +344,7 @@ export class NfLoader implements OnInit, AfterViewInit, OnDestroy {
     );
     this.master
       .to(strips, {
-        yPercent: (index) => `-=${index === Math.floor(strips.length / 2) ? 19 : 12}`,
+        yPercent: (index: number) => `-=${index === Math.floor(strips.length / 2) ? 19 : 12}`,
         duration: 1.45,
         stagger: 0.025,
         ease: 'sine.inOut',
@@ -376,7 +376,7 @@ export class NfLoader implements OnInit, AfterViewInit, OnDestroy {
       .to(
         strips,
         {
-          yPercent: (index) => `-=${index === Math.floor(strips.length / 2) ? 4 : 9}`,
+          yPercent: (index: number) => `-=${index === Math.floor(strips.length / 2) ? 4 : 9}`,
           duration: 0.72,
           stagger: 0.025,
           ease: 'sine.out',
@@ -386,11 +386,11 @@ export class NfLoader implements OnInit, AfterViewInit, OnDestroy {
       .to(
         flowFrames,
         {
-          x: (_, element) => {
+          x: (_: number, element: Element) => {
             const rect = (element as HTMLElement).getBoundingClientRect();
             return targetX - (rect.left + rect.width / 2);
           },
-          y: (_, element) => {
+          y: (_: number, element: Element) => {
             const rect = (element as HTMLElement).getBoundingClientRect();
             return targetY - (rect.top + rect.height / 2);
           },
@@ -414,7 +414,7 @@ export class NfLoader implements OnInit, AfterViewInit, OnDestroy {
         {
           keyframes: [
             {
-              x: (_, element) => (element as HTMLElement).dataset['bendX'] ?? '0px',
+              x: (_: number, element: Element) => (element as HTMLElement).dataset['bendX'] ?? '0px',
               duration: 0.34,
             },
             { x: 0, y: 0, rotation: 0, scale: 0.32, duration: 0.44 },
@@ -517,15 +517,15 @@ export class NfLoader implements OnInit, AfterViewInit, OnDestroy {
         .to(
           authObjects,
           {
-            x: (_, element) => {
+            x: (_: number, element: Element) => {
               const rect = (element as HTMLElement).getBoundingClientRect();
               return targetX - (rect.left + rect.width / 2);
             },
-            y: (_, element) => {
+            y: (_: number, element: Element) => {
               const rect = (element as HTMLElement).getBoundingClientRect();
               return targetY - (rect.top + rect.height / 2);
             },
-            rotation: (index) => (index % 2 ? -4 : 4),
+            rotation: (index: number) => (index % 2 ? -4 : 4),
             scale: 0.16,
             filter: 'blur(2px)',
             autoAlpha: 0.72,
