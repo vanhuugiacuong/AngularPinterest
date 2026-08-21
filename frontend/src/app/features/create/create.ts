@@ -8,6 +8,7 @@ import { SupabaseService } from '../../core/services/supabase';
 import { FormsModule } from '@angular/forms';
 import { ImageEditor } from './image-editor/image-editor';
 import { PublishDialogStatus, PublishProgressDialog } from './publish-progress-dialog/publish-progress-dialog';
+import { CollageTransferService } from '../collage/services/collage-transfer.service';
 
 /** 'idle' — no file selected / check not run yet.
  * 'checking' — request in flight.
@@ -29,6 +30,7 @@ export class Create implements OnInit {
   private pinService = inject(PinService);
   private boardService = inject(BoardService);
   public supabaseService = inject(SupabaseService);
+  private collageTransfer = inject(CollageTransferService);
 
   // Only ever mounted while activeTab() === 'upload' and an image is
   // selected — <app-image-editor> is not present anywhere in the AI tab.
@@ -78,6 +80,14 @@ export class Create implements OnInit {
   private pendingDiscardAction: (() => void) | null = null;
 
   async ngOnInit() {
+    const collageFile = this.collageTransfer.take();
+    if (collageFile) {
+      this.selectedFile = collageFile;
+      this.formError.set(null);
+      this.resetImageModeration();
+      this.imagePreviewUrl.set(URL.createObjectURL(collageFile));
+      await this.checkSelectedImage(collageFile);
+    }
     await this.loadBoards();
   }
 

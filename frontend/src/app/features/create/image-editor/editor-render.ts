@@ -1,4 +1,4 @@
-import { CaptionSettings, ColorAdjustments } from './editor-types';
+import { CaptionSettings, ColorAdjustments, CropSettings } from './editor-types';
 
 /** Loads an image element. Sets crossOrigin for remote sources so the canvas
  * stays untainted and toBlob()/toDataURL() keep working (verified the AI
@@ -161,19 +161,32 @@ export interface RenderParams {
   canvas: HTMLCanvasElement;
   adjustments: ColorAdjustments;
   caption: CaptionSettings;
+  /** Which part of the SOURCE image is visible — {x:0,y:0,width:1,height:1}
+   * draws the full image (identical to the pre-crop-feature behavior). */
+  crop: CropSettings;
   /** Longest-edge cap in px. Omit for the image's natural resolution. */
   maxDimension?: number;
 }
 
 /** The single render pipeline used for both the live preview canvas and the
- * final export canvas — guarantees export pixel-matches what was previewed. */
+ * final export canvas — guarantees export pixel-matches what was previewed,
+ * crop included. Cropping is done by reading a sub-rectangle of the source
+ * image (canvas drawImage 9-arg form) rather than pre-cutting a new bitmap,
+ * so the original image data is never mutated/discarded (non-destructive —
+ * re-opening the crop tool later starts from the last-applied rectangle). */
 export async function renderEditedImage(params: RenderParams): Promise<{ width: number; height: number }> {
-  const { image, canvas, adjustments, caption, maxDimension } = params;
+  const { image, canvas, adjustments, caption, crop, maxDimension } = params;
   const naturalW = image.naturalWidth || 1;
   const naturalH = image.naturalHeight || 1;
-  const scale = maxDimension ? Math.min(1, maxDimension / Math.max(naturalW, naturalH)) : 1;
-  const w = Math.max(1, Math.round(naturalW * scale));
-  const h = Math.max(1, Math.round(naturalH * scale));
+
+  const sx = Math.round(crop.x * naturalW);
+  const sy = Math.round(crop.y * naturalH);
+  const sw = Math.max(1, Math.round(crop.width * naturalW));
+  const sh = Math.max(1, Math.round(crop.height * naturalH));
+
+  const scale = maxDimension ? Math.min(1, maxDimension / Math.max(sw, sh)) : 1;
+  const w = Math.max(1, Math.round(sw * scale));
+  const h = Math.max(1, Math.round(sh * scale));
 
   canvas.width = w;
   canvas.height = h;
@@ -182,7 +195,7 @@ export async function renderEditedImage(params: RenderParams): Promise<{ width: 
 
   ctx.clearRect(0, 0, w, h);
   ctx.filter = buildCanvasFilter(adjustments);
-  ctx.drawImage(image, 0, 0, w, h);
+  ctx.drawImage(image, sx, sy, sw, sh, 0, 0, w, h);
   ctx.filter = 'none';
   applyWarmth(ctx, w, h, adjustments.warmth);
   await drawCaption(ctx, caption, w, h);

@@ -15,6 +15,11 @@ export const routes: Routes = [
   { path: 'profile/:username', component: Profile, canActivate: [authGuard] },
   { path: 'board/:id', component: BoardDetail, canActivate: [authGuard] },
   { path: 'create', component: Create, canActivate: [authGuard] },
+  {
+    path: 'collage',
+    loadComponent: () => import('./features/collage/collage').then((module) => module.Collage),
+    canActivate: [authGuard],
+  },
   { path: 'messages', component: Messages, canActivate: [authGuard] },
   { path: 'messages/:conversationId', component: Messages, canActivate: [authGuard] },
   { path: '**', redirectTo: '' }
