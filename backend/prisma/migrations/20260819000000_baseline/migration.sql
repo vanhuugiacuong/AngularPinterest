@@ -1,0 +1,2 @@
+-- Baseline migration already applied to the shared Supabase database.
+-- Kept locally so Prisma migration history remains aligned across environments.

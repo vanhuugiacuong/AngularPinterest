@@ -1,238 +1,354 @@
-<div class="min-h-screen bg-[#f6f6f3] text-black flex flex-col font-sans relative">
-  <!-- Navbar handles top header and left vertical sidebar -->
+<div class="min-h-screen bg-bg text-text flex flex-col font-sans relative">
+  <!-- Navbar handles top header and collapsible left sidebar -->
   <app-navbar></app-navbar>
 
-  <!-- Main Content Area: Shifted right to clear fixed sidebar, shifted down to clear fixed header -->
-  <div class="flex-1 pl-16 pt-16 flex flex-col min-w-0 items-center justify-center">
-    <main class="w-full max-w-[940px] px-6 py-10 flex flex-col items-center">
-      
-      <!-- Create Box Card Container -->
-      <div class="w-full bg-white rounded-[32px] border border-[#dadad3] shadow-sm p-8 flex flex-col gap-6">
-        
-        <!-- Tabs Selector: Tải lên / Tạo ảnh AI -->
-        <div class="flex items-center gap-6 border-b border-[#dadad3] pb-4 select-none">
-          <div 
+  <!-- Main Content Area: shifted down to clear fixed header. Sidebar is an overlay and never reserves space. -->
+  <div class="flex-1 pt-16 flex flex-col min-w-0 items-center">
+    <main class="w-full max-w-[1180px] px-4 sm:px-6 py-8 flex flex-col">
+
+      <div class="mb-7">
+        <span class="mono-label text-[11px] uppercase text-accent select-none">NovaFrame · Creation Studio</span>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-text tracking-tight mt-1">Tạo tác phẩm mới</h1>
+      </div>
+
+      <!-- Studio: Mode rail / Canvas / Publish panel -->
+      <div class="w-full grid grid-cols-1 lg:grid-cols-[76px_minmax(0,1fr)_360px] gap-5 lg:gap-6 items-start">
+
+        <!-- MODE RAIL -->
+        <div class="flex lg:flex-col gap-3 lg:sticky lg:top-24 select-none" role="tablist" aria-label="Chế độ tạo tác phẩm">
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="activeTab() === 'upload'"
             (click)="setTab('upload')"
-            class="relative cursor-pointer transition-all pb-1.5"
-            [class.opacity-100]="activeTab() === 'upload'"
-            [class.opacity-60]="activeTab() !== 'upload'"
+            [disabled]="isSubmitting()"
+            [class.bg-surface-elevated]="activeTab() === 'upload'"
+            [class.text-accent]="activeTab() === 'upload'"
+            [class.rounded-frame-alt]="activeTab() === 'upload'"
+            [class.text-text-muted]="activeTab() !== 'upload'"
+            class="flex-1 lg:flex-none flex lg:flex-col items-center justify-center gap-1.5 h-14 lg:h-20 rounded-control border border-border hover:border-border-strong bg-surface transition-all duration-300 ease-spring cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
-            <span class="text-sm font-bold text-black">Đăng ảnh thường</span>
-            <div *ngIf="activeTab() === 'upload'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-[#e60023] rounded-full"></div>
-          </div>
-          
-          <div 
+            <span class="material-symbols-outlined text-xl">upload</span>
+            <span class="mono-label text-[10px] uppercase">Ảnh</span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="activeTab() === 'ai'"
             (click)="setTab('ai')"
-            class="relative cursor-pointer transition-all pb-1.5"
-            [class.opacity-100]="activeTab() === 'ai'"
-            [class.opacity-60]="activeTab() !== 'ai'"
+            [disabled]="isSubmitting()"
+            [class.bg-surface-elevated]="activeTab() === 'ai'"
+            [class.text-accent]="activeTab() === 'ai'"
+            [class.rounded-frame-alt]="activeTab() === 'ai'"
+            [class.text-text-muted]="activeTab() !== 'ai'"
+            class="flex-1 lg:flex-none flex lg:flex-col items-center justify-center gap-1.5 h-14 lg:h-20 rounded-control border border-border hover:border-border-strong bg-surface transition-all duration-300 ease-spring cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
-            <span class="text-sm font-bold text-black flex items-center gap-1">
-              <span class="material-symbols-outlined text-sm leading-none text-[#e60023] font-bold">auto_awesome</span>
-              Tạo ảnh nghệ thuật AI
-            </span>
-            <div *ngIf="activeTab() === 'ai'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-[#e60023] rounded-full"></div>
-          </div>
+            <span class="material-symbols-outlined text-xl">auto_awesome</span>
+            <span class="mono-label text-[10px] uppercase">AI</span>
+          </button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-10 mt-2">
-          
-          <!-- Column Left: Image Upload or AI Generator -->
-          <div class="flex flex-col gap-4 text-left">
-            <!-- TAB 1: STANDARD UPLOAD -->
-            <div *ngIf="activeTab() === 'upload'" class="flex-1 flex flex-col">
-              <span class="text-xs font-bold text-gray-700 mb-2 block uppercase tracking-wider select-none">Hình ảnh ghim</span>
-              
-              <!-- File Drag Drop & Upload Box -->
-              <div 
-                *ngIf="!imagePreviewUrl()"
-                class="drag-drop-area flex-1 min-h-[300px] md:min-h-[420px] rounded-3xl bg-[#f6f6f3] flex flex-col items-center justify-center p-6 text-center cursor-pointer relative overflow-hidden"
-                (click)="fileInput.click()"
-              >
-                <span class="material-symbols-outlined text-4xl text-gray-400 mb-3">cloud_upload</span>
-                <p class="text-xs font-bold text-gray-700">Kéo thả hoặc nhấp để chọn ảnh</p>
-                <span class="text-[10px] text-gray-500 mt-2">Khuyên dùng: Ảnh JPG, PNG chất lượng cao có tỷ lệ dọc</span>
-                
-                <input 
-                  #fileInput 
-                  type="file" 
-                  accept="image/*" 
-                  class="hidden" 
-                  (change)="onFileSelected($event)"
-                />
-              </div>
+        <!-- CANVAS -->
+        <div class="flex flex-col gap-4 min-w-0 text-left">
 
-              <!-- Upload Preview display -->
-              <div *ngIf="imagePreviewUrl()" class="relative rounded-3xl bg-[#f6f6f3] overflow-hidden flex items-center justify-center min-h-[300px] md:min-h-[420px] border border-[#dadad3]">
-                <img 
-                  [src]="imagePreviewUrl()" 
-                  alt="Upload Preview" 
-                  class="w-full h-auto max-h-[450px] object-contain block"
-                />
-                <!-- Replace file button -->
-                <button 
-                  (click)="imagePreviewUrl.set(null); selectedFile = null;" 
-                  class="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 text-black flex items-center justify-center shadow-md hover:bg-white cursor-pointer transition-colors border-none outline-none"
+          <!-- TAB 1: STANDARD UPLOAD -->
+          <div *ngIf="activeTab() === 'upload'" class="flex-1 flex flex-col">
+            <span class="mono-label text-[11px] uppercase text-text-muted mb-2 block select-none">Canvas — hình ảnh tác phẩm</span>
+
+            <!-- File Drag Drop & Upload Box -->
+            <div
+              *ngIf="!imagePreviewUrl()"
+              class="drag-drop-area flex-1 min-h-[320px] md:min-h-[460px] rounded-frame bg-surface-elevated border border-dashed border-border flex flex-col items-center justify-center p-6 text-center cursor-pointer relative overflow-hidden"
+              (click)="fileInput.click()"
+            >
+              <span class="material-symbols-outlined text-4xl text-text-muted mb-3">cloud_upload</span>
+              <p class="text-xs font-bold text-text">Kéo thả hoặc nhấp để chọn ảnh</p>
+              <span class="text-[10px] text-text-muted mt-2">Khuyên dùng: Ảnh JPG, PNG chất lượng cao có tỷ lệ dọc</span>
+
+              <input
+                #fileInput
+                type="file"
+                accept="image/*"
+                class="hidden"
+                (change)="onFileSelected($event)"
+              />
+            </div>
+
+            <!-- Upload Preview + Editor -->
+            <div *ngIf="imagePreviewUrl()" class="flex flex-col gap-3">
+              <div class="flex items-center justify-end">
+                <button
+                  (click)="replaceUploadedImage()"
+                  [disabled]="isSubmitting()"
+                  class="h-9 px-3 rounded-control bg-surface-high/90 text-text flex items-center gap-1.5 shadow-card hover:bg-surface-elevated cursor-pointer transition-colors duration-200 border-none outline-none text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-accent"
                   title="Thay đổi ảnh khác"
                 >
                   <span class="material-symbols-outlined text-sm font-bold">delete</span>
+                  Thay ảnh
                 </button>
               </div>
+
+              <!-- NSFW pre-submit moderation status — server checks again on submit regardless.
+                   'unsafe' (content rejected) and 'error' (check itself failed) are shown as
+                   distinct states; only 'error' offers a retry, since the image was never judged. -->
+              <div *ngIf="imageModerationStatus() === 'checking'" class="flex items-center gap-2">
+                <div class="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin"></div>
+                <span class="mono-label text-[10px] uppercase text-text-muted">Đang kiểm tra ảnh...</span>
+              </div>
+              <div
+                *ngIf="imageModerationStatus() === 'unsafe'"
+                role="alert"
+                class="flex items-start gap-2 p-3 rounded-control bg-error/10 border border-error/30 text-error text-xs font-semibold"
+              >
+                <span class="material-symbols-outlined text-base leading-none shrink-0">error</span>
+                <span>{{ imageModerationMessage() }}</span>
+              </div>
+              <div
+                *ngIf="imageModerationStatus() === 'error'"
+                role="alert"
+                class="flex items-start justify-between gap-2 p-3 rounded-control bg-error/10 border border-error/30 text-error text-xs font-semibold"
+              >
+                <div class="flex items-start gap-2">
+                  <span class="material-symbols-outlined text-base leading-none shrink-0">error</span>
+                  <span>{{ imageModerationMessage() }}</span>
+                </div>
+                <button
+                  type="button"
+                  (click)="retryImageCheck()"
+                  class="shrink-0 underline font-bold cursor-pointer bg-transparent border-none outline-none text-error"
+                >
+                  Thử lại kiểm tra
+                </button>
+              </div>
+
+              <!-- Image Editor — Upload tab only; the AI tab never mounts this component. -->
+              <app-image-editor
+                #editor
+                [sourceUrl]="imagePreviewUrl()!"
+                [sourceCrossOrigin]="false"
+              ></app-image-editor>
+            </div>
+          </div>
+
+          <!-- TAB 2: AI STUDIO — a faint warm wash (.ai-mode-panel, see create.css)
+               distinguishes this from Upload's neutral surface by color
+               temperature rather than restructuring the layout. -->
+          <div *ngIf="activeTab() === 'ai'" class="ai-mode-panel flex flex-col gap-4 flex-1">
+            <span class="mono-label text-[11px] uppercase text-text-muted select-none">Canvas — trình tạo ảnh AI</span>
+
+            <!-- Prompt Input -->
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs font-bold text-text-muted">Mô tả ý tưởng (Prompt) <span class="text-error">*</span></label>
+              <textarea
+                [(ngModel)]="aiPrompt"
+                placeholder="Mô tả chi tiết bức ảnh bạn muốn tạo (bằng tiếng Anh sẽ cho chất lượng tốt nhất). Ví dụ: 'A cyberpunk samurai standing in neon rain, digital art...'"
+                rows="3"
+                class="w-full bg-surface-elevated border border-border focus:border-accent outline-none rounded-control p-4 text-xs text-text placeholder-text-muted transition-all resize-none focus:ring-2 focus:ring-accent/40"
+                [disabled]="isGenerating() || isSubmitting()"
+              ></textarea>
             </div>
 
-            <!-- TAB 2: AI STUDIO -->
-            <div *ngIf="activeTab() === 'ai'" class="flex flex-col gap-4 flex-1">
-              <span class="text-xs font-bold text-gray-700 uppercase tracking-wider select-none">Trình tạo ảnh AI</span>
-
-              <!-- Prompt Input -->
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-bold text-gray-600">Mô tả ý tưởng (Prompt) <span class="text-red-500">*</span></label>
-                <textarea 
-                  [(ngModel)]="aiPrompt" 
-                  placeholder="Mô tả chi tiết bức ảnh bạn muốn tạo (bằng tiếng Anh sẽ cho chất lượng tốt nhất). Ví dụ: 'A cyberpunk samurai standing in neon rain, digital art...'" 
-                  rows="3"
-                  class="w-full bg-[#f6f6f3] border border-transparent focus:border-gray-200 focus:bg-white outline-none rounded-2xl p-4 text-xs text-black transition-all resize-none"
-                  [disabled]="isGenerating() || isSubmitting()"
-                ></textarea>
-              </div>
-
-              <!-- Style Selection -->
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-bold text-gray-600">Phong cách nghệ thuật (Model)</label>
-                <select 
-                  [(ngModel)]="aiModel" 
-                  class="w-full bg-[#f6f6f3] border border-transparent focus:border-gray-200 outline-none rounded-full px-4 h-11 text-xs text-black transition-all"
-                  [disabled]="isGenerating() || isSubmitting()"
-                >
-                  <option value="flux">Flux Standard (Chi tiết cao)</option>
-                  <option value="flux-anime">Flux Anime (Hoạt hình Nhật Bản)</option>
-                  <option value="flux-realism">Flux Realism (Ảnh chụp chân thực)</option>
-                  <option value="flux-3d">Flux 3D Art (Tranh vẽ 3D)</option>
-                </select>
-              </div>
-
-              <!-- Action button for AI -->
-              <button 
-                type="button"
-                (click)="generateAiImage()"
-                [disabled]="isGenerating() || !aiPrompt.trim() || isSubmitting()"
-                class="w-full h-11 rounded-full bg-gradient-to-r from-indigo-600 to-[#e60023] hover:opacity-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all border-none outline-none"
+            <!-- Style Selection -->
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs font-bold text-text-muted">Phong cách nghệ thuật (Model)</label>
+              <select
+                [(ngModel)]="aiModel"
+                class="w-full bg-surface-elevated border border-border focus:border-accent outline-none rounded-control px-4 h-11 text-xs text-text transition-all focus:ring-2 focus:ring-accent/40"
+                [disabled]="isGenerating() || isSubmitting()"
               >
-                <span class="material-symbols-outlined text-sm leading-none">auto_awesome</span>
-                <span>{{ isGenerating() ? 'Đang tạo ảnh AI...' : 'Bắt đầu tạo ảnh AI' }}</span>
+                <option value="flux">Flux Standard (Chi tiết cao)</option>
+                <option value="flux-anime">Flux Anime (Hoạt hình Nhật Bản)</option>
+                <option value="flux-realism">Flux Realism (Ảnh chụp chân thực)</option>
+                <option value="flux-3d">Flux 3D Art (Tranh vẽ 3D)</option>
+              </select>
+            </div>
+
+            <!-- Action button for AI -->
+            <button
+              type="button"
+              (click)="generateAiImage()"
+              [disabled]="isGenerating() || !aiPrompt.trim() || isSubmitting()"
+              class="w-full h-11 bg-gradient-brand cta-shape text-text font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <span class="material-symbols-outlined text-sm leading-none">auto_awesome</span>
+              <span>{{ isGenerating() ? 'Đang tạo ảnh AI...' : 'Bắt đầu tạo ảnh AI' }}</span>
+            </button>
+
+            <!-- AI Preview display box — no Image Editor in this tab by design. -->
+            <div class="relative rounded-frame frame-trace bg-surface-elevated border border-border overflow-hidden flex items-center justify-center min-h-[260px] p-2 mt-1">
+              <!-- Generating spinner -->
+              <div *ngIf="isGenerating()" class="flex flex-col items-center justify-center py-10 gap-2">
+                <div class="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
+                <span class="mono-label text-[10px] uppercase text-text-muted font-semibold">AI đang vẽ bức ảnh của bạn...</span>
+              </div>
+
+              <!-- Preview image -->
+              <img
+                *ngIf="!isGenerating() && aiImagePreviewUrl() as previewUrl"
+                [src]="previewUrl"
+                alt="AI Generated Preview"
+                class="w-full h-auto max-h-[420px] object-contain rounded-control block"
+              />
+
+              <!-- Empty preview state -->
+              <div *ngIf="!isGenerating() && !aiImagePreviewUrl()" class="text-text-muted text-xs py-10 flex flex-col items-center gap-1">
+                <span class="material-symbols-outlined text-3xl">imagesmode</span>
+                <span>Ảnh xem trước sẽ hiển thị ở đây</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PUBLISH PANEL -->
+        <div class="flex flex-col gap-6 bg-surface border border-border rounded-panel p-6 text-left lg:sticky lg:top-24">
+          <span class="mono-label text-[11px] uppercase text-text-muted select-none">Thông tin xuất bản</span>
+
+          <div class="flex flex-col gap-5">
+            <!-- Title -->
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs font-bold text-text-muted">Tiêu đề tác phẩm <span class="text-error">*</span></label>
+              <input
+                type="text"
+                [(ngModel)]="title"
+                placeholder="Thêm tiêu đề mô tả ngắn gọn..."
+                class="w-full bg-surface-elevated border border-border focus:border-accent outline-none rounded-control px-4 h-12 text-xs text-text placeholder-text-muted transition-all focus:ring-2 focus:ring-accent/40"
+                required
+                [disabled]="isSubmitting()"
+              />
+            </div>
+
+            <!-- Description -->
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs font-bold text-text-muted">Mô tả chi tiết</label>
+              <textarea
+                [(ngModel)]="description"
+                placeholder="Viết mô tả cho ảnh để mọi người hiểu rõ hơn..."
+                rows="4"
+                class="w-full bg-surface-elevated border border-border focus:border-accent outline-none rounded-control p-4 text-xs text-text placeholder-text-muted transition-all resize-none focus:ring-2 focus:ring-accent/40"
+                [disabled]="isSubmitting()"
+              ></textarea>
+            </div>
+
+            <!-- Board Selector dropdown -->
+            <div *ngIf="activeTab() === 'upload' && membership.status()?.canSell" class="flex flex-col gap-1.5">
+              <label class="text-xs font-bold text-text-muted">Giá bán ảnh (VNĐ)</label>
+              <input type="number" min="1000" step="1000" [(ngModel)]="price" placeholder="Để trống nếu không bán" class="w-full bg-surface-elevated border border-border rounded-control px-4 h-12 text-xs text-text" />
+              <span class="text-[10px] text-text-muted">Quyền riêng của gói Pro.</span>
+            </div>
+            <a *ngIf="activeTab() === 'upload' && !membership.status()?.canSell" href="/pricing" class="text-xs text-accent">Nâng cấp Pro để đặt giá và bán ảnh</a>
+
+            <!-- Board Selector dropdown -->
+            <div class="flex flex-col gap-1.5 relative">
+              <label class="text-xs font-bold text-text-muted">Lưu vào bộ sưu tập</label>
+              <button
+                (click)="toggleBoardDropdown($event)"
+                [disabled]="isSubmitting()"
+                class="w-full bg-surface-elevated border border-border hover:border-border-strong rounded-control px-4 h-12 text-xs text-text font-bold flex items-center justify-between cursor-pointer outline-none transition-all select-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <span>{{ getSelectedBoardName() }}</span>
+                <span class="material-symbols-outlined text-base leading-none">keyboard_arrow_down</span>
               </button>
 
-              <!-- AI Preview display box -->
-              <div class="relative rounded-3xl bg-[#f6f6f3] border border-[#dadad3] overflow-hidden flex items-center justify-center min-h-[220px] p-2 mt-1">
-                <!-- Generating spinner -->
-                <div *ngIf="isGenerating()" class="flex flex-col items-center justify-center py-10 gap-2">
-                  <div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                  <span class="text-[10px] text-indigo-900 font-semibold">AI đang vẽ bức ảnh của bạn...</span>
+              <div
+                *ngIf="showBoardDropdown()"
+                class="absolute left-0 top-[70px] w-full glass-elevated rounded-panel shadow-card py-1.5 z-50 text-left"
+              >
+                <span class="mono-label text-[9px] uppercase text-text-muted font-bold px-4 py-1 block">Danh sách bộ sưu tập của bạn</span>
+                <div class="max-h-[140px] overflow-y-auto">
+                  <div
+                    *ngFor="let b of boards()"
+                    (click)="selectBoard(b, $event)"
+                    class="px-4 py-2 text-xs font-bold text-text hover:bg-surface-elevated cursor-pointer truncate"
+                  >
+                    {{ b.name }}
+                  </div>
                 </div>
-
-                <!-- Preview image -->
-                <img 
-                  *ngIf="!isGenerating() && aiImagePreviewUrl() as previewUrl" 
-                  [src]="previewUrl" 
-                  alt="AI Generated Preview" 
-                  class="w-full h-auto max-h-[300px] object-contain rounded-2xl block"
-                />
-
-                <!-- Empty preview state -->
-                <div *ngIf="!isGenerating() && !aiImagePreviewUrl()" class="text-gray-400 text-xs py-10 flex flex-col items-center gap-1">
-                  <span class="material-symbols-outlined text-3xl">imagesmode</span>
-                  <span>Ảnh xem trước sẽ hiển thị ở đây</span>
+                <div *ngIf="boards().length === 0" class="px-4 py-3 text-xs text-text-muted italic">
+                  Chưa có bộ sưu tập nào. Chúng tôi sẽ tự động tạo bộ sưu tập "Hồ sơ" cho bạn khi lưu.
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Column Right: Metadata Inputs (Title, Description, Board select) -->
-          <div class="flex flex-col justify-between text-left">
-            <div class="flex flex-col gap-5">
-              <span class="text-xs font-bold text-gray-700 uppercase tracking-wider select-none">Thông tin chi tiết</span>
-
-              <!-- Title -->
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-bold text-gray-600">Tiêu đề ghim <span class="text-red-500">*</span></label>
-                <input 
-                  type="text" 
-                  [(ngModel)]="title" 
-                  placeholder="Thêm tiêu đề mô tả ngắn gọn..." 
-                  class="w-full bg-[#f6f6f3] border border-transparent focus:border-gray-200 focus:bg-white outline-none rounded-full px-4 h-12 text-xs text-black transition-all"
-                  required
-                  [disabled]="isSubmitting()"
-                />
-              </div>
-
-              <!-- Description -->
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-bold text-gray-600">Mô tả chi tiết</label>
-                <textarea 
-                  [(ngModel)]="description" 
-                  placeholder="Viết mô tả cho ảnh để mọi người hiểu rõ hơn..." 
-                  rows="4"
-                  class="w-full bg-[#f6f6f3] border border-transparent focus:border-gray-200 focus:bg-white outline-none rounded-2xl p-4 text-xs text-black transition-all resize-none"
-                  [disabled]="isSubmitting()"
-                ></textarea>
-              </div>
-
-              <!-- Board Selector dropdown -->
-              <div class="flex flex-col gap-1.5 relative">
-                <label class="text-xs font-bold text-gray-600">Lưu vào bảng</label>
-                <!-- Selector Trigger button -->
-                <button 
-                  (click)="toggleBoardDropdown($event)"
-                  [disabled]="isSubmitting()"
-                  class="w-full bg-[#f6f6f3] border border-transparent hover:border-gray-200 rounded-full px-4 h-12 text-xs text-black font-bold flex items-center justify-between cursor-pointer border-none outline-none transition-all select-none"
-                >
-                  <span>{{ getSelectedBoardName() }}</span>
-                  <span class="material-symbols-outlined text-base leading-none">keyboard_arrow_down</span>
-                </button>
-
-                <!-- Dropdown items overlay -->
-                <div 
-                  *ngIf="showBoardDropdown()"
-                  class="absolute left-0 top-[70px] w-full bg-white rounded-2xl shadow-2xl border border-gray-100 py-1.5 z-50 text-left"
-                >
-                  <span class="text-[9px] uppercase tracking-wider text-gray-400 font-bold px-4 py-1 block">Danh sách Bảng của bạn</span>
-                  <div class="max-h-[140px] overflow-y-auto">
-                    <div 
-                      *ngFor="let b of boards()"
-                      (click)="selectBoard(b, $event)"
-                      class="px-4 py-2 text-xs font-bold text-black hover:bg-gray-50 cursor-pointer truncate"
-                    >
-                      {{ b.name }}
-                    </div>
-                  </div>
-                  <!-- Empty boards info -->
-                  <div *ngIf="boards().length === 0" class="px-4 py-3 text-xs text-gray-400 italic">
-                    Chưa có bảng lưu. Chúng tôi sẽ tự động tạo bảng "Hồ sơ" cho bạn khi lưu.
-                  </div>
-                </div>
-              </div>
+          <!-- Submit Action -->
+          <div class="pt-6 border-t border-border flex flex-col gap-3">
+            <!-- Inline form validation error -->
+            <div
+              *ngIf="formError()"
+              role="alert"
+              class="flex items-start gap-2 p-3 rounded-control bg-error/10 border border-error/30 text-error text-xs font-semibold"
+            >
+              <span class="material-symbols-outlined text-base leading-none shrink-0">error</span>
+              <span>{{ formError() }}</span>
             </div>
 
-            <!-- Submit Action -->
-            <div class="pt-8 border-t border-[#dadad3] mt-8 flex items-center justify-end">
-              <button 
+            <div class="flex items-center justify-end">
+              <button
                 type="button"
                 (click)="onSubmit()"
-                [disabled]="isSubmitting() || !title.trim() || (activeTab() === 'upload' && !selectedFile) || (activeTab() === 'ai' && !aiImagePreviewUrl())"
-                class="h-12 px-8 rounded-full bg-[#e60023] hover:bg-[#cc001f] text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95 transition-all border-none outline-none"
+                [disabled]="isSubmitting() || !title.trim() || (activeTab() === 'upload' && !selectedFile) || (activeTab() === 'ai' && !aiImagePreviewUrl()) || (activeTab() === 'upload' && imageModerationStatus() !== 'safe')"
+                class="w-full h-12 bg-gradient-brand cta-shape text-text font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
-                <!-- Submitting spinner -->
                 <div *ngIf="isSubmitting()" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>{{ isSubmitting() ? 'Đang tạo ghim...' : 'Tạo ghim ngay' }}</span>
+                <span>{{ isSubmitting() ? 'Đang xử lý...' : 'Tạo tác phẩm ngay' }}</span>
               </button>
             </div>
-
           </div>
-
         </div>
 
       </div>
 
     </main>
   </div>
+
+  <!-- Discard-edits confirm dialog — replaces window.confirm() -->
+  <div
+    *ngIf="showDiscardConfirm()"
+    (click)="cancelDiscard()"
+    class="fixed inset-0 bg-black/60 backdrop-blur-md z-[150] flex items-center justify-center p-4 animate-fade-in"
+    role="presentation"
+  >
+    <div
+      (click)="$event.stopPropagation()"
+      class="glass-elevated max-w-[420px] w-full rounded-panel p-7 shadow-card text-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="discard-confirm-title"
+    >
+      <div class="mx-auto mb-4 w-11 h-11 rounded-full bg-warning/15 flex items-center justify-center">
+        <span class="material-symbols-outlined text-xl text-warning">warning</span>
+      </div>
+      <h2 id="discard-confirm-title" class="text-base font-bold text-text mb-2">Bạn có chỉnh sửa chưa lưu</h2>
+      <p class="text-xs text-text-muted leading-relaxed mb-6">
+        Tiếp tục sẽ làm mất các thay đổi màu sắc và caption trên ảnh này. Bạn có chắc chắn muốn tiếp tục?
+      </p>
+      <div class="flex items-center justify-center gap-3">
+        <button
+          type="button"
+          (click)="cancelDiscard()"
+          class="h-10 px-5 rounded-control bg-surface-elevated hover:bg-surface-high text-text text-sm font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          Hủy
+        </button>
+        <button
+          type="button"
+          (click)="confirmDiscard()"
+          class="h-10 px-5 rounded-control bg-error/90 hover:bg-error text-white text-sm font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          Tiếp tục, bỏ chỉnh sửa
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Publish progress dialog -->
+  <app-publish-progress-dialog
+    [open]="dialogOpen()"
+    [status]="dialogStatus()"
+    [message]="dialogMessage()"
+    [errorMessage]="dialogErrorMessage()"
+    (retry)="onDialogRetry()"
+    (dismiss)="onDialogDismiss()"
+  ></app-publish-progress-dialog>
 </div>

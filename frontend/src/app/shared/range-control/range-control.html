@@ -1,0 +1,33 @@
+<div class="flex flex-col gap-1">
+  <div class="flex items-center justify-between gap-2">
+    <label [attr.for]="inputId" class="text-xs font-bold text-text-muted truncate">{{ label }}</label>
+    <div class="flex items-center gap-2 shrink-0">
+      <span class="mono-label text-[10px] text-text-muted tabular-nums">{{ value }}{{ unit }}</span>
+      @if (showReset) {
+        <button
+          type="button"
+          (click)="onReset()"
+          [disabled]="disabled"
+          class="text-text-muted hover:text-accent disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
+          [attr.aria-label]="'Đặt lại ' + label"
+          title="Đặt lại"
+        >
+          <span class="material-symbols-outlined text-[15px] leading-none">refresh</span>
+        </button>
+      }
+    </div>
+  </div>
+  <input
+    [id]="inputId"
+    type="range"
+    [min]="min"
+    [max]="max"
+    [step]="step"
+    [value]="value"
+    [disabled]="disabled"
+    (input)="onInput($event)"
+    (change)="onChange()"
+    class="rc-range"
+    [attr.aria-valuetext]="value + unit"
+  />
+</div>

@@ -1,174 +1,781 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
-import { Navbar } from '../../components/navbar/navbar';
-import { UserService } from '../../core/services/user';
-import { BoardService } from '../../core/services/board';
-import { SupabaseService } from '../../core/services/supabase';
+import {
+  Component,
+  HostListener,
+  OnDestroy,
+  OnInit,
+  WritableSignal,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription, combineLatest } from 'rxjs';
+import { Navbar } from '../../components/navbar/navbar';
+import { BoardService } from '../../core/services/board';
+import { PinService } from '../../core/services/pin';
+import { SupabaseService } from '../../core/services/supabase';
+import { ProfileAlbum, ProfilePin, ProfileSummary, UserService } from '../../core/services/user';
+import { MessagingService, ReportReason } from '../../core/services/messaging';
+import { SafetyService } from '../../core/services/safety';
+
+type ProfileTab = 'favorites' | 'albums' | 'posts';
+
+interface TabState<T> {
+  items: T[];
+  page: number;
+  hasMore: boolean;
+  loaded: boolean;
+  loading: boolean;
+  loadingMore: boolean;
+  error: string | null;
+}
 
 @Component({
   selector: 'app-profile',
   standalone: true,
   imports: [CommonModule, Navbar, FormsModule],
   templateUrl: './profile.html',
-  styleUrl: './profile.css'
+  styleUrl: './profile.css',
 })
-export class Profile implements OnInit {
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
-  private userService = inject(UserService);
-  private boardService = inject(BoardService);
-  public supabaseService = inject(SupabaseService);
+export class Profile implements OnInit, OnDestroy {
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly userService = inject(UserService);
+  private readonly boardService = inject(BoardService);
+  private readonly pinService = inject(PinService);
+  private readonly supabaseService = inject(SupabaseService);
+  private readonly messagingService = inject(MessagingService);
+  private readonly safetyService = inject(SafetyService);
 
-  public userProfile = signal<any | null>(null);
-  public isLoading = signal<boolean>(true);
-  public activeTab = signal<'boards' | 'created'>('boards');
+  readonly profile = signal<ProfileSummary | null>(null);
+  readonly profileLoading = signal(true);
+  readonly profileError = signal<string | null>(null);
+  readonly activeTab = signal<ProfileTab>('posts');
+  readonly favoritesState = signal(this.emptyState<ProfilePin>());
+  readonly albumsState = signal(this.emptyState<ProfileAlbum>());
+  readonly postsState = signal(this.emptyState<ProfilePin>());
+  readonly followPending = signal(false);
+  readonly shareMessage = signal<string | null>(null);
+  readonly actionMessage = signal<string | null>(null);
+  readonly activePostMenu = signal<string | null>(null);
 
-  // New board modal properties
-  public showCreateBoardModal = signal<boolean>(false);
-  public newBoardName = '';
-  public newBoardDesc = '';
-  public newBoardSecret = false;
-  public isSubmittingBoard = false;
+  readonly showCreateAlbumModal = signal(false);
+  readonly albumSubmitPending = signal(false);
+  readonly albumFormError = signal<string | null>(null);
+  newAlbumName = '';
+  newAlbumDescription = '';
+  newAlbumSecret = false;
 
-  async ngOnInit() {
-    this.route.paramMap.subscribe(params => {
+  readonly deleteTarget = signal<ProfilePin | null>(null);
+  readonly deletePending = signal(false);
+  readonly deleteError = signal<string | null>(null);
+
+  readonly messageActionPending = signal(false);
+  readonly showSafetyMenu = signal(false);
+
+  readonly showReportDialog = signal(false);
+  readonly reportReason = signal<ReportReason>('SPAM');
+  readonly reportPending = signal(false);
+  readonly reportError = signal<string | null>(null);
+  reportDetails = '';
+
+  readonly showBlockDialog = signal(false);
+  readonly blockPending = signal(false);
+  readonly blockError = signal<string | null>(null);
+
+  private readonly pageSize = 20;
+  private routeSubscription?: Subscription;
+  private currentUsername = '';
+  private requestVersion = 0;
+  private dialogReturnFocus?: HTMLElement;
+
+  ngOnInit() {
+    this.routeSubscription = combineLatest([
+      this.route.paramMap,
+      this.route.queryParamMap,
+    ]).subscribe(([params, query]) => {
       const username = params.get('username');
-      if (username) {
-        this.loadProfile(username);
+      if (!username) return;
+
+      const requestedTab = this.parseTab(query.get('tab'));
+      if (username !== this.currentUsername) {
+        this.currentUsername = username;
+        void this.loadProfile(username, requestedTab);
+      } else if (this.profile()) {
+        this.activateRequestedTab(requestedTab);
       }
     });
   }
 
-  async loadProfile(username: string) {
-    this.isLoading.set(true);
+  ngOnDestroy() {
+    this.routeSubscription?.unsubscribe();
+    this.requestVersion += 1;
+  }
+
+  async loadProfile(username = this.currentUsername, requestedTab?: ProfileTab) {
+    const version = ++this.requestVersion;
+    this.profileLoading.set(true);
+    this.profileError.set(null);
+    this.profile.set(null);
+    this.resetTabStates();
+    this.activePostMenu.set(null);
+
     try {
-      const profile = await this.userService.getUserProfile(username);
-      
-      const currentUser = this.supabaseService.user();
-      const isCurrentUser = currentUser && (currentUser.email === profile.email);
-      
-      if (isCurrentUser) {
-        try {
-          const token = await this.supabaseService.getSessionToken();
-          if (token) {
-            const allBoards = await this.boardService.getBoards(token);
-            profile.boards = allBoards;
-          }
-        } catch (boardError) {
-          console.error('Error fetching boards for user profile:', boardError);
-          profile.boards = [];
-        }
-      }
+      const token = (await this.supabaseService.getSessionToken()) || undefined;
+      const summary = await this.userService.getUserProfile(username, token);
+      if (version !== this.requestVersion) return;
 
-      this.userProfile.set(profile);
+      this.profile.set(summary);
+      this.activateRequestedTab(requestedTab || 'posts');
     } catch (error) {
-      console.error('Error loading user profile:', error);
-      this.router.navigate(['/feed']);
+      if (version !== this.requestVersion) return;
+      this.profileError.set(this.errorMessage(error, 'Không thể tải hồ sơ này.'));
     } finally {
-      this.isLoading.set(false);
-    }
-  }
-
-  isMyProfile(): boolean {
-    const profile = this.userProfile();
-    const currentUser = this.supabaseService.user();
-    if (!profile || !currentUser) return false;
-    return currentUser.email === profile.email;
-  }
-
-  getBoardPreviews(board: any): string[] {
-    const list = board.boardPins || [];
-    return list.slice(0, 3).map((bp: any) => bp.pin?.imageUrl).filter(Boolean);
-  }
-
-  getSavedPins(): any[] {
-    const profile = this.userProfile();
-    if (!profile) return [];
-    
-    const savedMap = new Map<string, any>();
-    const boards = profile.boards || [];
-    for (const board of boards) {
-      const boardPins = board.boardPins || [];
-      for (const bp of boardPins) {
-        if (bp.pin) {
-          savedMap.set(bp.pin.id, {
-            id: bp.pin.id,
-            title: bp.pin.title,
-            imageUrl: bp.pin.imageUrl,
-            isAiGenerated: bp.pin.isAiGenerated
-          });
-        }
+      if (version === this.requestVersion) {
+        this.profileLoading.set(false);
       }
     }
-    
-    return Array.from(savedMap.values());
   }
 
-  setTab(tab: 'boards' | 'created') {
+  setTab(tab: ProfileTab, focusTab = false) {
+    if (!this.canUseTab(tab)) tab = 'posts';
     this.activeTab.set(tab);
-  }
+    void this.ensureTabLoaded(tab);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { tab },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
 
-  navigateToBoard(boardId: string) {
-    this.router.navigate(['/board', boardId]);
-  }
-
-  navigateToPin(pinId: string) {
-    this.router.navigate(['/pin', pinId]);
-  }
-
-  openCreateBoardModal() {
-    this.showCreateBoardModal.set(true);
-    this.newBoardName = '';
-    this.newBoardDesc = '';
-    this.newBoardSecret = false;
-  }
-
-  closeCreateBoardModal() {
-    this.showCreateBoardModal.set(false);
-  }
-
-  async createBoard() {
-    if (!this.newBoardName.trim()) return;
-    this.isSubmittingBoard = true;
-    try {
-      const token = await this.supabaseService.getSessionToken();
-      if (token) {
-        const newBoard = await this.boardService.createBoard(
-          this.newBoardName.trim(),
-          this.newBoardDesc.trim(),
-          this.newBoardSecret,
-          token
-        );
-        
-        const profile = this.userProfile();
-        if (profile) {
-          const updatedBoards = [newBoard, ...(profile.boards || [])];
-          this.userProfile.set({ ...profile, boards: updatedBoards });
-        }
-        this.closeCreateBoardModal();
-      }
-    } catch (error) {
-      console.error('Error creating board:', error);
-    } finally {
-      this.isSubmittingBoard = false;
+    if (focusTab) {
+      setTimeout(() => document.getElementById(`profile-tab-${tab}`)?.focus());
     }
+  }
+
+  onTabKeydown(event: KeyboardEvent) {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const tabs = this.availableTabs();
+    const currentIndex = Math.max(0, tabs.indexOf(this.activeTab()));
+    let nextIndex = currentIndex;
+    if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+    if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = tabs.length - 1;
+    this.setTab(tabs[nextIndex], true);
+  }
+
+  async retryActiveTab() {
+    await this.loadTab(this.activeTab(), false, true);
+  }
+
+  async loadMore() {
+    await this.loadTab(this.activeTab(), true);
   }
 
   async toggleFollow() {
-    const profile = this.userProfile();
-    const currentUser = this.supabaseService.user();
-    if (!profile || !currentUser || this.isMyProfile()) return;
+    const summary = this.profile();
+    if (!summary || summary.viewer.isOwnProfile || this.followPending()) return;
+
+    const previousFollowing = summary.viewer.isFollowing;
+    const previousCount = summary.counts.followers;
+    this.followPending.set(true);
+    this.profile.set({
+      ...summary,
+      viewer: { ...summary.viewer, isFollowing: !previousFollowing },
+      counts: {
+        ...summary.counts,
+        followers: Math.max(0, previousCount + (previousFollowing ? -1 : 1)),
+      },
+    });
 
     try {
-      const token = await this.supabaseService.getSessionToken();
-      if (token) {
-        await this.userService.toggleFollow(profile.id, token);
-        this.loadProfile(profile.username);
+      const token = await this.requireToken();
+      const result = await this.userService.toggleFollow(summary.user.id, token);
+      this.updateProfile((current) => ({
+        ...current,
+        viewer: { ...current.viewer, isFollowing: result.followed },
+        counts: { ...current.counts, followers: result.followerCount },
+      }));
+    } catch (error) {
+      this.updateProfile((current) => ({
+        ...current,
+        viewer: { ...current.viewer, isFollowing: previousFollowing },
+        counts: { ...current.counts, followers: previousCount },
+      }));
+      this.announce(this.errorMessage(error, 'Không thể cập nhật theo dõi.'));
+    } finally {
+      this.followPending.set(false);
+    }
+  }
+
+  async shareProfile() {
+    const summary = this.profile();
+    if (!summary) return;
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `@${summary.user.username} trên NovaFrame`,
+          text: `Khám phá không gian sáng tạo của @${summary.user.username}.`,
+          url,
+        });
+        this.shareMessage.set('Đã mở bảng chia sẻ.');
+      } else {
+        await navigator.clipboard.writeText(url);
+        this.shareMessage.set('Đã sao chép liên kết hồ sơ.');
       }
     } catch (error) {
-      console.error('Error toggling follow:', error);
+      if ((error as DOMException)?.name !== 'AbortError') {
+        this.shareMessage.set('Không thể chia sẻ liên kết lúc này.');
+      }
     }
+    setTimeout(() => this.shareMessage.set(null), 3000);
+  }
+
+  messageButtonLabel(): string {
+    const viewer = this.profile()?.viewer;
+    if (!viewer) return '';
+    if (viewer.canMessage) return 'Nhắn tin';
+    if (viewer.isBlocked) return 'Đã chặn người dùng này';
+    if (viewer.isBlockedByTarget) return 'Không thể nhắn tin';
+    switch (viewer.messageRequestStatus) {
+      case 'PENDING_OUTGOING':
+        return 'Đang chờ phản hồi';
+      case 'PENDING_INCOMING':
+        return 'Phản hồi trong Tin nhắn';
+      case 'REJECTED':
+        return 'Yêu cầu đã bị từ chối';
+      case 'REPORTED':
+        return 'Yêu cầu đã bị báo cáo';
+      default:
+        return 'Gửi yêu cầu nhắn tin';
+    }
+  }
+
+  messageButtonDisabled(): boolean {
+    const viewer = this.profile()?.viewer;
+    if (!viewer || this.messageActionPending()) return true;
+    return !viewer.canMessage && !viewer.canSendMessageRequest;
+  }
+
+  async onMessageAction() {
+    const summary = this.profile();
+    if (!summary || this.messageActionPending()) return;
+    const viewer = summary.viewer;
+
+    if (viewer.canMessage) {
+      this.messageActionPending.set(true);
+      try {
+        const token = await this.requireToken();
+        const conversationId =
+          viewer.conversationId ||
+          (await this.messagingService.openDirectConversation(summary.user.id, token)).id;
+        void this.router.navigate(['/messages', conversationId]);
+      } catch (error) {
+        this.announce(this.errorMessage(error, 'Không thể mở cuộc trò chuyện.'));
+      } finally {
+        this.messageActionPending.set(false);
+      }
+      return;
+    }
+
+    if (viewer.canSendMessageRequest) {
+      this.messageActionPending.set(true);
+      try {
+        const token = await this.requireToken();
+        await this.messagingService.sendMessageRequest(summary.user.id, token);
+        this.updateProfile((current) => ({
+          ...current,
+          viewer: {
+            ...current.viewer,
+            messageRequestStatus: 'PENDING_OUTGOING',
+            canSendMessageRequest: false,
+          },
+        }));
+        this.announce('Đã gửi yêu cầu nhắn tin.');
+      } catch (error) {
+        this.announce(this.errorMessage(error, 'Không thể gửi yêu cầu nhắn tin.'));
+      } finally {
+        this.messageActionPending.set(false);
+      }
+    }
+  }
+
+  toggleSafetyMenu(event: Event) {
+    event.stopPropagation();
+    this.showSafetyMenu.update((value) => !value);
+  }
+
+  openReportDialog() {
+    this.showSafetyMenu.set(false);
+    this.dialogReturnFocus = document.activeElement as HTMLElement;
+    this.reportReason.set('SPAM');
+    this.reportDetails = '';
+    this.reportError.set(null);
+    this.showReportDialog.set(true);
+    setTimeout(() => document.getElementById('report-reason')?.focus());
+  }
+
+  closeReportDialog() {
+    if (this.reportPending()) return;
+    this.showReportDialog.set(false);
+    this.reportError.set(null);
+    this.restoreDialogFocus();
+  }
+
+  async submitReport() {
+    const summary = this.profile();
+    if (!summary || this.reportPending()) return;
+    this.reportPending.set(true);
+    this.reportError.set(null);
+    try {
+      const token = await this.requireToken();
+      await this.safetyService.reportUser(
+        summary.user.id,
+        this.reportReason(),
+        this.reportDetails.trim() || undefined,
+        token,
+      );
+      this.showReportDialog.set(false);
+      this.announce('Đã gửi báo cáo. Cảm ơn bạn đã phản hồi.');
+      this.restoreDialogFocus();
+    } catch (error) {
+      this.reportError.set(this.errorMessage(error, 'Không thể gửi báo cáo.'));
+    } finally {
+      this.reportPending.set(false);
+    }
+  }
+
+  openBlockDialog() {
+    this.showSafetyMenu.set(false);
+    this.dialogReturnFocus = document.activeElement as HTMLElement;
+    this.blockError.set(null);
+    this.showBlockDialog.set(true);
+    setTimeout(() => document.getElementById('confirm-block-user')?.focus());
+  }
+
+  closeBlockDialog() {
+    if (this.blockPending()) return;
+    this.showBlockDialog.set(false);
+    this.blockError.set(null);
+    this.restoreDialogFocus();
+  }
+
+  async confirmBlock() {
+    const summary = this.profile();
+    if (!summary || this.blockPending()) return;
+    const wasBlocked = summary.viewer.isBlocked;
+    this.blockPending.set(true);
+    this.blockError.set(null);
+    try {
+      const token = await this.requireToken();
+      if (wasBlocked) {
+        await this.safetyService.unblockUser(summary.user.id, token);
+      } else {
+        await this.safetyService.blockUser(summary.user.id, token);
+      }
+      await this.refreshProfileViewerState();
+      this.showBlockDialog.set(false);
+      this.announce(wasBlocked ? 'Đã bỏ chặn người dùng.' : 'Đã chặn người dùng.');
+      this.restoreDialogFocus();
+    } catch (error) {
+      this.blockError.set(this.errorMessage(error, 'Không thể cập nhật trạng thái chặn.'));
+    } finally {
+      this.blockPending.set(false);
+    }
+  }
+
+  navigateToProfile(username: string | undefined | null) {
+    if (!username) return;
+    void this.router.navigate(['/profile', username]);
+  }
+
+  navigateToPin(pinId: string) {
+    void this.router.navigate(['/pin', pinId]);
+  }
+
+  navigateToAlbum(albumId: string) {
+    void this.router.navigate(['/board', albumId]);
+  }
+
+  navigateTo(path: string) {
+    void this.router.navigate([path]);
+  }
+
+  async removeFavorite(pin: ProfilePin, event: Event) {
+    event.stopPropagation();
+    const state = this.favoritesState();
+    const index = state.items.findIndex((item) => item.id === pin.id);
+    if (index < 0) return;
+
+    const optimisticItems = state.items.filter((item) => item.id !== pin.id);
+    this.favoritesState.set({ ...state, items: optimisticItems });
+    this.adjustCount('favorites', -1);
+
+    try {
+      const token = await this.requireToken();
+      const result = await this.pinService.toggleLike(pin.id, token);
+      if (result.liked) {
+        throw new Error('Tác phẩm vẫn đang ở trạng thái yêu thích.');
+      }
+      this.announce('Đã bỏ khỏi Yêu thích.');
+    } catch (error) {
+      const restored = [...this.favoritesState().items];
+      restored.splice(Math.min(index, restored.length), 0, pin);
+      this.favoritesState.update((current) => ({ ...current, items: restored }));
+      this.adjustCount('favorites', 1);
+      this.announce(this.errorMessage(error, 'Không thể bỏ yêu thích.'));
+    }
+  }
+
+  togglePostMenu(pinId: string, event: Event) {
+    event.stopPropagation();
+    this.activePostMenu.update((current) => (current === pinId ? null : pinId));
+  }
+
+  openDeleteDialog(pin: ProfilePin, event?: Event) {
+    event?.stopPropagation();
+    this.activePostMenu.set(null);
+    this.dialogReturnFocus = document.activeElement as HTMLElement;
+    this.deleteError.set(null);
+    this.deleteTarget.set(pin);
+    setTimeout(() => document.getElementById('confirm-delete-pin')?.focus());
+  }
+
+  closeDeleteDialog() {
+    if (this.deletePending()) return;
+    this.deleteTarget.set(null);
+    this.deleteError.set(null);
+    this.restoreDialogFocus();
+  }
+
+  async confirmDeletePin() {
+    const pin = this.deleteTarget();
+    if (!pin || this.deletePending()) return;
+    this.deletePending.set(true);
+    this.deleteError.set(null);
+    try {
+      const token = await this.requireToken();
+      await this.pinService.deletePin(pin.id, token);
+      this.postsState.update((current) => ({
+        ...current,
+        items: current.items.filter((item) => item.id !== pin.id),
+      }));
+      this.adjustCount('posts', -1);
+      this.deleteTarget.set(null);
+      this.announce('Đã xóa tác phẩm.');
+      this.restoreDialogFocus();
+    } catch (error) {
+      this.deleteError.set(this.errorMessage(error, 'Không thể xóa tác phẩm.'));
+    } finally {
+      this.deletePending.set(false);
+    }
+  }
+
+  openCreateAlbumModal() {
+    if (!this.isOwnProfile()) return;
+    this.dialogReturnFocus = document.activeElement as HTMLElement;
+    this.newAlbumName = '';
+    this.newAlbumDescription = '';
+    this.newAlbumSecret = false;
+    this.albumFormError.set(null);
+    this.showCreateAlbumModal.set(true);
+    setTimeout(() => document.getElementById('album-name')?.focus());
+  }
+
+  closeCreateAlbumModal() {
+    if (this.albumSubmitPending()) return;
+    this.showCreateAlbumModal.set(false);
+    this.albumFormError.set(null);
+    this.restoreDialogFocus();
+  }
+
+  async createAlbum() {
+    const name = this.newAlbumName.trim();
+    if (!name || this.albumSubmitPending()) return;
+    this.albumSubmitPending.set(true);
+    this.albumFormError.set(null);
+    try {
+      const token = await this.requireToken();
+      const board = await this.boardService.createBoard(
+        name,
+        this.newAlbumDescription.trim(),
+        this.newAlbumSecret,
+        token,
+      );
+      const album: ProfileAlbum = {
+        ...board,
+        description: board.description || null,
+        pinCount: 0,
+        thumbnails: [],
+      };
+      this.albumsState.update((current) => ({
+        ...current,
+        loaded: true,
+        items: [album, ...current.items],
+      }));
+      this.adjustCount('albums', 1);
+      this.showCreateAlbumModal.set(false);
+      this.announce('Album mới đã được tạo.');
+      this.restoreDialogFocus();
+    } catch (error) {
+      this.albumFormError.set(this.errorMessage(error, 'Không thể tạo album.'));
+    } finally {
+      this.albumSubmitPending.set(false);
+    }
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (this.showSafetyMenu() && !target.closest('[data-safety-menu]')) {
+      this.showSafetyMenu.set(false);
+    }
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onDocumentKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      if (this.deleteTarget()) this.closeDeleteDialog();
+      else if (this.showCreateAlbumModal()) this.closeCreateAlbumModal();
+      else if (this.showReportDialog()) this.closeReportDialog();
+      else if (this.showBlockDialog()) this.closeBlockDialog();
+      else if (this.showSafetyMenu()) this.showSafetyMenu.set(false);
+      else this.activePostMenu.set(null);
+      return;
+    }
+
+    if (
+      event.key === 'Tab' &&
+      (this.deleteTarget() || this.showCreateAlbumModal() || this.showReportDialog() || this.showBlockDialog())
+    ) {
+      const dialog = document.querySelector<HTMLElement>('[data-profile-dialog="active"]');
+      if (!dialog) return;
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+  }
+
+  isOwnProfile() {
+    return this.profile()?.viewer.isOwnProfile === true;
+  }
+
+  currentState() {
+    if (this.activeTab() === 'favorites') return this.favoritesState();
+    if (this.activeTab() === 'albums') return this.albumsState();
+    return this.postsState();
+  }
+
+  formatDate(value: string) {
+    return new Intl.DateTimeFormat('vi-VN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }).format(new Date(value));
+  }
+
+  trackById(_index: number, item: { id: string }) {
+    return item.id;
+  }
+
+  private async ensureTabLoaded(tab: ProfileTab) {
+    const state = this.stateFor(tab)();
+    if (!state.loaded && !state.loading) await this.loadTab(tab);
+  }
+
+  private async loadTab(tab: ProfileTab, loadMore = false, force = false) {
+    if (!this.canUseTab(tab)) return;
+    const stateSignal = this.stateFor(tab) as unknown as WritableSignal<
+      TabState<ProfilePin | ProfileAlbum>
+    >;
+    const current = stateSignal();
+    if (current.loading || current.loadingMore) return;
+    if (loadMore && !current.hasMore) return;
+    if (!loadMore && current.loaded && !force) return;
+
+    const version = this.requestVersion;
+    const page = loadMore ? current.page + 1 : 1;
+    stateSignal.set({
+      ...current,
+      loading: !loadMore,
+      loadingMore: loadMore,
+      error: null,
+    });
+
+    try {
+      const token = (await this.supabaseService.getSessionToken()) || undefined;
+      let response;
+      if (tab === 'favorites') {
+        if (!token) throw new Error('Phiên đăng nhập đã hết hạn.');
+        response = await this.userService.getFavorites(page, this.pageSize, token);
+      } else if (tab === 'albums') {
+        response = await this.userService.getUserAlbums(
+          this.currentUsername,
+          page,
+          this.pageSize,
+          token,
+        );
+      } else {
+        response = await this.userService.getUserPosts(
+          this.currentUsername,
+          page,
+          this.pageSize,
+          token,
+        );
+      }
+      if (version !== this.requestVersion) return;
+
+      const previousItems = loadMore ? stateSignal().items : [];
+      const seen = new Set(previousItems.map((item) => item.id));
+      const items = [...previousItems, ...response.items.filter((item) => !seen.has(item.id))];
+      stateSignal.set({
+        items,
+        page: response.page,
+        hasMore: response.hasMore,
+        loaded: true,
+        loading: false,
+        loadingMore: false,
+        error: null,
+      });
+      this.setCount(tab, response.total);
+    } catch (error) {
+      if (version !== this.requestVersion) return;
+      stateSignal.update((state) => ({
+        ...state,
+        loaded: state.items.length > 0,
+        loading: false,
+        loadingMore: false,
+        error: this.errorMessage(error, 'Không thể tải nội dung.'),
+      }));
+    }
+  }
+
+  private activateRequestedTab(tab: ProfileTab) {
+    const validTab = this.canUseTab(tab) ? tab : 'posts';
+    this.activeTab.set(validTab);
+    void this.ensureTabLoaded(validTab);
+    if (validTab !== tab) {
+      void this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { tab: validTab },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
+      });
+    }
+  }
+
+  private parseTab(raw: string | null): ProfileTab {
+    return raw === 'favorites' || raw === 'albums' || raw === 'posts' ? raw : 'posts';
+  }
+
+  private canUseTab(tab: ProfileTab) {
+    return tab !== 'favorites' || this.profile()?.viewer.canViewFavorites === true;
+  }
+
+  private availableTabs(): ProfileTab[] {
+    return this.canUseTab('favorites') ? ['posts', 'albums', 'favorites'] : ['posts', 'albums'];
+  }
+
+  private stateFor(tab: ProfileTab) {
+    if (tab === 'favorites') return this.favoritesState;
+    if (tab === 'albums') return this.albumsState;
+    return this.postsState;
+  }
+
+  private emptyState<T>(): TabState<T> {
+    return {
+      items: [],
+      page: 0,
+      hasMore: false,
+      loaded: false,
+      loading: false,
+      loadingMore: false,
+      error: null,
+    };
+  }
+
+  private resetTabStates() {
+    this.favoritesState.set(this.emptyState<ProfilePin>());
+    this.albumsState.set(this.emptyState<ProfileAlbum>());
+    this.postsState.set(this.emptyState<ProfilePin>());
+  }
+
+  private setCount(tab: ProfileTab, total: number) {
+    const key = tab === 'albums' ? 'albums' : tab;
+    this.updateProfile((current) => ({
+      ...current,
+      counts: { ...current.counts, [key]: total },
+    }));
+  }
+
+  private adjustCount(tab: ProfileTab, difference: number) {
+    const key = tab === 'albums' ? 'albums' : tab;
+    this.updateProfile((current) => {
+      const currentValue = current.counts[key];
+      return {
+        ...current,
+        counts: {
+          ...current.counts,
+          [key]: Math.max(0, (currentValue || 0) + difference),
+        },
+      };
+    });
+  }
+
+  private updateProfile(update: (profile: ProfileSummary) => ProfileSummary) {
+    const current = this.profile();
+    if (current) this.profile.set(update(current));
+  }
+
+  /** Re-fetches just the permission/relationship state after an action like
+   * block/unblock, instead of a full loadProfile() which would also reset
+   * and re-fetch the posts/albums/favorites tabs. */
+  private async refreshProfileViewerState() {
+    const summary = this.profile();
+    if (!summary) return;
+    try {
+      const token = (await this.supabaseService.getSessionToken()) || undefined;
+      const fresh = await this.userService.getUserProfile(summary.user.username, token);
+      this.updateProfile((current) => ({ ...current, viewer: fresh.viewer }));
+    } catch {
+      // Best-effort refresh — keep the existing state if this fails.
+    }
+  }
+
+  private async requireToken() {
+    const token = await this.supabaseService.getSessionToken();
+    if (!token) throw new Error('Phiên đăng nhập đã hết hạn.');
+    return token;
+  }
+
+  private announce(message: string) {
+    this.actionMessage.set(message);
+    setTimeout(() => this.actionMessage.set(null), 3500);
+  }
+
+  private errorMessage(error: unknown, fallback: string) {
+    return error instanceof Error && error.message ? error.message : fallback;
+  }
+
+  private restoreDialogFocus() {
+    const target = this.dialogReturnFocus;
+    this.dialogReturnFocus = undefined;
+    setTimeout(() => target?.focus());
   }
 }

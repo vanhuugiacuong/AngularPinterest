@@ -1,9 +1,15 @@
---extra-index-url https://download.pytorch.org/whl/cpu
 fastapi==0.110.0
 uvicorn==0.28.0
-torch==2.2.1
-transformers==4.38.2
+requests==2.31.0
 pillow==10.2.0
 python-multipart==0.0.9
-requests==2.31.0
 numpy<2.0.0
+
+# Local CLIP inference (USE_LOCAL path in main.py). Pinned to the versions
+# verified working together: openai/clip-vit-base-patch32 is no longer
+# servable through Hugging Face's hosted Inference API (any provider), so
+# this is the only path that actually produces embeddings — the HF cloud-API
+# branch below is kept only as a manual opt-in (FORCE_HF_API=true) for models
+# that are still hosted there.
+torch==2.13.0
+transformers==5.15.0

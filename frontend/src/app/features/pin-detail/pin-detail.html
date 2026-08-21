@@ -1,111 +1,187 @@
-<div class="min-h-screen bg-white text-black flex flex-col font-sans relative">
-  <!-- Navbar handles top header and left vertical sidebar -->
+<div class="min-h-screen bg-bg text-text flex flex-col font-sans relative">
+  <!-- Navbar handles top header and collapsible left sidebar -->
   <app-navbar></app-navbar>
 
-  <!-- Main Content Area: Shifted right to clear fixed sidebar, shifted down to clear fixed header -->
-  <div class="flex-1 pl-16 pt-16 flex flex-col min-w-0">
-    <main class="flex-1 w-full mx-auto px-6 py-6 flex flex-col max-w-none">
-      
+  <!-- Main Content Area: shifted down to clear fixed header. Sidebar is an overlay and never reserves space. -->
+  <div class="flex-1 pt-16 flex flex-col min-w-0">
+    <main class="flex-1 w-full mx-auto px-4 sm:px-6 py-6 flex flex-col max-w-none">
       <!-- Loading State -->
       @if (isLoading()) {
         <div class="flex-1 flex flex-col items-center justify-center py-20">
-          <div class="w-10 h-10 border-4 border-[#e60023] border-t-transparent rounded-full animate-spin"></div>
-          <p class="text-xs text-[#62625b] mt-4 font-semibold">Đang tải chi tiết ảnh...</p>
+          <div
+            class="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"
+          ></div>
+          <p class="text-xs text-text-muted mt-4 font-semibold">Đang tải chi tiết ảnh...</p>
         </div>
       }
 
-      <!-- Unified 2-Column Split Outer Area -->
+      <!-- Artwork Inspection Space: full-bleed stage + hairline info dock -->
       @if (!isLoading() && pin(); as p) {
-        <div class="w-full flex flex-col lg:flex-row gap-6 mt-2 items-start">
-          <!-- Left Area (63% width): Main Card + Bottom related grid -->
-          <div class="w-full lg:w-[63%] flex flex-col gap-8 min-w-0">
-            
-            <!-- Detailed view card -->
-            <div class="bg-white rounded-[32px] border border-[#dadad3] shadow-[0_4px_24px_rgba(0,0,0,0.03)] flex flex-col md:flex-row overflow-hidden w-full min-h-[500px]">
-              <!-- Left Side: Image Display -->
-              <div class="md:w-1/2 relative bg-white p-5 flex items-center justify-center">
-                <!-- Back button inside card -->
-                <button 
-                  (click)="goBack()" 
-                  class="absolute top-4 left-4 w-10 h-10 rounded-full bg-white hover:bg-gray-100 flex items-center justify-center cursor-pointer shadow-md active:scale-95 border-none outline-none select-none z-30 text-black transition-all"
+        <div class="w-full flex flex-col lg:flex-row gap-8 mt-2 items-start">
+          <!-- Left Area: Stage + Dock, plus bottom related belt -->
+          <div class="w-full lg:w-[63%] flex flex-col gap-10 min-w-0">
+            <div class="w-full flex flex-col" [class.lg:flex-row]="!isLandscape()">
+              <!-- Stage: image is the priority, no enclosing split-card -->
+              <div
+                class="relative bg-[var(--color-ink)] rounded-frame frame-trace frame-trace-active overflow-hidden flex items-center justify-center min-h-[320px]"
+                [class.lg:w-[58%]]="!isLandscape()"
+              >
+                <!-- Back button on stage -->
+                <button
+                  (click)="goBack()"
+                  class="absolute top-4 left-4 w-10 h-10 rounded-control bg-surface-high/90 hover:bg-surface-elevated flex items-center justify-center cursor-pointer shadow-card active:scale-95 border-none outline-none select-none z-30 text-text transition-all duration-200 focus-visible:ring-2 focus-visible:ring-accent"
                   title="Quay lại"
+                  aria-label="Quay lại"
                 >
                   <span class="material-symbols-outlined text-xl font-bold">arrow_back</span>
                 </button>
 
-                <img 
-                  [src]="p.imageUrl" 
-                  [alt]="p.title" 
-                  class="w-full h-auto max-h-[650px] object-contain block select-none rounded-[24px]"
+                <img
+                  [src]="p.imageUrl"
+                  [alt]="p.title"
+                  class="w-full h-auto max-h-[720px] object-contain block select-none"
                 />
-                
+
                 <!-- Image overlay options on bottom right -->
-                <div class="absolute bottom-9 right-9 flex items-center gap-2 z-20">
-                  <!-- Image Search badge -->
-                  <div class="flex items-center gap-1 bg-white hover:bg-gray-100 text-black px-3.5 py-2 rounded-full text-xs font-bold shadow-md cursor-pointer transition-colors select-none">
-                    <span class="material-symbols-outlined text-sm leading-none font-bold">search</span>
+                <div class="absolute bottom-5 right-5 flex items-center gap-2 z-20">
+                  <div
+                    class="flex items-center gap-1 bg-surface-high/90 hover:bg-surface-elevated text-text px-3.5 py-2 rounded-control text-xs font-bold shadow-card cursor-pointer transition-colors duration-200 select-none"
+                  >
+                    <span class="material-symbols-outlined text-sm leading-none font-bold"
+                      >search</span
+                    >
                     <span>Tìm kiếm hình ảnh</span>
                   </div>
-                  <!-- Fullscreen -->
-                  <button class="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center shadow-md hover:bg-gray-100 cursor-pointer active:scale-90 border-none outline-none select-none">
+                  <button
+                    class="w-8 h-8 rounded-control bg-surface-high/90 text-text flex items-center justify-center shadow-card hover:bg-surface-elevated cursor-pointer active:scale-90 border-none outline-none select-none transition-colors duration-200"
+                  >
                     <span class="material-symbols-outlined text-base font-bold">open_in_full</span>
                   </button>
                 </div>
               </div>
 
-              <!-- Right Side: Details & Interaction -->
-              <div class="md:w-1/2 p-8 flex flex-col justify-between bg-white">
-                
-                <!-- Top Row actions -->
-                <div class="flex items-center justify-between pb-6 border-b border-[#dadad3]">
-                  <div class="flex items-center gap-3">
-                    <!-- Hearts / Likes count -->
-                    <button 
-                      (click)="toggleLike()" 
-                      class="h-10 px-4 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center gap-1.5 cursor-pointer transition-colors active:scale-95 border-none outline-none select-none text-black"
+              <!-- Dock: info panel — hairline seam, not a boxed card -->
+              <div
+                class="flex-1 min-w-0 flex flex-col gap-6 border-t lg:border-t-0 lg:border-l border-border pt-6 lg:pt-1 lg:pl-8 mt-6 lg:mt-0 text-left"
+              >
+                <!-- Author profile info -->
+                <button
+                  type="button"
+                  (click)="navigateToProfile(p.user?.username)"
+                  class="flex items-center gap-3 bg-transparent border-none p-0 cursor-pointer text-left select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
+                  [attr.aria-label]="'Xem trang cá nhân của ' + p.user?.username"
+                >
+                  <app-user-avatar [src]="p.user?.avatarUrl" [name]="p.user?.username" [size]="44"></app-user-avatar>
+                  <div class="flex flex-col text-left">
+                    <span class="text-sm font-bold text-text hover:underline">{{ p.user?.username }}</span>
+                    <span class="mono-label text-[10px] uppercase text-text-muted font-medium"
+                      >Người đăng tải</span
+                    >
+                  </div>
+                </button>
+
+                <!-- Title & Description -->
+                <div class="flex flex-col gap-1.5">
+                  <h2 class="text-xl font-bold text-text text-balance">{{ p.title }}</h2>
+                  <p
+                    class="text-sm text-text-muted leading-relaxed break-words whitespace-pre-line"
+                  >
+                    {{ p.description || 'Chưa có mô tả cho tác phẩm này.' }}
+                  </p>
+                </div>
+
+                <!-- AI prompt info if generated -->
+                @if (p.isAiGenerated) {
+                  <div
+                    class="p-4 rounded-control bg-surface-elevated border border-border flex flex-col gap-2"
+                  >
+                    <div
+                      class="mono-label flex items-center gap-1.5 text-[11px] uppercase text-text font-bold"
+                    >
+                      <span class="material-symbols-outlined text-sm leading-none text-accent"
+                        >auto_awesome</span
+                      >
+                      <span>AI · {{ p.generationModel || 'Model' }}</span>
+                    </div>
+                    <p
+                      class="text-xs text-text-muted leading-normal italic font-medium break-words select-all"
+                    >
+                      "{{ p.promptUsed }}"
+                    </p>
+                  </div>
+                }
+
+                <!-- Action row -->
+                <div
+                  class="flex items-center justify-between gap-3 py-4 border-y border-border flex-wrap"
+                >
+                  <div class="flex items-center gap-2.5">
+                    <!-- Like -->
+                    <button
+                      (click)="toggleLike()"
+                      class="h-10 px-4 bg-surface-elevated hover:bg-surface-high rounded-control flex items-center gap-1.5 cursor-pointer transition-colors duration-200 active:scale-95 border-none outline-none select-none text-text focus-visible:ring-2 focus-visible:ring-accent"
                       [title]="isLikedByUser() ? 'Bỏ thích' : 'Thích'"
                     >
-                      <span 
-                        class="material-symbols-outlined text-lg leading-none font-bold" 
-                        [class.text-[#e60023]]="isLikedByUser()"
-                        [class.text-black]="!isLikedByUser()"
+                      <span
+                        class="material-symbols-outlined text-lg leading-none font-bold"
+                        [class.text-accent]="isLikedByUser()"
+                        [class.text-text-muted]="!isLikedByUser()"
                       >
                         favorite
                       </span>
-                      <span class="text-xs font-bold">{{ p.likes?.length || 0 }}</span>
+                      <span class="mono-label text-xs font-bold">{{
+                        p.likeCount ?? p._count?.likes ?? 0
+                      }}</span>
                     </button>
-                    
+
                     <!-- Share -->
-                    <button class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center cursor-pointer transition-colors active:scale-90 border-none outline-none select-none text-black">
+                    <button type="button" (click)="downloadPin()" class="h-10 px-4 rounded-control bg-accent text-white font-bold text-xs border-none cursor-pointer">
+                      {{ p.isForSale && p.user?.id !== supabaseService.user()?.id ? ('Mua & tải · ' + (p.price | number) + 'đ') : 'Tải ảnh' }}
+                    </button>
+                    <span *ngIf="downloadMessage()" class="text-[10px] text-text-muted">{{ downloadMessage() }}</span>
+
+                    <!-- Share -->
+                    <button
+                      class="w-10 h-10 rounded-control bg-surface-elevated hover:bg-surface-high flex items-center justify-center cursor-pointer transition-colors duration-200 active:scale-90 border-none outline-none select-none text-text focus-visible:ring-2 focus-visible:ring-accent"
+                    >
                       <span class="material-symbols-outlined text-lg leading-none">upload</span>
                     </button>
 
                     <!-- Option menu -->
-                    <button class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center cursor-pointer transition-colors active:scale-90 border-none outline-none select-none text-black">
-                      <span class="material-symbols-outlined text-lg leading-none font-bold">more_horiz</span>
+                    <button
+                      class="w-10 h-10 rounded-control bg-surface-elevated hover:bg-surface-high flex items-center justify-center cursor-pointer transition-colors duration-200 active:scale-90 border-none outline-none select-none text-text focus-visible:ring-2 focus-visible:ring-accent"
+                    >
+                      <span class="material-symbols-outlined text-lg leading-none font-bold"
+                        >more_horiz</span
+                      >
                     </button>
                   </div>
 
-                  <!-- Profile Board save -->
+                  <!-- Collection save -->
                   <div class="flex items-center gap-2 select-none relative">
-                    <!-- Dropdown Trigger -->
-                    <button 
+                    <button
                       (click)="toggleBoardDropdown($event)"
-                      class="h-10 px-4 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-bold flex items-center gap-1 cursor-pointer border-none outline-none text-black select-none"
+                      class="h-10 px-4 bg-surface-elevated hover:bg-surface-high rounded-control text-sm font-bold flex items-center gap-1 cursor-pointer border-none outline-none text-text select-none focus-visible:ring-2 focus-visible:ring-accent"
                     >
                       <span>{{ getSelectedBoardName() }}</span>
-                      <span class="material-symbols-outlined text-base leading-none">keyboard_arrow_down</span>
+                      <span class="material-symbols-outlined text-base leading-none"
+                        >keyboard_arrow_down</span
+                      >
                     </button>
-                    
-                    <!-- Dropdown options list -->
+
                     @if (showBoardDropdown()) {
-                      <div class="absolute left-0 top-11 w-48 bg-white rounded-2xl shadow-2xl border border-gray-100 py-1.5 z-50 text-left">
-                        <span class="text-[9px] uppercase tracking-wider text-gray-400 font-bold px-4 py-1 block">Lưu vào bảng</span>
+                      <div
+                        class="absolute right-0 top-11 w-48 glass-elevated rounded-panel shadow-card py-1.5 z-50 text-left"
+                      >
+                        <span
+                          class="mono-label text-[9px] uppercase text-text-muted font-bold px-4 py-1 block"
+                          >Lưu vào bộ sưu tập</span
+                        >
                         <div class="max-h-[140px] overflow-y-auto">
                           @for (b of boards(); track b.id) {
-                            <div 
+                            <div
                               (click)="selectBoard(b, $event)"
-                              class="px-4 py-2 text-xs font-bold text-black hover:bg-gray-50 cursor-pointer truncate"
+                              class="px-4 py-2 text-xs font-bold text-text hover:bg-surface-elevated cursor-pointer truncate"
                             >
                               {{ b.name }}
                             </div>
@@ -114,131 +190,114 @@
                       </div>
                     }
 
-                    <!-- Save button -->
-                    <button 
+                    <button
                       (click)="savePinToBoard()"
-                      class="h-10 px-6 bg-[#e60023] hover:bg-[#cc001f] text-white rounded-full text-sm font-bold cursor-pointer active:scale-95 border-none outline-none"
+                      class="h-10 px-6 bg-gradient-brand cta-shape text-text text-sm font-bold cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     >
                       Lưu
                     </button>
                   </div>
                 </div>
 
-                <!-- Body details -->
-                <div class="flex-1 py-6 flex flex-col gap-6 min-h-0 overflow-y-auto">
-                  
-                  <!-- Author profile info -->
-                  <div class="flex items-center gap-3">
-                    <img 
-                      [src]="p.user?.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'" 
-                      alt="Avatar" 
-                      class="w-11 h-11 rounded-full border border-gray-200 object-cover"
-                    />
-                    <div class="flex flex-col text-left">
-                      <span class="text-sm font-bold text-black">{{ p.user?.username }}</span>
-                      <span class="text-[11px] text-[#62625b] font-medium">Người đăng tải</span>
-                    </div>
-                  </div>
+                <!-- Discussion -->
+                <div class="flex flex-col gap-4">
+                  <span class="mono-label text-[11px] uppercase text-text font-bold select-none">
+                    Thảo luận · {{ p.comments?.length || 0 }}
+                  </span>
 
-                  <!-- Title & Description -->
-                  <div class="flex flex-col gap-1.5 text-left">
-                    <h2 class="text-xl font-bold text-black">{{ p.title }}</h2>
-                    <p class="text-sm text-[#211922] leading-relaxed break-words whitespace-pre-line">
-                      {{ p.description || 'Ảnh nghệ thuật phong cách Pinterest.' }}
-                    </p>
-                  </div>
-
-                  <!-- AI prompt info if generated -->
-                  @if (p.isAiGenerated) {
-                    <div class="p-4 rounded-2xl bg-[#f6f6f3] border border-[#dadad3] flex flex-col gap-2 text-left">
-                      <div class="flex items-center gap-1.5 text-xs text-[#211922] font-bold">
-                        <span class="material-symbols-outlined text-sm leading-none">auto_awesome</span>
-                        <span>Ảnh được tạo bởi AI ({{ p.generationModel || 'AI Model' }})</span>
-                      </div>
-                      <p class="text-xs text-[#62625b] leading-normal italic font-medium break-words select-all">
-                        "{{ p.promptUsed }}"
+                  <div class="flex flex-col gap-3 max-h-[260px] overflow-y-auto pr-1">
+                    @if (!p.comments || p.comments.length === 0) {
+                      <p class="text-xs text-text-muted py-2">
+                        Chưa có bình luận nào. Hãy là người đầu tiên chia sẻ cảm nghĩ!
                       </p>
-                    </div>
-                  }
+                    }
 
-                  <!-- Comments List -->
-                  <div class="flex flex-col gap-4 mt-2 text-left">
-                    <span class="text-xs font-bold text-black uppercase tracking-wider select-none">
-                      Bình luận ({{ p.comments?.length || 0 }})
-                    </span>
-                    
-                    <div class="flex flex-col gap-3 max-h-[220px] overflow-y-auto pr-1">
-                      <!-- If no comments -->
-                      @if (!p.comments || p.comments.length === 0) {
-                        <p class="text-xs text-[#91918c] py-2">
-                          Chưa có bình luận nào. Hãy là người đầu tiên chia sẻ cảm nghĩ!
-                        </p>
-                      }
-                      
-                      <!-- Comment items -->
-                      @for (comment of p.comments; track comment.id) {
-                        <div class="flex gap-2.5 items-start text-left">
-                          <img 
-                            [src]="comment.user?.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'" 
-                            alt="Avatar" 
-                            class="w-8 h-8 rounded-full border border-gray-200 object-cover shrink-0"
-                          />
-                          <div class="flex flex-col bg-gray-50 rounded-2xl px-3 py-2 flex-1 min-w-0">
-                            <span class="text-xs font-bold text-black truncate">{{ comment.user?.username }}</span>
-                            <p class="text-xs text-[#211922] mt-0.5 leading-relaxed break-words whitespace-pre-line">{{ comment.content }}</p>
-                          </div>
+                    @for (comment of p.comments; track comment.id) {
+                      <div class="flex gap-2.5 items-start">
+                        <button
+                          type="button"
+                          (click)="navigateToProfile(comment.user?.username)"
+                          class="bg-transparent border-none p-0 cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full"
+                          [attr.aria-label]="'Xem trang cá nhân của ' + comment.user?.username"
+                        >
+                          <app-user-avatar
+                            [src]="comment.user?.avatarUrl"
+                            [name]="comment.user?.username"
+                            [size]="32"
+                          ></app-user-avatar>
+                        </button>
+                        <div
+                          class="flex flex-col bg-surface-elevated rounded-control px-3 py-2 flex-1 min-w-0"
+                        >
+                          <button
+                            type="button"
+                            (click)="navigateToProfile(comment.user?.username)"
+                            class="text-xs font-bold text-text truncate bg-transparent border-none p-0 cursor-pointer text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control w-fit"
+                          >
+                            {{ comment.user?.username }}
+                          </button>
+                          <p
+                            class="text-xs text-text-muted mt-0.5 leading-relaxed break-words whitespace-pre-line"
+                          >
+                            {{ comment.content }}
+                          </p>
                         </div>
-                      }
-                    </div>
+                      </div>
+                    }
                   </div>
 
-                </div>
+                  <!-- Comment input form -->
+                  <div class="pt-4 border-t border-border flex items-center gap-3">
+                    <app-user-avatar [src]="myAvatarUrl()" [name]="myDisplayName()" [size]="36"></app-user-avatar>
 
-                <!-- Comment input form -->
-                <div class="pt-4 border-t border-[#dadad3] flex items-center gap-3">
-                  <!-- Current user avatar -->
-                  <img 
-                    [src]="(supabaseService.user()?.user_metadata?.['avatar_url'] || supabaseService.user()?.user_metadata?.['picture']) || 'https://api.dicebear.com/7.x/bottts/svg'" 
-                    alt="User avatar" 
-                    class="w-9 h-9 rounded-full border border-gray-200 object-cover"
-                  />
-                  
-                  <form (submit)="submitComment(); $event.preventDefault();" class="flex-1 flex gap-2">
-                    <input 
-                      type="text" 
-                      name="commentText" 
-                      [(ngModel)]="newCommentText" 
-                      placeholder="Thêm nhận xét..." 
-                      class="flex-1 bg-[#f6f6f3] border border-transparent focus:border-gray-200 focus:bg-white outline-none rounded-full px-4 h-10 text-xs text-black transition-all"
-                      [disabled]="isSubmittingComment"
-                    />
-                    <button 
-                      type="submit" 
-                      class="h-10 px-4 bg-black text-white hover:bg-gray-800 rounded-full text-xs font-bold cursor-pointer active:scale-95 transition-all border-none outline-none"
-                      [disabled]="isSubmittingComment || !newCommentText.trim()"
+                    <form
+                      (submit)="submitComment(); $event.preventDefault()"
+                      class="flex-1 flex gap-2"
                     >
-                      Gửi
-                    </button>
-                  </form>
+                      <input
+                        type="text"
+                        name="commentText"
+                        [(ngModel)]="newCommentText"
+                        placeholder="Thêm nhận xét..."
+                        class="flex-1 bg-surface-elevated border border-border focus:border-accent outline-none rounded-control px-4 h-10 text-xs text-text placeholder-text-muted transition-all focus:ring-2 focus:ring-accent/40"
+                        [disabled]="isSubmittingComment"
+                      />
+                      <button
+                        type="submit"
+                        class="h-10 px-4 bg-gradient-brand cta-shape text-text text-xs font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
+                        [disabled]="isSubmittingComment || !newCommentText.trim()"
+                      >
+                        Gửi
+                      </button>
+                    </form>
+                  </div>
                 </div>
-
               </div>
             </div>
 
-            <!-- Bottom Related Pins (below card) -->
-            <div class="flex flex-col gap-6 mt-4">
-              <h3 class="text-lg font-bold text-black text-center select-none">Khám phá thêm các hình ảnh tương tự</h3>
-              
-              <!-- Shimmer Skeletons for bottom related pins -->
+            <!-- Bottom Related Pins (below stage) -->
+            <div class="flex flex-col gap-6 mt-2">
+              <h3 class="mono-label text-xs uppercase text-text-muted text-center select-none">
+                Từ kho lưu trữ — hình ảnh liên quan
+              </h3>
+
               @if (isRelatedLoading()) {
                 <div class="flex gap-3.5 w-full">
                   @for (colIndex of getBottomColumnsArray(); track colIndex) {
                     <div class="flex flex-col gap-3.5 flex-1 min-w-0">
                       @for (dummy of getBottomSkeletonsForColumn(colIndex); track dummy) {
                         <div class="flex flex-col">
-                          <div class="w-full rounded-[24px] bg-[#e9e9e9] animate-pulse" [ngStyle]="{'height': (dummy % 3 === 0 ? '240px' : dummy % 3 === 1 ? '320px' : '280px')}"></div>
+                          <div
+                            class="skeleton w-full"
+                            [class.rounded-frame]="dummy % 2 === 0"
+                            [class.rounded-frame-alt]="dummy % 2 !== 0"
+                            [ngStyle]="{
+                              height:
+                                dummy % 3 === 0 ? '240px' : dummy % 3 === 1 ? '320px' : '280px',
+                            }"
+                          ></div>
                           <div class="mt-2 flex flex-col gap-1 px-1">
-                            <div class="h-3 w-2/3 bg-[#e9e9e9] rounded animate-pulse"></div>
+                            <div class="skeleton rounded-control h-3 w-2/3"></div>
                           </div>
                         </div>
                       }
@@ -247,43 +306,43 @@
                 </div>
               }
 
-              <!-- Non-shifting Flex Columns for bottom related pins -->
               @if (!isRelatedLoading() && relatedPins().length > 0) {
                 <div class="flex gap-3.5 w-full">
                   @for (colIndex of getBottomColumnsArray(); track colIndex) {
                     <div class="flex flex-col gap-3.5 flex-1 min-w-0">
-                      @for (rel of getBottomRelatedPinsForColumn(colIndex); track rel.id) {
-                        <div 
+                      @for (
+                        rel of getBottomRelatedPinsForColumn(colIndex);
+                        track rel.id;
+                        let i = $index
+                      ) {
+                        <div
                           (click)="navigateToPin(rel.id)"
                           class="group cursor-pointer flex flex-col mb-1"
                         >
-                          <div 
-                            class="relative overflow-hidden rounded-[24px] bg-[#f6f6f3] shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-300"
+                          <div
+                            class="relative overflow-hidden bg-surface shadow-card glow-hover frame-trace"
+                            [class.rounded-frame]="i % 2 === 0"
+                            [class.rounded-frame-alt]="i % 2 !== 0"
                             [style.aspect-ratio]="rel.aspectRatio || '0.75'"
                           >
-                            <img 
-                              [src]="rel.image" 
-                              [alt]="rel.title" 
+                            <img
+                              [src]="rel.image"
+                              [alt]="rel.title"
                               loading="lazy"
                               fetchpriority="low"
-                              class="w-full h-full object-cover rounded-[24px] block transition-transform duration-300 group-hover:scale-102"
+                              class="w-full h-full object-cover block transition-transform duration-500 ease-spring group-hover:scale-[1.04]"
                             />
-                            <!-- Hover overlay -->
-                            <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3.5 text-white z-10">
-                              <div class="flex justify-end">
-                                <button class="bg-[#e60023] hover:bg-[#cc001f] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none">
-                                  Lưu
-                                </button>
-                              </div>
-                              <div class="flex items-center justify-between w-full min-w-0">
-                                <div class="flex items-center gap-1 bg-white/20 backdrop-blur-md px-2 py-1 rounded-full text-[10px] font-semibold text-white">
-                                  <span class="material-symbols-outlined text-[10px] leading-none">arrow_outward</span>
-                                  <span class="truncate max-w-[60px]">pinterest.com</span>
-                                </div>
-                                <button class="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-100 cursor-pointer border-none outline-none">
-                                  <span class="material-symbols-outlined text-sm font-bold">more_horiz</span>
-                                </button>
-                              </div>
+                            <div
+                              class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 flex items-center justify-between gap-2 z-10"
+                            >
+                              <span
+                                class="mono-label text-[10px] uppercase text-text-muted truncate max-w-[60%]"
+                                >{{ rel.title }}</span
+                              >
+                              <span
+                                class="material-symbols-outlined text-base text-text-muted hover:text-text cursor-pointer"
+                                >more_horiz</span
+                              >
                             </div>
                           </div>
                         </div>
@@ -292,9 +351,17 @@
                       @if (isScrollingLoad()) {
                         @for (dummy of getBottomSkeletonsForColumn(colIndex); track dummy) {
                           <div class="flex flex-col mt-2">
-                            <div class="w-full rounded-[24px] bg-[#e9e9e9] animate-pulse" [ngStyle]="{'height': (dummy % 3 === 0 ? '240px' : dummy % 3 === 1 ? '320px' : '280px')}"></div>
+                            <div
+                              class="skeleton w-full"
+                              [class.rounded-frame]="dummy % 2 === 0"
+                              [class.rounded-frame-alt]="dummy % 2 !== 0"
+                              [ngStyle]="{
+                                height:
+                                  dummy % 3 === 0 ? '240px' : dummy % 3 === 1 ? '320px' : '280px',
+                              }"
+                            ></div>
                             <div class="mt-2 flex flex-col gap-1 px-1">
-                              <div class="h-3 w-2/3 bg-[#e9e9e9] rounded animate-pulse"></div>
+                              <div class="skeleton rounded-control h-3 w-2/3"></div>
                             </div>
                           </div>
                         }
@@ -304,22 +371,24 @@
                 </div>
               }
             </div>
-
           </div>
 
-          <!-- Right Side Sidebar Area (37% width): Side Related Pins -->
+          <!-- Right Side Sidebar Area: Side Related Pins -->
           <div class="hidden lg:flex lg:w-[37%] flex-col gap-4">
-            
-            <!-- Shimmer Skeletons for sidebar related pins -->
             @if (isRelatedLoading()) {
               <div class="flex gap-3.5 w-full">
                 @for (colIndex of getSideColumnsArray(); track colIndex) {
                   <div class="flex flex-col gap-3.5 flex-1 min-w-0">
                     @for (dummy of getSideSkeletonsForColumn(colIndex); track dummy) {
                       <div class="flex flex-col">
-                        <div class="w-full rounded-[24px] bg-[#e9e9e9] animate-pulse" [ngStyle]="{'height': (dummy % 2 === 0 ? '250px' : '310px')}"></div>
+                        <div
+                          class="skeleton w-full"
+                          [class.rounded-frame]="dummy % 2 === 0"
+                          [class.rounded-frame-alt]="dummy % 2 !== 0"
+                          [ngStyle]="{ height: dummy % 2 === 0 ? '250px' : '310px' }"
+                        ></div>
                         <div class="mt-2 flex flex-col gap-1 px-1">
-                          <div class="h-3 w-1/2 bg-[#e9e9e9] rounded animate-pulse"></div>
+                          <div class="skeleton rounded-control h-3 w-1/2"></div>
                         </div>
                       </div>
                     }
@@ -328,43 +397,43 @@
               </div>
             }
 
-            <!-- Non-shifting Flex Columns for sidebar related pins -->
             @if (!isRelatedLoading() && relatedPins().length > 0) {
               <div class="flex gap-3.5 w-full">
                 @for (colIndex of getSideColumnsArray(); track colIndex) {
                   <div class="flex flex-col gap-3.5 flex-1 min-w-0">
-                    @for (rel of getSideRelatedPinsForColumn(colIndex); track rel.id) {
-                      <div 
+                    @for (
+                      rel of getSideRelatedPinsForColumn(colIndex);
+                      track rel.id;
+                      let i = $index
+                    ) {
+                      <div
                         (click)="navigateToPin(rel.id)"
                         class="group cursor-pointer flex flex-col mb-1"
                       >
-                        <div 
-                          class="relative overflow-hidden rounded-[24px] bg-[#f6f6f3] shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-300"
+                        <div
+                          class="relative overflow-hidden bg-surface shadow-card glow-hover"
+                          [class.rounded-frame]="i % 2 === 0"
+                          [class.rounded-frame-alt]="i % 2 !== 0"
                           [style.aspect-ratio]="rel.aspectRatio || '0.75'"
                         >
-                          <img 
-                            [src]="rel.image" 
-                            [alt]="rel.title" 
+                          <img
+                            [src]="rel.image"
+                            [alt]="rel.title"
                             loading="lazy"
                             fetchpriority="low"
-                            class="w-full h-full object-cover rounded-[24px] block transition-transform duration-300 group-hover:scale-102"
+                            class="w-full h-full object-cover block transition-transform duration-500 ease-spring group-hover:scale-[1.04]"
                           />
-                          <!-- Hover overlay -->
-                          <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3.5 text-white z-10">
-                            <div class="flex justify-end">
-                              <button class="bg-[#e60023] hover:bg-[#cc001f] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none">
-                                Lưu
-                              </button>
-                            </div>
-                            <div class="flex items-center justify-between w-full min-w-0">
-                              <div class="flex items-center gap-1 bg-white/20 backdrop-blur-md px-2 py-1 rounded-full text-[10px] font-semibold text-white">
-                                  <span class="material-symbols-outlined text-[10px] leading-none">arrow_outward</span>
-                                  <span class="truncate max-w-[60px]">pinterest.com</span>
-                                </div>
-                                <button class="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-100 cursor-pointer border-none outline-none">
-                                  <span class="material-symbols-outlined text-sm font-bold">more_horiz</span>
-                                </button>
-                              </div>
+                          <div
+                            class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 flex items-center justify-between gap-2 z-10"
+                          >
+                            <span
+                              class="mono-label text-[10px] uppercase text-text-muted truncate max-w-[60%]"
+                              >{{ rel.title }}</span
+                            >
+                            <span
+                              class="material-symbols-outlined text-base text-text-muted hover:text-text cursor-pointer"
+                              >more_horiz</span
+                            >
                           </div>
                         </div>
                       </div>
@@ -373,9 +442,14 @@
                     @if (isScrollingLoad()) {
                       @for (dummy of getSideSkeletonsForColumn(colIndex); track dummy) {
                         <div class="flex flex-col mt-2">
-                          <div class="w-full rounded-[24px] bg-[#e9e9e9] animate-pulse" [ngStyle]="{'height': (dummy % 2 === 0 ? '250px' : '310px')}"></div>
+                          <div
+                            class="skeleton w-full"
+                            [class.rounded-frame]="dummy % 2 === 0"
+                            [class.rounded-frame-alt]="dummy % 2 !== 0"
+                            [ngStyle]="{ height: dummy % 2 === 0 ? '250px' : '310px' }"
+                          ></div>
                           <div class="mt-2 flex flex-col gap-1 px-1">
-                            <div class="h-3 w-1/2 bg-[#e9e9e9] rounded animate-pulse"></div>
+                            <div class="skeleton rounded-control h-3 w-1/2"></div>
                           </div>
                         </div>
                       }

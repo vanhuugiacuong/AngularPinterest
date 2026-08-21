@@ -1,0 +1,433 @@
+<div class="min-h-screen bg-bg text-text flex flex-col font-sans relative">
+  <app-navbar></app-navbar>
+
+  <div class="flex-1 pt-16 flex flex-col min-w-0">
+    <main class="flex-1 w-full mx-auto px-0 sm:px-6 lg:px-8 py-0 sm:py-6 flex flex-col max-w-[1400px] min-h-0">
+      <div
+        class="flex-1 flex min-h-0 border border-border rounded-none sm:rounded-panel overflow-hidden bg-surface shadow-card"
+        style="height: calc(100vh - 64px); max-height: calc(100vh - 96px);"
+      >
+        <!-- Left panel: conversation list / requests -->
+        <aside
+          class="w-full sm:w-[340px] sm:flex shrink-0 border-r border-border flex-col min-h-0"
+          [class.hidden]="selectedConversationId()"
+          [class.flex]="!selectedConversationId()"
+        >
+          <div class="flex items-center gap-1 p-3 border-b border-border shrink-0" role="tablist" aria-label="Hộp thư">
+            <button
+              type="button"
+              role="tab"
+              [attr.aria-selected]="activeSection() === 'chats'"
+              (click)="setSection('chats')"
+              [class.bg-text]="activeSection() === 'chats'"
+              [class.text-bg]="activeSection() === 'chats'"
+              [class.text-text-muted]="activeSection() !== 'chats'"
+              class="flex-1 h-10 rounded-control text-xs font-bold cursor-pointer transition-colors duration-200"
+            >
+              Trò chuyện
+            </button>
+            <button
+              type="button"
+              role="tab"
+              [attr.aria-selected]="activeSection() === 'requests'"
+              (click)="setSection('requests')"
+              [class.bg-text]="activeSection() === 'requests'"
+              [class.text-bg]="activeSection() === 'requests'"
+              [class.text-text-muted]="activeSection() !== 'requests'"
+              class="relative flex-1 h-10 rounded-control text-xs font-bold cursor-pointer transition-colors duration-200"
+            >
+              Yêu cầu
+              @if (incomingRequests().length > 0) {
+                <span
+                  class="absolute top-1 right-3 min-w-[16px] h-4 px-1 rounded-full bg-accent text-bg text-[10px] font-bold flex items-center justify-center"
+                >
+                  {{ incomingRequests().length }}
+                </span>
+              }
+            </button>
+          </div>
+
+          <!-- Conversations -->
+          @if (activeSection() === 'chats') {
+            <div class="flex-1 overflow-y-auto min-h-0">
+              @if (conversationsLoading()) {
+                <div class="flex flex-col gap-1 p-2">
+                  @for (dummy of [1, 2, 3, 4, 5]; track dummy) {
+                    <div class="flex items-center gap-3 p-2">
+                      <div class="skeleton w-11 h-11 rounded-full shrink-0"></div>
+                      <div class="flex-1 flex flex-col gap-1.5">
+                        <div class="skeleton h-3 w-1/2 rounded-control"></div>
+                        <div class="skeleton h-2.5 w-3/4 rounded-control"></div>
+                      </div>
+                    </div>
+                  }
+                </div>
+              } @else if (conversationsError()) {
+                <div class="flex flex-col items-center gap-3 py-10 px-4 text-center" role="alert">
+                  <span class="material-symbols-outlined text-2xl text-error">cloud_off</span>
+                  <p class="text-xs text-text-muted">{{ conversationsError() }}</p>
+                  <button type="button" (click)="loadConversations()" class="h-9 px-4 rounded-control bg-surface-elevated border border-border text-xs font-bold cursor-pointer">
+                    Thử lại
+                  </button>
+                </div>
+              } @else if (conversations().length === 0) {
+                <div class="flex flex-col items-center gap-2 py-14 px-4 text-center">
+                  <span class="material-symbols-outlined text-2xl text-text-muted">forum</span>
+                  <p class="text-xs text-text-muted">Chưa có cuộc trò chuyện nào.</p>
+                </div>
+              } @else {
+                @for (conversation of conversations(); track trackByConversationId($index, conversation)) {
+                  <button
+                    type="button"
+                    (click)="selectConversation(conversation.id)"
+                    class="w-full flex items-center gap-3 p-3 text-left cursor-pointer transition-colors duration-150 hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    [class.bg-surface-elevated]="selectedConversationId() === conversation.id"
+                  >
+                    <app-user-avatar
+                      [src]="conversation.otherUser.avatarUrl"
+                      [name]="conversation.otherUser.username"
+                      [size]="44"
+                    ></app-user-avatar>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-sm font-bold text-text truncate">{{ conversation.otherUser.username }}</span>
+                        <span class="text-[10px] text-text-muted shrink-0">{{ formatConversationTime(conversation.updatedAt) }}</span>
+                      </div>
+                      <div class="flex items-center justify-between gap-2 mt-0.5">
+                        <span class="text-xs text-text-muted truncate">
+                          {{ conversation.lastMessage?.content || 'Bắt đầu cuộc trò chuyện' }}
+                        </span>
+                        @if (conversation.unreadCount > 0) {
+                          <span class="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-accent text-bg text-[10px] font-bold flex items-center justify-center">
+                            {{ conversation.unreadCount }}
+                          </span>
+                        }
+                      </div>
+                    </div>
+                  </button>
+                }
+              }
+            </div>
+          }
+
+          <!-- Requests -->
+          @if (activeSection() === 'requests') {
+            <div class="flex flex-col min-h-0 flex-1">
+              <div class="flex items-center gap-1 px-3 pt-3 shrink-0">
+                <button
+                  type="button"
+                  (click)="setRequestsTab('incoming')"
+                  [class.text-text]="requestsTab() === 'incoming'"
+                  [class.text-text-muted]="requestsTab() !== 'incoming'"
+                  [class.border-accent]="requestsTab() === 'incoming'"
+                  [class.border-transparent]="requestsTab() !== 'incoming'"
+                  class="pb-2 px-1 text-xs font-bold border-b-2 cursor-pointer transition-colors duration-150"
+                >
+                  Đã nhận ({{ incomingRequests().length }})
+                </button>
+                <button
+                  type="button"
+                  (click)="setRequestsTab('outgoing')"
+                  [class.text-text]="requestsTab() === 'outgoing'"
+                  [class.text-text-muted]="requestsTab() !== 'outgoing'"
+                  [class.border-accent]="requestsTab() === 'outgoing'"
+                  [class.border-transparent]="requestsTab() !== 'outgoing'"
+                  class="pb-2 px-1 text-xs font-bold border-b-2 cursor-pointer transition-colors duration-150 ml-3"
+                >
+                  Đã gửi ({{ outgoingRequests().length }})
+                </button>
+              </div>
+
+              <div class="flex-1 overflow-y-auto min-h-0 border-t border-border mt-2">
+                @if (requestsLoading()) {
+                  <div class="flex flex-col gap-1 p-2">
+                    @for (dummy of [1, 2, 3]; track dummy) {
+                      <div class="flex items-center gap-3 p-2">
+                        <div class="skeleton w-11 h-11 rounded-full shrink-0"></div>
+                        <div class="flex-1 flex flex-col gap-1.5">
+                          <div class="skeleton h-3 w-1/2 rounded-control"></div>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                } @else if (requestsError()) {
+                  <div class="flex flex-col items-center gap-3 py-10 px-4 text-center" role="alert">
+                    <span class="material-symbols-outlined text-2xl text-error">cloud_off</span>
+                    <p class="text-xs text-text-muted">{{ requestsError() }}</p>
+                    <button type="button" (click)="loadRequests()" class="h-9 px-4 rounded-control bg-surface-elevated border border-border text-xs font-bold cursor-pointer">
+                      Thử lại
+                    </button>
+                  </div>
+                } @else if (requestsTab() === 'incoming') {
+                  @if (incomingRequests().length === 0) {
+                    <div class="flex flex-col items-center gap-2 py-14 px-4 text-center">
+                      <span class="material-symbols-outlined text-2xl text-text-muted">mark_email_read</span>
+                      <p class="text-xs text-text-muted">Không có yêu cầu nhắn tin nào.</p>
+                    </div>
+                  } @else {
+                    @for (request of incomingRequests(); track trackByRequestId($index, request)) {
+                      <div class="flex flex-col gap-2.5 p-3 border-b border-border">
+                        <button
+                          type="button"
+                          (click)="navigateToProfile(request.sender?.username)"
+                          class="flex items-center gap-2.5 text-left cursor-pointer bg-transparent border-none p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
+                        >
+                          <app-user-avatar [src]="request.sender?.avatarUrl" [name]="request.sender?.username || ''" [size]="40"></app-user-avatar>
+                          <span class="text-sm font-bold text-text hover:underline">{{ request.sender?.username }}</span>
+                        </button>
+                        <div class="flex items-center gap-2">
+                          <button
+                            type="button"
+                            [disabled]="isRequestPending(request.id)"
+                            (click)="acceptRequest(request)"
+                            class="flex-1 h-9 rounded-control bg-gradient-brand text-text text-xs font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Đồng ý
+                          </button>
+                          <button
+                            type="button"
+                            [disabled]="isRequestPending(request.id)"
+                            (click)="rejectRequest(request)"
+                            class="flex-1 h-9 rounded-control bg-surface-elevated border border-border text-text-muted text-xs font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Từ chối
+                          </button>
+                          <button
+                            type="button"
+                            [disabled]="isRequestPending(request.id)"
+                            (click)="openReportDialog(request)"
+                            aria-label="Báo cáo tài khoản này"
+                            title="Báo cáo"
+                            class="w-9 h-9 rounded-control bg-surface-elevated border border-border text-error flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <span class="material-symbols-outlined text-base leading-none">flag</span>
+                          </button>
+                        </div>
+                      </div>
+                    }
+                  }
+                } @else {
+                  @if (outgoingRequests().length === 0) {
+                    <div class="flex flex-col items-center gap-2 py-14 px-4 text-center">
+                      <span class="material-symbols-outlined text-2xl text-text-muted">outgoing_mail</span>
+                      <p class="text-xs text-text-muted">Bạn chưa gửi yêu cầu nhắn tin nào.</p>
+                    </div>
+                  } @else {
+                    @for (request of outgoingRequests(); track trackByRequestId($index, request)) {
+                      <button
+                        type="button"
+                        (click)="navigateToProfile(request.receiver?.username)"
+                        class="w-full flex items-center gap-3 p-3 border-b border-border text-left cursor-pointer hover:bg-surface-elevated transition-colors duration-150"
+                      >
+                        <app-user-avatar [src]="request.receiver?.avatarUrl" [name]="request.receiver?.username || ''" [size]="40"></app-user-avatar>
+                        <div class="flex-1 min-w-0">
+                          <span class="text-sm font-bold text-text truncate block">{{ request.receiver?.username }}</span>
+                          <span class="text-[11px] text-text-muted">{{ requestStatusLabel(request.status) }}</span>
+                        </div>
+                      </button>
+                    }
+                  }
+                }
+              </div>
+            </div>
+          }
+        </aside>
+
+        <!-- Right panel: thread -->
+        <section
+          class="flex-1 sm:flex flex-col min-h-0 min-w-0"
+          [class.hidden]="!selectedConversationId()"
+          [class.flex]="!!selectedConversationId()"
+        >
+          @if (!selectedConversationId()) {
+            <div class="hidden sm:flex flex-1 flex-col items-center justify-center gap-3 text-center px-6">
+              <span class="material-symbols-outlined text-4xl text-text-muted">chat_bubble</span>
+              <p class="text-sm text-text-muted">Chọn một cuộc trò chuyện để bắt đầu nhắn tin.</p>
+            </div>
+          } @else {
+            <!-- Thread header -->
+            <div class="flex items-center gap-2.5 p-3 border-b border-border shrink-0">
+              <button
+                type="button"
+                (click)="backToList()"
+                class="sm:hidden w-9 h-9 rounded-control flex items-center justify-center hover:bg-surface-elevated cursor-pointer"
+                aria-label="Quay lại danh sách"
+              >
+                <span class="material-symbols-outlined">arrow_back</span>
+              </button>
+              @if (otherUserFor(selectedConversationId()!); as otherUser) {
+                <button
+                  type="button"
+                  (click)="navigateToProfile(otherUser.username)"
+                  class="flex items-center gap-2.5 text-left cursor-pointer bg-transparent border-none p-0 min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
+                >
+                  <app-user-avatar [src]="otherUser.avatarUrl" [name]="otherUser.username" [size]="36"></app-user-avatar>
+                  <span class="flex flex-col min-w-0"><span class="text-sm font-bold text-text truncate hover:underline">{{ otherUser.username }}</span><span class="text-[10px] font-medium" [class.text-success]="otherUserOnline()" [class.text-text-muted]="!otherUserOnline()"><i class="inline-block w-1.5 h-1.5 rounded-full mr-1" [class.bg-success]="otherUserOnline()" [class.bg-text-muted]="!otherUserOnline()"></i>{{ otherUserOnline() ? 'Đang hoạt động' : 'Ngoại tuyến' }}</span></span>
+                </button>
+              }
+            </div>
+
+            <!-- Messages -->
+            <div #messageList class="flex-1 overflow-y-auto min-h-0 p-4 flex flex-col gap-2">
+              @if (messagesLoading()) {
+                <div class="flex-1 flex items-center justify-center">
+                  <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              } @else if (messagesError()) {
+                <div class="flex-1 flex flex-col items-center justify-center gap-3 text-center" role="alert">
+                  <span class="material-symbols-outlined text-2xl text-error">cloud_off</span>
+                  <p class="text-xs text-text-muted">{{ messagesError() }}</p>
+                  <button type="button" (click)="loadMessages(selectedConversationId()!)" class="h-9 px-4 rounded-control bg-surface-elevated border border-border text-xs font-bold cursor-pointer">
+                    Thử lại
+                  </button>
+                </div>
+              } @else {
+                @if (messagesHasMore()) {
+                  <div class="flex justify-center pb-2">
+                    <button
+                      type="button"
+                      [disabled]="messagesLoadingMore()"
+                      (click)="loadMoreMessages()"
+                      class="h-8 px-3.5 rounded-control bg-surface-elevated border border-border text-[11px] font-bold text-text-muted cursor-pointer disabled:opacity-50"
+                    >
+                      @if (messagesLoadingMore()) {
+                        Đang tải...
+                      } @else {
+                        Xem tin nhắn cũ hơn
+                      }
+                    </button>
+                  </div>
+                }
+
+                @if (messages().length === 0) {
+                  <div class="flex-1 flex flex-col items-center justify-center gap-2 text-center">
+                    <span class="material-symbols-outlined text-2xl text-text-muted">waving_hand</span>
+                    <p class="text-xs text-text-muted">Chưa có tin nhắn nào. Hãy gửi lời chào đầu tiên!</p>
+                  </div>
+                }
+
+                @for (message of messages(); track trackByMessageId($index, message)) {
+                  <div class="flex" [class.justify-end]="message.senderId === currentUserId">
+                    <div
+                      class="max-w-[75%] px-3.5 py-2 rounded-control text-sm leading-relaxed break-words whitespace-pre-line"
+                      [class.bg-gradient-brand]="message.senderId === currentUserId"
+                      [class.text-text]="message.senderId === currentUserId"
+                      [class.bg-surface-elevated]="message.senderId !== currentUserId"
+                    >
+                      {{ message.content }}
+                      <div class="text-[10px] opacity-70 mt-1 text-right">{{ formatMessageTime(message.createdAt) }}<span *ngIf="message.senderId === currentUserId"> · {{ message.readAt ? 'Đã xem' : 'Đã gửi' }}</span></div>
+                    </div>
+                  </div>
+                }
+                @if (otherUserTyping()) {
+                  <div class="flex items-center gap-2 text-xs text-text-muted py-1" aria-live="polite"><span class="typing-dots"><i></i><i></i><i></i></span> Đang nhập…</div>
+                }
+              }
+            </div>
+
+            <!-- Composer -->
+            <form (ngSubmit)="sendMessage()" class="flex items-end gap-2 p-3 border-t border-border shrink-0">
+              <textarea
+                name="messageDraft"
+                [(ngModel)]="messageDraft"
+                (ngModelChange)="onDraftInput()"
+                [maxlength]="maxMessageLength"
+                [disabled]="sendPending()"
+                rows="1"
+                placeholder="Nhập tin nhắn..."
+                (keydown.enter)="$event.preventDefault(); sendMessage()"
+                class="flex-1 resize-none bg-surface-elevated border border-border focus:border-accent outline-none rounded-control px-3.5 py-2.5 text-sm text-text placeholder-text-muted transition-all focus:ring-2 focus:ring-accent/40 max-h-32"
+              ></textarea>
+              <button
+                type="submit"
+                [disabled]="sendPending() || !messageDraft.trim()"
+                class="h-10 px-4 bg-gradient-brand cta-shape text-text text-sm font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              >
+                @if (sendPending()) {
+                  <span class="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                } @else {
+                  Gửi
+                }
+              </button>
+            </form>
+            @if (sendError()) {
+              <p class="text-xs text-error px-3 pb-2" role="alert">{{ sendError() }}</p>
+            }
+          }
+        </section>
+      </div>
+    </main>
+  </div>
+
+  @if (reportTarget(); as request) {
+    <div class="fixed inset-0 z-[100] bg-ink/72 backdrop-blur-md flex items-center justify-center p-5" (click)="closeReportDialog()">
+      <section
+        class="w-full max-w-md p-6 rounded-panel border border-border-strong bg-surface-elevated shadow-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="report-request-title"
+        (click)="$event.stopPropagation()"
+      >
+        <h2 id="report-request-title" class="text-lg font-bold text-text mb-4">
+          Báo cáo {{ request.sender?.username }}
+        </h2>
+        <form (ngSubmit)="submitReport()" class="flex flex-col gap-3">
+          <label for="report-request-reason" class="text-xs font-bold text-text-muted">Lý do báo cáo</label>
+          <select
+            id="report-request-reason"
+            name="reportRequestReason"
+            [ngModel]="reportReason()"
+            (ngModelChange)="reportReason.set($event)"
+            [disabled]="reportPending()"
+            class="h-11 px-3.5 rounded-control border border-border bg-bg text-text text-sm"
+          >
+            <option value="SPAM">Spam hoặc quảng cáo</option>
+            <option value="HARASSMENT">Quấy rối</option>
+            <option value="HATE_SPEECH">Ngôn từ thù ghét</option>
+            <option value="IMPERSONATION">Mạo danh</option>
+            <option value="INAPPROPRIATE_CONTENT">Nội dung không phù hợp</option>
+            <option value="OTHER">Khác</option>
+          </select>
+
+          <label for="report-request-details" class="text-xs font-bold text-text-muted">Chi tiết (không bắt buộc)</label>
+          <textarea
+            id="report-request-details"
+            name="reportRequestDetails"
+            rows="3"
+            maxlength="500"
+            [(ngModel)]="reportDetails"
+            [disabled]="reportPending()"
+            class="px-3.5 py-2.5 rounded-control border border-border bg-bg text-text text-sm resize-y"
+            placeholder="Mô tả thêm về vấn đề bạn gặp phải..."
+          ></textarea>
+
+          @if (reportError()) {
+            <p class="text-xs text-error" role="alert">{{ reportError() }}</p>
+          }
+
+          <div class="flex justify-end gap-2 mt-2">
+            <button
+              type="button"
+              (click)="closeReportDialog()"
+              [disabled]="reportPending()"
+              class="h-10 px-4 rounded-control bg-surface border border-border text-text text-sm font-bold cursor-pointer disabled:opacity-50"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              [disabled]="reportPending()"
+              class="h-10 px-4 rounded-control bg-error text-text text-sm font-bold cursor-pointer disabled:opacity-50"
+            >
+              @if (reportPending()) {
+                Đang gửi
+              } @else {
+                Gửi báo cáo
+              }
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  }
+</div>

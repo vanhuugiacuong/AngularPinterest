@@ -98,3 +98,7 @@ web_modules/
 /frontend/node_modules/
 /frontend/dist/
 /frontend/.angular/
+
+# Python virtual environments (local editor tooling only)
+.venv/
+venv/

@@ -1,523 +1,875 @@
-<div class="min-h-screen bg-white text-black flex flex-col font-sans relative">
-  <!-- Navbar handles top header and left vertical sidebar -->
+<div class="profile-page">
   <app-navbar></app-navbar>
 
-  <!-- Main Content Area: Shifted right to clear fixed sidebar, shifted down to clear fixed header -->
-  <!-- Set to full-width (w-full max-w-none px-8) to look spacious and zoomed out exactly like the reference -->
-  <div class="flex-1 pl-16 pt-16 flex flex-col min-w-0">
-    <main class="flex-1 w-full mx-auto px-6 py-8 flex flex-col max-w-[1200px] items-center text-center">
-      
-      <!-- Loading State -->
-      <div *ngIf="isLoading()" class="flex-1 flex flex-col items-center justify-center py-20">
-        <div class="w-10 h-10 border-4 border-[#e60023] border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-xs text-[#62625b] mt-4 font-semibold">Đang tải trang cá nhân...</p>
+  <main class="profile-main">
+    <div class="profile-ambient profile-ambient-one" aria-hidden="true"></div>
+    <div class="profile-ambient profile-ambient-two" aria-hidden="true"></div>
+
+    @if (profileLoading()) {
+      <section class="identity-card identity-skeleton" aria-label="Đang tải hồ sơ">
+        <div class="skeleton avatar-skeleton"></div>
+        <div class="identity-skeleton-copy">
+          <div class="skeleton skeleton-line skeleton-line-short"></div>
+          <div class="skeleton skeleton-line"></div>
+          <div class="skeleton skeleton-line skeleton-line-medium"></div>
+        </div>
+      </section>
+      <div class="content-skeleton-grid" aria-hidden="true">
+        @for (item of [1, 2, 3, 4, 5, 6, 7, 8]; track item; let i = $index) {
+          <div class="skeleton pin-skeleton" [class.rounded-frame]="i % 2 === 0" [class.rounded-frame-alt]="i % 2 !== 0"></div>
+        }
       </div>
-
-      <ng-container *ngIf="!isLoading() && userProfile() as p">
-        
-        <!-- Header Section: Left (Title + Tabs) & Right (User info + Actions) -->
-        <div class="w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-4 mt-2 text-left">
-          
-          <!-- Left: Page Title & Navigation Tabs -->
-          <div class="flex flex-col gap-4">
-            <h1 class="text-[32px] font-extrabold text-[#211922] tracking-tight leading-tight select-none">
-              Ý tưởng bạn đã lưu
-            </h1>
-            
-            <!-- Navigation Tabs -->
-            <div class="flex items-center gap-6 select-none border-b border-transparent">
-              <div 
-                (click)="setTab('created')"
-                class="relative pb-2 cursor-pointer transition-all"
-                [class.opacity-100]="activeTab() === 'created'"
-                [class.opacity-60]="activeTab() !== 'created'"
-              >
-                <span class="text-sm font-bold text-black">Ghim</span>
-                <div *ngIf="activeTab() === 'created'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-black rounded-full"></div>
-              </div>
-              
-              <div 
-                (click)="setTab('boards')"
-                class="relative pb-2 cursor-pointer transition-all"
-                [class.opacity-100]="activeTab() === 'boards'"
-                [class.opacity-60]="activeTab() !== 'boards'"
-              >
-                <span class="text-sm font-bold text-black">Bảng</span>
-                <div *ngIf="activeTab() === 'boards'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-black rounded-full"></div>
-              </div>
-
-              <div class="relative opacity-40 cursor-not-allowed pb-2">
-                <span class="text-sm font-bold text-black">Ảnh ghép</span>
-              </div>
-            </div>
+    } @else if (profileError()) {
+      <section class="profile-state profile-state-large" role="alert">
+        <span class="material-symbols-outlined state-icon">cloud_off</span>
+        <h1>Không thể mở hồ sơ này</h1>
+        <p>{{ profileError() }}</p>
+        <button type="button" class="primary-action" (click)="loadProfile()">
+          <span class="material-symbols-outlined">refresh</span>
+          Thử lại
+        </button>
+      </section>
+    } @else if (profile(); as p) {
+      <section class="identity-card" aria-labelledby="profile-username">
+        <div class="identity-person">
+          <div class="avatar-ring">
+            <img
+              [src]="
+                p.user.avatarUrl ||
+                'https://api.dicebear.com/7.x/bottts/svg?seed=' + p.user.username
+              "
+              [alt]="'Ảnh đại diện của ' + p.user.username"
+              class="profile-avatar"
+            />
           </div>
 
-          <!-- Right: Profile Info Card & Share CTA -->
-          <div class="flex items-center gap-4 shrink-0 ml-auto md:ml-0">
-            <!-- User Info: Avatar next to Name and followers -->
-            <div class="flex items-center gap-3 select-none">
-              <img 
-                [src]="p.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'" 
-                alt="Avatar" 
-                class="w-[80px] h-[80px] rounded-full border border-[#dadad3] object-cover shadow-sm"
-              />
-              <div class="flex flex-col text-left justify-center gap-0.5">
-                <span class="text-xl font-extrabold text-black leading-tight">{{ p.username }}</span>
-                <span class="text-xs text-[#62625b] font-medium">
-                  {{ p._count?.followers || 0 }} người đang theo dõi
-                </span>
-              </div>
+          <div class="identity-copy">
+            <div class="identity-kicker">
+              <span class="signal-dot" aria-hidden="true"></span>
+              Hồ sơ sáng tạo
             </div>
-
-            <!-- Share Profile / Follow action -->
-            <div class="flex items-center gap-2">
-              <button 
-                *ngIf="!isMyProfile()"
-                (click)="toggleFollow()"
-                class="h-10 px-4 bg-[#e60023] hover:bg-[#cc001f] text-white rounded-full text-xs font-bold cursor-pointer transition-colors"
-              >
-                Theo dõi
-              </button>
-              <button class="h-10 px-5 rounded-full bg-[#f0f0f0] hover:bg-[#e1e1da] text-black font-extrabold text-xs cursor-pointer active:scale-95 border-none outline-none select-none transition-all">
-                Chia sẻ hồ sơ
-              </button>
-            </div>
+            <h1 id="profile-username">{{ p.user.username }}</h1>
+            @if (p.user.bio) {
+              <p class="profile-bio">{{ p.user.bio }}</p>
+            } @else if (p.viewer.isOwnProfile) {
+              <p class="profile-bio profile-bio-muted">
+                Không gian để bạn lưu lại dấu ấn sáng tạo.
+              </p>
+            }
           </div>
-
         </div>
 
-        <!-- ======================================= -->
-        <!-- TAB 1: GHIM (Pins saved + board suggestions) -->
-        <!-- ======================================= -->
-        <div *ngIf="activeTab() === 'created'" class="w-full flex flex-col">
-          
-          <!-- Action Bar for Ghim Tab -->
-          <div class="w-full flex items-center justify-between mb-8 mt-2 select-none">
-            <!-- Left action buttons -->
-            <div class="flex items-center gap-2">
-              <button class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center cursor-pointer border-none outline-none text-black transition-colors">
-                <span class="material-symbols-outlined text-[20px] font-semibold">tune</span>
-              </button>
-              <!-- Yêu thích pill button -->
-              <button class="h-9 px-4 rounded-full bg-[#f0f0f0] hover:bg-[#e1e1da] text-black font-bold text-xs flex items-center justify-center gap-1 border-none outline-none cursor-pointer transition-colors">
-                <span class="material-symbols-outlined text-xs leading-none">star</span>
-                <span>Yêu thích</span>
-              </button>
-              <!-- Do bạn tạo pill button -->
-              <button class="h-9 px-4 rounded-full bg-[#f0f0f0] hover:bg-[#e1e1da] text-black font-bold text-xs flex items-center justify-center border-none outline-none cursor-pointer transition-colors">
-                Do bạn tạo
-              </button>
-            </div>
-
-            <!-- Right action button: Tạo (Create) -->
-            <div *ngIf="isMyProfile()" class="relative">
-              <button 
-                (click)="openCreateBoardModal()"
-                class="h-10 px-5 rounded-full bg-[#e60023] hover:bg-[#cc001f] text-white font-extrabold text-xs cursor-pointer transition-all active:scale-95 border-none outline-none shadow-sm flex items-center justify-center"
-                title="Tạo bảng mới"
-              >
-                Tạo
-              </button>
-            </div>
+        <dl class="profile-stats" aria-label="Thống kê hồ sơ">
+          <div class="stat-readout">
+            <dd>{{ p.counts.posts }}</dd>
+            <dt>Tác phẩm</dt>
           </div>
-
-          <!-- Section: Đề xuất bảng (Board Suggestions) -->
-          <div class="w-full flex flex-col gap-3 text-left mb-10">
-            <h3 class="text-[17px] font-extrabold text-[#211922] select-none">Đề xuất bảng</h3>
-            
-            <!-- Grid list showing 5 suggestion cards in a row -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 w-full">
-              
-              <!-- Suggestion 1: Hài hước -->
-              <div class="flex flex-col cursor-pointer group">
-                <div class="aspect-[1.5/1] w-full rounded-[24px] bg-[#e5e5e0] mb-2.5 relative overflow-hidden flex gap-[2px] shadow-sm">
-                  <div class="w-[67%] h-full bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1531804055935-76f44d7c3621?w=300');"></div>
-                  <div class="w-[33%] h-full flex flex-col gap-[2px]">
-                    <div class="h-[50%] bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1544568100-847a948585b9?w=200');"></div>
-                    <div class="h-[50%] bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1472491235688-bdc81a63246e?w=200');"></div>
-                  </div>
-                  <!-- Absolute central white "Tạo" button -->
-                  <div class="absolute inset-0 flex items-center justify-center bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <div class="bg-white text-black font-extrabold px-4.5 py-2.5 rounded-full text-xs shadow-md select-none transform hover:scale-105 active:scale-95 transition-transform">
-                      Tạo
-                    </div>
-                  </div>
-                </div>
-                <span class="text-[13px] font-extrabold text-black truncate px-1">Hài hước</span>
-                <span class="text-[11px] text-[#62625b] font-medium mt-0.5 px-1">28 Ghim</span>
-              </div>
-
-              <!-- Suggestion 2: Động vật hài hước -->
-              <div class="flex flex-col cursor-pointer group">
-                <div class="aspect-[1.5/1] w-full rounded-[24px] bg-[#e5e5e0] mb-2.5 relative overflow-hidden flex gap-[2px] shadow-sm">
-                  <div class="w-[67%] h-full bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=300');"></div>
-                  <div class="w-[33%] h-full flex flex-col gap-[2px]">
-                    <div class="h-[50%] bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=200');"></div>
-                    <div class="h-[50%] bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=200');"></div>
-                  </div>
-                  <div class="absolute inset-0 flex items-center justify-center bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <div class="bg-white text-black font-extrabold px-4.5 py-2.5 rounded-full text-xs shadow-md select-none transform hover:scale-105 active:scale-95 transition-transform">
-                      Tạo
-                    </div>
-                  </div>
-                </div>
-                <span class="text-[13px] font-extrabold text-black truncate px-1">Động vật hài hước</span>
-                <span class="text-[11px] text-[#62625b] font-medium mt-0.5 px-1">28 Ghim</span>
-              </div>
-
-              <!-- Suggestion 3: Động vật -->
-              <div class="flex flex-col cursor-pointer group">
-                <div class="aspect-[1.5/1] w-full rounded-[24px] bg-[#e5e5e0] mb-2.5 relative overflow-hidden flex gap-[2px] shadow-sm">
-                  <div class="w-[67%] h-full bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1470240731273-7821a6eeb6bd?w=300');"></div>
-                  <div class="w-[33%] h-full flex flex-col gap-[2px]">
-                    <div class="h-[50%] bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1484406566174-9da000fda645?w=200');"></div>
-                    <div class="h-[50%] bg-[#e5e5e0]"></div>
-                  </div>
-                  <div class="absolute inset-0 flex items-center justify-center bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <div class="bg-white text-black font-extrabold px-4.5 py-2.5 rounded-full text-xs shadow-md select-none transform hover:scale-105 active:scale-95 transition-transform">
-                      Tạo
-                    </div>
-                  </div>
-                </div>
-                <span class="text-[13px] font-extrabold text-black truncate px-1">Động vật</span>
-                <span class="text-[11px] text-[#62625b] font-medium mt-0.5 px-1">27 Ghim</span>
-              </div>
-
-              <!-- Suggestion 4: Ảnh vui động vật -->
-              <div class="flex flex-col cursor-pointer group">
-                <div class="aspect-[1.5/1] w-full rounded-[24px] bg-[#e5e5e0] mb-2.5 relative overflow-hidden flex gap-[2px] shadow-sm">
-                  <div class="w-[67%] h-full bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=300');"></div>
-                  <div class="w-[33%] h-full flex flex-col gap-[2px]">
-                    <div class="h-[50%] bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=200');"></div>
-                    <div class="h-[50%] bg-[#e5e5e0]"></div>
-                  </div>
-                  <div class="absolute inset-0 flex items-center justify-center bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <div class="bg-white text-black font-extrabold px-4.5 py-2.5 rounded-full text-xs shadow-md select-none transform hover:scale-105 active:scale-95 transition-transform">
-                      Tạo
-                    </div>
-                  </div>
-                </div>
-                <span class="text-[13px] font-extrabold text-black truncate px-1">Ảnh vui động vật</span>
-                <span class="text-[11px] text-[#62625b] font-medium mt-0.5 px-1">20 Ghim</span>
-              </div>
-
-              <!-- Suggestion 5: Pokemon -->
-              <div class="flex flex-col cursor-pointer group">
-                <div class="aspect-[1.5/1] w-full rounded-[24px] bg-[#e5e5e0] mb-2.5 relative overflow-hidden flex gap-[2px] shadow-sm">
-                  <div class="w-[67%] h-full bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=300');"></div>
-                  <div class="w-[33%] h-full flex flex-col gap-[2px]">
-                    <div class="h-[50%] bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1534447677768-be436bb09401?w=200');"></div>
-                    <div class="h-[50%] bg-[#e5e5e0]"></div>
-                  </div>
-                  <div class="absolute inset-0 flex items-center justify-center bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <div class="bg-white text-black font-extrabold px-4.5 py-2.5 rounded-full text-xs shadow-md select-none transform hover:scale-105 active:scale-95 transition-transform">
-                      Tạo
-                    </div>
-                  </div>
-                </div>
-                <span class="text-[13px] font-extrabold text-black truncate px-1">Pokemon</span>
-                <span class="text-[11px] text-[#62625b] font-medium mt-0.5 px-1">18 Ghim</span>
-              </div>
-
-            </div>
+          <div class="stat-readout">
+            <dd>{{ p.counts.albums }}</dd>
+            <dt>Bộ sưu tập</dt>
           </div>
+          <div class="stat-readout">
+            <dd>{{ p.counts.followers }}</dd>
+            <dt>Người theo dõi</dt>
+          </div>
+          <div class="stat-readout">
+            <dd>{{ p.counts.following }}</dd>
+            <dt>Đang theo dõi</dt>
+          </div>
+        </dl>
 
-          <!-- Section: Ghim bạn đã lưu (Pins You Saved - masonry grid) -->
-          <div class="w-full flex flex-col gap-3 text-left">
-            <h3 class="text-[17px] font-extrabold text-[#211922] mb-1 select-none">Ghim bạn đã lưu</h3>
-            
-            <!-- Pinterest Masonry columns of aggregated saved pins -->
-            <div class="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-3.5 w-full">
-              <div 
-                *ngFor="let pin of getSavedPins()" 
-                (click)="navigateToPin(pin.id)"
-                class="break-inside-avoid mb-3.5 group cursor-pointer flex flex-col"
-              >
-                <div class="relative overflow-hidden rounded-[24px] bg-[#f6f6f3] shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-300">
-                  <img 
-                    [src]="pin.imageUrl" 
-                    [alt]="pin.title" 
-                    class="w-full object-cover rounded-[24px] block transition-transform duration-300 group-hover:scale-102"
-                  />
-                  
-                  <!-- Hover Overlay -->
-                  <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 text-white z-10">
-                    <div class="flex justify-end">
-                      <button 
-                        (click)="$event.stopPropagation()"
-                        class="bg-[#e60023] hover:bg-[#cc001f] text-white font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer border-none outline-none"
-                      >
-                        Lưu
-                      </button>
-                    </div>
-                    <div class="flex items-center justify-end w-full min-w-0">
-                      <button 
-                        (click)="$event.stopPropagation()"
-                        class="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-100 cursor-pointer border-none outline-none"
-                      >
-                        <span class="material-symbols-outlined text-sm font-bold">more_horiz</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- Title -->
-                <span class="mt-2 px-1 text-xs font-bold text-[#211922] truncate block">
-                  {{ pin.title }}
+        <div class="identity-actions">
+          @if (!p.viewer.isOwnProfile) {
+            <button
+              type="button"
+              class="primary-action"
+              [class.following-action]="p.viewer.isFollowing"
+              [disabled]="followPending()"
+              (click)="toggleFollow()"
+            >
+              @if (followPending()) {
+                <span class="button-spinner" aria-hidden="true"></span>
+              } @else {
+                <span class="material-symbols-outlined">
+                  {{ p.viewer.isFollowing ? 'person_check' : 'person_add' }}
                 </span>
-              </div>
-            </div>
+              }
+              {{ p.viewer.isFollowing ? 'Bỏ theo dõi' : 'Theo dõi' }}
+            </button>
 
-            <!-- Empty aggregated pins status -->
-            <div 
-              *ngIf="getSavedPins().length === 0" 
-              class="py-20 flex flex-col items-center justify-center text-center gap-3 bg-gray-50 rounded-[32px] border border-dashed border-[#dadad3] w-full"
-            >
-              <span class="material-symbols-outlined text-4xl text-gray-400">photo_library</span>
-              <p class="text-xs font-semibold text-gray-500">Chưa có ghim nào được lưu trong bảng của bạn.</p>
-            </div>
-
-          </div>
-
-        </div>
-
-        <!-- ======================================= -->
-        <!-- TAB 2: BẢNG (User's created board grids) -->
-        <!-- ======================================= -->
-        <div *ngIf="activeTab() === 'boards'" class="w-full flex flex-col animate-fade-in">
-          
-          <!-- Action Bar for Boards Tab -->
-          <div class="w-full flex items-center justify-between mb-8 mt-2 select-none">
-            <!-- Left action buttons -->
-            <div class="flex items-center gap-2">
-              <button class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center cursor-pointer border-none outline-none text-black transition-colors">
-                <span class="material-symbols-outlined text-[20px] font-semibold">tune</span>
-              </button>
-              <button class="h-9 px-4 rounded-full bg-[#f0f0f0] hover:bg-[#e1e1da] text-black font-extrabold text-xs flex items-center justify-center border-none outline-none cursor-pointer transition-colors">
-                Nhóm
-              </button>
-            </div>
-
-            <!-- Right action button: Tạo (Create) -->
-            <div *ngIf="isMyProfile()" class="relative">
-              <button 
-                (click)="openCreateBoardModal()"
-                class="h-10 px-5 rounded-full bg-[#e60023] hover:bg-[#cc001f] text-white font-extrabold text-xs cursor-pointer transition-all active:scale-95 border-none outline-none shadow-sm flex items-center justify-center"
-                title="Tạo bảng mới"
+            <div class="message-row">
+              <button
+                type="button"
+                class="primary-action message-action"
+                [class.following-action]="!p.viewer.canMessage"
+                [disabled]="messageButtonDisabled()"
+                (click)="onMessageAction()"
               >
-                Tạo
+                @if (messageActionPending()) {
+                  <span class="button-spinner" aria-hidden="true"></span>
+                } @else {
+                  <span class="material-symbols-outlined">chat_bubble</span>
+                }
+                {{ messageButtonLabel() }}
               </button>
-            </div>
-          </div>
 
-          <!-- Boards Collage Folders (5 in a row!) -->
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-6 gap-y-8 w-full text-left">
-            
-            <!-- Placeholder "Tạo" Board Card (First position if my profile) -->
-            <div 
-              *ngIf="isMyProfile()"
-              (click)="openCreateBoardModal()"
-              class="flex flex-col cursor-pointer group"
-            >
-              <div class="aspect-[1.5/1] w-full rounded-[24px] bg-[#e5e5e0] mb-3 relative flex items-center justify-center hover:bg-gray-200 transition-colors border border-dashed border-[#dadad3] shadow-[0_2px_8px_rgba(0,0,0,0.01)]">
-                <div class="bg-white text-black font-extrabold px-5 py-2.5 rounded-full text-xs shadow-md hover:scale-105 transition-transform active:scale-95 select-none">
-                  Tạo
-                </div>
-              </div>
-              <span class="text-sm font-bold text-black group-hover:text-[#e60023] transition-colors">
-                Tạo bảng mới
-              </span>
-              <span class="text-[11px] text-[#62625b] font-medium mt-0.5">
-                Sắp xếp ý tưởng của bạn
-              </span>
-            </div>
-
-            <!-- Real Board Cards -->
-            <div 
-              *ngFor="let board of p.boards" 
-              (click)="navigateToBoard(board.id)"
-              class="flex flex-col cursor-pointer group"
-            >
-              <!-- 3-Image Split Collage Thumbnail Box -->
-              <div class="aspect-[1.5/1] w-full rounded-[24px] bg-[#e5e5e0] mb-3 relative overflow-hidden flex gap-[2px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all group-hover:opacity-95">
-                
-                <!-- Main Left (2/3 width) -->
-                <div class="w-[67%] h-full bg-[#dadad3] relative overflow-hidden">
-                  <img 
-                    *ngIf="getBoardPreviews(board)[0]"
-                    [src]="getBoardPreviews(board)[0]" 
-                    class="w-full h-full object-cover block"
-                  />
-                  <!-- Placeholder folder icon if completely empty -->
-                  <div *ngIf="!getBoardPreviews(board)[0]" class="w-full h-full flex items-center justify-center bg-gray-150">
-                    <span class="material-symbols-outlined text-4xl text-[#91918c]">folder</span>
-                  </div>
-                </div>
-
-                <!-- Right Column (1/3 width, split vertically) -->
-                <div class="w-[33%] h-full flex flex-col gap-[2px]">
-                  <!-- Top Right -->
-                  <div class="h-[50%] bg-[#e5e5e0] relative overflow-hidden">
-                    <img 
-                      *ngIf="getBoardPreviews(board)[1]"
-                      [src]="getBoardPreviews(board)[1]" 
-                      class="w-full h-full object-cover block"
-                    />
-                  </div>
-                  <!-- Bottom Right -->
-                  <div class="h-[50%] bg-[#e5e5e0] relative overflow-hidden">
-                    <img 
-                      *ngIf="getBoardPreviews(board)[2]"
-                      [src]="getBoardPreviews(board)[2]" 
-                      class="w-full h-full object-cover block"
-                    />
-                  </div>
-                </div>
-
-                <!-- Private Lock Icon Badge -->
-                <div 
-                  *ngIf="board.isSecret" 
-                  class="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/95 text-black flex items-center justify-center shadow-md z-10"
-                  title="Bảng bí mật"
+              <div class="safety-menu-wrap" data-safety-menu>
+                <button
+                  type="button"
+                  class="icon-action icon-only"
+                  (click)="toggleSafetyMenu($event)"
+                  aria-haspopup="true"
+                  [attr.aria-expanded]="showSafetyMenu()"
+                  aria-label="Thêm tùy chọn cho hồ sơ này"
                 >
-                  <span class="material-symbols-outlined text-[15px] font-bold">lock</span>
-                </div>
-              </div>
-              
-              <!-- Board Title -->
-              <span class="text-sm font-bold text-black truncate group-hover:text-[#e60023] transition-colors px-1">
-                {{ board.name }}
-              </span>
-              
-              <!-- Pins count & status details -->
-              <span class="text-[11px] text-[#62625b] font-medium mt-0.5 px-1">
-                {{ board.boardPins?.length || 0 }} Ghim
-              </span>
-            </div>
-            
-          </div>
-
-          <!-- Section Divider line -->
-          <div class="w-full h-[1px] bg-[#dadad3] my-12"></div>
-
-          <!-- Board Suggestions Section (Boards Tab Suggestion Fallback) -->
-          <div class="w-full flex flex-col gap-6 text-left select-none">
-            <h3 class="text-lg font-extrabold text-[#211922]">Đề xuất bảng</h3>
-            
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 w-full">
-              <!-- Suggestion 1 -->
-              <div class="flex flex-col">
-                <div class="aspect-[1.5/1] w-full rounded-[24px] bg-[#e5e5e0] mb-3 relative overflow-hidden flex gap-[2px] shadow-sm">
-                  <div class="w-[67%] h-full bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=300');"></div>
-                  <div class="w-[33%] h-full flex flex-col gap-[2px]">
-                    <div class="h-[50%] bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1579783928621-7a13d66a62d1?w=200');"></div>
-                    <div class="h-[50%] bg-[#e5e5e0]"></div>
+                  <span class="material-symbols-outlined">expand_more</span>
+                </button>
+                @if (showSafetyMenu()) {
+                  <div class="safety-menu" role="menu" aria-label="Tùy chọn an toàn">
+                    <button type="button" role="menuitem" (click)="openReportDialog()">
+                      <span class="material-symbols-outlined">flag</span>
+                      Báo cáo tài khoản
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      (click)="shareProfile(); showSafetyMenu.set(false)"
+                    >
+                      <span class="material-symbols-outlined">ios_share</span>
+                      Chia sẻ trang cá nhân
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class="danger-item"
+                      (click)="openBlockDialog()"
+                    >
+                      <span class="material-symbols-outlined">block</span>
+                      {{ p.viewer.isBlocked ? 'Bỏ chặn tài khoản' : 'Chặn tài khoản' }}
+                    </button>
                   </div>
-                </div>
-                <span class="text-sm font-bold text-black">Nghệ thuật vẽ tay</span>
-                <span class="text-[11px] text-[#62625b] font-medium mt-0.5">Đề xuất dựa trên sở thích</span>
-              </div>
-
-              <!-- Suggestion 2 -->
-              <div class="flex flex-col">
-                <div class="aspect-[1.5/1] w-full rounded-[24px] bg-[#e5e5e0] mb-3 relative overflow-hidden flex gap-[2px] shadow-sm">
-                  <div class="w-[67%] h-full bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=300');"></div>
-                  <div class="w-[33%] h-full flex flex-col gap-[2px]">
-                    <div class="h-[50%] bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1578632767115-351597cf2477?w=200');"></div>
-                    <div class="h-[50%] bg-[#e5e5e0]"></div>
-                  </div>
-                </div>
-                <span class="text-sm font-bold text-black">Mèo đáng yêu</span>
-                <span class="text-[11px] text-[#62625b] font-medium mt-0.5">Xu hướng hiện nay</span>
+                }
               </div>
             </div>
-          </div>
+          } @else {
+            <button
+              type="button"
+              class="secondary-action"
+              (click)="shareProfile()"
+              aria-label="Chia sẻ hồ sơ này"
+            >
+              <span class="material-symbols-outlined">ios_share</span>
+              Chia sẻ hồ sơ
+            </button>
+          }
+        </div>
+      </section>
 
+      <section class="profile-content" aria-label="Nội dung hồ sơ">
+        <div
+          class="profile-tabs"
+          role="tablist"
+          aria-label="Nội dung hồ sơ"
+          (keydown)="onTabKeydown($event)"
+        >
+          <button
+            id="profile-tab-posts"
+            type="button"
+            role="tab"
+            [attr.aria-selected]="activeTab() === 'posts'"
+            aria-controls="profile-panel-posts"
+            [attr.tabindex]="activeTab() === 'posts' ? 0 : -1"
+            [class.active]="activeTab() === 'posts'"
+            (click)="setTab('posts')"
+          >
+            <span class="material-symbols-outlined">grid_view</span>
+            <span>Tác phẩm</span>
+            <span class="tab-count">{{ p.counts.posts }}</span>
+          </button>
+          <button
+            id="profile-tab-albums"
+            type="button"
+            role="tab"
+            [attr.aria-selected]="activeTab() === 'albums'"
+            aria-controls="profile-panel-albums"
+            [attr.tabindex]="activeTab() === 'albums' ? 0 : -1"
+            [class.active]="activeTab() === 'albums'"
+            (click)="setTab('albums')"
+          >
+            <span class="material-symbols-outlined">photo_library</span>
+            <span>Bộ sưu tập</span>
+            <span class="tab-count">{{ p.counts.albums }}</span>
+          </button>
+          @if (p.viewer.canViewFavorites) {
+            <button
+              id="profile-tab-favorites"
+              type="button"
+              role="tab"
+              [attr.aria-selected]="activeTab() === 'favorites'"
+              aria-controls="profile-panel-favorites"
+              [attr.tabindex]="activeTab() === 'favorites' ? 0 : -1"
+              [class.active]="activeTab() === 'favorites'"
+              (click)="setTab('favorites')"
+            >
+              <span class="material-symbols-outlined">favorite</span>
+              <span>Đã thích</span>
+              <span class="tab-count">{{ p.counts.favorites || 0 }}</span>
+            </button>
+          }
         </div>
 
-      </ng-container>
-    </main>
+        @if (activeTab() === 'posts') {
+          <div
+            id="profile-panel-posts"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="profile-tab-posts"
+            tabindex="0"
+          >
+            <div class="panel-heading">
+              <div>
+                <span class="panel-kicker">Nội dung đã đăng</span>
+                <h2>{{ p.viewer.isOwnProfile ? 'Tác phẩm của bạn' : 'Tác phẩm' }}</h2>
+              </div>
+              @if (p.viewer.isOwnProfile) {
+                <button type="button" class="primary-action" (click)="navigateTo('/create')">
+                  <span class="material-symbols-outlined">add_photo_alternate</span>
+                  Tạo tác phẩm
+                </button>
+              }
+            </div>
+
+            @if (postsState().loading) {
+              <ng-container *ngTemplateOutlet="pinLoading"></ng-container>
+            } @else if (postsState().error && postsState().items.length === 0) {
+              <ng-container
+                *ngTemplateOutlet="tabError; context: { $implicit: postsState().error }"
+              ></ng-container>
+            } @else if (postsState().loaded && postsState().items.length === 0) {
+              <div class="profile-state">
+                <span class="material-symbols-outlined state-icon">grid_off</span>
+                <h3>
+                  {{
+                    p.viewer.isOwnProfile
+                      ? 'Bạn chưa có tác phẩm nào'
+                      : 'Người dùng này chưa có tác phẩm nào'
+                  }}
+                </h3>
+                <p>
+                  {{
+                    p.viewer.isOwnProfile
+                      ? 'Tác phẩm đầu tiên đang chờ dấu ấn sáng tạo của bạn.'
+                      : 'Hãy quay lại sau để khám phá tác phẩm mới.'
+                  }}
+                </p>
+                @if (p.viewer.isOwnProfile) {
+                  <button type="button" class="primary-action" (click)="navigateTo('/create')">
+                    Tạo tác phẩm đầu tiên
+                  </button>
+                }
+              </div>
+            } @else {
+              <div class="pin-grid">
+                @for (pin of postsState().items; track pin.id; let i = $index) {
+                  <article class="pin-card">
+                    <button
+                      type="button"
+                      class="pin-media frame-trace"
+                      [class.rounded-frame]="i % 2 === 0"
+                      [class.rounded-frame-alt]="i % 2 !== 0"
+                      (click)="navigateToPin(pin.id)"
+                      [attr.aria-label]="'Mở tác phẩm ' + pin.title"
+                    >
+                      <img [src]="pin.imageUrl" [alt]="pin.title" loading="lazy" />
+                      @if (pin.isAiGenerated) {
+                        <span class="ai-badge">
+                          <span class="material-symbols-outlined">auto_awesome</span> AI
+                        </span>
+                      }
+                      <span class="pin-open-hint">Xem tác phẩm</span>
+                    </button>
+                    <div class="pin-meta post-meta">
+                      <div class="pin-copy">
+                        <h3>{{ pin.title }}</h3>
+                        <span class="pin-date">{{ formatDate(pin.createdAt) }}</span>
+                        <div class="engagement-row" aria-label="Tương tác">
+                          <span
+                            ><span class="material-symbols-outlined">favorite</span
+                            >{{ pin._count.likes }}</span
+                          >
+                          <span
+                            ><span class="material-symbols-outlined">chat_bubble</span
+                            >{{ pin._count.comments }}</span
+                          >
+                        </div>
+                      </div>
+                      @if (p.viewer.isOwnProfile) {
+                        <div class="post-menu-wrap">
+                          <button
+                            type="button"
+                            class="icon-action icon-only"
+                            (click)="togglePostMenu(pin.id, $event)"
+                            aria-label="Mở menu quản lý tác phẩm"
+                            [attr.aria-expanded]="activePostMenu() === pin.id"
+                          >
+                            <span class="material-symbols-outlined">more_horiz</span>
+                          </button>
+                          @if (activePostMenu() === pin.id) {
+                            <div class="post-menu" role="menu">
+                              <button
+                                type="button"
+                                role="menuitem"
+                                (click)="openDeleteDialog(pin, $event)"
+                              >
+                                <span class="material-symbols-outlined">delete</span>
+                                Xóa tác phẩm
+                              </button>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  </article>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        @if (activeTab() === 'albums') {
+          <div
+            id="profile-panel-albums"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="profile-tab-albums"
+            tabindex="0"
+          >
+            <div class="panel-heading">
+              <div>
+                <span class="panel-kicker">Bộ sưu tập hình ảnh</span>
+                <h2>{{ p.viewer.isOwnProfile ? 'Bộ sưu tập của bạn' : 'Bộ sưu tập công khai' }}</h2>
+              </div>
+              @if (p.viewer.isOwnProfile) {
+                <button type="button" class="primary-action" (click)="openCreateAlbumModal()">
+                  <span class="material-symbols-outlined">add</span>
+                  Tạo bộ sưu tập
+                </button>
+              }
+            </div>
+
+            @if (albumsState().loading) {
+              <div class="album-grid" aria-hidden="true">
+                @for (item of [1, 2, 3, 4, 5, 6]; track item; let i = $index) {
+                  <div class="skeleton album-skeleton" [class.rounded-frame]="i % 2 === 0" [class.rounded-frame-alt]="i % 2 !== 0"></div>
+                }
+              </div>
+            } @else if (albumsState().error && albumsState().items.length === 0) {
+              <ng-container
+                *ngTemplateOutlet="tabError; context: { $implicit: albumsState().error }"
+              ></ng-container>
+            } @else if (albumsState().loaded && albumsState().items.length === 0) {
+              <div class="profile-state">
+                <span class="material-symbols-outlined state-icon">photo_library</span>
+                <h3>
+                  {{
+                    p.viewer.isOwnProfile
+                      ? 'Bạn chưa tạo bộ sưu tập nào'
+                      : 'Người dùng này chưa có bộ sưu tập công khai'
+                  }}
+                </h3>
+                <p>
+                  {{
+                    p.viewer.isOwnProfile
+                      ? 'Tạo một bộ sưu tập để bắt đầu sắp xếp thế giới hình ảnh của bạn.'
+                      : 'Hãy quay lại khi họ chia sẻ một bộ sưu tập mới.'
+                  }}
+                </p>
+                @if (p.viewer.isOwnProfile) {
+                  <button type="button" class="primary-action" (click)="openCreateAlbumModal()">
+                    Tạo bộ sưu tập đầu tiên
+                  </button>
+                }
+              </div>
+            } @else {
+              <div class="album-grid">
+                @for (album of albumsState().items; track album.id; let i = $index) {
+                  <article class="album-card">
+                    <button
+                      type="button"
+                      class="album-collage frame-trace"
+                      [class.rounded-frame]="i % 2 === 0"
+                      [class.rounded-frame-alt]="i % 2 !== 0"
+                      (click)="navigateToAlbum(album.id)"
+                      [attr.aria-label]="'Mở bộ sưu tập ' + album.name"
+                    >
+                      <div class="collage-cell collage-main">
+                        @if (album.thumbnails[0]) {
+                          <img
+                            [src]="album.thumbnails[0].imageUrl"
+                            [alt]="album.thumbnails[0].title"
+                            loading="lazy"
+                          />
+                        } @else {
+                          <span class="material-symbols-outlined empty-collage-icon">image</span>
+                        }
+                      </div>
+                      <div class="collage-cell collage-secondary">
+                        @if (album.thumbnails[1]) {
+                          <img
+                            [src]="album.thumbnails[1].imageUrl"
+                            [alt]="album.thumbnails[1].title"
+                            loading="lazy"
+                          />
+                        } @else {
+                          <span class="collage-coordinate">2</span>
+                        }
+                      </div>
+                      <div class="collage-cell collage-tertiary">
+                        @if (album.thumbnails[2]) {
+                          <img
+                            [src]="album.thumbnails[2].imageUrl"
+                            [alt]="album.thumbnails[2].title"
+                            loading="lazy"
+                          />
+                        } @else {
+                          <span class="collage-coordinate">3</span>
+                        }
+                      </div>
+                      @if (album.isSecret) {
+                        <span class="secret-badge">
+                          <span class="material-symbols-outlined">lock</span>
+                          Riêng tư
+                        </span>
+                      }
+                    </button>
+                    <div class="album-meta">
+                      <div>
+                        <h3>{{ album.name }}</h3>
+                        @if (album.description) {
+                          <p>{{ album.description }}</p>
+                        }
+                      </div>
+                      <div class="album-readout">
+                        <span>{{ album.pinCount }} tác phẩm</span>
+                        <span>{{ formatDate(album.createdAt) }}</span>
+                      </div>
+                    </div>
+                  </article>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        @if (activeTab() === 'favorites') {
+          <div
+            id="profile-panel-favorites"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="profile-tab-favorites"
+            tabindex="0"
+          >
+            <div class="panel-heading">
+              <div>
+                <span class="panel-kicker">Bộ sưu tập riêng tư</span>
+                <h2>Những tác phẩm bạn đã thích</h2>
+              </div>
+              <span class="privacy-chip">
+                <span class="material-symbols-outlined">lock</span>
+                Chỉ mình bạn
+              </span>
+            </div>
+
+            @if (favoritesState().loading) {
+              <ng-container *ngTemplateOutlet="pinLoading"></ng-container>
+            } @else if (favoritesState().error && favoritesState().items.length === 0) {
+              <ng-container
+                *ngTemplateOutlet="tabError; context: { $implicit: favoritesState().error }"
+              ></ng-container>
+            } @else if (favoritesState().loaded && favoritesState().items.length === 0) {
+              <div class="profile-state">
+                <span class="material-symbols-outlined state-icon">favorite_border</span>
+                <h3>Bạn chưa thích tác phẩm nào</h3>
+                <p>Những tác phẩm bạn đã thích sẽ được giữ riêng tại đây.</p>
+                <button type="button" class="primary-action" (click)="navigateTo('/feed')">
+                  Khám phá tác phẩm
+                </button>
+              </div>
+            } @else {
+              <div class="pin-grid">
+                @for (pin of favoritesState().items; track pin.id; let i = $index) {
+                  <article class="pin-card">
+                    <button
+                      type="button"
+                      class="pin-media frame-trace"
+                      [class.rounded-frame]="i % 2 === 0"
+                      [class.rounded-frame-alt]="i % 2 !== 0"
+                      (click)="navigateToPin(pin.id)"
+                      [attr.aria-label]="'Mở tác phẩm ' + pin.title"
+                    >
+                      <img [src]="pin.imageUrl" [alt]="pin.title" loading="lazy" />
+                      @if (pin.isAiGenerated) {
+                        <span class="ai-badge">
+                          <span class="material-symbols-outlined">auto_awesome</span> AI
+                        </span>
+                      }
+                      <span class="pin-open-hint">Xem tác phẩm</span>
+                    </button>
+                    <div class="pin-meta">
+                      <div class="pin-copy">
+                        <h3>{{ pin.title }}</h3>
+                        <span>@{{ pin.user.username }}</span>
+                      </div>
+                      <button
+                        type="button"
+                        class="icon-action liked"
+                        (click)="removeFavorite(pin, $event)"
+                        aria-label="Bỏ thích tác phẩm này"
+                        title="Bỏ thích"
+                      >
+                        <span class="material-symbols-outlined">favorite</span>
+                        <span>{{ pin._count.likes }}</span>
+                      </button>
+                    </div>
+                  </article>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        @if (currentState().error && currentState().items.length > 0) {
+          <div class="inline-error" role="alert">
+            <span>{{ currentState().error }}</span>
+            <button type="button" (click)="retryActiveTab()">Thử lại</button>
+          </div>
+        }
+
+        @if (currentState().hasMore || currentState().loadingMore) {
+          <div class="load-more-row">
+            <button
+              type="button"
+              class="secondary-action"
+              [disabled]="currentState().loadingMore"
+              (click)="loadMore()"
+            >
+              @if (currentState().loadingMore) {
+                <span class="button-spinner" aria-hidden="true"></span>
+                Đang tải thêm
+              } @else {
+                <span class="material-symbols-outlined">expand_more</span>
+                Tải thêm
+              }
+            </button>
+          </div>
+        }
+      </section>
+    }
+  </main>
+
+  <div class="sr-live" aria-live="polite" aria-atomic="true">
+    {{ actionMessage() || shareMessage() }}
   </div>
 
-  <!-- Create Board Modal -->
-  <div 
-    *ngIf="showCreateBoardModal()"
-    class="fixed inset-0 bg-black/50 z-[999] flex items-center justify-center p-4 backdrop-blur-sm"
-  >
-    <div class="bg-white w-full max-w-[500px] rounded-[32px] p-8 shadow-2xl flex flex-col gap-6 text-left border border-gray-100 animate-fade-in">
-      <div class="flex items-center justify-between">
-        <h2 class="text-2xl font-extrabold text-[#211922]">Tạo bảng mới</h2>
-        <button 
-          (click)="closeCreateBoardModal()" 
-          class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center cursor-pointer border-none outline-none text-black select-none"
-        >
-          <span class="material-symbols-outlined font-bold text-lg">close</span>
-        </button>
-      </div>
-
-      <form (submit)="createBoard(); $event.preventDefault();" class="flex flex-col gap-4">
-        <!-- Name -->
-        <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-bold text-gray-700">Tên bảng <span class="text-red-500">*</span></label>
-          <input 
-            type="text" 
-            name="boardName" 
-            [(ngModel)]="newBoardName" 
-            placeholder="Ví dụ: Phong cảnh đẹp, Đồ ăn ngon..." 
-            class="w-full bg-[#f6f6f3] border border-transparent focus:border-gray-200 focus:bg-white outline-none rounded-full px-4 h-12 text-sm text-black transition-all"
-            required
-            [disabled]="isSubmittingBoard"
-          />
-        </div>
-
-        <!-- Description -->
-        <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-bold text-gray-700">Mô tả (Không bắt buộc)</label>
-          <textarea 
-            name="boardDesc" 
-            [(ngModel)]="newBoardDesc" 
-            placeholder="Mô tả ngắn gọn về bảng này..." 
-            rows="3"
-            class="w-full bg-[#f6f6f3] border border-transparent focus:border-gray-200 focus:bg-white outline-none rounded-2xl p-4 text-sm text-black transition-all resize-none"
-            [disabled]="isSubmittingBoard"
-          ></textarea>
-        </div>
-
-        <!-- Secret option -->
-        <div class="flex items-start gap-3 py-2 cursor-pointer select-none">
-          <input 
-            type="checkbox" 
-            id="secretCheckbox" 
-            name="boardSecret" 
-            [(ngModel)]="newBoardSecret" 
-            class="mt-1 w-4 h-4 rounded accent-[#e60023] cursor-pointer"
-            [disabled]="isSubmittingBoard"
-          />
-          <div class="flex flex-col">
-            <label for="secretCheckbox" class="text-sm font-bold text-black cursor-pointer">Giữ bảng này bí mật</label>
-            <span class="text-xs text-[#62625b]">Chỉ bạn mới có thể xem bảng này và các hình ảnh lưu bên trong.</span>
+  @if (showCreateAlbumModal()) {
+    <div class="dialog-backdrop" (click)="closeCreateAlbumModal()">
+      <section
+        class="profile-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-album-title"
+        data-profile-dialog="active"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="dialog-heading">
+          <div>
+            <span class="panel-kicker">Bộ sưu tập mới</span>
+            <h2 id="create-album-title">Tạo bộ sưu tập mới</h2>
           </div>
+          <button
+            type="button"
+            class="icon-action icon-only"
+            (click)="closeCreateAlbumModal()"
+            aria-label="Đóng"
+          >
+            <span class="material-symbols-outlined">close</span>
+          </button>
         </div>
 
-        <!-- Footer buttons -->
-        <div class="flex items-center justify-end gap-3 mt-4">
-          <button 
-            type="button" 
-            (click)="closeCreateBoardModal()"
-            class="h-11 px-6 rounded-full text-sm font-bold bg-gray-100 hover:bg-gray-200 text-black cursor-pointer transition-colors border-none outline-none select-none"
-            [disabled]="isSubmittingBoard"
+        <form (ngSubmit)="createAlbum()" class="dialog-form">
+          <label for="album-name">Tên bộ sưu tập <span aria-hidden="true">*</span></label>
+          <input
+            id="album-name"
+            name="albumName"
+            type="text"
+            maxlength="80"
+            [(ngModel)]="newAlbumName"
+            [disabled]="albumSubmitPending()"
+            required
+            placeholder="Ví dụ: Thành phố lúc nửa đêm"
+          />
+
+          <label for="album-description">Mô tả</label>
+          <textarea
+            id="album-description"
+            name="albumDescription"
+            rows="3"
+            maxlength="280"
+            [(ngModel)]="newAlbumDescription"
+            [disabled]="albumSubmitPending()"
+            placeholder="Ghi lại ý tưởng của bộ sưu tập..."
+          ></textarea>
+
+          <label class="secret-toggle">
+            <input
+              type="checkbox"
+              name="albumSecret"
+              [(ngModel)]="newAlbumSecret"
+              [disabled]="albumSubmitPending()"
+            />
+            <span class="toggle-track" aria-hidden="true"><span></span></span>
+            <span>
+              <strong>Bộ sưu tập bí mật</strong>
+              <small>Chỉ bạn mới có thể xem bộ sưu tập này.</small>
+            </span>
+          </label>
+
+          @if (albumFormError()) {
+            <p class="form-error" role="alert">{{ albumFormError() }}</p>
+          }
+
+          <div class="dialog-actions">
+            <button
+              type="button"
+              class="secondary-action"
+              (click)="closeCreateAlbumModal()"
+              [disabled]="albumSubmitPending()"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              class="primary-action"
+              [disabled]="albumSubmitPending() || !newAlbumName.trim()"
+            >
+              @if (albumSubmitPending()) {
+                <span class="button-spinner" aria-hidden="true"></span>
+                Đang tạo
+              } @else {
+                Tạo bộ sưu tập
+              }
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  }
+
+  @if (deleteTarget(); as pin) {
+    <div class="dialog-backdrop" (click)="closeDeleteDialog()">
+      <section
+        class="profile-dialog confirm-dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="delete-pin-title"
+        aria-describedby="delete-pin-description"
+        data-profile-dialog="active"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="danger-icon" aria-hidden="true">
+          <span class="material-symbols-outlined">delete_forever</span>
+        </div>
+        <h2 id="delete-pin-title">Xóa “{{ pin.title }}”?</h2>
+        <p id="delete-pin-description">Tác phẩm sẽ bị xóa khỏi NovaFrame và không thể khôi phục.</p>
+        @if (deleteError()) {
+          <p class="form-error" role="alert">{{ deleteError() }}</p>
+        }
+        <div class="dialog-actions">
+          <button
+            type="button"
+            class="secondary-action"
+            (click)="closeDeleteDialog()"
+            [disabled]="deletePending()"
+          >
+            Giữ lại
+          </button>
+          <button
+            id="confirm-delete-pin"
+            type="button"
+            class="danger-action"
+            (click)="confirmDeletePin()"
+            [disabled]="deletePending()"
+          >
+            @if (deletePending()) {
+              <span class="button-spinner" aria-hidden="true"></span>
+              Đang xóa
+            } @else {
+              Xóa bài
+            }
+          </button>
+        </div>
+      </section>
+    </div>
+  }
+
+  @if (showReportDialog()) {
+    <div class="dialog-backdrop" (click)="closeReportDialog()">
+      <section
+        class="profile-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="report-dialog-title"
+        data-profile-dialog="active"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="dialog-heading">
+          <div>
+            <span class="panel-kicker">An toàn tài khoản</span>
+            <h2 id="report-dialog-title">Báo cáo @&#8203;{{ profile()?.user?.username }}</h2>
+          </div>
+          <button
+            type="button"
+            class="icon-action icon-only"
+            (click)="closeReportDialog()"
+            aria-label="Đóng"
+          >
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <form (ngSubmit)="submitReport()" class="dialog-form">
+          <label for="report-reason">Lý do báo cáo <span aria-hidden="true">*</span></label>
+          <select
+            id="report-reason"
+            name="reportReason"
+            [ngModel]="reportReason()"
+            (ngModelChange)="reportReason.set($event)"
+            [disabled]="reportPending()"
+          >
+            <option value="SPAM">Spam hoặc quảng cáo</option>
+            <option value="HARASSMENT">Quấy rối</option>
+            <option value="HATE_SPEECH">Ngôn từ thù ghét</option>
+            <option value="IMPERSONATION">Mạo danh</option>
+            <option value="INAPPROPRIATE_CONTENT">Nội dung không phù hợp</option>
+            <option value="OTHER">Khác</option>
+          </select>
+
+          <label for="report-details">Chi tiết (không bắt buộc)</label>
+          <textarea
+            id="report-details"
+            name="reportDetails"
+            rows="3"
+            maxlength="500"
+            [(ngModel)]="reportDetails"
+            [disabled]="reportPending()"
+            placeholder="Mô tả thêm về vấn đề bạn gặp phải..."
+          ></textarea>
+
+          @if (reportError()) {
+            <p class="form-error" role="alert">{{ reportError() }}</p>
+          }
+
+          <div class="dialog-actions">
+            <button
+              type="button"
+              class="secondary-action"
+              (click)="closeReportDialog()"
+              [disabled]="reportPending()"
+            >
+              Hủy
+            </button>
+            <button type="submit" class="danger-action" [disabled]="reportPending()">
+              @if (reportPending()) {
+                <span class="button-spinner" aria-hidden="true"></span>
+                Đang gửi
+              } @else {
+                Gửi báo cáo
+              }
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  }
+
+  @if (showBlockDialog()) {
+    <div class="dialog-backdrop" (click)="closeBlockDialog()">
+      <section
+        class="profile-dialog confirm-dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="block-dialog-title"
+        aria-describedby="block-dialog-description"
+        data-profile-dialog="active"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="danger-icon" aria-hidden="true">
+          <span class="material-symbols-outlined">block</span>
+        </div>
+        @if (profile(); as blockTargetProfile) {
+          <h2 id="block-dialog-title">
+            {{
+              blockTargetProfile.viewer.isBlocked
+                ? 'Bỏ chặn @' + blockTargetProfile.user.username + '?'
+                : 'Chặn @' + blockTargetProfile.user.username + '?'
+            }}
+          </h2>
+          <p id="block-dialog-description">
+            {{
+              blockTargetProfile.viewer.isBlocked
+                ? 'Hai bạn sẽ có thể theo dõi và nhắn tin lại với nhau như bình thường.'
+                : 'Người này sẽ không thể gửi yêu cầu nhắn tin hoặc nhắn tin cho bạn nữa.'
+            }}
+          </p>
+        }
+        @if (blockError()) {
+          <p class="form-error" role="alert">{{ blockError() }}</p>
+        }
+        <div class="dialog-actions">
+          <button
+            type="button"
+            class="secondary-action"
+            (click)="closeBlockDialog()"
+            [disabled]="blockPending()"
           >
             Hủy
           </button>
-          <button 
-            type="submit" 
-            class="h-11 px-6 rounded-full text-sm font-bold bg-[#e60023] hover:bg-[#cc001f] text-white cursor-pointer transition-all active:scale-95 border-none outline-none"
-            [disabled]="isSubmittingBoard || !newBoardName.trim()"
+          <button
+            id="confirm-block-user"
+            type="button"
+            class="danger-action"
+            (click)="confirmBlock()"
+            [disabled]="blockPending()"
           >
-            Tạo
+            @if (blockPending()) {
+              <span class="button-spinner" aria-hidden="true"></span>
+              Đang xử lý
+            } @else {
+              {{ profile()?.viewer?.isBlocked ? 'Bỏ chặn' : 'Chặn' }}
+            }
           </button>
         </div>
-      </form>
+      </section>
     </div>
-  </div>
+  }
 </div>
+
+<ng-template #pinLoading>
+  <div class="pin-grid" aria-hidden="true">
+    @for (item of [1, 2, 3, 4, 5, 6, 7, 8]; track item; let i = $index) {
+      <div class="skeleton pin-skeleton" [class.rounded-frame]="i % 2 === 0" [class.rounded-frame-alt]="i % 2 !== 0"></div>
+    }
+  </div>
+</ng-template>
+
+<ng-template #tabError let-message>
+  <div class="profile-state" role="alert">
+    <span class="material-symbols-outlined state-icon">sync_problem</span>
+    <h3>Chưa thể tải nội dung</h3>
+    <p>{{ message }}</p>
+    <button type="button" class="secondary-action" (click)="retryActiveTab()">
+      <span class="material-symbols-outlined">refresh</span>
+      Thử lại
+    </button>
+  </div>
+</ng-template>

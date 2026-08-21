@@ -1,0 +1,53 @@
+<header class="nf-head" [class.nf-head--pinned]="scrolled()">
+  <button type="button" (click)="scrollToTop()" class="nf-head__logo" aria-label="Về đầu trang NovaFrame">
+    <img src="/logo-mark.png" alt="" aria-hidden="true" />
+    <span>NovaFrame</span>
+  </button>
+
+  <!-- Nav links use a two-layer glyph stack: the resting label slides up and
+       out while a duplicate slides in from below, the letter-level motion
+       K95 uses on its own menu. Both layers are aria-hidden and the button
+       carries the accessible name. -->
+  <nav class="nf-head__nav" aria-label="Điều hướng trang giới thiệu">
+    <button
+      *ngFor="let anchor of anchors"
+      type="button"
+      (click)="scrollToAnchor(anchor.targetId)"
+      class="nf-head__link"
+      [attr.aria-label]="anchor.label"
+    >
+      <span class="nf-head__link-stack" aria-hidden="true">
+        <span class="nf-head__link-layer">{{ anchor.label }}</span>
+        <span class="nf-head__link-layer nf-head__link-layer--ghost">{{ anchor.label }}</span>
+      </span>
+    </button>
+  </nav>
+
+  <div class="nf-head__right">
+    <button type="button" (click)="emitLoginClick()" class="nf-head__cta">
+      <span>Đăng nhập</span>
+    </button>
+
+    <button
+      type="button"
+      (click)="toggleMobileMenu()"
+      class="nf-head__burger"
+      [attr.aria-expanded]="mobileOpen()"
+      aria-controls="nf-head-mobile"
+      aria-label="Mở menu điều hướng"
+    >
+      <span class="material-symbols-outlined">{{ mobileOpen() ? 'close' : 'menu' }}</span>
+    </button>
+  </div>
+
+  <div *ngIf="mobileOpen()" id="nf-head-mobile" class="nf-head__sheet">
+    <button
+      *ngFor="let anchor of anchors"
+      type="button"
+      (click)="scrollToAnchor(anchor.targetId)"
+      class="nf-head__sheet-link"
+    >
+      {{ anchor.label }}
+    </button>
+  </div>
+</header>

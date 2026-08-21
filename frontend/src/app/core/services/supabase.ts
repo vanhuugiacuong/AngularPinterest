@@ -1,5 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
+import { API_BASE_URL } from '../api-base';
 
 @Injectable({
   providedIn: 'root'
@@ -81,6 +82,11 @@ export class SupabaseService {
     return session?.access_token || null;
   }
 
+  /** Shared authenticated client for Realtime Presence/Broadcast channels. */
+  getRealtimeClient(): SupabaseClient {
+    return this.supabase;
+  }
+
   private async syncUserWithBackend(token: string, user: User) {
     try {
       const email = user.email || '';
@@ -88,7 +94,7 @@ export class SupabaseService {
       const avatarUrl = user.user_metadata?.['avatar_url'] || user.user_metadata?.['picture'] || '';
 
       console.log('Syncing user with backend...', { email, username, avatarUrl });
-      const response = await fetch('http://localhost:3000/api/users/sync', {
+      const response = await fetch(`${API_BASE_URL}/api/users/sync`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

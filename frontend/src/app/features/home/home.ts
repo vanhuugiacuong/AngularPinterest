@@ -1,15 +1,33 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, inject, signal, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, inject, signal, computed, effect, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { Navbar } from '../../components/navbar/navbar';
 import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
+import { UserService, ProfilePin } from '../../core/services/user';
+import { UserAvatar } from '../../shared/user-avatar/user-avatar';
+import { ImageSearchStore } from '../../core/services/image-search-store';
+
+/** Vietnamese labels for the category codes the backend's auto-classifier
+ * assigns (see PinsService.classifyCategory) — chips are only ever built
+ * from categories actually present in the loaded feed, never a fixed list. */
+const CATEGORY_LABELS: Record<string, string> = {
+  meme: 'Meme & Thú cưng',
+  kpop: 'K-Pop & Idol',
+  drawing: 'Hội họa',
+  anime: 'Anime & Cyberpunk',
+  nature: 'Thiên nhiên',
+  food: 'Ẩm thực',
+  fashion: 'Thời trang',
+  other: 'Khác',
+};
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, Navbar],
+  imports: [CommonModule, Navbar, UserAvatar],
   templateUrl: './home.html',
   styleUrl: './home.css'
 })
@@ -17,7 +35,10 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   private pinService = inject(PinService);
   private supabaseService = inject(SupabaseService);
   private boardService = inject(BoardService);
+  private userService = inject(UserService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private imageSearchStore = inject(ImageSearchStore);
 
   @ViewChild('scrollSentinel') scrollSentinel!: ElementRef;
 
@@ -27,87 +48,135 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   public selectedBoardMap = signal<Record<string, Board>>({});
   public isLoading = signal<boolean>(true);
   public isScrollingLoad = signal<boolean>(false);
+  public loadError = signal<string | null>(null);
   public numColumns = signal<number>(4);
+
+  /** Non-null while the user has an active search query (from the navbar
+   * search bar). Search results replace the feed and disable infinite
+   * scroll / category filtering, matching the backend's non-paginated
+   * `/api/pins/search` contract. */
+  public searchQuery = signal<string | null>(null);
+
+  /** True while the active search is a reverse-image search (results read
+   * from ImageSearchStore instead of PinService.searchPins). */
+  public isImageSearch = signal<boolean>(false);
+  public imageSearchPreviewUrl = computed(() => this.imageSearchStore.previewUrl());
+
+  public activeCategory = signal<string | null>(null);
+
+  /** "Tiếp tục sáng tạo" — the logged-in user's own most recent pins, reusing
+   * the same UserService.getUserPosts endpoint Profile already calls. Loads
+   * independently of the main feed and never blocks it. */
+  public recentCreations = signal<ProfilePin[]>([]);
+  public isRecentLoading = signal<boolean>(false);
+  public recentCreationsLoaded = signal<boolean>(false);
 
   private currentPage = 1;
   private limit = 20;
   private hasMore = true;
   private observer?: IntersectionObserver;
   private feedSeed = Math.random().toString(36).substring(2, 15);
+  private queryParamsSub?: Subscription;
+  /** Guards against a slow, now-stale search response overwriting a newer
+   * one (e.g. fast typing while the results page is live-updating). */
+  private searchRequestId = 0;
 
-  // Fallback mock pin data to demonstrate Pinterest-style masonry grid heights and themes
-  private mockPins = [
-    {
-      id: '1',
-      title: 'Anime Swordsman',
-      image: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=500&auto=format&fit=crop',
-      hasBottomBar: false,
-    },
-    {
-      id: '2',
-      title: 'Boy Portrait',
-      image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=500&auto=format&fit=crop',
-      hasBottomBar: true,
-      author: 'Cường',
-    },
-    {
-      id: '3',
-      title: 'Cat with Wallet',
-      image: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=500&auto=format&fit=crop',
-      hasBottomBar: false,
-    },
-    {
-      id: '4',
-      title: 'Samura',
-      image: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=500&auto=format&fit=crop',
-      hasBottomBar: true,
-      author: 'Samura',
-    },
-    {
-      id: '5',
-      title: 'Monkey Praying Art',
-      image: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=500&auto=format&fit=crop',
-      hasBottomBar: false,
-    },
-    {
-      id: '6',
-      title: 'về chưa?',
-      image: 'https://images.unsplash.com/photo-1579783928621-7a13d66a62d1?w=500&auto=format&fit=crop',
-      hasBottomBar: true,
-      author: 'Sketchy',
-    },
-    {
-      id: '7',
-      title: 'Casual Outfit Male',
-      image: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=500&auto=format&fit=crop',
-      hasBottomBar: false,
-    },
-    {
-      id: '8',
-      title: 'Boy walking on beach',
-      image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=500&auto=format&fit=crop',
-      hasBottomBar: false,
-    },
-    {
-      id: '9',
-      title: 'Duck Plush Toy',
-      image: 'https://images.unsplash.com/photo-1559715745-e1b34a256f3f?w=500&auto=format&fit=crop',
-      hasBottomBar: true,
-      likes: 138,
-      author: 'Duckie',
-    },
-    {
-      id: '10',
-      title: 'Girl in Red Tank Top',
-      image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop',
-      hasBottomBar: false,
+  /** Real display name sourced from the backend-synced profile (falls back to
+   * OAuth metadata briefly while that sync is in flight) — same resolution
+   * order as Navbar.displayName(). Empty string renders no greeting. */
+  public displayName = computed(() => {
+    const dbName = this.supabaseService.dbUser()?.username;
+    if (dbName) return dbName;
+    const user = this.supabaseService.user();
+    if (!user) return '';
+    return (
+      user.user_metadata?.['full_name'] ||
+      user.user_metadata?.['name'] ||
+      user.email?.split('@')[0] ||
+      ''
+    );
+  });
+
+  constructor() {
+    // dbUser syncs asynchronously after sign-in (see SupabaseService), so this
+    // reacts once it becomes available instead of racing it in ngOnInit.
+    effect(() => {
+      const dbUser = this.supabaseService.dbUser();
+      if (dbUser?.username && !this.recentCreationsLoaded() && !this.isRecentLoading()) {
+        void this.loadRecentCreations(dbUser.username);
+      } else if (!dbUser && this.recentCreationsLoaded()) {
+        this.recentCreations.set([]);
+        this.recentCreationsLoaded.set(false);
+      }
+    });
+
+    // Mirrors ImageSearchStore reactively (not just once on navigation) so
+    // uploading a second image while already on the results page updates
+    // this view too, even when the URL (/feed?mode=image) doesn't change.
+    effect(() => {
+      if (!this.isImageSearch()) return;
+      const loading = this.imageSearchStore.isLoading();
+      const error = this.imageSearchStore.error();
+      const results = this.imageSearchStore.results();
+      this.isLoading.set(loading);
+      this.loadError.set(error);
+      this.pins.set(this.mapPins(results || []));
+      this.hasMore = false;
+    });
+  }
+
+  /** Categories actually present in the currently loaded feed — never a
+   * fixed/fake list, and hidden entirely while a search is active. */
+  public categoryChips = computed(() => {
+    const seen = new Map<string, number>();
+    for (const pin of this.pins()) {
+      if (!pin.category) continue;
+      seen.set(pin.category, (seen.get(pin.category) || 0) + 1);
     }
-  ];
+    return Array.from(seen.keys())
+      .sort((a, b) => (seen.get(b) || 0) - (seen.get(a) || 0))
+      .map((code) => ({ code, label: CATEGORY_LABELS[code] || code }));
+  });
+
+  public filteredPins = computed(() => {
+    const category = this.activeCategory();
+    const list = this.pins();
+    if (!category) return list;
+    return list.filter((p) => p.category === category);
+  });
+
+  /** True while either a text search or a reverse-image search is active —
+   * gates the feed-only UI (greeting, recent creations, category chips)
+   * that only makes sense outside of search mode. */
+  public isSearchActive = computed(() => this.searchQuery() !== null || this.isImageSearch());
 
   async ngOnInit() {
     this.updateNumColumns();
-    await this.loadPins();
-    await this.loadBoards();
+    void this.loadBoards();
+
+    // Query params are the single source of truth for search mode — reached
+    // via a direct link (/feed?q=...) or the navbar's Enter/suggestion-click
+    // navigation (see Navbar.navigateToResults). Typing alone never lands
+    // here; it only refreshes the navbar's own dropdown.
+    this.queryParamsSub = this.route.queryParamMap.subscribe((params) => {
+      const mode = params.get('mode');
+      const q = (params.get('q') || '').trim();
+
+      if (mode === 'image') {
+        this.applyImageSearchResults();
+        return;
+      }
+
+      if (q) {
+        void this.onSearch(q);
+      } else {
+        if (this.isSearchActive()) {
+          this.searchQuery.set(null);
+          this.isImageSearch.set(false);
+        }
+        void this.loadPins();
+      }
+    });
   }
 
   @HostListener('window:resize')
@@ -135,7 +204,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   }
 
   getPinsForColumn(colIndex: number): any[] {
-    return this.pins().filter((_, index) => index % this.numColumns() === colIndex);
+    return this.filteredPins().filter((_, index) => index % this.numColumns() === colIndex);
   }
 
   getSkeletonsForColumn(colIndex: number): number[] {
@@ -156,12 +225,19 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     if (this.observer) {
       this.observer.disconnect();
     }
+    this.queryParamsSub?.unsubscribe();
   }
 
   setupIntersectionObserver() {
     this.observer = new IntersectionObserver(async (entries) => {
       const entry = entries[0];
-      if (entry.isIntersecting && !this.isLoading() && !this.isScrollingLoad() && this.hasMore) {
+      if (
+        entry.isIntersecting &&
+        !this.isLoading() &&
+        !this.isScrollingLoad() &&
+        !this.isSearchActive() &&
+        this.hasMore
+      ) {
         await this.loadMorePins();
       }
     }, {
@@ -170,6 +246,21 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
 
     if (this.scrollSentinel) {
       this.observer.observe(this.scrollSentinel.nativeElement);
+    }
+  }
+
+  async loadRecentCreations(username: string) {
+    this.isRecentLoading.set(true);
+    try {
+      const token = await this.supabaseService.getSessionToken() || undefined;
+      const page = await this.userService.getUserPosts(username, 1, 6, token);
+      this.recentCreations.set(page.items || []);
+    } catch (error) {
+      console.error('Error loading recent creations:', error);
+      this.recentCreations.set([]);
+    } finally {
+      this.isRecentLoading.set(false);
+      this.recentCreationsLoaded.set(true);
     }
   }
 
@@ -190,25 +281,23 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
 
   async loadPins() {
     this.isLoading.set(true);
+    this.loadError.set(null);
     this.currentPage = 1;
     this.hasMore = true;
     try {
       const token = await this.supabaseService.getSessionToken() || undefined;
       const apiPins = await this.pinService.getPins(this.currentPage, this.limit, token, this.feedSeed);
-      if (apiPins && apiPins.length > 0) {
-        const mapped = this.mapPins(apiPins);
-        this.pins.set(mapped);
-        if (apiPins.length < this.limit) {
-          this.hasMore = false;
-        }
-      } else {
-        this.pins.set(this.mockPins);
+      const mapped = this.mapPins(apiPins || []);
+      this.pins.set(mapped);
+      this.activeCategory.set(null);
+      if (!apiPins || apiPins.length < this.limit) {
         this.hasMore = false;
       }
     } catch (error) {
-      console.error('Error fetching pins from backend, falling back to mock pins:', error);
-      this.pins.set(this.mockPins);
+      console.error('Error fetching pins from backend:', error);
+      this.pins.set([]);
       this.hasMore = false;
+      this.loadError.set('Không thể tải Không gian khám phá. Vui lòng kiểm tra kết nối và thử lại.');
     } finally {
       this.isLoading.set(false);
     }
@@ -223,7 +312,11 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       const apiPins = await this.pinService.getPins(this.currentPage, this.limit, token, this.feedSeed);
       if (apiPins && apiPins.length > 0) {
         const mapped = this.mapPins(apiPins);
-        this.pins.update(current => [...current, ...mapped]);
+        this.pins.update(current => {
+          const existingIds = new Set(current.map(p => p.id));
+          const uniqueNew = mapped.filter(p => !existingIds.has(p.id));
+          return [...current, ...uniqueNew];
+        });
         if (apiPins.length < this.limit) {
           this.hasMore = false;
         }
@@ -238,9 +331,98 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  /** Runs a real search against the backend's CLIP/text search endpoint
+   * (see PinService.searchPins / GET /api/pins/search). An empty query
+   * clears search mode and restores the normal ranked feed. Reached both
+   * from the navbar's (search) output and from the /feed?q= queryParamMap
+   * subscription in ngOnInit — the equality check below makes a second,
+   * redundant call for the same query a no-op instead of double-fetching. */
+  async onSearch(query: string) {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      if (this.isSearchActive()) {
+        this.searchQuery.set(null);
+        this.isImageSearch.set(false);
+        await this.loadPins();
+      }
+      return;
+    }
+
+    if (!this.isImageSearch() && trimmed === this.searchQuery()) {
+      return;
+    }
+
+    this.searchQuery.set(trimmed);
+    this.isImageSearch.set(false);
+    this.activeCategory.set(null);
+    this.isLoading.set(true);
+    this.loadError.set(null);
+
+    // Stamped so a slow, now-superseded response can't overwrite a faster,
+    // newer one (e.g. two quick consecutive searches, or a stray duplicate
+    // call from the (search) output firing alongside the queryParam sync).
+    const requestId = ++this.searchRequestId;
+    try {
+      const results = await this.pinService.searchPins(trimmed);
+      if (requestId !== this.searchRequestId) return;
+      this.pins.set(this.mapPins(results || []));
+      this.hasMore = false;
+    } catch (error) {
+      if (requestId !== this.searchRequestId) return;
+      console.error('Error searching pins:', error);
+      this.pins.set([]);
+      this.hasMore = false;
+      this.loadError.set('Không thể tìm kiếm lúc này. Vui lòng thử lại.');
+    } finally {
+      if (requestId === this.searchRequestId) {
+        this.isLoading.set(false);
+      }
+    }
+  }
+
+  /** Reflects an already-completed reverse-image search (see
+   * ImageSearchStore) into the feed view. The effect registered in the
+   * constructor keeps pins/loading/error mirrored for as long as image mode
+   * stays active, so this only needs to flip the mode flags. */
+  private applyImageSearchResults() {
+    this.searchRequestId++; // invalidate any in-flight text search
+    this.searchQuery.set(null);
+    this.activeCategory.set(null);
+    this.isImageSearch.set(true);
+  }
+
+  async clearSearch() {
+    this.searchQuery.set(null);
+    this.isImageSearch.set(false);
+    if (this.route.snapshot.queryParamMap.keys.length > 0) {
+      this.router.navigate(['/feed']);
+    }
+    await this.loadPins();
+  }
+
+  setActiveCategory(code: string | null) {
+    this.activeCategory.set(this.activeCategory() === code ? null : code);
+  }
+
+  retryLoad() {
+    if (this.isImageSearch()) {
+      // No File is kept around after upload (see ImageSearchStore), so
+      // there is nothing to resubmit — send the user back to the feed to
+      // try another image via the camera button instead.
+      void this.clearSearch();
+      return;
+    }
+    const q = this.searchQuery();
+    if (q) {
+      void this.onSearch(q);
+    } else {
+      void this.loadPins();
+    }
+  }
+
   private mapPins(apiPins: any[]): any[] {
     return apiPins.map(p => {
-      const author = p.user?.username || 'Pinterest AI';
+      const author = p.user?.username || 'NovaFrame AI';
       const likes = (p as any)._count?.likes ?? 0;
 
       let idHash = 0;
@@ -258,8 +440,10 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
         image: p.imageUrl,
         hasBottomBar,
         author,
+        authorAvatarUrl: p.user?.avatarUrl || null,
         likes,
         isAiGenerated: p.isAiGenerated,
+        category: p.category,
         aspectRatio
       };
     });
@@ -267,6 +451,16 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
 
   navigateToPin(pinId: string) {
     this.router.navigate(['/pin', pinId]);
+  }
+
+  navigateToProfile(username: string | undefined | null, event: MouseEvent) {
+    event.stopPropagation();
+    if (!username) return;
+    this.router.navigate(['/profile', username]);
+  }
+
+  navigateToCreate() {
+    this.router.navigate(['/create']);
   }
 
   async toggleLike(pin: any, event: MouseEvent) {
@@ -334,7 +528,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       if (!token) return;
 
       let boardId = this.selectedBoardMap()[pinId]?.id;
-      
+
       if (!boardId && this.boards().length > 0) {
         boardId = this.boards()[0].id;
       }
@@ -342,7 +536,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       if (!boardId) {
         const newBoard = await this.boardService.createBoard(
           'Hồ sơ',
-          'Bảng lưu mặc định',
+          'Bộ sưu tập lưu mặc định',
           false,
           token
         );
@@ -351,10 +545,10 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       }
 
       await this.boardService.addPinToBoard(boardId, pinId, token);
-      alert('Đã lưu ảnh vào bảng thành công!');
+      alert('Đã lưu ảnh vào bộ sưu tập thành công!');
     } catch (error) {
       console.error('Error saving pin to board:', error);
-      alert('Lỗi khi lưu ảnh vào bảng.');
+      alert('Lỗi khi lưu ảnh vào bộ sưu tập.');
     }
   }
 }

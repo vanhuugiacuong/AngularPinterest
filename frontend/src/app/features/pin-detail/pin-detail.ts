@@ -1,4 +1,14 @@
-import { Component, OnInit, inject, signal, ViewChild, ElementRef, AfterViewInit, OnDestroy, HostListener } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  inject,
+  signal,
+  ViewChild,
+  ElementRef,
+  AfterViewInit,
+  OnDestroy,
+  HostListener,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
@@ -6,13 +16,15 @@ import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
 import { FormsModule } from '@angular/forms';
+import { UserAvatar } from '../../shared/user-avatar/user-avatar';
+import { MembershipService } from '../../core/services/membership';
 
 @Component({
   selector: 'app-pin-detail',
   standalone: true,
-  imports: [CommonModule, Navbar, FormsModule],
+  imports: [CommonModule, Navbar, FormsModule, UserAvatar],
   templateUrl: './pin-detail.html',
-  styleUrl: './pin-detail.css'
+  styleUrl: './pin-detail.css',
 })
 export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   private route = inject(ActivatedRoute);
@@ -20,6 +32,8 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   private pinService = inject(PinService);
   private boardService = inject(BoardService);
   public supabaseService = inject(SupabaseService);
+  public membership = inject(MembershipService);
+  public downloadMessage = signal('');
 
   @ViewChild('scrollSentinel') scrollSentinel!: ElementRef;
 
@@ -32,11 +46,34 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   public isRelatedLoading = signal<boolean>(true);
   public isScrollingLoad = signal<boolean>(false);
   public isLandscape = signal<boolean>(false);
-  public isDesktop = signal<boolean>(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
+  public isDesktop = signal<boolean>(
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true,
+  );
   public numSideColumns = signal<number>(2);
   public numBottomColumns = signal<number>(3);
   public newCommentText = '';
   public isSubmittingComment = false;
+
+  /** Best available avatar for the signed-in viewer's own comment-box avatar. */
+  myAvatarUrl(): string | null {
+    const dbAvatar = this.supabaseService.dbUser()?.avatarUrl;
+    if (dbAvatar) return dbAvatar;
+    const user = this.supabaseService.user();
+    return user?.user_metadata?.['avatar_url'] || user?.user_metadata?.['picture'] || null;
+  }
+
+  myDisplayName(): string {
+    const dbName = this.supabaseService.dbUser()?.username;
+    if (dbName) return dbName;
+    const user = this.supabaseService.user();
+    if (!user) return '';
+    return (
+      user.user_metadata?.['full_name'] ||
+      user.user_metadata?.['name'] ||
+      user.email?.split('@')[0] ||
+      ''
+    );
+  }
 
   @HostListener('window:resize')
   onResize() {
@@ -75,8 +112,9 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   private observer?: IntersectionObserver;
 
   async ngOnInit() {
+    await this.membership.load();
     this.calculateColumns();
-    this.route.paramMap.subscribe(params => {
+    this.route.paramMap.subscribe((params) => {
       const id = params.get('id');
       if (id) {
         this.currentPage = 1;
@@ -86,6 +124,17 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       }
     });
     await this.loadBoards();
+  }
+
+  async downloadPin() {
+    const p = this.pin(); if (!p) return;
+    this.downloadMessage.set('Đang chuẩn bị ảnh...');
+    try {
+      const access = await this.membership.purchase(p.id);
+      const response = await fetch(access.imageUrl); const blob = await response.blob();
+      const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${p.title || 'novaframe'}.jpg`; anchor.click(); URL.revokeObjectURL(url);
+      this.downloadMessage.set(access.paid ? 'Thanh toán mô phỏng thành công. Đã tải ảnh.' : 'Đã tải ảnh.');
+    } catch (e) { this.downloadMessage.set(e instanceof Error ? e.message : 'Không thể tải ảnh.'); }
   }
 
   async loadBoards() {
@@ -109,7 +158,8 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     this.isLandscape.set(false); // reset
     try {
       // 1. Fetch details
-      const detailPin = await this.pinService.getPinById(id);
+      const token = (await this.supabaseService.getSessionToken()) || undefined;
+      const detailPin = await this.pinService.getPinById(id, token);
       this.pin.set(detailPin);
 
       // Check if image is horizontal landscape
@@ -126,7 +176,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       // 2. Fetch related feed by category (excluding this one)
       try {
         const related = await this.pinService.getRelatedPins(id, 1, 30);
-        const mappedRelated = related.map(p => {
+        const mappedRelated = related.map((p) => {
           let idHash = 0;
           for (let i = 0; i < p.id.length; i++) {
             idHash += p.id.charCodeAt(i);
@@ -137,9 +187,9 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
             id: p.id,
             title: p.title,
             image: p.imageUrl,
-            author: p.user?.username || 'Pinterest AI',
+            author: p.user?.username || 'NovaFrame AI',
             likes: (p as any)._count?.likes ?? 0,
-            aspectRatio
+            aspectRatio,
           };
         });
         this.relatedPins.set(mappedRelated);
@@ -164,6 +214,11 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     this.router.navigate(['/pin', pinId]);
   }
 
+  navigateToProfile(username: string | undefined | null) {
+    if (!username) return;
+    this.router.navigate(['/profile', username]);
+  }
+
   async toggleLike() {
     const currentPin = this.pin();
     const currentUser = this.supabaseService.user();
@@ -173,14 +228,12 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       const token = await this.supabaseService.getSessionToken();
       if (token) {
         const result = await this.pinService.toggleLike(currentPin.id, token);
-        const updatedLikes = [...(currentPin.likes || [])];
-        if (result.liked) {
-          updatedLikes.push({ userId: currentUser.id, pinId: currentPin.id });
-        } else {
-          const idx = updatedLikes.findIndex(l => l.userId === currentUser.id);
-          if (idx !== -1) updatedLikes.splice(idx, 1);
-        }
-        this.pin.set({ ...currentPin, likes: updatedLikes });
+        this.pin.set({
+          ...currentPin,
+          isLiked: result.liked,
+          likeCount: result.likeCount,
+          _count: { ...currentPin._count, likes: result.likeCount },
+        });
       }
     } catch (error) {
       console.error('Error toggling like:', error);
@@ -189,9 +242,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
   isLikedByUser(): boolean {
     const currentPin = this.pin();
-    const currentUser = this.supabaseService.user();
-    if (!currentPin || !currentUser || !currentPin.likes) return false;
-    return currentPin.likes.some((l: any) => l.userId === currentUser.id);
+    return currentPin?.isLiked === true;
   }
 
   async submitComment() {
@@ -203,7 +254,11 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     try {
       const token = await this.supabaseService.getSessionToken();
       if (token) {
-        const newComment = await this.pinService.addComment(currentPin.id, this.newCommentText.trim(), token);
+        const newComment = await this.pinService.addComment(
+          currentPin.id,
+          this.newCommentText.trim(),
+          token,
+        );
         const updatedComments = [...(currentPin.comments || []), newComment];
         this.pin.set({ ...currentPin, comments: updatedComments });
         this.newCommentText = '';
@@ -217,7 +272,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
   toggleBoardDropdown(event: MouseEvent) {
     event.stopPropagation();
-    this.showBoardDropdown.update(val => !val);
+    this.showBoardDropdown.update((val) => !val);
   }
 
   selectBoard(board: Board, event: MouseEvent) {
@@ -248,7 +303,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       if (!token) return;
 
       let boardId = this.selectedBoard()?.id;
-      
+
       if (!boardId && this.boards().length > 0) {
         boardId = this.boards()[0].id;
       }
@@ -256,19 +311,19 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       if (!boardId) {
         const newBoard = await this.boardService.createBoard(
           'Hồ sơ',
-          'Bảng lưu mặc định',
+          'Bộ sưu tập lưu mặc định',
           false,
-          token
+          token,
         );
-        this.boards.update(current => [newBoard, ...current]);
+        this.boards.update((current) => [newBoard, ...current]);
         boardId = newBoard.id;
       }
 
       await this.boardService.addPinToBoard(boardId, currentPin.id, token);
-      alert('Đã lưu ảnh vào bảng thành công!');
+      alert('Đã lưu ảnh vào bộ sưu tập thành công!');
     } catch (error) {
       console.error('Error saving pin to board:', error);
-      alert('Lỗi khi lưu ảnh vào bảng.');
+      alert('Lỗi khi lưu ảnh vào bộ sưu tập.');
     }
   }
 
@@ -290,7 +345,9 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   }
 
   getBottomRelatedPinsForColumn(colIndex: number): any[] {
-    const totalCols = this.isDesktop() ? (this.numBottomColumns() + this.numSideColumns()) : this.numBottomColumns();
+    const totalCols = this.isDesktop()
+      ? this.numBottomColumns() + this.numSideColumns()
+      : this.numBottomColumns();
     return this.relatedPins().filter((_, index) => index % totalCols === colIndex);
   }
   getSideSkeletonsForColumn(colIndex: number): number[] {
@@ -302,7 +359,9 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
   getBottomSkeletonsForColumn(colIndex: number): number[] {
     const dummy = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-    const totalCols = this.isDesktop() ? (this.numBottomColumns() + this.numSideColumns()) : this.numBottomColumns();
+    const totalCols = this.isDesktop()
+      ? this.numBottomColumns() + this.numSideColumns()
+      : this.numBottomColumns();
     return dummy.filter((_, index) => index % totalCols === colIndex);
   }
 
@@ -317,14 +376,23 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   }
 
   setupIntersectionObserver() {
-    this.observer = new IntersectionObserver(async (entries) => {
-      const entry = entries[0];
-      if (entry.isIntersecting && !this.isLoading() && !this.isRelatedLoading() && !this.isScrollingLoad() && this.hasMore) {
-        await this.loadMoreRelatedPins();
-      }
-    }, {
-      rootMargin: '200px',
-    });
+    this.observer = new IntersectionObserver(
+      async (entries) => {
+        const entry = entries[0];
+        if (
+          entry.isIntersecting &&
+          !this.isLoading() &&
+          !this.isRelatedLoading() &&
+          !this.isScrollingLoad() &&
+          this.hasMore
+        ) {
+          await this.loadMoreRelatedPins();
+        }
+      },
+      {
+        rootMargin: '200px',
+      },
+    );
 
     if (this.scrollSentinel) {
       this.observer.observe(this.scrollSentinel.nativeElement);
@@ -337,9 +405,13 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     this.isScrollingLoad.set(true);
     this.currentPage++;
     try {
-      const related = await this.pinService.getRelatedPins(currentPin.id, this.currentPage, this.limit);
+      const related = await this.pinService.getRelatedPins(
+        currentPin.id,
+        this.currentPage,
+        this.limit,
+      );
       if (related && related.length > 0) {
-        const mappedRelated = related.map(p => {
+        const mappedRelated = related.map((p) => {
           let idHash = 0;
           for (let i = 0; i < p.id.length; i++) {
             idHash += p.id.charCodeAt(i);
@@ -350,12 +422,12 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
             id: p.id,
             title: p.title,
             image: p.imageUrl,
-            author: p.user?.username || 'Pinterest AI',
+            author: p.user?.username || 'NovaFrame AI',
             likes: (p as any)._count?.likes ?? 0,
-            aspectRatio
+            aspectRatio,
           };
         });
-        this.relatedPins.update(current => [...current, ...mappedRelated]);
+        this.relatedPins.update((current) => [...current, ...mappedRelated]);
         if (related.length < this.limit) {
           this.hasMore = false;
         }
