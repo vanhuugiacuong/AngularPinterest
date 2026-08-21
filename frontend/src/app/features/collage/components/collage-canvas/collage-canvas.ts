@@ -73,7 +73,7 @@ export class CollageCanvasComponent implements AfterViewInit, OnDestroy {
     const output = this.canvas.toCanvasElement(1);
     return new Promise((resolve, reject) => {
       output.toBlob(
-        (blob) => (blob ? resolve(blob) : reject(new Error('Không thể xuất ảnh PNG.'))),
+        (blob: Blob | null) => (blob ? resolve(blob) : reject(new Error('Không thể xuất ảnh PNG.'))),
         'image/png',
         1,
       );
@@ -83,10 +83,10 @@ export class CollageCanvasComponent implements AfterViewInit, OnDestroy {
   private bindCanvasEvents(): void {
     if (!this.canvas) return;
 
-    this.canvas.on('selection:created', (event) => this.onSelectionChanged(event.selected?.[0]));
-    this.canvas.on('selection:updated', (event) => this.onSelectionChanged(event.selected?.[0]));
+    this.canvas.on('selection:created', (event: any) => this.onSelectionChanged(event.selected?.[0]));
+    this.canvas.on('selection:updated', (event: any) => this.onSelectionChanged(event.selected?.[0]));
     this.canvas.on('selection:cleared', () => this.onSelectionChanged(undefined));
-    this.canvas.on('mouse:down', (event) => {
+    this.canvas.on('mouse:down', (event: any) => {
       const target = event.target as CollageFabricObject | undefined;
       const id = target?.collageLayerId;
       if (!target || !id) {
@@ -119,7 +119,7 @@ export class CollageCanvasComponent implements AfterViewInit, OnDestroy {
         this.store.bringToFront(id);
       });
     });
-    this.canvas.on('object:modified', (event) => {
+    this.canvas.on('object:modified', (event: any) => {
       const target = event.target as CollageFabricObject | undefined;
       const id = target?.collageLayerId;
       if (!target || !id) return;
