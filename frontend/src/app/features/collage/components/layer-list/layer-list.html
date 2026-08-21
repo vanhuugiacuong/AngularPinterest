@@ -1,0 +1,64 @@
+<section class="panel">
+  <button type="button" class="panel-heading" (click)="toggle()" [attr.aria-expanded]="isOpen()">
+    <span>
+      <span class="eyebrow">Layer</span>
+      <strong>Phần cắt</strong>
+    </span>
+    <span class="material-symbols-outlined">{{ isOpen() ? 'expand_less' : 'expand_more' }}</span>
+  </button>
+
+  <div *ngIf="isOpen()" class="panel-body">
+    <p *ngIf="orderedLayers.length === 0" class="empty-state">
+      Chọn một ảnh ở bên phải để thêm chủ thể đầu tiên.
+    </p>
+
+    <button
+      *ngFor="let layer of orderedLayers; let position = index"
+      type="button"
+      class="layer-row"
+      [class.selected]="store.selectedId() === layer.id"
+      [class.dragging]="draggingId() === layer.id"
+      [class.drop-target]="dropTargetId() === layer.id"
+      (click)="store.select(layer.id)"
+      (pointerdown)="beginPointerDrag($event, layer.id)"
+      (pointermove)="continuePointerDrag($event)"
+      (pointerup)="finishPointerDrag($event)"
+      (pointercancel)="cancelPointerDrag($event)"
+      [attr.data-layer-id]="layer.id"
+      [attr.aria-label]="'Chọn phần cắt ' + (orderedLayers.length - position)"
+      title="Nhấn giữ và kéo để đổi thứ tự lớp ảnh"
+    >
+      <span class="drag-handle material-symbols-outlined">drag_indicator</span>
+      <span class="layer-thumb"><img [src]="layer.cutoutImageUrl" alt="" draggable="false" /></span>
+      <span class="layer-name">Phần cắt {{ orderedLayers.length - position }}</span>
+      <span class="layer-index">{{ layer.zIndex + 1 }}</span>
+    </button>
+
+    <p *ngIf="orderedLayers.length > 1" class="reorder-hint">
+      <span class="material-symbols-outlined">drag_indicator</span>
+      Kéo ở bất kỳ vị trí nào trên phần cắt để đổi lớp ảnh trên khung.
+    </p>
+
+    <div class="layer-actions" *ngIf="store.selectedLayer()">
+      <button type="button" title="Nhân bản" (click)="store.duplicate()">
+        <span class="material-symbols-outlined">content_copy</span><span>Nhân bản</span>
+      </button>
+      <button type="button" class="danger" title="Xóa phần cắt" (click)="store.remove()">
+        <span class="material-symbols-outlined">delete</span><span>Xóa</span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<div
+  *ngIf="draggingLayer() as layer"
+  class="layer-drag-preview"
+  [style.width.px]="dragPreviewWidth()"
+  [style.transform]="dragPreviewTransform()"
+  aria-hidden="true"
+>
+  <span class="material-symbols-outlined">drag_indicator</span>
+  <span class="preview-thumb"><img [src]="layer.cutoutImageUrl" alt="" /></span>
+  <strong>Phần cắt {{ layerNumber(layer.id) }}</strong>
+  <span class="preview-index">{{ layer.zIndex + 1 }}</span>
+</div>

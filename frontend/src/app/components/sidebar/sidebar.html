@@ -122,6 +122,34 @@
       </span>
     </div>
 
+    <!-- Collage -->
+    <div class="relative group w-full flex justify-center">
+      <span
+        *ngIf="isCollagePage()"
+        class="nf-active-tick absolute left-1.5 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-gradient-brand"
+        aria-hidden="true"
+      ></span>
+      <button
+        type="button"
+        (click)="navigateToCollage()"
+        [class.bg-surface-elevated]="isCollagePage()"
+        [class.rounded-frame-alt]="isCollagePage()"
+        [class.text-accent]="isCollagePage()"
+        [class.text-text-muted]="!isCollagePage()"
+        class="flex h-11 w-11 items-center justify-center rounded-control transition-all duration-300 ease-spring hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
+        aria-label="Tạo ảnh ghép"
+        [attr.aria-current]="isCollagePage() ? 'page' : null"
+      >
+        <span class="material-symbols-outlined text-xl" [class.font-bold]="isCollagePage()">dashboard_customize</span>
+      </button>
+      <span
+        role="tooltip"
+        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control mono-label bg-surface-high border border-border-strong px-2.5 py-1.5 text-[11px] uppercase text-text opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+      >
+        Tạo ảnh ghép
+      </span>
+    </div>
+
     <!-- Notifications — Active Notification Button -->
     <div class="relative group w-full flex justify-center">
       <span
