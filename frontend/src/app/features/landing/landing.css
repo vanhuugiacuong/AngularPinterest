@@ -1,11 +1,11 @@
 /* ====================================================================== *
  * NovaFrame — public landing experience.
  *
- * Light-toned and entirely self-contained: Angular's emulated view
- * encapsulation stamps every selector below with this component's own
- * attribute, so none of it can reach the authenticated app. The dark app
- * palette is untouched; the body override is applied and reverted from the
- * component's own lifecycle (see landing.ts).
+ * Shares the app-wide theme tokens from styles.css (see core/services/
+ * theme.ts) instead of a hardcoded palette of its own — the names below are
+ * local aliases kept so the rest of this file didn't need a global rename,
+ * but every value now resolves through the same [data-theme] system as the
+ * authenticated app, dark and light alike.
  *
  * Motion model: `--p` is a 0..1 scroll-progress value written onto each
  * .nf-scene by ScrollScenes (see scroll-scenes.ts). Every scene animates
@@ -13,21 +13,21 @@
  * ====================================================================== */
 
 :host {
-  --paper: #f7f7f2;
-  --paper-lift: #fafaf7;
-  --ink: #111111;
-  --ink-soft: rgba(17, 17, 17, 0.62);
-  --ink-faint: rgba(17, 17, 17, 0.34);
+  --paper: var(--color-bg);
+  --paper-lift: var(--color-surface);
+  --ink: var(--color-text);
+  --ink-soft: color-mix(in srgb, var(--color-text) 70%, transparent);
+  --ink-faint: color-mix(in srgb, var(--color-text) 55%, transparent);
 
-  --electric: #1a2ef5;
-  --blue: #2454ff;
-  --purple: #7c3cff;
-  --cyan: #00cfe8;
+  --electric: var(--color-nova-blue);
+  --blue: var(--color-nova-blue);
+  --purple: var(--color-iris-violet);
+  --cyan: var(--color-studio-aqua);
 
-  --edge: rgba(17, 17, 17, 0.1);
-  --glass-edge: rgba(255, 255, 255, 0.8);
-  --shadow-soft: 0 30px 60px -30px rgba(36, 84, 255, 0.45);
-  --shadow-lift: 0 18px 40px -22px rgba(124, 60, 255, 0.4);
+  --edge: var(--color-border);
+  --glass-edge: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  --shadow-soft: 0 30px 60px -30px color-mix(in srgb, var(--color-nova-blue) 45%, transparent);
+  --shadow-lift: 0 18px 40px -22px color-mix(in srgb, var(--color-iris-violet) 40%, transparent);
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
@@ -156,23 +156,23 @@
 }
 
 .nf-btn--solid {
-  color: #fff;
+  color: var(--color-text-on-accent);
   background: linear-gradient(120deg, var(--electric), var(--blue) 45%, var(--purple));
-  box-shadow: 0 16px 34px -16px rgba(36, 84, 255, 0.75);
+  box-shadow: 0 16px 34px -16px color-mix(in srgb, var(--electric) 75%, transparent);
 }
 
 .nf-btn--solid:hover {
-  box-shadow: 0 22px 44px -16px rgba(124, 60, 255, 0.8);
+  box-shadow: 0 22px 44px -16px color-mix(in srgb, var(--purple) 80%, transparent);
 }
 
 .nf-btn--outline {
   color: var(--ink);
   border-color: var(--edge);
-  background: rgba(255, 255, 255, 0.6);
+  background: color-mix(in srgb, var(--paper) 60%, transparent);
 }
 
 .nf-btn--outline:hover {
-  background: #fff;
+  background: var(--paper-lift);
   border-color: var(--electric);
   color: var(--electric);
 }
@@ -254,7 +254,7 @@
   border-radius: 18px;
   overflow: hidden;
   border: 1px solid var(--glass-edge);
-  background: rgba(255, 255, 255, 0.9);
+  background: color-mix(in srgb, var(--paper-lift) 90%, transparent);
   box-shadow: var(--shadow-soft);
   backface-visibility: visible;
   /* Each frame is placed on the ring by its index, then pushed further out
@@ -281,16 +281,28 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(150deg, rgba(36, 84, 255, 0.3), rgba(0, 207, 232, 0.12));
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--electric) 30%, transparent),
+    color-mix(in srgb, var(--cyan) 12%, transparent)
+  );
   mix-blend-mode: soft-light;
 }
 
 .nf-ring__frame:nth-child(3n + 2)::after {
-  background: linear-gradient(150deg, rgba(124, 60, 255, 0.34), rgba(36, 84, 255, 0.14));
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--purple) 34%, transparent),
+    color-mix(in srgb, var(--electric) 14%, transparent)
+  );
 }
 
 .nf-ring__frame:nth-child(3n)::after {
-  background: linear-gradient(150deg, rgba(0, 207, 232, 0.26), rgba(124, 60, 255, 0.14));
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--cyan) 26%, transparent),
+    color-mix(in srgb, var(--purple) 14%, transparent)
+  );
 }
 
 .nf-ring__glow {
@@ -298,7 +310,7 @@
   width: min(760px, 84vw);
   height: min(760px, 84vw);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(36, 84, 255, 0.22), transparent 62%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--electric) 22%, transparent), transparent 62%);
   filter: blur(40px);
   opacity: calc(0.75 - var(--p) * 0.4);
   pointer-events: none;
@@ -435,8 +447,8 @@
   align-items: center;
   gap: 12px;
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.22em;
+  font-size: 12px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--ink-faint);
   opacity: calc(1 - var(--p) * 3);
@@ -563,8 +575,8 @@
 
 .nf-gallery__meta {
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.16em;
+  font-size: 12px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-faint);
 }
@@ -614,7 +626,7 @@
   overflow: hidden;
   border: 1px solid var(--glass-edge);
   box-shadow: var(--shadow-soft);
-  background: #fff;
+  background: var(--paper-lift);
   /* Scattered at p=0, gathered into one neat stack at p=1. The (--i - 2)
      term spreads the cards symmetrically around the centre card. */
   transform: translate(
@@ -699,13 +711,21 @@
 
 .nf-layers__sheet--2 {
   z-index: 2;
-  background: linear-gradient(150deg, rgba(124, 60, 255, 0.7), rgba(0, 207, 232, 0.55));
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--purple) 70%, transparent),
+    color-mix(in srgb, var(--cyan) 55%, transparent)
+  );
   transform: translate3d(calc(var(--p) * 1vw), calc(var(--p) * 14px), 0) rotate(calc(var(--p) * 2deg));
 }
 
 .nf-layers__sheet--3 {
   z-index: 1;
-  background: linear-gradient(150deg, rgba(255, 255, 255, 0.95), rgba(224, 231, 255, 0.9));
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--paper-lift) 95%, transparent),
+    color-mix(in srgb, var(--electric) 12%, var(--paper-lift))
+  );
   transform: translate3d(calc(var(--p) * 14vw), calc(var(--p) * 62px), 0)
     rotate(calc(var(--p) * 8deg));
 }
@@ -716,11 +736,11 @@
   padding: 7px 14px;
   border-radius: 999px;
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.14em;
+  font-size: 12px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink);
-  background: rgba(255, 255, 255, 0.86);
+  background: color-mix(in srgb, var(--paper-lift) 86%, transparent);
   border: 1px solid var(--glass-edge);
   box-shadow: var(--shadow-lift);
   backdrop-filter: blur(10px);
@@ -767,7 +787,7 @@
   margin-top: 26px;
   padding: 12px 18px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
+  background: color-mix(in srgb, var(--paper-lift) 72%, transparent);
   border: 1px solid var(--glass-edge);
   box-shadow: var(--shadow-lift);
   backdrop-filter: blur(12px);
@@ -845,7 +865,7 @@
   display: grid;
   place-items: center;
   padding: clamp(80px, 14vh, 160px) clamp(20px, 6vw, 80px);
-  background: radial-gradient(ellipse 70% 60% at 50% 45%, #ffffff, var(--paper) 70%);
+  background: radial-gradient(ellipse 70% 60% at 50% 45%, var(--paper-lift), var(--paper) 70%);
   text-align: center;
 }
 
@@ -894,7 +914,7 @@
   object-fit: contain;
   opacity: calc(var(--p) * 2.6 - 0.6);
   transform: scale(calc(0.6 + var(--p) * 0.8));
-  filter: drop-shadow(0 18px 34px rgba(36, 84, 255, 0.45));
+  filter: drop-shadow(0 18px 34px color-mix(in srgb, var(--electric) 45%, transparent));
 }
 
 .nf-cta__title {
@@ -966,8 +986,8 @@
 .nf-foot__tag,
 .nf-foot__copy {
   font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.16em;
+  font-size: 12px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-faint);
 }

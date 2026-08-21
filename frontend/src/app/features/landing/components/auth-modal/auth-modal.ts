@@ -1,5 +1,6 @@
 import {
   Component,
+  ElementRef,
   Input,
   Output,
   EventEmitter,
@@ -7,6 +8,7 @@ import {
   OnChanges,
   OnDestroy,
   SimpleChanges,
+  ViewChild,
   signal
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -44,6 +46,8 @@ export class AuthModal implements OnChanges, OnDestroy {
   @Output() closeModal = new EventEmitter<void>();
   @Output() loginRequested = new EventEmitter<void>();
 
+  @ViewChild('panel') private panel?: ElementRef<HTMLElement>;
+
   /** Pointer parallax offsets (-0.5..0.5) for the floating object field. */
   public readonly px = signal(0);
   public readonly py = signal(0);
@@ -60,6 +64,7 @@ export class AuthModal implements OnChanges, OnDestroy {
       : false;
   private parallaxFrame = 0;
   private exitTimer = 0;
+  private previouslyFocused: HTMLElement | null = null;
 
   ngOnChanges(changes: SimpleChanges) {
     if (!changes['open']) return;
@@ -67,9 +72,16 @@ export class AuthModal implements OnChanges, OnDestroy {
     if (this.open) {
       clearTimeout(this.exitTimer);
       this.leaving.set(false);
+      const wasVisible = this.visible();
       this.visible.set(true);
+      if (!wasVisible) {
+        this.previouslyFocused = (document.activeElement as HTMLElement) || null;
+        // Panel isn't in the DOM until this change detection cycle commits.
+        setTimeout(() => this.panel?.nativeElement.focus());
+      }
     } else if (this.visible()) {
       this.leaving.set(true);
+      this.previouslyFocused?.focus();
       this.exitTimer = window.setTimeout(
         () => {
           this.visible.set(false);

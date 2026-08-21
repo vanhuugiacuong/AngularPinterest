@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnInit, effect, inject, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
@@ -8,6 +8,15 @@ import { SupabaseService } from '../../core/services/supabase';
 import { FormsModule } from '@angular/forms';
 import { ImageEditor } from './image-editor/image-editor';
 import { PublishDialogStatus, PublishProgressDialog } from './publish-progress-dialog/publish-progress-dialog';
+import { CollageTransferService } from '../collage/services/collage-transfer.service';
+
+/** 'idle' — no file selected / check not run yet.
+ * 'checking' — request in flight.
+ * 'safe' — moderation service confirmed the image is clear.
+ * 'unsafe' — moderation service confirmed NSFW content above threshold.
+ * 'error' — the check itself failed (network/timeout/service down); this is
+ * NOT a verdict on the image and must never be treated as 'unsafe'. */
+type ImageModerationStatus = 'idle' | 'checking' | 'safe' | 'unsafe' | 'error';
 
 @Component({
   selector: 'app-create',
@@ -21,10 +30,27 @@ export class Create implements OnInit {
   private pinService = inject(PinService);
   private boardService = inject(BoardService);
   public supabaseService = inject(SupabaseService);
+  private collageTransfer = inject(CollageTransferService);
 
   // Only ever mounted while activeTab() === 'upload' and an image is
   // selected — <app-image-editor> is not present anywhere in the AI tab.
   @ViewChild('editor') editorRef?: ImageEditor;
+
+  @ViewChild('discardPanel') private discardPanel?: ElementRef<HTMLElement>;
+  private previouslyFocusedBeforeDiscard: HTMLElement | null = null;
+
+  constructor() {
+    // Focus management for the discard-confirm dialog: move focus into it on
+    // open, return focus to whatever triggered it on close.
+    effect(() => {
+      if (this.showDiscardConfirm()) {
+        this.previouslyFocusedBeforeDiscard = (document.activeElement as HTMLElement) || null;
+        setTimeout(() => this.discardPanel?.nativeElement.focus());
+      } else {
+        this.previouslyFocusedBeforeDiscard?.focus();
+      }
+    });
+  }
 
   // Form Fields
   public title = '';
@@ -39,6 +65,15 @@ export class Create implements OnInit {
   // Upload mode fields
   public selectedFile: File | null = null;
   public imagePreviewUrl = signal<string | null>(null);
+
+  // NSFW pre-submit moderation check (server-side gate is enforced again on
+  // submit — this is UX only, to disable "Đăng" before the user even tries).
+  // Kept as one discriminated status instead of separate booleans so
+  // "check failed" (error) can never be conflated with "confirmed NSFW"
+  // (unsafe) — they have different messages and only 'unsafe' blocks
+  // permanently; 'error' offers a retry.
+  public imageModerationStatus = signal<ImageModerationStatus>('idle');
+  public imageModerationMessage = signal<string | null>(null);
 
   // AI mode fields
   public aiPrompt = '';
@@ -61,6 +96,14 @@ export class Create implements OnInit {
   private pendingDiscardAction: (() => void) | null = null;
 
   async ngOnInit() {
+    const collageFile = this.collageTransfer.take();
+    if (collageFile) {
+      this.selectedFile = collageFile;
+      this.formError.set(null);
+      this.resetImageModeration();
+      this.imagePreviewUrl.set(URL.createObjectURL(collageFile));
+      await this.checkSelectedImage(collageFile);
+    }
     await this.loadBoards();
   }
 
@@ -96,6 +139,12 @@ export class Create implements OnInit {
     this.title = '';
     this.description = '';
     this.formError.set(null);
+    this.resetImageModeration();
+  }
+
+  private resetImageModeration(): void {
+    this.imageModerationStatus.set('idle');
+    this.imageModerationMessage.set(null);
   }
 
   /** Routes an action that would discard the editor's in-progress edits
@@ -127,6 +176,7 @@ export class Create implements OnInit {
     this.runOrConfirmDiscard(() => {
       this.imagePreviewUrl.set(null);
       this.selectedFile = null;
+      this.resetImageModeration();
     });
   }
 
@@ -149,14 +199,60 @@ export class Create implements OnInit {
     return 'Chọn bộ sưu tập';
   }
 
-  onFileSelected(event: any) {
+  async onFileSelected(event: any) {
     const file = event.target.files[0];
-    if (file) {
-      this.selectedFile = file;
-      this.formError.set(null);
-      const objectUrl = URL.createObjectURL(file);
-      this.imagePreviewUrl.set(objectUrl);
+    if (!file) return;
+
+    this.selectedFile = file;
+    this.formError.set(null);
+    this.resetImageModeration();
+    const objectUrl = URL.createObjectURL(file);
+    this.imagePreviewUrl.set(objectUrl);
+
+    await this.checkSelectedImage(file);
+  }
+
+  /** Runs the pre-submit NSFW check for a just-selected file. Guards every
+   * state write with `this.selectedFile === file` so that if the user swaps
+   * in a different image (or removes it) while this request is in flight,
+   * a late response can't stamp a stale result onto the current image.
+   *
+   * 'unsafe' is set ONLY when the moderation service actually returned a
+   * verdict saying the image is NSFW. Any network failure, timeout, or
+   * non-2xx response instead sets 'error' — the image was never judged,
+   * so it must not be treated as blocked-for-content. */
+  private async checkSelectedImage(file: File): Promise<void> {
+    const token = await this.supabaseService.getSessionToken();
+    if (!token || this.selectedFile !== file) return;
+
+    this.imageModerationStatus.set('checking');
+    this.imageModerationMessage.set(null);
+
+    try {
+      const result = await this.pinService.checkImageModeration(file, token);
+      if (this.selectedFile !== file) return;
+
+      if (result.safe) {
+        this.imageModerationStatus.set('safe');
+      } else {
+        this.imageModerationStatus.set('unsafe');
+        this.imageModerationMessage.set(
+          result.message || 'Ảnh có thể chứa nội dung không phù hợp hoặc nội dung 18+. Vui lòng chọn ảnh khác.',
+        );
+      }
+    } catch (error) {
+      console.error('Error checking image moderation (service/network failure, not a content verdict):', error);
+      if (this.selectedFile !== file) return;
+      this.imageModerationStatus.set('error');
+      this.imageModerationMessage.set('Không thể kiểm tra ảnh lúc này. Vui lòng thử lại.');
     }
+  }
+
+  /** Re-runs the moderation check for the currently selected file after an
+   * 'error' status (service/network failure). */
+  retryImageCheck(): void {
+    if (!this.selectedFile) return;
+    void this.checkSelectedImage(this.selectedFile);
   }
 
   generateAiImage() {
@@ -203,6 +299,15 @@ export class Create implements OnInit {
 
     if (currentTab === 'upload' && !this.selectedFile) {
       this.formError.set('Vui lòng chọn ảnh tải lên!');
+      return;
+    }
+    if (currentTab === 'upload' && this.imageModerationStatus() !== 'safe') {
+      const status = this.imageModerationStatus();
+      if (status === 'checking') {
+        this.formError.set('Vui lòng đợi kiểm tra ảnh xong.');
+      } else {
+        this.formError.set(this.imageModerationMessage() || 'Ảnh chưa vượt qua kiểm duyệt. Vui lòng chọn ảnh khác.');
+      }
       return;
     }
     if (currentTab === 'ai' && !this.aiImagePreviewUrl()) {
@@ -284,7 +389,14 @@ export class Create implements OnInit {
       await this.handlePublishSuccess();
     } catch (error) {
       console.error('Error uploading pin:', error);
-      this.showDialogError('Không thể tải ảnh lên. Vui lòng kiểm tra kết nối và thử lại.');
+      // Server-thrown business messages (e.g. the NSFW rejection, which can
+      // still happen here if this request bypassed the pre-submit check)
+      // are shown as-is; raw network failures fall back to a generic message.
+      const message = error instanceof Error ? error.message : '';
+      const isNetworkError = !message || message.includes('Failed to fetch') || message.startsWith('Failed to upload pin:');
+      this.showDialogError(
+        isNetworkError ? 'Không thể tải ảnh lên. Vui lòng kiểm tra kết nối và thử lại.' : message,
+      );
     } finally {
       this.isSubmitting.set(false);
     }

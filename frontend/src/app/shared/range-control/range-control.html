@@ -2,7 +2,7 @@
   <div class="flex items-center justify-between gap-2">
     <label [attr.for]="inputId" class="text-xs font-bold text-text-muted truncate">{{ label }}</label>
     <div class="flex items-center gap-2 shrink-0">
-      <span class="mono-label text-[10px] text-text-muted tabular-nums">{{ value }}{{ unit }}</span>
+      <span class="mono-label text-xs text-text-muted tabular-nums">{{ value }}{{ unit }}</span>
       @if (showReset) {
         <button
           type="button"

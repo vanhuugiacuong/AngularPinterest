@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { API_BASE_URL } from '../api-base';
 
 export interface ProfileUser {
   id: string;
@@ -109,7 +110,7 @@ export interface UserSearchResult {
 
 @Injectable({ providedIn: 'root' })
 export class UserService {
-  private readonly baseUrl = 'http://localhost:3000/api/users';
+  private readonly baseUrl = `${API_BASE_URL}/api/users`;
 
   async getUserProfile(username: string, token?: string): Promise<ProfileSummary> {
     return this.request<ProfileSummary>(`${this.baseUrl}/${encodeURIComponent(username)}`, token);

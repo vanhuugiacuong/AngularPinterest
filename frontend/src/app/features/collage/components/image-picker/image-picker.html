@@ -1,0 +1,54 @@
+<section class="panel">
+  <button type="button" class="panel-heading" (click)="toggle()" [attr.aria-expanded]="isOpen()">
+    <span><span class="eyebrow">Nguồn ảnh</span><strong>Chọn ảnh</strong></span>
+    <span class="material-symbols-outlined">{{ isOpen() ? 'expand_less' : 'expand_more' }}</span>
+  </button>
+
+  <div *ngIf="isOpen()" class="panel-body">
+    <label class="search-box">
+      <span class="material-symbols-outlined">search</span>
+      <input
+        type="search"
+        [(ngModel)]="searchQuery"
+        (ngModelChange)="onSearchChange($event)"
+        placeholder="Tìm ảnh bài đăng..."
+        aria-label="Tìm ảnh bài đăng"
+      />
+    </label>
+
+    <label class="upload-button" title="Chọn ảnh từ máy tính">
+      <span class="material-symbols-outlined">upload</span>
+      Tải ảnh từ máy
+      <input type="file" accept="image/jpeg,image/png,image/webp" (change)="selectFile($event)" />
+    </label>
+
+    <div *ngIf="error()" class="error-message" role="alert">
+      <span>{{ error() }}</span>
+      <button type="button" (click)="loadPins(searchQuery.trim())">Thử lại</button>
+    </div>
+
+    <div *ngIf="isLoading()" class="loading-state">
+      <span class="spinner"></span><span>Đang tải ảnh...</span>
+    </div>
+
+    <div *ngIf="!isLoading()" class="pin-grid">
+      <button
+        *ngFor="let pin of pins()"
+        type="button"
+        class="pin-item"
+        (click)="selectPin(pin)"
+        [disabled]="loadingPinId() !== null"
+        [title]="'Tách chủ thể từ ' + pin.title"
+      >
+        <img [src]="pin.imageUrl" [alt]="pin.title" loading="lazy" crossorigin="anonymous" />
+        <span *ngIf="loadingPinId() === pin.id" class="pin-loading"
+          ><span class="spinner"></span
+        ></span>
+      </button>
+    </div>
+
+    <p *ngIf="!isLoading() && pins().length === 0" class="empty-state">
+      Không tìm thấy ảnh phù hợp.
+    </p>
+  </div>
+</section>

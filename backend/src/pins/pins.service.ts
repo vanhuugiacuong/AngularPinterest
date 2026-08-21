@@ -9,9 +9,34 @@ import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { AiGeneratorService } from '../ai-generator/ai-generator.service';
 
+interface EmbeddingResponse {
+  embedding: number[];
+}
+
+interface SimilarPinRow {
+  id: string;
+  title: string;
+  description: string | null;
+  imageUrl: string;
+  sourceUrl: string | null;
+  userId: string;
+  createdAt: Date;
+  isAiGenerated: boolean;
+  category: string;
+  authorUsername: string | null;
+  authorAvatarUrl: string | null;
+  likesCount: number;
+  similarity: number;
+}
+
+interface PinEmbeddingRow {
+  embedding: string | null;
+}
+
 @Injectable()
 export class PinsService {
-  private readonly clipServiceUrl = process.env.CLIP_SERVICE_URL || 'http://localhost:8001';
+  private readonly clipServiceUrl =
+    process.env.CLIP_SERVICE_URL || 'http://localhost:8001';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -19,7 +44,11 @@ export class PinsService {
     private readonly aiGeneratorService: AiGeneratorService,
   ) {}
 
-  private async getImageEmbedding(buffer: Buffer, filename: string, mimetype: string): Promise<number[] | null> {
+  private async getImageEmbedding(
+    buffer: Buffer,
+    filename: string,
+    mimetype: string,
+  ): Promise<number[] | null> {
     try {
       const formData = new FormData();
       const blob = new Blob([new Uint8Array(buffer)], { type: mimetype });
@@ -32,32 +61,116 @@ export class PinsService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`CLIP image embedding failed: ${response.statusText} - ${errorText}`);
+        console.error(
+          `CLIP image embedding failed: ${response.statusText} - ${errorText}`,
+        );
         return null;
       }
 
-      const result = await response.json();
-      return result.embedding;
+      const result: unknown = await response.json();
+      return this.readEmbedding(result);
     } catch (error) {
       console.error('CLIP image embedding network error:', error);
       return null;
     }
   }
 
+  /** Zero-shot NSFW check against the clip-service. Fails closed: if the
+   * moderation service is unreachable or errors, the caller should treat
+   * the image as not-yet-cleared rather than silently letting it through. */
+  private async moderateImage(
+    buffer: Buffer,
+    filename: string,
+    mimetype: string,
+  ): Promise<{ nsfw: boolean; nsfwScore: number; topLabel: string }> {
+    // TEMP DEBUG LOGGING — remove once moderation behavior is confirmed stable.
+    console.log(
+      `[moderation] started file=${filename} mimetype=${mimetype} size=${buffer.length} bytes url=${this.clipServiceUrl}/moderate/image`,
+    );
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      const formData = new FormData();
+      const blob = new Blob([new Uint8Array(buffer)], { type: mimetype });
+      formData.append('file', blob, filename);
+
+      const response = await fetch(`${this.clipServiceUrl}/moderate/image`, {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(
+          `[moderation] error: HTTP ${response.status} ${response.statusText} - ${errorText}`,
+        );
+        throw new ServiceUnavailableException(
+          'Không thể kiểm duyệt ảnh lúc này. Vui lòng thử lại sau.',
+        );
+      }
+
+      const result = await response.json();
+      console.log(
+        `[moderation] raw result=${JSON.stringify(result)} score=${result?.nsfwScore} nsfw=${result?.nsfw}`,
+      );
+      return result;
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) {
+        throw error;
+      }
+      const reason =
+        error instanceof Error && error.name === 'AbortError'
+          ? 'timeout after 15s'
+          : error instanceof Error
+            ? error.message
+            : String(error);
+      console.error(`[moderation] error: ${reason}`, error);
+      throw new ServiceUnavailableException(
+        'Không thể kiểm duyệt ảnh lúc này. Vui lòng thử lại sau.',
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /** Used by both the FE's pre-submit check and createUploadPin's own
+   * server-side gate, so a request straight to POST /api/pins can never
+   * skip moderation regardless of what the client claims. */
+  async checkImageModeration(
+    file: Express.Multer.File | undefined,
+  ): Promise<{ safe: boolean; message?: string }> {
+    if (!file) {
+      throw new BadRequestException('Vui lòng chọn ảnh để kiểm tra.');
+    }
+    const moderation = await this.moderateImage(file.buffer, file.originalname, file.mimetype);
+    if (moderation.nsfw) {
+      return {
+        safe: false,
+        message:
+          'Ảnh có thể chứa nội dung không phù hợp hoặc nội dung 18+. Vui lòng chọn ảnh khác.',
+      };
+    }
+    return { safe: true };
+  }
+
   private async getTextEmbedding(query: string): Promise<number[] | null> {
     try {
       const response = await fetch(
-        `${this.clipServiceUrl}/embed/text?query=${encodeURIComponent(query)}`
+        `${this.clipServiceUrl}/embed/text?query=${encodeURIComponent(query)}`,
       );
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`CLIP text embedding failed: ${response.statusText} - ${errorText}`);
+        console.error(
+          `CLIP text embedding failed: ${response.statusText} - ${errorText}`,
+        );
         return null;
       }
 
-      const result = await response.json();
-      return result.embedding;
+      const result: unknown = await response.json();
+      return this.readEmbedding(result);
     } catch (error) {
       console.error('CLIP text embedding network error:', error);
       return null;
@@ -218,6 +331,13 @@ export class PinsService {
       await this.assertOwnedBoard(boardId, userId);
     }
 
+    // Server-side moderation gate — never trust a client-side "safe" check.
+    // Runs before the image is uploaded to storage or the Pin is saved.
+    const moderation = await this.checkImageModeration(file);
+    if (!moderation.safe) {
+      throw new BadRequestException(moderation.message);
+    }
+
     const extension = file.originalname.split('.').pop() || 'png';
     const filename = `${userId}/pin_${Date.now()}_${Math.floor(Math.random() * 1000)}.${extension}`;
     const imageUrl = await this.supabaseService.uploadImage(
@@ -232,7 +352,11 @@ export class PinsService {
     // 1. Fetch CLIP embedding (gracefully handled)
     let embedding: number[] | null = null;
     try {
-      embedding = await this.getImageEmbedding(file.buffer, file.originalname, file.mimetype);
+      embedding = await this.getImageEmbedding(
+        file.buffer,
+        file.originalname,
+        file.mimetype,
+      );
     } catch (e) {
       console.error('Error fetching CLIP embedding for uploaded pin:', e);
     }
@@ -258,11 +382,14 @@ export class PinsService {
         await this.prisma.$executeRawUnsafe(
           'UPDATE "Pin" SET "embedding" = $1::vector WHERE "id" = $2',
           JSON.stringify(embedding),
-          pin.id
+          pin.id,
         );
         console.log(`Successfully stored vector embedding for Pin: ${pin.id}`);
       } catch (err) {
-        console.error(`Failed to store vector embedding for Pin: ${pin.id}`, err);
+        console.error(
+          `Failed to store vector embedding for Pin: ${pin.id}`,
+          err,
+        );
       }
     }
 
@@ -299,7 +426,11 @@ export class PinsService {
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         const contentType = response.headers.get('Content-Type') || 'image/png';
-        embedding = await this.getImageEmbedding(buffer, 'ai_pin.png', contentType);
+        embedding = await this.getImageEmbedding(
+          buffer,
+          'ai_pin.png',
+          contentType,
+        );
       }
     } catch (e) {
       console.error('Error fetching CLIP embedding for AI pin:', e);
@@ -331,11 +462,16 @@ export class PinsService {
         await this.prisma.$executeRawUnsafe(
           'UPDATE "Pin" SET "embedding" = $1::vector WHERE "id" = $2',
           JSON.stringify(embedding),
-          pin.id
+          pin.id,
         );
-        console.log(`Successfully stored vector embedding for AI Pin: ${pin.id}`);
+        console.log(
+          `Successfully stored vector embedding for AI Pin: ${pin.id}`,
+        );
       } catch (err) {
-        console.error(`Failed to store vector embedding for AI Pin: ${pin.id}`, err);
+        console.error(
+          `Failed to store vector embedding for AI Pin: ${pin.id}`,
+          err,
+        );
       }
     }
 
@@ -608,8 +744,8 @@ export class PinsService {
         orderBy: { createdAt: 'desc' },
         include: {
           user: { select: { id: true, username: true, avatarUrl: true } },
-          _count: { select: { likes: true } }
-        }
+          _count: { select: { likes: true } },
+        },
       });
     }
 
@@ -626,18 +762,18 @@ export class PinsService {
     }
 
     // Check if this pin has an embedding
-    const rawPinArr: any[] = await this.prisma.$queryRawUnsafe(
+    const rawPinArr = await this.prisma.$queryRawUnsafe<PinEmbeddingRow[]>(
       'SELECT embedding FROM "Pin" WHERE id = $1',
-      pinId
+      pinId,
     );
-    const hasEmbedding = rawPinArr.length > 0 && rawPinArr[0].embedding !== null;
+    const embeddingString = rawPinArr[0]?.embedding;
 
-    if (!hasEmbedding) {
+    if (!embeddingString) {
       // Fallback: category-based similar pins
       return this.getRelatedPins(pinId, page, limit);
     }
 
-    return this.queryPinsByEmbedding(rawPinArr[0].embedding, pinId, pin.imageUrl, limit, skip);
+    return this.queryPinsByEmbedding(embeddingString, pinId, pin.imageUrl, limit, skip);
   }
 
   /** Reverse image search: embeds an uploaded image (not yet a saved Pin)
@@ -715,7 +851,7 @@ export class PinsService {
       seenUrls.add(excludeImageUrl);
     }
 
-    const uniquePins: any[] = [];
+    const uniquePins: SimilarPinRow[] = [];
     for (const p of pins) {
       if (!seenUrls.has(p.imageUrl)) {
         seenUrls.add(p.imageUrl);
@@ -723,7 +859,7 @@ export class PinsService {
       }
     }
 
-    return uniquePins.slice(0, limit).map(p => ({
+    return uniquePins.slice(0, limit).map((p) => ({
       id: p.id,
       title: p.title,
       description: p.description,
@@ -739,9 +875,26 @@ export class PinsService {
         avatarUrl: p.authorAvatarUrl,
       },
       _count: {
-        likes: p.likesCount || 0
+        likes: p.likesCount || 0,
       },
-      similarity: p.similarity
+      similarity: p.similarity,
     }));
+  }
+
+  private readEmbedding(value: unknown): number[] | null {
+    if (
+      typeof value !== 'object' ||
+      value === null ||
+      !('embedding' in value)
+    ) {
+      return null;
+    }
+
+    const embedding = (value as Partial<EmbeddingResponse>).embedding;
+    if (!Array.isArray(embedding) || !embedding.every(Number.isFinite)) {
+      return null;
+    }
+
+    return embedding;
   }
 }

@@ -35,6 +35,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('scrollSentinel') scrollSentinel!: ElementRef;
 
   public pin = signal<any | null>(null);
+  public loadError = signal<string | null>(null);
   public relatedPins = signal<any[]>([]);
   public boards = signal<Board[]>([]);
   public showBoardDropdown = signal<boolean>(false);
@@ -107,12 +108,14 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   private limit = 20;
   private hasMore = true;
   private observer?: IntersectionObserver;
+  private currentPinId: string | null = null;
 
   async ngOnInit() {
     this.calculateColumns();
     this.route.paramMap.subscribe((params) => {
       const id = params.get('id');
       if (id) {
+        this.currentPinId = id;
         this.currentPage = 1;
         this.hasMore = true;
         this.relatedPins.set([]);
@@ -120,6 +123,12 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       }
     });
     await this.loadBoards();
+  }
+
+  retryLoad() {
+    if (this.currentPinId) {
+      this.loadPinDetail(this.currentPinId);
+    }
   }
 
   async loadBoards() {
@@ -141,6 +150,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     this.isLoading.set(true);
     this.isRelatedLoading.set(true);
     this.isLandscape.set(false); // reset
+    this.loadError.set(null);
     try {
       // 1. Fetch details
       const token = (await this.supabaseService.getSessionToken()) || undefined;
@@ -185,7 +195,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       }
     } catch (error) {
       console.error('Error loading pin detail:', error);
-      this.router.navigate(['/feed']);
+      this.loadError.set('Không thể tải tác phẩm này. Có thể đường liên kết không còn tồn tại hoặc mạng đang gặp sự cố.');
       this.isLoading.set(false);
       this.isRelatedLoading.set(false);
     }

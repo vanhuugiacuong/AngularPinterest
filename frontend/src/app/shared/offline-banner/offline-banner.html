@@ -1,0 +1,10 @@
+@if (isOffline()) {
+  <div
+    role="status"
+    aria-live="polite"
+    class="fixed bottom-16 md:bottom-0 inset-x-0 z-[300] flex items-center justify-center gap-2 h-9 px-4 bg-warning text-text-on-accent text-xs font-bold select-none"
+  >
+    <span class="material-symbols-outlined text-base leading-none" aria-hidden="true">wifi_off</span>
+    Mất kết nối mạng — nội dung có thể chưa được cập nhật. Đang chờ kết nối trở lại…
+  </div>
+}

@@ -92,13 +92,10 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
   private previousBodyBackground = '';
 
   ngOnInit() {
-    // The public experience is light-toned while the authenticated app stays
-    // dark. Rather than editing the global stylesheet (which would follow the
-    // user past login), the body colour is overridden inline here and
-    // restored verbatim in ngOnDestroy, so the override lives exactly as long
-    // as this route does.
-    this.previousBodyBackground = document.body.style.backgroundColor;
-    document.body.style.backgroundColor = '#f7f7f2';
+    // Landing shares the app-wide ThemeService/data-theme system (see
+    // core/services/theme.ts) — body background comes from the global
+    // `body { background-color: var(--color-bg) }` rule in styles.css, the
+    // same as every authenticated route. No per-route override here.
 
     // Surface an OAuth error that Google redirected back with.
     const searchParams = new URLSearchParams(window.location.search);

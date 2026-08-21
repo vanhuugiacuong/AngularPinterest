@@ -18,10 +18,13 @@ import {
   COLOR_PRESETS,
   ColorAdjustments,
   ColorPreset,
+  CropSettings,
   DEFAULT_ADJUSTMENTS,
   DEFAULT_CAPTION,
+  DEFAULT_CROP,
   EditorSnapshot,
   FontOption,
+  isDefaultCrop,
   SUPPORTED_FONTS,
 } from './editor-types';
 import { EditorHistory } from './editor-history';
@@ -31,8 +34,33 @@ import { RangeControl } from '../../../shared/range-control/range-control';
 const PREVIEW_MAX_DIMENSION = 1000;
 const EXPORT_MAX_DIMENSION = 2400;
 
+// Smallest crop box allowed, as a fraction of the source image on either
+// axis — keeps width/height comfortably away from 0 (never 0, NaN, Infinity).
+const MIN_CROP_SIZE = 0.08;
+
+type CropHandle = 'move' | 'nw' | 'ne' | 'sw' | 'se';
+
 function clamp01(v: number): number {
   return Math.min(0.94, Math.max(0.06, v));
+}
+
+/** Clamps a crop rectangle so it always has a sane, finite size AND always
+ * stays fully inside the source image bounds [0,1] — this is what
+ * guarantees empty space can never appear inside the crop box (there is
+ * nothing to clamp against outside the image, so an in-bounds rect can
+ * never reveal a gap). Used for every pan/resize update. */
+function clampCropRect(x: number, y: number, width: number, height: number): CropSettings {
+  let w = Number.isFinite(width) ? width : MIN_CROP_SIZE;
+  let h = Number.isFinite(height) ? height : MIN_CROP_SIZE;
+  w = Math.min(1, Math.max(MIN_CROP_SIZE, w));
+  h = Math.min(1, Math.max(MIN_CROP_SIZE, h));
+
+  let nx = Number.isFinite(x) ? x : 0;
+  let ny = Number.isFinite(y) ? y : 0;
+  nx = Math.min(1 - w, Math.max(0, nx));
+  ny = Math.min(1 - h, Math.max(0, ny));
+
+  return { x: nx, y: ny, width: w, height: h };
 }
 
 @Component({
@@ -49,6 +77,8 @@ export class ImageEditor implements OnChanges, OnDestroy {
   @Input() sourceCrossOrigin = false;
 
   @ViewChild('previewCanvas') previewCanvasRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('cropCanvas') cropCanvasRef?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('cropStageWrap') cropStageWrapRef?: ElementRef<HTMLDivElement>;
 
   public readonly fonts: FontOption[] = SUPPORTED_FONTS;
   public readonly presets: ColorPreset[] = COLOR_PRESETS;
@@ -82,9 +112,16 @@ export class ImageEditor implements OnChanges, OnDestroy {
 
   public expandedGroup = signal<string>('light');
 
-  public activeTool = signal<'color' | 'caption'>('color');
+  public activeTool = signal<'color' | 'caption' | 'crop'>('color');
   public adjustments = signal<ColorAdjustments>({ ...DEFAULT_ADJUSTMENTS });
   public caption = signal<CaptionSettings>({ ...DEFAULT_CAPTION });
+
+  // Applied crop (drives the real preview/export). While the user is
+  // actively cropping, edits happen on `draftCrop` only — `crop` is only
+  // overwritten on Apply, so Cancel is a no-op on the real editor state.
+  public crop = signal<CropSettings>({ ...DEFAULT_CROP });
+  public draftCrop = signal<CropSettings>({ ...DEFAULT_CROP });
+  public isCroppingMode = signal(false);
 
   public isLoadingImage = signal(true);
   public loadError = signal<string | null>(null);
@@ -100,7 +137,8 @@ export class ImageEditor implements OnChanges, OnDestroy {
     );
     const c = this.caption();
     const changedCaption = c.enabled && c.text.trim().length > 0;
-    return changedColor || changedCaption;
+    const changedCrop = !isDefaultCrop(this.crop());
+    return changedColor || changedCaption || changedCrop;
   });
 
   private history = new EditorHistory();
@@ -108,6 +146,15 @@ export class ImageEditor implements OnChanges, OnDestroy {
   private imageEl: HTMLImageElement | null = null;
   private rafHandle: number | null = null;
   private draggingPointerId: number | null = null;
+
+  // ---------- crop-drag state (not part of Angular change detection) ----------
+  private cropDragMode: CropHandle | null = null;
+  private cropDragPointerId: number | null = null;
+  private cropDragStart: { clientX: number; clientY: number; rect: CropSettings } = {
+    clientX: 0,
+    clientY: 0,
+    rect: { ...DEFAULT_CROP },
+  };
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['sourceUrl'] && this.sourceUrl) {
@@ -127,6 +174,9 @@ export class ImageEditor implements OnChanges, OnDestroy {
     this.imageEl = null;
     this.adjustments.set({ ...DEFAULT_ADJUSTMENTS });
     this.caption.set({ ...DEFAULT_CAPTION });
+    this.crop.set({ ...DEFAULT_CROP });
+    this.draftCrop.set({ ...DEFAULT_CROP });
+    this.isCroppingMode.set(false);
     this.history.reset();
     this.pending = null;
     this.refreshHistoryFlags();
@@ -135,6 +185,13 @@ export class ImageEditor implements OnChanges, OnDestroy {
       this.imageEl = await loadImage(this.sourceUrl, this.sourceCrossOrigin);
       this.isLoadingImage.set(false);
       this.scheduleRender();
+      // Covers the edge case where the user switched to the Crop tab while
+      // this image was still loading (isCroppingMode was force-reset above,
+      // but a fast re-click could still race back to 'crop' before this
+      // resolves) — without this, the crop canvas would stay blank.
+      if (this.activeTool() === 'crop') {
+        this.enterCropMode();
+      }
     } catch (err: any) {
       this.isLoadingImage.set(false);
       this.loadError.set(err?.message || 'Không thể tải ảnh để chỉnh sửa.');
@@ -161,14 +218,33 @@ export class ImageEditor implements OnChanges, OnDestroy {
       canvas,
       adjustments: this.adjustments(),
       caption: this.caption(),
+      crop: this.crop(),
       maxDimension: PREVIEW_MAX_DIMENSION,
     }).catch((err) => console.error('Lỗi khi render preview trong editor:', err));
+  }
+
+  /** Renders the crop-mode stage: the FULL source image (no crop clipping,
+   * no caption) so the user can see the whole picture while choosing what
+   * to keep. Runs once per crop-mode entry — not on every drag frame,
+   * since dragging only moves the DOM overlay rectangle (see the .ie-crop-*
+   * template bindings), not the canvas bitmap. */
+  private renderCropStage(): void {
+    const canvas = this.cropCanvasRef?.nativeElement;
+    if (!canvas || !this.imageEl) return;
+    renderEditedImage({
+      image: this.imageEl,
+      canvas,
+      adjustments: this.adjustments(),
+      caption: { ...DEFAULT_CAPTION },
+      crop: { ...DEFAULT_CROP },
+      maxDimension: PREVIEW_MAX_DIMENSION,
+    }).catch((err) => console.error('Lỗi khi render vùng crop trong editor:', err));
   }
 
   // ---------- history plumbing ----------
 
   private snapshotValue(): EditorSnapshot {
-    return { adjustments: this.adjustments(), caption: this.caption() };
+    return { adjustments: this.adjustments(), caption: this.caption(), crop: this.crop() };
   }
 
   private refreshHistoryFlags(): void {
@@ -201,27 +277,41 @@ export class ImageEditor implements OnChanges, OnDestroy {
   }
 
   public undo(): void {
+    if (this.isCroppingMode()) return;
     const prev = this.history.undo(this.snapshotValue());
     if (!prev) return;
     this.adjustments.set(prev.adjustments);
     this.caption.set(prev.caption);
+    this.crop.set(prev.crop);
     this.refreshHistoryFlags();
     this.scheduleRender();
   }
 
   public redo(): void {
+    if (this.isCroppingMode()) return;
     const next = this.history.redo(this.snapshotValue());
     if (!next) return;
     this.adjustments.set(next.adjustments);
     this.caption.set(next.caption);
+    this.crop.set(next.crop);
     this.refreshHistoryFlags();
     this.scheduleRender();
   }
 
   // ---------- color controls ----------
 
-  public setActiveTool(tool: 'color' | 'caption'): void {
+  public setActiveTool(tool: 'color' | 'caption' | 'crop'): void {
+    if (this.activeTool() === 'crop' && tool !== 'crop' && this.isCroppingMode()) {
+      // Leaving the crop tab without an explicit Cancel keeps whatever valid
+      // rectangle the user had drawn — matches how color/caption edits
+      // already apply live, and avoids silently discarding work on a
+      // stray tab click.
+      this.applyCrop();
+    }
     this.activeTool.set(tool);
+    if (tool === 'crop') {
+      this.enterCropMode();
+    }
   }
 
   public toggleGroup(id: string): void {
@@ -289,9 +379,11 @@ export class ImageEditor implements OnChanges, OnDestroy {
   }
 
   public resetAll(): void {
+    if (this.isCroppingMode()) return;
     this.applyChange(() => {
       this.adjustments.set({ ...DEFAULT_ADJUSTMENTS });
       this.caption.set({ ...DEFAULT_CAPTION });
+      this.crop.set({ ...DEFAULT_CROP });
     });
   }
 
@@ -335,6 +427,115 @@ export class ImageEditor implements OnChanges, OnDestroy {
     this.scheduleRender();
   }
 
+  // ---------- crop ----------
+
+  private enterCropMode(): void {
+    this.draftCrop.set(this.crop());
+    this.isCroppingMode.set(true);
+    // Render once on entry; dragging afterwards only moves the DOM overlay,
+    // never re-renders the canvas (see renderCropStage's doc comment).
+    requestAnimationFrame(() => this.renderCropStage());
+  }
+
+  /** Commits the in-progress rectangle as ONE undo/redo entry — matches the
+   * existing pattern for discrete changes (presets, toggles). */
+  public applyCrop(): void {
+    const next = this.draftCrop();
+    if (next.x !== this.crop().x || next.y !== this.crop().y || next.width !== this.crop().width || next.height !== this.crop().height) {
+      this.applyChange(() => this.crop.set(next));
+    }
+    this.isCroppingMode.set(false);
+  }
+
+  /** Discards the in-progress rectangle — the applied crop (`this.crop`) is
+   * never touched, so the image is exactly as it was before Crop was opened. */
+  public cancelCrop(): void {
+    this.draftCrop.set(this.crop());
+    this.isCroppingMode.set(false);
+  }
+
+  /** Resets the DRAFT back to "full image" — still requires Apply, so it's
+   * undoable in the same way as any other crop edit. */
+  public resetCropDraft(): void {
+    this.draftCrop.set({ ...DEFAULT_CROP });
+  }
+
+  public cropCursor(handle: CropHandle): string {
+    switch (handle) {
+      case 'nw':
+      case 'se':
+        return 'nwse-resize';
+      case 'ne':
+      case 'sw':
+        return 'nesw-resize';
+      default:
+        return 'move';
+    }
+  }
+
+  public onCropRectPointerDown(ev: PointerEvent): void {
+    this.beginCropDrag(ev, 'move');
+  }
+
+  public onCropHandlePointerDown(ev: PointerEvent, handle: CropHandle): void {
+    this.beginCropDrag(ev, handle);
+  }
+
+  private beginCropDrag(ev: PointerEvent, mode: CropHandle): void {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const target = ev.currentTarget as HTMLElement;
+    target.setPointerCapture(ev.pointerId);
+    this.cropDragMode = mode;
+    this.cropDragPointerId = ev.pointerId;
+    this.cropDragStart = { clientX: ev.clientX, clientY: ev.clientY, rect: this.draftCrop() };
+  }
+
+  public onCropOverlayPointerMove(ev: PointerEvent): void {
+    if (this.cropDragMode === null || this.cropDragPointerId !== ev.pointerId) return;
+    const wrap = this.cropStageWrapRef?.nativeElement;
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+
+    const dxFrac = (ev.clientX - this.cropDragStart.clientX) / rect.width;
+    const dyFrac = (ev.clientY - this.cropDragStart.clientY) / rect.height;
+    const start = this.cropDragStart.rect;
+
+    let next: CropSettings;
+    switch (this.cropDragMode) {
+      case 'move':
+        next = clampCropRect(start.x + dxFrac, start.y + dyFrac, start.width, start.height);
+        break;
+      case 'nw': {
+        const x = start.x + dxFrac;
+        const y = start.y + dyFrac;
+        next = clampCropRect(x, y, start.x + start.width - x, start.y + start.height - y);
+        break;
+      }
+      case 'ne': {
+        const y = start.y + dyFrac;
+        next = clampCropRect(start.x, y, start.width + dxFrac, start.y + start.height - y);
+        break;
+      }
+      case 'sw': {
+        const x = start.x + dxFrac;
+        next = clampCropRect(x, start.y, start.x + start.width - x, start.height + dyFrac);
+        break;
+      }
+      case 'se':
+        next = clampCropRect(start.x, start.y, start.width + dxFrac, start.height + dyFrac);
+        break;
+    }
+    this.draftCrop.set(next);
+  }
+
+  public onCropOverlayPointerUp(ev: PointerEvent): void {
+    if (this.cropDragPointerId !== ev.pointerId) return;
+    this.cropDragMode = null;
+    this.cropDragPointerId = null;
+  }
+
   // ---------- export ----------
 
   /** Renders the current edits at full resolution and returns a File ready
@@ -350,6 +551,7 @@ export class ImageEditor implements OnChanges, OnDestroy {
       canvas: exportCanvas,
       adjustments: this.adjustments(),
       caption: this.caption(),
+      crop: this.crop(),
       maxDimension: EXPORT_MAX_DIMENSION,
     });
     const blob = await canvasToBlob(exportCanvas, mime, mime === 'image/jpeg' ? 0.92 : undefined);

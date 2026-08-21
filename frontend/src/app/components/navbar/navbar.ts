@@ -18,12 +18,14 @@ import { Subject, Subscription, from, of } from 'rxjs';
 import { debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 import { SupabaseService } from '../../core/services/supabase';
 import { SidebarStateService } from '../../core/services/sidebar-state';
+import { ThemeService } from '../../core/services/theme';
 import { PinService, Pin } from '../../core/services/pin';
 import { UserService, UserSearchResult } from '../../core/services/user';
 import { SearchHistoryService } from '../../core/services/search-history';
 import { Sidebar } from '../sidebar/sidebar';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
 import { ImageSearchModal } from '../image-search-modal/image-search-modal';
+import { ThemeToggle } from '../../shared/theme-toggle/theme-toggle';
 
 type SuggestionItem =
   | { kind: 'recent'; term: string }
@@ -34,13 +36,14 @@ type SuggestionItem =
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, FormsModule, Sidebar, UserAvatar, ImageSearchModal],
+  imports: [CommonModule, FormsModule, Sidebar, UserAvatar, ImageSearchModal, ThemeToggle],
   templateUrl: './navbar.html',
   styleUrl: './navbar.css'
 })
 export class Navbar implements OnInit, OnDestroy {
   public supabaseService = inject(SupabaseService);
   public sidebarState = inject(SidebarStateService);
+  public themeService = inject(ThemeService);
   private router = inject(Router);
   private elementRef = inject(ElementRef);
   private pinService = inject(PinService);
@@ -336,6 +339,11 @@ export class Navbar implements OnInit, OnDestroy {
 
   navigateToCreate() {
     this.router.navigate(['/create']);
+  }
+
+  navigateToSettings() {
+    this.showProfilePopup.set(false);
+    this.router.navigate(['/settings']);
   }
 
   async signOut() {
