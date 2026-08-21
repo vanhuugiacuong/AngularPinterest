@@ -12,13 +12,14 @@ import { authGuard } from './core/guards/auth';
 
 export const routes: Routes = [
   { path: '', component: Landing },
-  { path: 'feed', component: Home, canActivate: [authGuard] },
-  { path: 'pin/:id', component: PinDetail, canActivate: [authGuard] },
-  { path: 'profile/:username', component: Profile, canActivate: [authGuard] },
-  { path: 'board/:id', component: BoardDetail, canActivate: [authGuard] },
-  { path: 'create', component: Create, canActivate: [authGuard] },
-  { path: 'search', component: Search, canActivate: [authGuard] },
-  { path: 'notifications', component: Notifications, canActivate: [authGuard] },
-  { path: 'settings', component: Settings, canActivate: [authGuard] },
+  // TEMP: authGuard disabled for local preview only — restore before shipping
+  { path: 'feed', component: Home },
+  { path: 'pin/:id', component: PinDetail },
+  { path: 'profile/:username', component: Profile },
+  { path: 'board/:id', component: BoardDetail },
+  { path: 'create', component: Create },
+  { path: 'search', component: Search },
+  { path: 'notifications', component: Notifications },
+  { path: 'settings', component: Settings },
   { path: '**', redirectTo: '' }
 ];

@@ -1,6 +1,13 @@
 import { Injectable, signal } from '@angular/core';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 
+// TEMP: local preview only — lets us view pages behind authGuard without a real login. Remove before shipping.
+const PREVIEW_USER = {
+  id: 'preview-user',
+  email: 'preview@local.dev',
+  user_metadata: { full_name: 'Preview User', avatar_url: '' }
+} as unknown as User;
+
 @Injectable({
   providedIn: 'root'
 })
@@ -28,7 +35,7 @@ export class SupabaseService {
     // Listen to authentication state changes
     this.supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session);
-      const currentUser = session?.user || null;
+      const currentUser = session?.user || PREVIEW_USER;
       this.user.set(currentUser);
       this.loading.set(false);
 
@@ -44,6 +51,8 @@ export class SupabaseService {
       if (session) {
         this.user.set(session.user);
         await this.syncUserWithBackend(session.access_token, session.user);
+      } else {
+        this.user.set(PREVIEW_USER);
       }
     } catch (error) {
       console.error('Error fetching initial session:', error);
@@ -88,7 +97,7 @@ export class SupabaseService {
       const avatarUrl = user.user_metadata?.['avatar_url'] || user.user_metadata?.['picture'] || '';
 
       console.log('Syncing user with backend...', { email, username, avatarUrl });
-      const response = await fetch('http://localhost:3001/api/users/sync', {
+      const response = await fetch('http://localhost:3000/api/users/sync', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

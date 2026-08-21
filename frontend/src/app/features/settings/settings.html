@@ -1,22 +1,22 @@
-<div class="min-h-screen bg-white text-black flex flex-col font-sans relative">
+<div class="min-h-screen bg-white dark:bg-[#121212] text-black dark:text-white flex flex-col font-sans relative transition-colors">
   <app-navbar></app-navbar>
 
   <div class="flex-1 pt-16 pb-24 flex flex-col min-w-0">
     <main class="flex-1 w-full max-w-[600px] mx-auto px-6 py-6 flex flex-col">
-      <h1 class="text-lg font-extrabold text-black mb-6">Cài đặt</h1>
+      <h1 class="text-lg font-extrabold text-black dark:text-white mb-6">Cài đặt</h1>
 
       @if (supabaseService.user(); as user) {
         <div class="flex flex-col gap-1 mb-8">
-          <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Tài khoản</span>
-          <div class="flex items-center gap-3 mt-2 p-4 rounded-2xl bg-[#f6f6f3]">
+          <span class="text-[11px] font-bold text-gray-400 dark:text-[#777] uppercase tracking-wide">Tài khoản</span>
+          <div class="flex items-center gap-3 mt-2 p-4 rounded-2xl bg-[#f6f6f3] dark:bg-[#1e1e1e]">
             <img
               [src]="user.user_metadata['avatar_url'] || user.user_metadata['picture'] || 'https://api.dicebear.com/7.x/bottts/svg'"
               alt="Avatar"
-              class="w-12 h-12 rounded-full border border-[#dadad3] object-cover"
+              class="w-12 h-12 rounded-full border border-[#dadad3] dark:border-[#333] object-cover"
             />
             <div class="flex-1 min-w-0">
-              <p class="text-sm font-extrabold text-black truncate">{{ user.user_metadata['full_name'] || user.email }}</p>
-              <p class="text-xs text-[#62625b] truncate">{{ user.email }}</p>
+              <p class="text-sm font-extrabold text-black dark:text-white truncate">{{ user.user_metadata['full_name'] || user.email }}</p>
+              <p class="text-xs text-[#62625b] dark:text-[#999] truncate">{{ user.email }}</p>
             </div>
           </div>
         </div>
@@ -24,7 +24,7 @@
 
       <button
         (click)="signOut()"
-        class="w-full h-11 px-4 bg-white hover:bg-[#f6f6f3] text-[#B15CAA] font-bold rounded-full transition-all duration-200 cursor-pointer text-sm border border-[#dadad3]"
+        class="w-full h-11 px-4 bg-white dark:bg-[#1e1e1e] hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] text-[#B15CAA] font-bold rounded-full transition-all duration-200 cursor-pointer text-sm border border-[#dadad3] dark:border-[#333]"
       >
         Đăng xuất
       </button>

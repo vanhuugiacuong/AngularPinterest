@@ -2,6 +2,7 @@ import { Component, inject, signal, ElementRef, HostListener, Output, EventEmitt
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { SupabaseService } from '../../core/services/supabase';
+import { ThemeService } from '../../core/services/theme';
 
 @Component({
   selector: 'app-navbar',
@@ -12,6 +13,7 @@ import { SupabaseService } from '../../core/services/supabase';
 })
 export class Navbar {
   public supabaseService = inject(SupabaseService);
+  public themeService = inject(ThemeService);
   private router = inject(Router);
   private elementRef = inject(ElementRef);
 

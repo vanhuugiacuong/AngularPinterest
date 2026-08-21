@@ -1,4 +1,4 @@
-<div class="min-h-screen bg-white text-black flex flex-col font-sans relative">
+<div class="min-h-screen bg-white dark:bg-[#121212] text-black dark:text-white flex flex-col font-sans relative transition-colors">
   <!-- Navbar handles fixed top header and floating bottom tab bar -->
   <app-navbar></app-navbar>
 
@@ -10,11 +10,11 @@
            Slides up when the user scrolls down through the feed, slides back down at the top. -->
       @if (!isLoading() && interestPins().length > 0) {
         <div
-          class="sticky top-16 z-30 bg-white -mx-4 px-4 pt-2 pb-3 mb-2 transition-transform duration-300 ease-in-out"
+          class="sticky top-16 z-30 bg-white dark:bg-[#121212] -mx-4 px-4 pt-2 pb-3 mb-2 transition-transform duration-300 ease-in-out"
           [class.-translate-y-full]="!isInterestBarVisible()"
           [class.opacity-0]="!isInterestBarVisible()"
         >
-          <h2 class="text-base font-bold text-black mb-2">Xu hướng nổi bật</h2>
+          <h2 class="text-base font-bold text-black dark:text-white mb-2">Xu hướng nổi bật</h2>
           <div class="interest-marquee-viewport overflow-hidden">
             <div class="interest-marquee-track flex gap-3 w-max">
               <!-- Pins rendered twice back-to-back so the marquee loops seamlessly -->
@@ -55,9 +55,9 @@
       <!-- Sub-header Navigation Tabs -->
       <div class="flex items-center gap-6 mb-6 select-none border-b border-transparent">
         <div class="relative pb-2 cursor-pointer">
-          <span class="text-base font-bold text-black">{{ isTrending() ? 'Khám phá' : 'Tất cả' }}</span>
+          <span class="text-base font-bold text-black dark:text-white">{{ isTrending() ? 'Khám phá' : 'Tất cả' }}</span>
           <!-- Thick black bottom indicator line -->
-          <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-black rounded-full"></div>
+          <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-black dark:bg-white rounded-full"></div>
           
         </div>
       </div>
@@ -69,10 +69,10 @@
             <div class="flex flex-col gap-3 flex-1 min-w-0">
               @for (dummy of getSkeletonsForColumn(colIndex); track dummy) {
                 <div class="flex flex-col">
-                  <div class="w-full rounded-[24px] bg-[#e9e9e9] animate-pulse" [ngStyle]="{'height': (dummy % 3 === 0 ? '250px' : dummy % 3 === 1 ? '380px' : '300px')}"></div>
+                  <div class="w-full rounded-[24px] bg-[#e9e9e9] dark:bg-[#2a2a2a] animate-pulse" [ngStyle]="{'height': (dummy % 3 === 0 ? '250px' : dummy % 3 === 1 ? '380px' : '300px')}"></div>
                   <div class="mt-2 px-1 flex flex-col gap-1">
-                    <div class="h-3 w-2/3 bg-[#e9e9e9] rounded animate-pulse"></div>
-                    <div class="h-3 w-1/3 bg-[#e9e9e9] rounded animate-pulse"></div>
+                    <div class="h-3 w-2/3 bg-[#e9e9e9] dark:bg-[#2a2a2a] rounded animate-pulse"></div>
+                    <div class="h-3 w-1/3 bg-[#e9e9e9] dark:bg-[#2a2a2a] rounded animate-pulse"></div>
                   </div>
                 </div>
               }
@@ -93,7 +93,7 @@
                   <!-- Image Container with Hover Overlay -->
                   <div 
                     (click)="navigateToPin(pin.id)"
-                    class="relative overflow-hidden rounded-[24px] bg-[#f6f6f3] shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-300"
+                    class="relative overflow-hidden rounded-[24px] bg-[#f6f6f3] dark:bg-[#1e1e1e] shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-300"
                     [style.aspect-ratio]="pin.aspectRatio || '0.75'"
                   >
                     <img
@@ -118,13 +118,13 @@
                           
                           <!-- Dropdown options list -->
                           @if (activeDropdownPinId() === pin.id) {
-                            <div class="absolute left-0 top-9 w-44 bg-white rounded-2xl shadow-2xl border border-gray-100 py-1.5 z-[100] text-left">
+                            <div class="absolute left-0 top-9 w-44 bg-white dark:bg-[#242424] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-[100] text-left">
                               <span class="text-[9px] uppercase tracking-wider text-gray-400 font-bold px-3.5 py-1 block">Lưu vào bảng</span>
                               <div class="max-h-[140px] overflow-y-auto">
                                 @for (b of boards(); track b.id) {
-                                  <div 
+                                  <div
                                     (click)="selectBoardForPin(pin.id, b, $event)"
-                                    class="px-3.5 py-2 text-xs font-bold text-black hover:bg-gray-50 cursor-pointer truncate"
+                                    class="px-3.5 py-2 text-xs font-bold text-black dark:text-white hover:bg-gray-50 dark:hover:bg-[#333] cursor-pointer truncate"
                                   >
                                     {{ b.name }}
                                   </div>
@@ -148,17 +148,17 @@
                   <!-- Bottom Bar Metadata (if set) -->
                   @if (pin.hasBottomBar) {
                     <div class="px-1 flex items-center justify-between w-full min-w-0 mt-2">
-                      <span class="text-xs font-bold text-[#211922] truncate max-w-[70%]">{{ pin.title }}</span>
+                      <span class="text-xs font-bold text-[#211922] dark:text-white truncate max-w-[70%]">{{ pin.title }}</span>
                       <div class="flex items-center gap-2 shrink-0">
                         <!-- Heart Likes count if duck plush -->
                         @if (pin.likes) {
-                          <span class="flex items-center gap-0.5 text-xs text-[#62625b]">
+                          <span class="flex items-center gap-0.5 text-xs text-[#62625b] dark:text-[#999]">
                             <span class="material-symbols-outlined text-[14px] leading-none text-[#B15CAA]">favorite</span>
                             {{ pin.likes }}
                           </span>
                         }
                         <!-- Three-dots action (Show on hover) -->
-                        <span class="material-symbols-outlined text-sm text-[#62625b] hover:text-black cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-200">more_horiz</span>
+                        <span class="material-symbols-outlined text-sm text-[#62625b] dark:text-[#999] hover:text-black dark:hover:text-white cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-200">more_horiz</span>
                       </div>
                     </div>
                   }
@@ -166,7 +166,7 @@
                   <!-- Generic simple dots bar for cards without descriptive bottom bar -->
                   @if (!pin.hasBottomBar) {
                     <div class="mt-1 px-1 flex justify-end">
-                      <span class="material-symbols-outlined text-sm text-[#62625b] hover:text-black cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-200">more_horiz</span>
+                      <span class="material-symbols-outlined text-sm text-[#62625b] dark:text-[#999] hover:text-black dark:hover:text-white cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-200">more_horiz</span>
                     </div>
                   }
                 </div>
@@ -176,7 +176,7 @@
               @if (isScrollingLoad()) {
                 @for (dummy of getScrollingSkeletonsForColumn(colIndex); track dummy) {
                   <div class="flex flex-col mt-2">
-                    <div class="w-full rounded-[24px] bg-[#e9e9e9] animate-pulse" [ngStyle]="{'height': (dummy % 2 === 0 ? '280px' : '340px')}"></div>
+                    <div class="w-full rounded-[24px] bg-[#e9e9e9] dark:bg-[#2a2a2a] animate-pulse" [ngStyle]="{'height': (dummy % 2 === 0 ? '280px' : '340px')}"></div>
                   </div>
                 }
               }
