@@ -173,6 +173,7 @@
         <!-- Unread Badge -->
         <span
           *ngIf="(unreadCount$ | async)! > 0"
+          [appBadgeBump]="(unreadCount$ | async)!"
           class="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-text-on-accent ring-2 ring-surface shadow-glow"
         >
           {{ (unreadCount$ | async)! > 99 ? '99+' : (unreadCount$ | async) }}
@@ -200,11 +201,19 @@
         [class.rounded-frame-alt]="isMessagesPage()"
         [class.text-accent]="isMessagesPage()"
         [class.text-text-muted]="!isMessagesPage()"
-        class="flex h-11 w-11 items-center justify-center rounded-control transition-all duration-300 ease-spring hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
+        class="relative flex h-11 w-11 items-center justify-center rounded-control transition-all duration-300 ease-spring hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
         aria-label="Tin nhắn"
         [attr.aria-current]="isMessagesPage() ? 'page' : null"
       >
         <span class="material-symbols-outlined text-xl" [class.font-bold]="isMessagesPage()">sms</span>
+        <!-- Unread Badge -->
+        <span
+          *ngIf="(unreadMessageCount$ | async)! > 0"
+          [appBadgeBump]="(unreadMessageCount$ | async)!"
+          class="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-text-on-accent ring-2 ring-surface shadow-glow"
+        >
+          {{ (unreadMessageCount$ | async)! > 99 ? '99+' : (unreadMessageCount$ | async) }}
+        </span>
       </button>
       <span
         role="tooltip"
@@ -314,12 +323,11 @@
       </div>
 
       <!-- Item List -->
+      <div *ngFor="let item of list" class="group" [class.bg-accent/5]="!item.isRead">
       <button
         type="button"
-        *ngFor="let item of list"
         (click)="onNotificationClick(item)"
-        [class.bg-accent/5]="!item.isRead"
-        class="group relative flex w-full items-start gap-3.5 p-4 text-left hover:bg-surface-elevated transition-colors cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
+        class="relative flex w-full items-start gap-3.5 p-4 text-left hover:bg-surface-elevated transition-colors cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
       >
         <!-- Sender Avatar or Initial -->
         <div class="relative shrink-0 mt-0.5">
@@ -338,14 +346,16 @@
               'bg-error': item.type === 'LIKE',
               'bg-primary': item.type === 'COMMENT',
               'bg-secondary': item.type === 'SAVE',
-              'bg-success': item.type === 'POST_SUCCESS'
+              'bg-success': item.type === 'POST_SUCCESS' || item.type === 'FOLLOW',
+              'bg-accent': item.type === 'FOLLOW_REQUEST'
             }"
           >
             <span class="material-symbols-outlined text-[12px]">
               {{
                 item.type === 'LIKE' ? 'favorite' :
                 item.type === 'COMMENT' ? 'chat_bubble' :
-                item.type === 'SAVE' ? 'bookmark' : 'check_circle'
+                item.type === 'SAVE' ? 'bookmark' :
+                item.type === 'FOLLOW' || item.type === 'FOLLOW_REQUEST' ? 'person' : 'check_circle'
               }}
             </span>
           </span>
@@ -384,6 +394,28 @@
           />
         </div>
       </button>
+
+      <!-- Follow-request action row — accept/reject inline, no need to
+           leave the notification panel. Hidden once handled this session. -->
+      <div *ngIf="isPendingFollowRequest(item)" class="flex items-center gap-2 px-4 pb-3.5 pl-[74px]">
+        <button
+          type="button"
+          [disabled]="isRespondingToFollowRequest(item)"
+          (click)="acceptFollowRequest(item, $event)"
+          class="flex-1 h-8 rounded-control bg-accent text-text-on-accent text-xs font-bold cursor-pointer border-none disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          Chấp nhận
+        </button>
+        <button
+          type="button"
+          [disabled]="isRespondingToFollowRequest(item)"
+          (click)="rejectFollowRequest(item, $event)"
+          class="flex-1 h-8 rounded-control bg-surface-elevated text-text text-xs font-bold cursor-pointer border border-border disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          Từ chối
+        </button>
+      </div>
+      </div>
     </ng-container>
   </div>
 </ng-template>
@@ -435,6 +467,7 @@
     <span class="text-xs font-medium">Thông báo</span>
     <span
       *ngIf="(unreadCount$ | async)! > 0"
+      [appBadgeBump]="(unreadCount$ | async)!"
       class="absolute top-1 right-[calc(50%-20px)] flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-text-on-accent ring-2 ring-surface"
     >
       {{ (unreadCount$ | async)! > 99 ? '99+' : (unreadCount$ | async) }}
@@ -446,12 +479,19 @@
     (click)="navigateToMessages()"
     [class.text-accent]="isMessagesPage()"
     [class.text-text-muted]="!isMessagesPage()"
-    class="flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[56px] cursor-pointer border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
+    class="relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[56px] cursor-pointer border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
     aria-label="Tin nhắn"
     [attr.aria-current]="isMessagesPage() ? 'page' : null"
   >
     <span class="material-symbols-outlined text-2xl" [class.font-bold]="isMessagesPage()">sms</span>
     <span class="text-xs font-medium">Tin nhắn</span>
+    <span
+      *ngIf="(unreadMessageCount$ | async)! > 0"
+      [appBadgeBump]="(unreadMessageCount$ | async)!"
+      class="absolute top-1 right-[calc(50%-20px)] flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-text-on-accent ring-2 ring-surface"
+    >
+      {{ (unreadMessageCount$ | async)! > 99 ? '99+' : (unreadMessageCount$ | async) }}
+    </span>
   </button>
 
   <button

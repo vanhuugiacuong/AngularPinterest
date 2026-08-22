@@ -80,7 +80,7 @@
             <button
               type="button"
               class="primary-action"
-              [class.following-action]="p.viewer.isFollowing"
+              [class.following-action]="p.viewer.followRequestStatus === 'ACCEPTED' || p.viewer.followRequestStatus === 'PENDING_OUTGOING'"
               [disabled]="followPending()"
               (click)="toggleFollow()"
             >
@@ -88,10 +88,10 @@
                 <span class="button-spinner" aria-hidden="true"></span>
               } @else {
                 <span class="material-symbols-outlined">
-                  {{ p.viewer.isFollowing ? 'person_check' : 'person_add' }}
+                  {{ p.viewer.followRequestStatus === 'ACCEPTED' ? 'person_check' : p.viewer.followRequestStatus === 'PENDING_OUTGOING' ? 'schedule' : 'person_add' }}
                 </span>
               }
-              {{ p.viewer.isFollowing ? 'Bỏ theo dõi' : 'Theo dõi' }}
+              {{ p.viewer.followRequestStatus === 'ACCEPTED' ? 'Bỏ theo dõi' : p.viewer.followRequestStatus === 'PENDING_OUTGOING' ? 'Đã gửi yêu cầu' : 'Theo dõi' }}
             </button>
 
             <div class="message-row">

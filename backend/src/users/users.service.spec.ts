@@ -34,7 +34,7 @@ describe('UsersService profile data', () => {
     prisma.follow.count.mockResolvedValueOnce(8).mockResolvedValueOnce(4);
     // First call checks viewer -> target (isFollowing), second checks target -> viewer (isFollowedBy).
     prisma.follow.findUnique
-      .mockResolvedValueOnce({ followerId: 'viewer' })
+      .mockResolvedValueOnce({ status: 'ACCEPTED' })
       .mockResolvedValueOnce(null);
     prisma.messageRequest.findFirst.mockResolvedValue(null);
     prisma.conversation.findUnique.mockResolvedValue(null);
@@ -55,6 +55,7 @@ describe('UsersService profile data', () => {
       isFollowing: true,
       isFollowedBy: false,
       isMutualFollow: false,
+      followRequestStatus: 'ACCEPTED',
       canViewFavorites: false,
       canViewPrivateBoards: false,
       messageRequestStatus: 'NONE',
@@ -82,8 +83,8 @@ describe('UsersService profile data', () => {
     prisma.board.count.mockResolvedValue(0);
     prisma.follow.count.mockResolvedValueOnce(1).mockResolvedValueOnce(1);
     prisma.follow.findUnique
-      .mockResolvedValueOnce({ followerId: 'viewer' })
-      .mockResolvedValueOnce({ followerId: 'profile-user' });
+      .mockResolvedValueOnce({ status: 'ACCEPTED' })
+      .mockResolvedValueOnce({ status: 'ACCEPTED' });
     prisma.messageRequest.findFirst.mockResolvedValue(null);
     prisma.conversation.findUnique.mockResolvedValue({ id: 'conversation-1' });
 

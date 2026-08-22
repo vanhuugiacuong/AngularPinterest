@@ -28,19 +28,19 @@ describe('UsersService.toggleFollow', () => {
     expect(prisma.follow.create).not.toHaveBeenCalled();
   });
 
-  it('creates a follow, returns both counts, and sends exactly one FOLLOW notification', async () => {
+  it('creates a pending follow request, returns both counts, and sends exactly one FOLLOW_REQUEST notification', async () => {
     prisma.user.findUnique.mockResolvedValue({ id: 'user-2', username: 'target' });
-    prisma.follow.findUnique.mockResolvedValue(null); // not already following
-    prisma.follow.create.mockResolvedValue({ followerId: 'user-1', followingId: 'user-2' });
+    prisma.follow.findUnique.mockResolvedValue(null); // no existing relationship
+    prisma.follow.create.mockResolvedValue({ followerId: 'user-1', followingId: 'user-2', status: 'PENDING' });
     prisma.follow.count.mockResolvedValueOnce(5).mockResolvedValueOnce(2); // followerCount, followingCount
 
     const result = await service.toggleFollow('user-1', 'user-2');
 
-    expect(result).toEqual({ followed: true, followerCount: 5, followingCount: 2 });
+    expect(result).toEqual({ followRequestStatus: 'PENDING_OUTGOING', followerCount: 5, followingCount: 2 });
     expect(notificationsService.createNotification).toHaveBeenCalledTimes(1);
     expect(notificationsService.createNotification).toHaveBeenCalledWith(
       'user-2',
-      'FOLLOW',
+      'FOLLOW_REQUEST',
       expect.any(String),
       'user-1',
     );
@@ -61,15 +61,15 @@ describe('UsersService.toggleFollow', () => {
     expect(content).not.toContain('user-1');
   });
 
-  it('unfollows (deletes) without sending a notification when already following', async () => {
+  it('withdraws/unfollows (deletes) without sending a notification when a relationship already exists', async () => {
     prisma.user.findUnique.mockResolvedValue({ id: 'user-2', username: 'target' });
-    prisma.follow.findUnique.mockResolvedValue({ followerId: 'user-1' }); // already following
+    prisma.follow.findUnique.mockResolvedValue({ status: 'ACCEPTED' }); // already following
     prisma.follow.deleteMany.mockResolvedValue({ count: 1 });
     prisma.follow.count.mockResolvedValueOnce(4).mockResolvedValueOnce(1);
 
     const result = await service.toggleFollow('user-1', 'user-2');
 
-    expect(result.followed).toBe(false);
+    expect(result.followRequestStatus).toBe('NONE');
     expect(notificationsService.createNotification).not.toHaveBeenCalled();
   });
 
@@ -83,9 +83,9 @@ describe('UsersService.toggleFollow', () => {
 
     const result = await service.toggleFollow('user-1', 'user-2');
 
-    // The loser of the race still reports success (the follow exists either
-    // way) but must not fire a second notification for the same event.
-    expect(result.followed).toBe(true);
+    // The loser of the race still reports the request as pending (the row
+    // exists either way) but must not fire a second notification for it.
+    expect(result.followRequestStatus).toBe('PENDING_OUTGOING');
   });
 });
 

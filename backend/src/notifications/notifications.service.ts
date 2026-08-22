@@ -1,13 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import { NotificationTemplateHelper, NotificationData, NOTIFICATION_TEMPLATES, NotificationTemplate } from '../templates/notification.templates';
 import { PUBLIC_USER_SELECT } from '../common/relationship.util';
 
-export type NotificationType = 'LIKE' | 'COMMENT' | 'SAVE' | 'POST_SUCCESS' | 'POST_AI_SUCCESS' | 'FOLLOW';
+export type NotificationType = 'LIKE' | 'COMMENT' | 'SAVE' | 'POST_SUCCESS' | 'POST_AI_SUCCESS' | 'FOLLOW' | 'FOLLOW_REQUEST';
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly supabase: SupabaseService,
+  ) {}
 
   async createNotification(
     userId: string,
@@ -27,7 +31,7 @@ export class NotificationsService {
       }
     }
 
-    return this.prisma.notification.create({
+    const notification = await this.prisma.notification.create({
       data: {
         userId,
         senderId,
@@ -44,6 +48,10 @@ export class NotificationsService {
         },
       },
     });
+
+    void this.supabase.broadcast(`user:${userId}`, 'notification', notification);
+
+    return notification;
   }
 
   async getNotifications(userId: string, page: number = 1, limit: number = 20) {
