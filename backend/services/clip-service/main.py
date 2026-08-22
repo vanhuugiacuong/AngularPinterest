@@ -31,10 +31,11 @@ HF_TOKEN = os.getenv("HF_TOKEN", "")
 
 # --- NSFW moderation (zero-shot via the same CLIP model, no extra model/key needed) ---
 # We embed a set of "unsafe" and "safe" text prompts once, then compare an
-# uploaded image's embedding against all of them. The combined probability
-# mass on the unsafe prompts is the NSFW score. Threshold is tunable via env
-# so it can be relaxed/tightened without a code change.
-NSFW_THRESHOLD = float(os.getenv("NSFW_THRESHOLD", "0.35"))
+# uploaded image's embedding against all of them. The score compares the
+# strongest unsafe match with the strongest safe match, so adding more labels
+# to either group cannot bias the verdict merely by increasing that group's
+# total probability mass. Threshold is tunable via env.
+NSFW_THRESHOLD = float(os.getenv("NSFW_THRESHOLD", "0.5"))
 
 NSFW_LABELS = [
     "explicit nudity",
@@ -56,6 +57,20 @@ SAFE_LABELS = [
 ]
 
 _label_embeddings_cache: dict[str, np.ndarray] = {}
+
+def _binary_moderation_score(similarities: np.ndarray) -> float:
+    """Return a label-count-neutral unsafe probability.
+
+    Softmaxing every prompt together and summing all unsafe probabilities is
+    biased by the number of prompts in each group. Competing only the strongest
+    unsafe and safe evidence keeps the decision calibrated around 0.5.
+    """
+    unsafe_max = float(np.max(similarities[:len(NSFW_LABELS)]))
+    safe_max = float(np.max(similarities[len(NSFW_LABELS):]))
+    logits = np.array([unsafe_max, safe_max], dtype=np.float64) * 100
+    logits -= np.max(logits)
+    probabilities = np.exp(logits)
+    return float(probabilities[0] / probabilities.sum())
 
 def _extract_features(output):
     """CLIPModel.get_text_features()/get_image_features() return a plain
@@ -218,13 +233,10 @@ async def moderate_image(file: UploadFile = File(...)):
         labels = list(label_embeddings.keys())
         sims = np.array([float(np.dot(image_embedding, label_embeddings[l])) for l in labels])
 
-        # Softmax with temperature, matching standard CLIP zero-shot classification.
-        exp_scores = np.exp(sims * 100)
-        probs = exp_scores / exp_scores.sum()
-
-        label_probs = dict(zip(labels, probs.tolist()))
-        nsfw_score = sum(label_probs[l] for l in NSFW_LABELS)
-        top_label = max(label_probs, key=label_probs.get)
+        # Compare the strongest evidence from each class. This avoids false
+        # positives caused by summing six unsafe prompts against safe images.
+        nsfw_score = _binary_moderation_score(sims)
+        top_label = labels[int(np.argmax(sims))]
 
         return {
             "nsfw": nsfw_score >= NSFW_THRESHOLD,
