@@ -38,6 +38,16 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   public isInterestBarVisible = signal<boolean>(true);
   private lastScrollY = 0;
 
+  // Once the user manually drags/touches the interest strip, pause the auto-scroll
+  // animation so it doesn't fight their scroll position. Resumes after 10s of no interaction.
+  public isInterestMarqueePaused = signal<boolean>(false);
+  private marqueeResumeTimer: any = null;
+  pauseInterestMarquee() {
+    this.isInterestMarqueePaused.set(true);
+    clearTimeout(this.marqueeResumeTimer);
+    this.marqueeResumeTimer = setTimeout(() => this.isInterestMarqueePaused.set(false), 10000);
+  }
+
   // Pins the user likely has an interest in, derived from the (personalized) feed order
   public interestPins = computed(() => this.pins().slice(0, 15));
 

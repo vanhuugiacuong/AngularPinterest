@@ -15,7 +15,12 @@
           [class.opacity-0]="!isInterestBarVisible()"
         >
           <h2 class="text-base font-bold text-black dark:text-white mb-2">Xu hướng nổi bật</h2>
-          <div class="interest-marquee-viewport overflow-hidden">
+          <div
+            class="interest-marquee-viewport overflow-x-auto"
+            [class.marquee-paused]="isInterestMarqueePaused()"
+            (pointerdown)="pauseInterestMarquee()"
+            (wheel)="pauseInterestMarquee()"
+          >
             <div class="interest-marquee-track flex gap-3 w-max">
               <!-- Pins rendered twice back-to-back so the marquee loops seamlessly -->
               @for (pin of interestPins(); track pin.id + '-a') {
