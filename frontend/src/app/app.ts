@@ -1,6 +1,7 @@
 import { Component, inject, effect } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { SupabaseService } from './core/services/supabase';
+import { ThemeService } from './core/services/theme';
 
 @Component({
   selector: 'app-root',
@@ -11,6 +12,7 @@ import { SupabaseService } from './core/services/supabase';
 export class App {
   private supabaseService = inject(SupabaseService);
   private router = inject(Router);
+  private themeService = inject(ThemeService);
 
   constructor() {
     // Automatically redirect users based on authentication status changes

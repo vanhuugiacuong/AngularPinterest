@@ -10,9 +10,15 @@
     <!-- Explore -->
     <div
       (click)="navigateToExplore()"
-      class="nav-petal petal-1"
-      [style.background-color]="isExplorePage() ? '#000' : '#fff'"
-      [style.color]="isExplorePage() ? '#fff' : '#000'"
+      class="nav-petal petal-1 border border-[#dadad3] dark:border-[#555] shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
+      [class.bg-black]="isExplorePage()"
+      [class.text-white]="isExplorePage()"
+      [class.dark:bg-white]="isExplorePage()"
+      [class.dark:text-black]="isExplorePage()"
+      [class.bg-white]="!isExplorePage()"
+      [class.text-black]="!isExplorePage()"
+      [class.dark:bg-[#3a3a3a]]="!isExplorePage()"
+      [class.dark:text-white]="!isExplorePage()"
       title="Khám phá"
     >
       <span class="material-symbols-outlined text-2xl">explore</span>
@@ -21,9 +27,15 @@
     <!-- Create -->
     <div
       (click)="navigateToCreate()"
-      class="nav-petal petal-2"
-      [style.background-color]="isCreatePage() ? '#000' : '#fff'"
-      [style.color]="isCreatePage() ? '#fff' : '#000'"
+      class="nav-petal petal-2 border border-[#dadad3] dark:border-[#555] shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
+      [class.bg-black]="isCreatePage()"
+      [class.text-white]="isCreatePage()"
+      [class.dark:bg-white]="isCreatePage()"
+      [class.dark:text-black]="isCreatePage()"
+      [class.bg-white]="!isCreatePage()"
+      [class.text-black]="!isCreatePage()"
+      [class.dark:bg-[#3a3a3a]]="!isCreatePage()"
+      [class.dark:text-white]="!isCreatePage()"
       title="Tạo"
     >
       <span class="material-symbols-outlined text-2xl">add</span>
@@ -32,9 +44,15 @@
     <!-- Notifications (also covers chat/messages for now) -->
     <div
       (click)="navigateToNotifications()"
-      class="nav-petal petal-3"
-      [style.background-color]="isNotificationsPage() ? '#000' : '#fff'"
-      [style.color]="isNotificationsPage() ? '#fff' : '#000'"
+      class="nav-petal petal-3 border border-[#dadad3] dark:border-[#555] shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
+      [class.bg-black]="isNotificationsPage()"
+      [class.text-white]="isNotificationsPage()"
+      [class.dark:bg-white]="isNotificationsPage()"
+      [class.dark:text-black]="isNotificationsPage()"
+      [class.bg-white]="!isNotificationsPage()"
+      [class.text-black]="!isNotificationsPage()"
+      [class.dark:bg-[#3a3a3a]]="!isNotificationsPage()"
+      [class.dark:text-white]="!isNotificationsPage()"
       title="Thông báo & Tin nhắn"
     >
       <span class="material-symbols-outlined text-2xl">notifications</span>
@@ -43,9 +61,15 @@
     <!-- Profile -->
     <div
       (click)="navigateToMyProfile()"
-      class="nav-petal petal-4"
-      [style.background-color]="isProfilePage() ? '#000' : '#fff'"
-      [style.color]="isProfilePage() ? '#fff' : '#000'"
+      class="nav-petal petal-4 border border-[#dadad3] dark:border-[#555] shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
+      [class.bg-black]="isProfilePage()"
+      [class.text-white]="isProfilePage()"
+      [class.dark:bg-white]="isProfilePage()"
+      [class.dark:text-black]="isProfilePage()"
+      [class.bg-white]="!isProfilePage()"
+      [class.text-black]="!isProfilePage()"
+      [class.dark:bg-[#3a3a3a]]="!isProfilePage()"
+      [class.dark:text-white]="!isProfilePage()"
       title="Cá nhân"
     >
       <span class="material-symbols-outlined text-2xl">person</span>
@@ -57,9 +81,15 @@
       (touchstart)="onHomeTouchStart()"
       (touchend)="onHomeTouchEnd()"
       (touchcancel)="onHomeTouchEnd()"
-      class="nav-home-btn"
-      [style.background-color]="isFeedPage() ? '#000' : '#fff'"
-      [style.color]="isFeedPage() ? '#fff' : '#000'"
+      class="nav-home-btn border border-[#dadad3] dark:border-[#555] shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
+      [class.bg-black]="isFeedPage()"
+      [class.text-white]="isFeedPage()"
+      [class.dark:bg-white]="isFeedPage()"
+      [class.dark:text-black]="isFeedPage()"
+      [class.bg-white]="!isFeedPage()"
+      [class.text-black]="!isFeedPage()"
+      [class.dark:bg-[#3a3a3a]]="!isFeedPage()"
+      [class.dark:text-white]="!isFeedPage()"
       title="Trang chủ (giữ để mở menu)"
     >
       <span class="material-symbols-outlined text-2xl font-bold">home</span>
@@ -69,36 +99,35 @@
 
 <!-- Header (Navbar) -->
 <header
-  class="fixed top-0 left-0 right-0 h-16 bg-white border-b border-[#dadad3] flex items-center justify-between px-6 z-40"
+  class="fixed top-0 left-0 right-0 h-16 bg-white dark:bg-[#1a1a1a] border-b border-[#dadad3] dark:border-[#333] flex items-center justify-between px-6 z-40 transition-colors"
 >
-  <!-- Left Side: Show logo inside navbar ONLY when logged out -->
+  <!-- Left Side: Logo icon always visible; wordmark only when logged out (search bar needs the room) -->
   <div
-    *ngIf="!supabaseService.user()"
     (click)="onLogoClick()"
-    class="flex items-center gap-2 cursor-pointer select-none"
+    class="flex items-center gap-2 cursor-pointer select-none shrink-0"
   >
-    <div class="w-8 h-8 rounded-full bg-[#B15CAA] text-white flex items-center justify-center">
-      <span class="material-symbols-outlined text-lg leading-none font-bold">push_pin</span>
-    </div>
-    <span class="text-xl font-bold text-[#B15CAA] tracking-tight">Pinterest AI</span>
+    <img src="favicon-pinhub.png" alt="PinHub" class="w-8 h-8 object-contain" />
+    <span *ngIf="!supabaseService.user()" class="text-xl font-bold tracking-tight">
+      <span class="text-[#F94083]">Pin</span><span class="text-[#211922] dark:text-white">Hub</span>
+    </span>
   </div>
 
   <!-- Center Search Bar: only shown once logged in -->
   <div
     *ngIf="supabaseService.user()"
-    class="flex-1 mx-4 flex items-center gap-2 px-4 h-11 bg-[#e9e9e9] rounded-full text-[#62625b] border border-transparent hover:border-[#dadad3] transition-colors"
+    class="flex-1 mx-4 flex items-center gap-2 px-4 h-11 bg-[#e9e9e9] dark:bg-[#3a3a3a] rounded-full text-[#62625b] dark:text-[#a0a0a0] border border-transparent hover:border-[#dadad3] dark:hover:border-[#444] transition-colors"
   >
     <span class="material-symbols-outlined text-xl">search</span>
     <input
       type="text"
       [placeholder]="isProfilePage() ? 'Tìm kiếm Ghim của bạn' : 'Tìm kiếm'"
-      class="bg-transparent border-none outline-none w-full text-sm text-black placeholder-[#91918c]"
+      class="bg-transparent border-none outline-none w-full text-sm text-black dark:text-white placeholder-[#91918c] dark:placeholder-[#777]"
       (click)="$event.stopPropagation()"
       (keyup.enter)="onSearchSubmit($event)"
     />
     <!-- Camera Search Icon -->
     <span
-      class="material-symbols-outlined text-xl text-[#62625b] hover:text-black cursor-pointer select-none"
+      class="material-symbols-outlined text-xl text-[#62625b] dark:text-[#a0a0a0] hover:text-black dark:hover:text-white cursor-pointer select-none"
       title="Tìm kiếm bằng hình ảnh"
     >
       photo_camera
@@ -108,6 +137,17 @@
 
   <!-- Right Profile Section / Login Button -->
   <div class="flex items-center gap-3">
+    <!-- Theme toggle -->
+    <button
+      (click)="themeService.toggleTheme()"
+      class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] transition-colors cursor-pointer border-none outline-none text-[#211922] dark:text-white"
+      [title]="themeService.theme() === 'dark' ? 'Chuyển sang Light Mode' : 'Chuyển sang Dark Mode'"
+    >
+      <span class="material-symbols-outlined text-xl leading-none select-none">
+        {{ themeService.theme() === 'dark' ? 'light_mode' : 'dark_mode' }}
+      </span>
+    </button>
+
     <!-- Logged in state -->
     <div class="relative flex items-center" *ngIf="supabaseService.user() as user">
       <!-- Trigger button: avatar + chevron down -->
@@ -123,10 +163,10 @@
             'https://api.dicebear.com/7.x/bottts/svg'
           "
           alt="Avatar"
-          class="w-8 h-8 rounded-full border border-[#dadad3] object-cover"
+          class="w-8 h-8 rounded-full border border-[#dadad3] dark:border-[#444] object-cover"
         />
         <span
-          class="material-symbols-outlined text-[20px] text-[#211922] font-semibold leading-none select-none"
+          class="material-symbols-outlined text-[20px] text-[#211922] dark:text-white font-semibold leading-none select-none"
           >keyboard_arrow_down</span
         >
       </button>
@@ -134,15 +174,15 @@
       <!-- Profile Dropdown Popup -->
       <div
         *ngIf="showProfilePopup()"
-        class="absolute right-0 top-12 mt-2 w-80 bg-white rounded-[24px] shadow-[0_16px_48px_rgba(0,0,0,0.12)] border border-[#dadad3] p-4 flex flex-col gap-3.5 z-50 animate-fade-in text-left"
+        class="absolute right-0 top-12 mt-2 w-80 bg-white dark:bg-[#1e1e1e] rounded-[24px] shadow-[0_16px_48px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_48px_rgba(0,0,0,0.5)] border border-[#dadad3] dark:border-[#333] p-4 flex flex-col gap-3.5 z-50 animate-fade-in text-left"
       >
         <!-- Header: Đang đăng nhập -->
-        <span class="text-[12px] text-[#211922] font-normal px-2 select-none">
+        <span class="text-[12px] text-[#211922] dark:text-[#a0a0a0] font-normal px-2 select-none">
           Đang đăng nhập
         </span>
 
         <!-- User Card -->
-        <div class="flex items-center gap-3.5 rounded-3xl bg-white select-none">
+        <div class="flex items-center gap-3.5 rounded-3xl bg-white dark:bg-[#1e1e1e] select-none">
           <img
             [src]="
               user.user_metadata['avatar_url'] ||
@@ -150,29 +190,29 @@
               'https://api.dicebear.com/7.x/bottts/svg'
             "
             alt="Avatar"
-            class="w-14 h-14 rounded-full border border-[#dadad3] object-cover"
+            class="w-14 h-14 rounded-full border border-[#dadad3] dark:border-[#444] object-cover"
           />
           <div class="flex-1 min-w-0 flex flex-col justify-center">
             <!-- Full Name -->
-            <span class="text-[15px] font-extrabold text-black truncate leading-tight">
+            <span class="text-[15px] font-extrabold text-black dark:text-white truncate leading-tight">
               {{ user.user_metadata['full_name'] || user.email }}
             </span>
             <!-- Email -->
-            <span class="text-xs text-[#62625b] truncate mt-0.5 leading-none">
+            <span class="text-xs text-[#62625b] dark:text-[#999] truncate mt-0.5 leading-none">
               {{ user.email }}
             </span>
           </div>
         </div>
 
         <!-- Section: Tài khoản của bạn -->
-        <span class="text-[12px] text-[#211922] font-normal px-2 select-none">
+        <span class="text-[12px] text-[#211922] dark:text-[#a0a0a0] font-normal px-2 select-none">
           Tài khoản của bạn
         </span>
 
         <!-- View Profile Option -->
         <button
           (click)="navigateToMyProfile()"
-          class="w-full text-left font-bold text-base text-black hover:bg-[#f6f6f3] px-4 py-2 rounded-xl transition-all duration-200 cursor-pointer border-none outline-none select-none"
+          class="w-full text-left font-bold text-base text-black dark:text-white hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] px-4 py-2 rounded-xl transition-all duration-200 cursor-pointer border-none outline-none select-none"
         >
           Trang cá nhân
         </button>
@@ -180,7 +220,7 @@
         <!-- Settings Option -->
         <button
           (click)="navigateToSettings()"
-          class="w-full text-left font-bold text-base text-black hover:bg-[#f6f6f3] px-4 py-2 rounded-xl transition-all duration-200 cursor-pointer border-none outline-none select-none"
+          class="w-full text-left font-bold text-base text-black dark:text-white hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] px-4 py-2 rounded-xl transition-all duration-200 cursor-pointer border-none outline-none select-none"
         >
           Cài đặt
         </button>
@@ -188,7 +228,7 @@
         <!-- Sign Out Option -->
         <button
           (click)="signOut()"
-          class="w-full text-left font-bold text-base text-[#B15CAA] hover:bg-[#f6f6f3] px-4 py-2 rounded-xl transition-all duration-200 cursor-pointer border-none outline-none select-none"
+          class="w-full text-left font-bold text-base text-[#B15CAA] hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] px-4 py-2 rounded-xl transition-all duration-200 cursor-pointer border-none outline-none select-none"
         >
           Đăng xuất
         </button>

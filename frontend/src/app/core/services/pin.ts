@@ -20,7 +20,7 @@ export interface Pin {
   providedIn: 'root'
 })
 export class PinService {
-  private baseUrl = 'http://localhost:3001/api/pins';
+  private baseUrl = 'http://localhost:3000/api/pins';
 
   async getPins(page = 1, limit = 20, token?: string, seed?: string): Promise<Pin[]> {
     try {

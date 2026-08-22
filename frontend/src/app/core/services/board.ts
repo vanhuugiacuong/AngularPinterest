@@ -13,7 +13,7 @@ export interface Board {
   providedIn: 'root'
 })
 export class BoardService {
-  private baseUrl = 'http://localhost:3001/api/boards';
+  private baseUrl = 'http://localhost:3000/api/boards';
 
   async getBoards(token: string): Promise<Board[]> {
     try {
