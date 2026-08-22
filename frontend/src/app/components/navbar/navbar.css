@@ -43,24 +43,31 @@
 }
 
 /* Fan-out positions: arc above Home, tilted in 3D via rotateY, staggered reveal.
-   3 petals now (Explore, Create, Profile) since Notifications moved to the top navbar. */
+   4 petals now (Explore, Create, Chat, Profile) since Notifications moved to the top navbar. */
 .nav-fan-open .petal-1 {
   opacity: 1;
   pointer-events: auto;
-  transform: translate(-76px, -50px) scale(1) rotateY(-18deg);
+  transform: translate(-90px, -45px) scale(1) rotateY(-24deg);
   transition-delay: 0ms;
 }
 
 .nav-fan-open .petal-2 {
   opacity: 1;
   pointer-events: auto;
-  transform: translate(0px, -94px) scale(1) rotateY(0deg);
+  transform: translate(-32px, -85px) scale(1) rotateY(-8deg);
   transition-delay: 40ms;
+}
+
+.nav-fan-open .petal-3 {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(32px, -85px) scale(1) rotateY(8deg);
+  transition-delay: 80ms;
 }
 
 .nav-fan-open .petal-4 {
   opacity: 1;
   pointer-events: auto;
-  transform: translate(76px, -50px) scale(1) rotateY(18deg);
-  transition-delay: 80ms;
+  transform: translate(90px, -45px) scale(1) rotateY(24deg);
+  transition-delay: 120ms;
 }

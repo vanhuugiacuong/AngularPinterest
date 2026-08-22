@@ -2,6 +2,7 @@ import { Component, inject, effect } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { SupabaseService } from './core/services/supabase';
 import { ThemeService } from './core/services/theme';
+import { PresenceService } from './core/services/presence';
 import { ToastContainer } from './components/toast-container/toast-container';
 import { ConfirmDialog } from './components/confirm-dialog/confirm-dialog';
 
@@ -15,6 +16,7 @@ export class App {
   private supabaseService = inject(SupabaseService);
   private router = inject(Router);
   private themeService = inject(ThemeService);
+  private presenceService = inject(PresenceService);
 
   constructor() {
     // Automatically redirect users based on authentication status changes
@@ -34,6 +36,19 @@ export class App {
             this.router.navigate(['/']);
           }
         }
+      }
+    });
+
+    // Online presence is app-wide: connect once the user is authenticated
+    // (any page, not just /chat) and disconnect on sign-out.
+    effect(() => {
+      const dbUser = this.supabaseService.dbUser();
+      const user = this.supabaseService.user();
+      const userId = dbUser?.id || user?.id;
+      if (userId) {
+        void this.presenceService.connect(userId);
+      } else if (!this.supabaseService.loading()) {
+        void this.presenceService.disconnect();
       }
     });
   }

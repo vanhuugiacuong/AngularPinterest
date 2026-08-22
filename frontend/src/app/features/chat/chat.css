@@ -1,0 +1,19 @@
+:host {
+  display: block;
+}
+
+/* Buttons in this page rely on hover/background states, not a focus ring —
+   without this, clicking any button (e.g. the reply-quote) leaves the
+   browser's default outline visible, which reads as a stray colored border. */
+:host ::ng-deep button {
+  outline: none;
+}
+
+.typing-dots { display: inline-flex; gap: 3px; padding: 6px 9px; border-radius: 999px; background: #f6f6f3; }
+.typing-dots i { width: 5px; height: 5px; border-radius: 50%; background: #62625b; animation: typing-bounce 1s infinite ease-in-out; }
+.typing-dots i:nth-child(2) { animation-delay: .15s; }
+.typing-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes typing-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .45; } 30% { transform: translateY(-4px); opacity: 1; } }
+
+::ng-deep .message-highlight { animation: message-flash 1.2s ease-out; border-radius: 18px; }
+@keyframes message-flash { 0% { background-color: rgba(177, 92, 170, 0.18); } 100% { background-color: transparent; } }

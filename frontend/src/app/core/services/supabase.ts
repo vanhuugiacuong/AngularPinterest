@@ -133,4 +133,9 @@ export class SupabaseService {
       console.error('Error syncing user with backend:', error);
     }
   }
+
+  /** Shared authenticated client for Realtime channels (chat presence/broadcast). */
+  getRealtimeClient(): SupabaseClient {
+    return this.supabase;
+  }
 }

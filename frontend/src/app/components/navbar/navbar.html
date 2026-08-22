@@ -41,6 +41,23 @@
       <span class="material-symbols-outlined text-2xl">add</span>
     </div>
 
+    <!-- Chat -->
+    <div
+      (click)="navigateToChat()"
+      class="nav-petal petal-3 border border-[#dadad3] dark:border-[#555] shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
+      [class.bg-black]="isChatPage()"
+      [class.text-white]="isChatPage()"
+      [class.dark:bg-white]="isChatPage()"
+      [class.dark:text-black]="isChatPage()"
+      [class.bg-white]="!isChatPage()"
+      [class.text-black]="!isChatPage()"
+      [class.dark:bg-[#3a3a3a]]="!isChatPage()"
+      [class.dark:text-white]="!isChatPage()"
+      title="Nhắn tin"
+    >
+      <span class="material-symbols-outlined text-2xl">chat_bubble</span>
+    </div>
+
     <!-- Profile -->
     <div
       (click)="navigateToMyProfile()"

@@ -7,6 +7,7 @@ import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
 import { ToastService } from '../../core/services/toast';
 import { ConfirmService } from '../../core/services/confirm';
+import { ChatService, ConversationSummary } from '../../core/services/chat';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -23,6 +24,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   private boardService = inject(BoardService);
   private toastService = inject(ToastService);
   private confirmService = inject(ConfirmService);
+  private chatService = inject(ChatService);
   public supabaseService = inject(SupabaseService);
   private elementRef = inject(ElementRef);
 
@@ -38,6 +40,13 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   public isScrollingLoad = signal<boolean>(false);
   public isLandscape = signal<boolean>(false);
   public isDesktop = signal<boolean>(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
+
+  public showSharePopover = signal(false);
+  public shareConversations = signal<ConversationSummary[]>([]);
+  public shareLoading = signal(false);
+  public shareError = signal<string | null>(null);
+  public shareSendingId = signal<string | null>(null);
+  public shareSentToId = signal<string | null>(null);
   public numSideColumns = signal<number>(2);
   public numBottomColumns = signal<number>(3);
   public newCommentText = '';
@@ -180,6 +189,56 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       this.toastService.success('Đã sao chép liên kết ảnh!');
     } catch (error) {
       console.error('Error copying link:', error);
+    }
+  }
+
+  async toggleSharePopover(event: MouseEvent) {
+    event.stopPropagation();
+    const next = !this.showSharePopover();
+    this.showSharePopover.set(next);
+    if (next && this.shareConversations().length === 0) {
+      await this.loadShareConversations();
+    }
+  }
+
+  closeSharePopover() {
+    this.showSharePopover.set(false);
+  }
+
+  private async loadShareConversations() {
+    this.shareLoading.set(true);
+    this.shareError.set(null);
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (!token) throw new Error('Phiên đăng nhập đã hết hạn.');
+      this.shareConversations.set(await this.chatService.listConversations(token));
+    } catch (error) {
+      this.shareError.set(error instanceof Error ? error.message : 'Không thể tải danh sách trò chuyện.');
+    } finally {
+      this.shareLoading.set(false);
+    }
+  }
+
+  async shareToConversation(conversationId: string, event: MouseEvent) {
+    event.stopPropagation();
+    const currentPin = this.pin();
+    if (!currentPin || this.shareSendingId()) return;
+
+    this.shareSendingId.set(conversationId);
+    this.shareError.set(null);
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (!token) throw new Error('Phiên đăng nhập đã hết hạn.');
+      await this.chatService.sendMessage(conversationId, { type: 'PIN', pinId: currentPin.id }, token);
+      this.shareSentToId.set(conversationId);
+      setTimeout(() => {
+        this.shareSentToId.set(null);
+        this.showSharePopover.set(false);
+      }, 1200);
+    } catch (error) {
+      this.shareError.set(error instanceof Error ? error.message : 'Không thể chia sẻ Pin này.');
+    } finally {
+      this.shareSendingId.set(null);
     }
   }
 

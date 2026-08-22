@@ -236,6 +236,15 @@ export class Navbar {
     this.collapseNav();
   }
 
+  navigateToChat() {
+    this.router.navigate(['/chat']);
+    this.collapseNav();
+  }
+
+  isChatPage(): boolean {
+    return this.router.url.startsWith('/chat');
+  }
+
   navigateToSettings() {
     this.showProfilePopup.set(false);
     this.router.navigate(['/settings']);

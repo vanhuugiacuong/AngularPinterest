@@ -9,6 +9,7 @@ import { Search } from './features/search/search';
 import { Notifications } from './features/notifications/notifications';
 import { Settings } from './features/settings/settings';
 import { NotFound } from './features/not-found/not-found';
+import { Chat } from './features/chat/chat';
 import { authGuard } from './core/guards/auth';
 
 export const routes: Routes = [
@@ -22,5 +23,7 @@ export const routes: Routes = [
   { path: 'search', component: Search },
   { path: 'notifications', component: Notifications },
   { path: 'settings', component: Settings },
+  { path: 'chat', component: Chat },
+  { path: 'chat/:conversationId', component: Chat },
   { path: '**', component: NotFound }
 ];
