@@ -1,0 +1,26 @@
+import { Routes } from '@angular/router';
+import { Landing } from './features/landing/landing';
+import { Home } from './features/home/home';
+import { PinDetail } from './features/pin-detail/pin-detail';
+import { Profile } from './features/profile/profile';
+import { BoardDetail } from './features/board-detail/board-detail';
+import { Create } from './features/create/create';
+import { Search } from './features/search/search';
+import { Notifications } from './features/notifications/notifications';
+import { Settings } from './features/settings/settings';
+import { NotFound } from './features/not-found/not-found';
+import { authGuard } from './core/guards/auth';
+
+export const routes: Routes = [
+  { path: '', component: Landing },
+  // TEMP: authGuard disabled for local preview only — restore before shipping
+  { path: 'feed', component: Home },
+  { path: 'pin/:id', component: PinDetail },
+  { path: 'profile/:username', component: Profile },
+  { path: 'board/:id', component: BoardDetail },
+  { path: 'create', component: Create },
+  { path: 'search', component: Search },
+  { path: 'notifications', component: Notifications },
+  { path: 'settings', component: Settings },
+  { path: '**', component: NotFound }
+];

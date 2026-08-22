@@ -1,0 +1,79 @@
+<div class="min-h-screen bg-white dark:bg-[#121212] text-black dark:text-white flex flex-col font-sans relative transition-colors">
+  <app-navbar></app-navbar>
+
+  <div class="flex-1 pt-16 pb-24 flex flex-col min-w-0">
+    <main class="flex-1 w-full max-w-[600px] mx-auto px-6 py-6 flex flex-col">
+      <h1 class="text-lg font-extrabold text-black dark:text-white mb-6">Cài đặt</h1>
+
+      <p *ngIf="isLoadingProfile()" class="text-xs text-center text-[#62625b] dark:text-[#999] py-8 select-none">Đang tải...</p>
+
+      <ng-container *ngIf="!isLoadingProfile()">
+        <span class="text-[11px] font-bold text-gray-400 dark:text-[#777] uppercase tracking-wide">Hồ sơ của bạn</span>
+
+        <div class="flex flex-col gap-5 mt-3 mb-8 p-5 rounded-3xl bg-[#f6f6f3] dark:bg-[#1e1e1e]">
+          <!-- Avatar -->
+          <div class="flex flex-col items-center gap-2">
+            <div class="relative w-20 h-20">
+              <img
+                [src]="avatarUrl() || 'https://api.dicebear.com/7.x/bottts/svg'"
+                alt="Avatar"
+                class="w-20 h-20 rounded-full border border-[#dadad3] dark:border-[#333] object-cover"
+              />
+              <label
+                class="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-[#211922] dark:bg-white text-white dark:text-black flex items-center justify-center cursor-pointer border-2 border-white dark:border-[#1e1e1e] hover:scale-105 transition-transform"
+                title="Đổi ảnh đại diện"
+              >
+                <span *ngIf="!isUploadingAvatar()" class="material-symbols-outlined text-[16px] leading-none">photo_camera</span>
+                <span *ngIf="isUploadingAvatar()" class="material-symbols-outlined text-[16px] leading-none animate-spin">progress_activity</span>
+                <input type="file" accept="image/*" class="hidden" (change)="onAvatarFileSelected($event)" [disabled]="isUploadingAvatar()" />
+              </label>
+            </div>
+            <span class="text-[11px] text-[#62625b] dark:text-[#999]">Bấm vào biểu tượng camera để đổi ảnh</span>
+          </div>
+
+          <!-- Username -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-xs font-bold text-black dark:text-white">Tên người dùng</label>
+            <input
+              type="text"
+              [(ngModel)]="username"
+              maxlength="30"
+              class="h-11 px-4 rounded-full bg-white dark:bg-[#2a2a2a] border border-[#dadad3] dark:border-[#444] text-sm text-black dark:text-white outline-none focus:border-[#B15CAA]"
+              placeholder="Tên hiển thị"
+            />
+          </div>
+
+          <!-- Bio -->
+          <div class="flex flex-col gap-1.5">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-bold text-black dark:text-white">Tiểu sử</label>
+              <span class="text-[11px] text-[#91918c] dark:text-[#777]">{{ bioLength }}/280</span>
+            </div>
+            <textarea
+              [(ngModel)]="bio"
+              maxlength="280"
+              rows="3"
+              class="px-4 py-3 rounded-2xl bg-white dark:bg-[#2a2a2a] border border-[#dadad3] dark:border-[#444] text-sm text-black dark:text-white outline-none focus:border-[#B15CAA] resize-none"
+              placeholder="Giới thiệu đôi chút về bạn..."
+            ></textarea>
+          </div>
+
+          <button
+            (click)="saveProfile()"
+            [disabled]="isSavingProfile()"
+            class="w-full h-11 px-4 bg-[#B15CAA] hover:bg-[#8F4A8B] disabled:opacity-60 text-white font-bold rounded-full transition-all duration-200 cursor-pointer text-sm border-none outline-none"
+          >
+            {{ isSavingProfile() ? 'Đang lưu...' : 'Lưu thay đổi' }}
+          </button>
+        </div>
+      </ng-container>
+
+      <button
+        (click)="signOut()"
+        class="w-full h-11 px-4 bg-white dark:bg-[#1e1e1e] hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] text-[#B15CAA] font-bold rounded-full transition-all duration-200 cursor-pointer text-sm border border-[#dadad3] dark:border-[#333]"
+      >
+        Đăng xuất
+      </button>
+    </main>
+  </div>
+</div>

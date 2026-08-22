@@ -1,0 +1,151 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Bảng User đồng bộ với id từ auth.users của Supabase
+model User {
+  id           String    @id // Trùng với ID UUID do Supabase Auth cấp
+  username     String    @unique
+  email        String    @unique
+  avatarUrl    String?
+  bio          String?
+  createdAt    DateTime  @default(now())
+
+  pins         Pin[]
+  boards       Board[]
+  likes        Like[]
+  comments     Comment[]
+
+  followers    Follow[]  @relation("UserFollowers")
+  following    Follow[]  @relation("UserFollowing")
+
+  notificationsReceived Notification[] @relation("NotificationRecipient")
+  notificationsSent     Notification[] @relation("NotificationSender")
+
+  sentMessageRequests     MessageRequest[] @relation("MessageRequestSender")
+  receivedMessageRequests MessageRequest[] @relation("MessageRequestReceiver")
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower    User     @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+}
+
+model Pin {
+  id              String      @id @default(uuid())
+  title           String
+  description     String?
+  imageUrl        String      // CDN URL từ Supabase Storage Bucket ("pins")
+  sourceUrl       String?
+  userId          String
+  createdAt       DateTime    @default(now())
+
+  isAiGenerated   Boolean     @default(false)
+  promptUsed      String?
+  negativePrompt  String?
+  generationModel String?
+  category        String      @default("other")
+  embedding       Unsupported("vector(512)")? // pgvector similarity embedding, managed outside Prisma
+
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  boardPins       BoardPin[]
+  likes           Like[]
+  comments        Comment[]
+  notifications   Notification[]
+}
+
+model Board {
+  id          String      @id @default(uuid())
+  name        String
+  description String?
+  isSecret    Boolean     @default(false)
+  userId      String
+  createdAt   DateTime    @default(now())
+
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  boardPins       BoardPin[]
+}
+
+model BoardPin {
+  boardId   String
+  pinId     String
+  addedAt   DateTime @default(now())
+
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  pin       Pin      @relation(fields: [pinId], references: [id], onDelete: Cascade)
+
+  @@id([boardId, pinId])
+}
+
+model Like {
+  userId    String
+  pinId     String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pin       Pin      @relation(fields: [pinId], references: [id], onDelete: Cascade)
+
+  @@id([userId, pinId])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  userId    String
+  pinId     String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pin       Pin      @relation(fields: [pinId], references: [id], onDelete: Cascade)
+}
+
+// type: "like" | "comment" | "follow" | "save" | "new_pin"
+model Notification {
+  id        String   @id @default(uuid())
+  type      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  userId    String
+  senderId  String?
+  pinId     String?
+  content   String
+
+  user      User     @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  sender    User?    @relation("NotificationSender", fields: [senderId], references: [id], onDelete: SetNull)
+  pin       Pin?     @relation(fields: [pinId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+}
+
+enum MessageRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  REPORTED
+}
+
+model MessageRequest {
+  id          String               @id @default(uuid())
+  senderId    String
+  receiverId  String
+  status      MessageRequestStatus @default(PENDING)
+  createdAt   DateTime             @default(now())
+  respondedAt DateTime?
+
+  sender      User @relation("MessageRequestSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User @relation("MessageRequestReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+}

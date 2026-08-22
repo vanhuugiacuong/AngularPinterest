@@ -1,0 +1,37 @@
+.not-found-bg {
+  background:
+    radial-gradient(circle at 85% 90%, #402b73 0%, transparent 55%),
+    linear-gradient(155deg, #1c1136 0%, #251644 45%, #2c1a52 100%);
+}
+
+.not-found-message {
+  font-size: clamp(16px, 2.4vw, 22px);
+  font-weight: 600;
+  color: #D9CFF2;
+  font-family: 'Baloo 2', 'Comic Sans MS', system-ui, sans-serif;
+}
+
+.not-found-button {
+  height: 48px;
+  padding: 0 32px;
+  border-radius: 14px;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'Baloo 2', 'Comic Sans MS', system-ui, sans-serif;
+  color: #241549;
+  background: #CFE3F2;
+  box-shadow: 0 0 22px rgba(207, 227, 242, 0.55);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.not-found-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px rgba(207, 227, 242, 0.75);
+}
+
+.not-found-button:active {
+  transform: translateY(0);
+}

@@ -1,0 +1,133 @@
+<div class="min-h-screen bg-[#1D1D1D] text-white flex flex-col font-sans relative overflow-hidden">
+  <!-- 3D floating card scene -->
+  <canvas #heroCanvas class="absolute inset-0 w-full h-full z-0"></canvas>
+  <div
+    class="absolute inset-0 z-[1] pointer-events-none"
+    style="background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.35) 100%);"
+  ></div>
+
+  <!-- Brand logo, top-left -->
+  <div class="absolute top-6 left-6 z-20 flex items-center gap-2 select-none">
+    <img src="favicon-pinhub.png" alt="PinHub" class="w-12 h-12 object-contain" />
+    <span class="text-2xl font-bold tracking-tight">
+      <span class="text-[#F94083]">Pin</span><span class="text-white">Hub</span>
+    </span>
+  </div>
+
+  <!-- Loading state while textures load -->
+  @if (isSceneLoading()) {
+    <div class="absolute inset-0 z-[2] bg-[#1D1D1D] flex items-center justify-center">
+      <div class="w-8 h-8 border-4 border-[#B15CAA] border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  }
+
+  <!-- Hero Section -->
+  <main class="flex-1 w-full flex items-center justify-center relative z-10 px-6 text-center">
+    <div>
+      <div class="text-xs tracking-[0.25em] uppercase text-[#B15CAA] font-bold mb-4 select-none">
+        Powered by AI
+      </div>
+      <h1
+        class="text-4xl sm:text-5xl lg:text-[64px] font-extrabold leading-[1.05] tracking-tight mb-6 text-white"
+        style="text-shadow: 0 4px 40px rgba(0,0,0,0.8);"
+      >
+        Tạo ra cuộc sống<br />bạn
+        <span class="headline-accent">yêu thích</span>
+      </h1>
+      <p
+        class="text-white/70 text-base max-w-[460px] mx-auto mb-8"
+        style="text-shadow: 0 2px 20px rgba(0,0,0,0.9);"
+      >
+        Khám phá, tạo và lưu những ý tưởng thật sự là của bạn — cùng PinHub.
+      </p>
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <button
+          (click)="openLoginModal()"
+          class="btn-orchid h-12 px-7 font-bold rounded-full transition-all duration-300 cursor-pointer text-base hover:-translate-y-0.5"
+        >
+          Bắt đầu ngay
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Login Modal Dialog Overlay (Scrim) -->
+  <div
+    *ngIf="showLoginModal()"
+    class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
+  >
+    <!-- Modal Card (modal-card specs: rounded-lg 32px, white canvas, padding 32px) -->
+    <div
+      class="max-w-[440px] w-full bg-white rounded-[32px] p-10 relative shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-[#e5e5e0] text-center"
+    >
+      <!-- Close button on top-right -->
+      <button
+        (click)="closeLoginModal()"
+        class="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#f6f6f3] text-black hover:bg-[#e5e5e0] transition-colors flex items-center justify-center cursor-pointer"
+        title="Đóng"
+      >
+        <span class="material-symbols-outlined text-lg leading-none font-semibold">close</span>
+      </button>
+
+      <!-- Title & Description inside modal -->
+      <h2
+        class="text-[22px] font-semibold text-[#211922] tracking-tight mb-2 flex items-center justify-center gap-2"
+      >
+        Đăng nhập vào
+        <span class="inline-flex items-center gap-1">
+          <img src="favicon-pinhub.png" alt="" class="w-6 h-6 object-contain" />
+          <span><span class="text-[#F94083]">Pin</span>Hub</span>
+        </span>
+      </h2>
+      <p class="text-[#62625b] text-sm mb-8 leading-relaxed px-4">
+        Tiếp tục bằng tài khoản Google để bắt đầu sáng tạo hình ảnh.
+      </p>
+
+      <!-- Google Login Button -->
+      <button
+        (click)="login()"
+        class="w-full h-11 flex items-center justify-center gap-3 px-4 bg-[#e5e5e0] hover:bg-[#c8c8c1] text-black font-bold rounded-[16px] transition-all duration-200 cursor-pointer active:scale-95 group"
+      >
+        <svg
+          class="w-5 h-5 transition-transform duration-300 group-hover:scale-105"
+          viewBox="0 0 24 24"
+          fill="none"
+        >
+          <path
+            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+            fill="#4285F4"
+          />
+          <path
+            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+            fill="#34A853"
+          />
+          <path
+            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+            fill="#FBBC05"
+          />
+          <path
+            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+            fill="#EA4335"
+          />
+        </svg>
+        Đăng nhập bằng Google
+      </button>
+
+      <!-- Error message rendering in modal -->
+      @if (errorMsg()) {
+        <div
+          class="mt-4 p-3 rounded-[16px] bg-[#8F4A8B]/10 border border-[#8F4A8B]/20 text-[#9e0a0a] text-xs font-semibold text-left animate-fade-in"
+        >
+          ⚠️ Lỗi đăng nhập: {{ errorMsg() }}
+        </div>
+      }
+
+      <div class="mt-8 text-[12px] text-[#62625b] leading-normal px-4">
+        Bằng việc tiếp tục, bạn đồng ý với
+        <a href="#" class="font-semibold text-[#211922] hover:underline">Điều khoản Dịch vụ</a> và
+        <a href="#" class="font-semibold text-[#211922] hover:underline">Chính sách Bảo mật</a> của
+        chúng tôi.
+      </div>
+    </div>
+  </div>
+</div>

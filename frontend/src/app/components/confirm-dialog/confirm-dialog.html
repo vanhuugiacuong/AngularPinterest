@@ -1,0 +1,49 @@
+<div
+  *ngIf="confirmService.current() as dialog"
+  class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-fade-in"
+  (click)="confirmService.respond(false)"
+>
+  <div
+    class="bg-white dark:bg-[#1e1e1e] w-full max-w-[400px] rounded-[28px] p-6 shadow-2xl flex flex-col gap-4 text-left border border-gray-100 dark:border-[#333]"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="flex items-start gap-3">
+      <span
+        class="shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
+        [class.bg-[#FDE8E8]]="dialog.danger"
+        [class.dark:bg-[#3a1f1f]]="dialog.danger"
+        [class.text-[#DC2626]]="dialog.danger"
+        [class.bg-[#F6F0F5]]="!dialog.danger"
+        [class.dark:bg-[#2a2028]]="!dialog.danger"
+        [class.text-[#B15CAA]]="!dialog.danger"
+      >
+        <span class="material-symbols-outlined text-[20px] leading-none" style="font-variation-settings: 'FILL' 1, 'wght' 600;">
+          {{ dialog.danger ? 'warning' : 'help' }}
+        </span>
+      </span>
+      <div class="flex-1 min-w-0 pt-1">
+        <h2 class="text-base font-extrabold text-black dark:text-white leading-snug">{{ dialog.title }}</h2>
+        <p class="text-[13px] text-[#62625b] dark:text-[#999] mt-1 leading-snug">{{ dialog.message }}</p>
+      </div>
+    </div>
+
+    <div class="flex gap-2 justify-end mt-1">
+      <button
+        (click)="confirmService.respond(false)"
+        class="h-10 px-5 rounded-full font-bold text-sm text-[#211922] dark:text-white bg-[#f0f0ed] dark:bg-[#2a2a2a] hover:bg-[#e5e5e1] dark:hover:bg-[#333] transition-colors cursor-pointer border-none outline-none"
+      >
+        {{ dialog.cancelLabel }}
+      </button>
+      <button
+        (click)="confirmService.respond(true)"
+        class="h-10 px-5 rounded-full font-bold text-sm text-white transition-colors cursor-pointer border-none outline-none"
+        [class.bg-[#DC2626]]="dialog.danger"
+        [class.hover:bg-[#c11f1f]]="dialog.danger"
+        [class.bg-[#B15CAA]]="!dialog.danger"
+        [class.hover:bg-[#9a4d92]]="!dialog.danger"
+      >
+        {{ dialog.confirmLabel }}
+      </button>
+    </div>
+  </div>
+</div>
