@@ -106,24 +106,24 @@
                     
                     <!-- Hover Overlay -->
                     <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 text-white z-10">
-                      <!-- Top Actions: Board Selector + Save button -->
-                      <div class="flex justify-between items-center w-full min-w-0" (click)="$event.stopPropagation()">
-                        <!-- Board Selector Dropdown trigger (Shadow & lies on the left) -->
-                        <div 
-                          (click)="toggleBoardDropdown(pin.id, $event)"
-                          class="bg-white text-black hover:bg-gray-50 px-2.5 py-1.5 rounded-full text-[11px] font-bold flex items-center gap-0.5 cursor-pointer relative shadow-md select-none shrink-0 min-w-0"
-                        >
-                          <span class="truncate max-w-[55px]">{{ getSelectedBoardName(pin.id) }}</span>
-                          <span class="material-symbols-outlined text-[13px] leading-none font-bold">keyboard_arrow_down</span>
-                          
-                          <!-- Dropdown options list -->
+                      <!-- Top Actions: Save button (opens board picker on click) -->
+                      <div class="flex justify-end items-center w-full min-w-0" (click)="$event.stopPropagation()">
+                        <div class="relative shrink-0">
+                          <button
+                            (click)="onSaveClick(pin.id, $event)"
+                            class="bg-[#B15CAA] hover:bg-[#8F4A8B] text-white font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer transition-colors active:scale-95 border-none outline-none"
+                          >
+                            Lưu
+                          </button>
+
+                          <!-- Board picker: appears after clicking Lưu -->
                           @if (activeDropdownPinId() === pin.id) {
-                            <div class="absolute left-0 top-9 w-44 bg-white dark:bg-[#242424] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-[100] text-left">
-                              <span class="text-[9px] uppercase tracking-wider text-gray-400 font-bold px-3.5 py-1 block">Lưu vào bảng</span>
+                            <div class="absolute right-0 top-9 w-44 bg-white dark:bg-[#242424] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-[100] text-left">
+                              <span class="text-[9px] uppercase tracking-wider text-gray-400 font-bold px-3.5 py-1 block">Chọn bảng để lưu</span>
                               <div class="max-h-[140px] overflow-y-auto">
                                 @for (b of boards(); track b.id) {
                                   <div
-                                    (click)="selectBoardForPin(pin.id, b, $event)"
+                                    (click)="saveToBoard(pin.id, b, $event)"
                                     class="px-3.5 py-2 text-xs font-bold text-black dark:text-white hover:bg-gray-50 dark:hover:bg-[#333] cursor-pointer truncate"
                                   >
                                     {{ b.name }}
@@ -133,14 +133,6 @@
                             </div>
                           }
                         </div>
-
-                        <!-- Save button (Lies on the right) -->
-                        <button 
-                          (click)="savePinToBoard(pin.id, $event)"
-                          class="bg-[#B15CAA] hover:bg-[#8F4A8B] text-white font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer transition-colors active:scale-95 border-none outline-none shrink-0"
-                        >
-                          Lưu
-                        </button>
                       </div>
                     </div>
                   </div>

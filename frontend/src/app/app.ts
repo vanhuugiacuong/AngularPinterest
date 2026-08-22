@@ -2,10 +2,12 @@ import { Component, inject, effect } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { SupabaseService } from './core/services/supabase';
 import { ThemeService } from './core/services/theme';
+import { ToastContainer } from './components/toast-container/toast-container';
+import { ConfirmDialog } from './components/confirm-dialog/confirm-dialog';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, ToastContainer, ConfirmDialog],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })

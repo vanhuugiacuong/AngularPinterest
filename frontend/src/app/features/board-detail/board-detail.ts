@@ -4,6 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
 import { BoardService } from '../../core/services/board';
 import { SupabaseService } from '../../core/services/supabase';
+import { ToastService } from '../../core/services/toast';
 
 @Component({
   selector: 'app-board-detail',
@@ -16,6 +17,7 @@ export class BoardDetail implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private boardService = inject(BoardService);
+  private toastService = inject(ToastService);
   public supabaseService = inject(SupabaseService);
 
   public board = signal<any | null>(null);
@@ -51,13 +53,20 @@ export class BoardDetail implements OnInit {
       }
     } catch (error) {
       console.error('Error loading board detail:', error);
+      this.toastService.error('Không tải được bảng này.');
       this.router.navigate(['/feed']);
     } finally {
       this.isLoading.set(false);
     }
   }
 
-  goBackToProfile() {
+  async goBackToProfile() {
+    const dbUser = await this.supabaseService.ensureDbUser();
+    if (dbUser?.username) {
+      this.router.navigate(['/profile', dbUser.username]);
+      return;
+    }
+
     const profileUser = this.supabaseService.user();
     if (profileUser) {
       const email = profileUser.email || '';
@@ -82,9 +91,11 @@ export class BoardDetail implements OnInit {
       if (token) {
         await this.boardService.removePinFromBoard(currentBoard.id, pinId, token);
         this.pins.update(curr => curr.filter(p => p.id !== pinId));
+        this.toastService.success('Đã gỡ ảnh khỏi bảng.');
       }
     } catch (error) {
       console.error('Error removing pin from board:', error);
+      this.toastService.error('Lỗi khi gỡ ảnh khỏi bảng.');
     }
   }
 }
