@@ -2,3 +2,144 @@
 .uav-root {
   line-height: 1;
 }
+
+.uav-outer {
+  line-height: 1;
+  isolation: isolate;
+}
+
+.uav-outer:focus-visible {
+  outline: 2px solid var(--color-nova-blue);
+  outline-offset: 3px;
+  border-radius: 9999px;
+}
+
+/* =============================================================================
+   Membership frame — Plus / Pro
+   Rings are painted just *outside* the avatar circle via a negative inset on
+   this overflow-visible wrapper (.uav-outer keeps the exact same width/height
+   as a plain avatar, so no row/list ever reflows or shifts). The avatar photo
+   itself stays in its own overflow:hidden circle (.uav-root) untouched, so
+   the frame can never crop or distort it, and it survives the image-error →
+   initials fallback unchanged since that swap happens one layer inside.
+
+   Plus = a single soft violet→blue gradient ring (NovaFrame's own brand
+   gradient). Pro = two concentric rings (an inner aqua ring + an outer
+   violet ring) — a distinct *shape*, not just a different color, so the two
+   tiers read apart even for colorblind users or in grayscale.
+   ========================================================================== */
+.uav-ring {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.uav-ring--primary {
+  inset: calc(-1 * clamp(2px, calc(var(--uav-size, 36px) * 0.09), 4px));
+  padding: clamp(1.4px, calc(var(--uav-size, 36px) * 0.05), 2.4px);
+}
+
+.uav-outer--plus .uav-ring--primary {
+  background: linear-gradient(135deg, var(--color-iris-violet) 0%, var(--color-nova-blue) 100%);
+  box-shadow: 0 0 6px 0 color-mix(in srgb, var(--color-iris-violet) 30%, transparent);
+}
+
+.uav-outer--pro .uav-ring--primary {
+  background: var(--color-studio-aqua);
+  box-shadow: 0 0 5px 0 color-mix(in srgb, var(--color-studio-aqua) 45%, transparent);
+}
+
+.uav-ring--pro-outer {
+  inset: calc(-1 * clamp(4.5px, calc(var(--uav-size, 36px) * 0.16), 8px));
+  padding: clamp(1.2px, calc(var(--uav-size, 36px) * 0.045), 2px);
+  background: linear-gradient(
+    135deg,
+    var(--color-iris-violet) 0%,
+    color-mix(in srgb, var(--color-iris-violet) 55%, var(--color-nova-blue)) 100%
+  );
+  box-shadow: 0 0 8px 0 color-mix(in srgb, var(--color-iris-violet) 35%, transparent);
+}
+
+/* Shimmer is reserved for large, singular avatars (profile hero, navbar
+   dropdown header) — never applied at feed/list sizes, so a page with
+   dozens of Pro avatars never runs dozens of concurrent animations. */
+@keyframes uav-pro-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.uav-outer--pro.uav-outer--lg .uav-ring--pro-outer {
+  animation: uav-pro-pulse 2.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uav-outer--pro.uav-outer--lg .uav-ring--pro-outer {
+    animation: none;
+  }
+}
+
+/* Corner tier icon — spark (Plus) / gem (Pro), shown from 24px up. */
+.uav-plan-icon {
+  position: absolute;
+  top: calc(-1 * clamp(1px, calc(var(--uav-size, 36px) * 0.04), 3px));
+  right: calc(-1 * clamp(1px, calc(var(--uav-size, 36px) * 0.04), 3px));
+  width: clamp(10px, calc(var(--uav-size, 36px) * 0.32), 18px);
+  height: clamp(10px, calc(var(--uav-size, 36px) * 0.32), 18px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  color: var(--color-text-on-accent);
+  background: linear-gradient(135deg, var(--color-iris-violet) 0%, var(--color-nova-blue) 100%);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    0 0 0 2px var(--color-bg);
+  pointer-events: none;
+}
+
+.uav-plan-icon--pro {
+  background: linear-gradient(135deg, var(--color-studio-aqua) 0%, var(--color-iris-violet) 100%);
+}
+
+.uav-plan-icon svg {
+  width: 60%;
+  height: 60%;
+}
+
+/* PLUS / PRO text badge, shown from 40px up. */
+.uav-plan-badge {
+  position: absolute;
+  left: 50%;
+  bottom: calc(-1 * clamp(3px, calc(var(--uav-size, 36px) * 0.09), 6px));
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: clamp(11px, calc(var(--uav-size, 36px) * 0.24), 16px);
+  padding: 0 clamp(4px, calc(var(--uav-size, 36px) * 0.09), 7px);
+  border-radius: 9999px;
+  font-family: var(--font-sans);
+  font-size: clamp(7px, calc(var(--uav-size, 36px) * 0.19), 10px);
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--color-text-on-accent);
+  background: linear-gradient(135deg, var(--color-iris-violet) 0%, var(--color-nova-blue) 100%);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.35),
+    0 0 0 2px var(--color-bg);
+  pointer-events: none;
+}
+
+.uav-plan-badge--pro {
+  background: linear-gradient(135deg, var(--color-studio-aqua) 0%, var(--color-iris-violet) 100%);
+}

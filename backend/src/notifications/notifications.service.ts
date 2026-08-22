@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { NotificationTemplateHelper, NotificationData, NOTIFICATION_TEMPLATES, NotificationTemplate } from '../templates/notification.templates';
+import { PUBLIC_USER_SELECT } from '../common/relationship.util';
 
-export type NotificationType = 'LIKE' | 'COMMENT' | 'SAVE' | 'POST_SUCCESS' | 'POST_AI_SUCCESS';
+export type NotificationType = 'LIKE' | 'COMMENT' | 'SAVE' | 'POST_SUCCESS' | 'POST_AI_SUCCESS' | 'FOLLOW';
 
 @Injectable()
 export class NotificationsService {
@@ -36,7 +37,7 @@ export class NotificationsService {
       },
       include: {
         sender: {
-          select: { id: true, username: true, avatarUrl: true },
+          select: PUBLIC_USER_SELECT,
         },
         pin: {
           select: { id: true, title: true, imageUrl: true },
@@ -53,7 +54,7 @@ export class NotificationsService {
         where: { userId },
         include: {
           sender: {
-            select: { id: true, username: true, avatarUrl: true },
+            select: PUBLIC_USER_SELECT,
           },
           pin: {
             select: { id: true, title: true, imageUrl: true },

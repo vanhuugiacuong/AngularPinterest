@@ -46,9 +46,9 @@
 
       <!-- Artwork Inspection Space: full-bleed stage + hairline info dock -->
       @if (!isLoading() && !loadError() && pin(); as p) {
-        <div class="w-full flex flex-col lg:flex-row gap-8 mt-2 items-start">
-          <!-- Left Area: Stage + Dock, plus bottom related belt -->
-          <div class="w-full lg:w-[63%] flex flex-col gap-10 min-w-0">
+        <div class="w-full flex flex-col gap-10 mt-2">
+          <!-- Stage + Dock -->
+          <div class="w-full min-w-0">
             <div class="w-full flex flex-col" [class.lg:flex-row]="!isLandscape()">
               <!-- Stage: image is the priority, no enclosing split-card -->
               <div
@@ -65,23 +65,36 @@
                   <span class="material-symbols-outlined text-xl font-bold">arrow_back</span>
                 </button>
 
-                <img
-                  [src]="p.imageUrl"
-                  [alt]="p.title"
-                  class="w-full h-auto max-h-[720px] object-contain block select-none"
-                />
+                @if (!showImageSearch()) {
+                  <img
+                    [src]="p.imageUrl"
+                    [alt]="p.title"
+                    class="w-full h-auto max-h-[720px] object-contain block select-none"
+                  />
 
-                <!-- Full-resolution badge — informational, not (yet) an action -->
-                <div class="absolute bottom-5 right-5 flex items-center gap-2 z-20" aria-hidden="true">
-                  <div
-                    class="flex items-center gap-1 bg-surface-high/90 text-text px-3.5 py-2 rounded-control text-xs font-bold shadow-card select-none"
-                  >
-                    <span class="material-symbols-outlined text-sm leading-none font-bold"
-                      >search</span
+                  <!-- Real action: enters region-select mode to search NovaFrame's
+                       own CLIP index using just the chosen area of this image. -->
+                  <div class="absolute bottom-5 right-5 flex items-center gap-2 z-20">
+                    <button
+                      type="button"
+                      (click)="showImageSearch.set(true)"
+                      class="flex items-center gap-1 bg-surface-high/90 hover:bg-surface-high text-text px-3.5 py-2 rounded-control text-xs font-bold shadow-card cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      aria-label="Tìm kiếm bằng một vùng của ảnh này"
                     >
-                    <span>Tìm kiếm hình ảnh</span>
+                      <span class="material-symbols-outlined text-sm leading-none font-bold"
+                        >search</span
+                      >
+                      <span>Tìm kiếm hình ảnh</span>
+                    </button>
                   </div>
-                </div>
+                } @else {
+                  <app-image-region-search
+                    [imageUrl]="p.imageUrl"
+                    [pinId]="p.id"
+                    (searchCompleted)="onImageSearchCompleted($event)"
+                    (closed)="showImageSearch.set(false)"
+                  ></app-image-region-search>
+                }
               </div>
 
               <!-- Dock: info panel — hairline seam, not a boxed card -->
@@ -95,7 +108,7 @@
                   class="flex items-center gap-3 bg-transparent border-none p-0 cursor-pointer text-left select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
                   [attr.aria-label]="'Xem trang cá nhân của ' + p.user?.username"
                 >
-                  <app-user-avatar [src]="p.user?.avatarUrl" [name]="p.user?.username" [size]="44"></app-user-avatar>
+                  <app-user-avatar [src]="p.user?.avatarUrl" [name]="p.user?.username" [size]="44" [plan]="p.user?.plan"></app-user-avatar>
                   <div class="flex flex-col text-left">
                     <span class="text-sm font-bold text-text hover:underline">{{ p.user?.username }}</span>
                     <span class="text-xs text-text-muted">Người đăng tải</span>
@@ -159,10 +172,20 @@
                     </button>
 
                     <!-- Share -->
-                    <button type="button" (click)="downloadPin()" class="h-10 px-4 rounded-control bg-accent text-white font-bold text-xs border-none cursor-pointer">
+                    <select *ngIf="membership.status()?.customWatermark && watermarkService.presets().length > 0"
+                      [(ngModel)]="selectedWatermarkPresetId" name="downloadWatermark"
+                      class="h-10 px-2 rounded-control bg-surface border border-border text-xs text-text">
+                      <option [ngValue]="null">Tải ảnh sạch (không watermark)</option>
+                      <option *ngFor="let preset of watermarkService.presets()" [ngValue]="preset.id">Watermark: {{ preset.name }}</option>
+                    </select>
+                    <button type="button" (click)="downloadPin()" [disabled]="downloading()" class="h-10 px-4 rounded-control bg-accent text-white font-bold text-xs border-none cursor-pointer disabled:opacity-50">
                       {{ p.isForSale && p.user?.id !== supabaseService.user()?.id ? ('Mua & tải · ' + (p.price | number) + 'đ') : 'Tải ảnh' }}
                     </button>
                     <span *ngIf="downloadMessage()" class="text-[10px] text-text-muted">{{ downloadMessage() }}</span>
+                    <div *ngIf="pendingPurchase() as pay" class="flex flex-col items-start gap-1 mt-1">
+                      <img [src]="bankQrFor(pay)" alt="QR chuyển khoản mua ảnh" class="w-32 h-32 rounded-control border border-border" />
+                      <span class="text-[10px] text-text-muted">Nội dung: <strong>{{ pay.paymentReference }}</strong></span>
+                    </div>
 
                     <!-- Share -->
                     <button
@@ -253,6 +276,7 @@
                             [src]="comment.user?.avatarUrl"
                             [name]="comment.user?.username"
                             [size]="32"
+                            [plan]="comment.user?.plan"
                           ></app-user-avatar>
                         </button>
                         <div
@@ -277,7 +301,7 @@
 
                   <!-- Comment input form -->
                   <div class="pt-4 border-t border-border flex items-center gap-3">
-                    <app-user-avatar [src]="myAvatarUrl()" [name]="myDisplayName()" [size]="36"></app-user-avatar>
+                    <app-user-avatar [src]="myAvatarUrl()" [name]="myDisplayName()" [size]="36" [plan]="myPlan()"></app-user-avatar>
 
                     <form
                       (submit)="submitComment(); $event.preventDefault()"
@@ -304,19 +328,30 @@
               </div>
             </div>
 
-            <!-- Bottom Related Pins (below stage) — lg+ shows the side rail
-                 instead, so this belt doesn't duplicate it and compete with
-                 the stage for attention. -->
-            <div class="flex flex-col gap-6 mt-2 lg:hidden">
-              <h3 class="text-sm font-bold text-text-muted text-center select-none">
-                Từ kho lưu trữ — hình ảnh liên quan
-              </h3>
+            <!-- Hình ảnh liên quan — full-width gallery, always below the stage/dock -->
+            <section #relatedSection class="flex flex-col gap-6 mt-2 scroll-mt-24" aria-labelledby="related-gallery-heading">
+              <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center select-none" aria-live="polite">
+                @if (isVisualSearchResults()) {
+                  <span class="inline-flex items-center gap-1.5 text-xs font-bold text-accent">
+                    <span class="material-symbols-outlined text-base leading-none" aria-hidden="true">center_focus_strong</span>
+                    Tìm kiếm bằng hình ảnh
+                  </span>
+                  <span class="hidden sm:inline text-border-strong" aria-hidden="true">/</span>
+                  <h3 id="related-gallery-heading" class="text-sm font-bold text-text">
+                    {{ relatedPins().length }} ảnh liên quan đến vùng đã chọn
+                  </h3>
+                } @else {
+                  <h3 id="related-gallery-heading" class="text-sm font-bold text-text-muted">
+                    Từ kho lưu trữ — hình ảnh liên quan
+                  </h3>
+                }
+              </div>
 
               @if (isRelatedLoading()) {
                 <div class="flex gap-3.5 w-full">
-                  @for (colIndex of getBottomColumnsArray(); track colIndex) {
+                  @for (colIndex of getRelatedColumnsArray(); track colIndex) {
                     <div class="flex flex-col gap-3.5 flex-1 min-w-0">
-                      @for (dummy of getBottomSkeletonsForColumn(colIndex); track dummy) {
+                      @for (dummy of getRelatedSkeletonsForColumn(colIndex); track dummy) {
                         <div class="flex flex-col">
                           <div
                             class="skeleton w-full"
@@ -339,10 +374,10 @@
 
               @if (!isRelatedLoading() && relatedPins().length > 0) {
                 <div class="flex gap-3.5 w-full">
-                  @for (colIndex of getBottomColumnsArray(); track colIndex) {
+                  @for (colIndex of getRelatedColumnsArray(); track colIndex) {
                     <div class="flex flex-col gap-3.5 flex-1 min-w-0">
                       @for (
-                        rel of getBottomRelatedPinsForColumn(colIndex);
+                        rel of getRelatedPinsForColumn(colIndex);
                         track rel.id;
                         let i = $index
                       ) {
@@ -376,7 +411,7 @@
                       }
 
                       @if (isScrollingLoad()) {
-                        @for (dummy of getBottomSkeletonsForColumn(colIndex); track dummy) {
+                        @for (dummy of getRelatedSkeletonsForColumn(colIndex); track dummy) {
                           <div class="flex flex-col mt-2">
                             <div
                               class="skeleton w-full"
@@ -397,90 +432,20 @@
                   }
                 </div>
               }
-            </div>
-          </div>
 
-          <!-- Right Side Sidebar Area: Side Related Pins -->
-          <div class="hidden lg:flex lg:w-[37%] flex-col gap-4">
-            @if (isRelatedLoading()) {
-              <div class="flex gap-3.5 w-full">
-                @for (colIndex of getSideColumnsArray(); track colIndex) {
-                  <div class="flex flex-col gap-3.5 flex-1 min-w-0">
-                    @for (dummy of getSideSkeletonsForColumn(colIndex); track dummy) {
-                      <div class="flex flex-col">
-                        <div
-                          class="skeleton w-full"
-                          [class.rounded-frame]="dummy % 2 === 0"
-                          [class.rounded-frame-alt]="dummy % 2 !== 0"
-                          [ngStyle]="{ height: dummy % 2 === 0 ? '250px' : '310px' }"
-                        ></div>
-                        <div class="mt-2 flex flex-col gap-1 px-1">
-                          <div class="skeleton rounded-control h-3 w-1/2"></div>
-                        </div>
-                      </div>
+              @if (!isRelatedLoading() && relatedPins().length === 0) {
+                <div class="flex flex-col items-center gap-2 py-8 text-center select-none">
+                  <span class="material-symbols-outlined text-2xl text-text-muted" aria-hidden="true">image_search</span>
+                  <p class="text-xs text-text-muted">
+                    @if (isVisualSearchResults()) {
+                      Chưa tìm thấy ảnh nào liên quan đến vùng đã chọn. Hãy thử chọn một vùng rộng hơn.
+                    } @else {
+                      Chưa tìm thấy hình ảnh liên quan nào.
                     }
-                  </div>
-                }
-              </div>
-            }
-
-            @if (!isRelatedLoading() && relatedPins().length > 0) {
-              <div class="flex gap-3.5 w-full">
-                @for (colIndex of getSideColumnsArray(); track colIndex) {
-                  <div class="flex flex-col gap-3.5 flex-1 min-w-0">
-                    @for (
-                      rel of getSideRelatedPinsForColumn(colIndex);
-                      track rel.id;
-                      let i = $index
-                    ) {
-                      <div
-                        (click)="navigateToPin(rel.id)"
-                        class="group cursor-pointer flex flex-col mb-1"
-                      >
-                        <div
-                          class="relative overflow-hidden bg-surface shadow-card glow-hover"
-                          [class.rounded-frame]="i % 2 === 0"
-                          [class.rounded-frame-alt]="i % 2 !== 0"
-                          [style.aspect-ratio]="rel.aspectRatio || '0.75'"
-                        >
-                          <img
-                            [src]="rel.image"
-                            [alt]="rel.title"
-                            loading="lazy"
-                            fetchpriority="low"
-                            class="w-full h-full object-cover block transition-transform duration-500 ease-spring group-hover:scale-[1.04]"
-                          />
-                          <div
-                            class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 focus-within:translate-y-0 [@media(hover:none)]:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 flex items-center justify-between gap-2 z-10"
-                          >
-                            <span
-                              class="mono-label text-xs text-text-muted truncate max-w-[60%]"
-                              >{{ rel.title }}</span
-                            >
-                          </div>
-                        </div>
-                      </div>
-                    }
-
-                    @if (isScrollingLoad()) {
-                      @for (dummy of getSideSkeletonsForColumn(colIndex); track dummy) {
-                        <div class="flex flex-col mt-2">
-                          <div
-                            class="skeleton w-full"
-                            [class.rounded-frame]="dummy % 2 === 0"
-                            [class.rounded-frame-alt]="dummy % 2 !== 0"
-                            [ngStyle]="{ height: dummy % 2 === 0 ? '250px' : '310px' }"
-                          ></div>
-                          <div class="mt-2 flex flex-col gap-1 px-1">
-                            <div class="skeleton rounded-control h-3 w-1/2"></div>
-                          </div>
-                        </div>
-                      }
-                    }
-                  </div>
-                }
-              </div>
-            }
+                  </p>
+                </div>
+              }
+            </section>
           </div>
         </div>
       }

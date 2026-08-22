@@ -12,4 +12,6 @@ export class MembershipsController {
   @Post('subscribe') subscribe(@CurrentUser() user: UserPayload, @Body('plan') plan: MembershipPlan) { return this.service.changePlan(user.id, plan); }
   @Post('ai/consume') consume(@CurrentUser() user: UserPayload) { return this.service.consumeAi(user.id); }
   @Post('pins/:id/purchase') purchase(@CurrentUser() user: UserPayload, @Param('id') id: string) { return this.service.purchase(user.id, id); }
+  @Get('marketplace/sales') sales(@CurrentUser() user: UserPayload) { return this.service.listSales(user.id); }
+  @Get('marketplace/purchases') purchases(@CurrentUser() user: UserPayload) { return this.service.listPurchases(user.id); }
 }

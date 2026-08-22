@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Param,
   Body,
@@ -42,6 +43,22 @@ export class BoardsController {
       description,
       !!isSecret,
     );
+  }
+
+  @Patch(':id')
+  async updateBoard(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+    @Body('name') name?: string,
+    @Body('description') description?: string | null,
+    @Body('isSecret') isSecret?: boolean,
+  ) {
+    return this.boardsService.updateBoard(id, user.id, { name, description, isSecret });
+  }
+
+  @Delete(':id')
+  async deleteBoard(@CurrentUser() user: UserPayload, @Param('id') id: string) {
+    return this.boardsService.deleteBoard(id, user.id);
   }
 
   @Post(':id/pins')

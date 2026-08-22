@@ -13,7 +13,7 @@ function makeRequest(overrides: Partial<MessageRequestRecord> = {}): MessageRequ
     receiverId: 'me',
     status: 'PENDING',
     createdAt: '2026-01-01T00:00:00.000Z',
-    sender: { id: 'sender-1', username: 'artist', avatarUrl: null },
+    sender: { id: 'sender-1', username: 'artist', avatarUrl: null, plan: 'FREE' },
     ...overrides,
   };
 }
@@ -49,6 +49,15 @@ describe('Messages', () => {
             getSessionToken: vi.fn().mockResolvedValue('token'),
             dbUser: () => ({ id: 'me' }),
             user: () => ({ id: 'me' }),
+            getRealtimeClient: vi.fn().mockReturnValue({
+              channel: vi.fn().mockReturnValue({
+                on: vi.fn().mockReturnThis(),
+                subscribe: vi.fn(),
+                track: vi.fn(),
+                send: vi.fn(),
+              }),
+              removeChannel: vi.fn(),
+            }),
           },
         },
       ],
@@ -95,6 +104,24 @@ describe('Messages', () => {
     expect(typeof messages.acceptRequest).toBe('function');
     expect(typeof messages.rejectRequest).toBe('function');
     expect(typeof messages.openReportDialog).toBe('function');
+    messages.ngOnDestroy();
+  });
+
+  it('never shows requests that have already been handled', async () => {
+    const pending = makeRequest({ id: 'pending' });
+    const accepted = makeRequest({ id: 'accepted', status: 'ACCEPTED' });
+    const rejected = makeRequest({ id: 'rejected', status: 'REJECTED' });
+    const { fixture } = setup({
+      messagingService: {
+        listIncomingRequests: vi.fn().mockResolvedValue([pending, accepted]),
+        listOutgoingRequests: vi.fn().mockResolvedValue([rejected]),
+      },
+    });
+    const messages = fixture.componentInstance;
+    await messages.ngOnInit();
+
+    expect(messages.incomingRequests()).toEqual([pending]);
+    expect(messages.outgoingRequests()).toEqual([]);
     messages.ngOnDestroy();
   });
 

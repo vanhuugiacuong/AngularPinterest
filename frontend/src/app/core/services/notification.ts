@@ -1,15 +1,18 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, interval } from 'rxjs';
+import { BehaviorSubject, Observable, from, interval } from 'rxjs';
 import { switchMap, tap, catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
+import { API_BASE_URL } from '../api-base';
+import { safeFetch } from '../utils/http-error';
+import { SupabaseService } from './supabase';
+import type { MembershipPlan } from '../models/membership-plan';
 
 export interface Notification {
   id: string;
   userId: string;
   senderId?: string;
   pinId?: string;
-  type: 'LIKE' | 'COMMENT' | 'SAVE' | 'POST_SUCCESS';
+  type: 'LIKE' | 'COMMENT' | 'SAVE' | 'POST_SUCCESS' | 'FOLLOW';
   content: string;
   isRead: boolean;
   createdAt: string;
@@ -17,6 +20,7 @@ export interface Notification {
     id: string;
     username: string;
     avatarUrl?: string;
+    plan: MembershipPlan;
   };
   pin?: {
     id: string;
@@ -35,7 +39,8 @@ export interface NotificationsResponse {
   providedIn: 'root',
 })
 export class NotificationService {
-  private http = inject(HttpClient);
+  private auth = inject(SupabaseService);
+  private readonly baseUrl = `${API_BASE_URL}/api/notifications`;
   private notificationsSubject = new BehaviorSubject<Notification[]>([]);
   private unreadCountSubject = new BehaviorSubject<number>(0);
 
@@ -44,6 +49,25 @@ export class NotificationService {
 
   constructor() {
     this.startPolling();
+  }
+
+  private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const token = await this.auth.getSessionToken();
+    const headers = new Headers(init.headers);
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    if (init.body) headers.set('Content-Type', 'application/json');
+    const response = await safeFetch(`${this.baseUrl}${path}`, { ...init, headers });
+    if (!response.ok) {
+      let message = `Yêu cầu thất bại (${response.status})`;
+      try {
+        const body = await response.json();
+        message = body.message || message;
+      } catch {
+        // Giữ message theo status nếu server không trả JSON.
+      }
+      throw new Error(message);
+    }
+    return response.json() as Promise<T>;
   }
 
   private startPolling(): void {
@@ -61,21 +85,19 @@ export class NotificationService {
   }
 
   getNotifications(page: number = 1, limit: number = 20): Observable<NotificationsResponse> {
-    return this.http.get<NotificationsResponse>(`/api/notifications`, {
-      params: { page: page.toString(), limit: limit.toString() },
-    });
+    return from(this.request<NotificationsResponse>(`?page=${page}&limit=${limit}`));
   }
 
   getUnreadCount(): Observable<{ unreadCount: number }> {
-    return this.http.get<{ unreadCount: number }>(`/api/notifications/unread/count`);
+    return from(this.request<{ unreadCount: number }>('/unread/count'));
   }
 
   markAsRead(notificationId: string): Observable<Notification> {
-    return this.http.patch<Notification>(`/api/notifications/${notificationId}/read`, {});
+    return from(this.request<Notification>(`/${notificationId}/read`, { method: 'PATCH' }));
   }
 
-  markAllAsRead(): Observable<any> {
-    return this.http.patch(`/api/notifications/all/read`, {});
+  markAllAsRead(): Observable<unknown> {
+    return from(this.request('/all/read', { method: 'PATCH' }));
   }
 
   loadNotifications(page: number = 1, limit: number = 20): void {

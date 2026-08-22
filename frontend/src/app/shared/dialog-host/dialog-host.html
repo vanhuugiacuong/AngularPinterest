@@ -1,0 +1,53 @@
+@if (dialogService.current(); as dialog) {
+  <div class="nf-dialog-backdrop" (click)="onBackdropClick()" role="presentation">
+    <section
+      #panel
+      class="nf-dialog-panel"
+      [class.nf-dialog-panel--destructive]="dialog.variant === 'destructive'"
+      tabindex="-1"
+      [attr.role]="roleFor(dialog.variant)"
+      aria-modal="true"
+      aria-labelledby="nf-dialog-title"
+      [attr.aria-describedby]="dialog.description ? 'nf-dialog-description' : null"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="nf-dialog-icon" [class]="'nf-dialog-icon--' + dialog.variant" aria-hidden="true">
+        <span class="material-symbols-outlined">{{ iconFor(dialog.variant) }}</span>
+      </div>
+
+      <h2 id="nf-dialog-title" class="nf-dialog-title">{{ dialog.title }}</h2>
+      @if (dialog.description) {
+        <p id="nf-dialog-description" class="nf-dialog-description">{{ dialog.description }}</p>
+      }
+      @if (dialog.error) {
+        <p class="nf-dialog-error" role="alert">{{ dialog.error }}</p>
+      }
+
+      <div class="nf-dialog-actions">
+        @if (dialog.cancelLabel) {
+          <button
+            type="button"
+            class="nf-dialog-btn nf-dialog-btn--cancel"
+            [disabled]="dialog.loading"
+            (click)="dialogService.cancelClicked()"
+          >
+            {{ dialog.cancelLabel }}
+          </button>
+        }
+        <button
+          type="button"
+          class="nf-dialog-btn"
+          [class.nf-dialog-btn--danger]="dialog.variant === 'destructive'"
+          [class.nf-dialog-btn--primary]="dialog.variant !== 'destructive'"
+          [disabled]="dialog.loading"
+          (click)="dialogService.confirmClicked()"
+        >
+          @if (dialog.loading) {
+            <span class="nf-dialog-spinner" aria-hidden="true"></span>
+          }
+          {{ dialog.loading ? 'Đang xử lý…' : dialog.confirmLabel }}
+        </button>
+      </div>
+    </section>
+  </div>
+}

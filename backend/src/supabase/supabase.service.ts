@@ -10,7 +10,7 @@ import { UserPayload } from './current-user.decorator';
 export class SupabaseService implements OnModuleInit {
   private supabaseClient?: ReturnType<typeof createClient>;
 
-  onModuleInit() {
+  async onModuleInit() {
     const url = process.env.SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -27,6 +27,12 @@ export class SupabaseService implements OnModuleInit {
         autoRefreshToken: false,
       },
     });
+
+    try {
+      await this.ensurePrivateBucketsExist();
+    } catch (error) {
+      console.error('[SupabaseService] Không thể đảm bảo bucket private tồn tại:', error);
+    }
   }
 
   getClient(): ReturnType<typeof createClient> {
@@ -79,5 +85,56 @@ export class SupabaseService implements OnModuleInit {
       .getPublicUrl(path);
 
     return urlData.publicUrl;
+  }
+
+  // Chỉ các bucket đã khai báo ở đây mới được đọc/ghi - chặn path traversal/SSRF
+  // qua tên bucket tùy ý từ input người dùng.
+  private static readonly PRIVATE_BUCKETS = new Set(['pins-original', 'watermark-logos']);
+
+  private assertPrivateBucket(bucket: string) {
+    if (!SupabaseService.PRIVATE_BUCKETS.has(bucket)) {
+      throw new Error(`Bucket "${bucket}" không nằm trong danh sách bucket private đã cấu hình.`);
+    }
+  }
+
+  private assertSafePath(path: string) {
+    if (path.includes('..') || path.startsWith('/') || path.includes('\\')) {
+      throw new Error('Storage path không hợp lệ.');
+    }
+  }
+
+  async ensurePrivateBucketsExist(): Promise<void> {
+    const client = this.getClient();
+    const { data: existing } = await client.storage.listBuckets();
+    const existingNames = new Set((existing ?? []).map((b) => b.name));
+    for (const bucket of SupabaseService.PRIVATE_BUCKETS) {
+      if (!existingNames.has(bucket)) {
+        await client.storage.createBucket(bucket, { public: false });
+      }
+    }
+  }
+
+  async uploadPrivate(bucket: string, path: string, buffer: Buffer, contentType: string): Promise<string> {
+    this.assertPrivateBucket(bucket);
+    this.assertSafePath(path);
+    const { error } = await this.getClient().storage.from(bucket).upload(path, buffer, { contentType, upsert: true });
+    if (error) throw new Error(`Failed to upload to private bucket: ${error.message}`);
+    return path;
+  }
+
+  async downloadPrivate(bucket: string, path: string): Promise<Buffer> {
+    this.assertPrivateBucket(bucket);
+    this.assertSafePath(path);
+    const { data, error } = await this.getClient().storage.from(bucket).download(path);
+    if (error || !data) throw new Error(`Failed to download from private bucket: ${error?.message ?? 'not found'}`);
+    return Buffer.from(await data.arrayBuffer());
+  }
+
+  async createSignedUrl(bucket: string, path: string, expiresInSeconds: number): Promise<string> {
+    this.assertPrivateBucket(bucket);
+    this.assertSafePath(path);
+    const { data, error } = await this.getClient().storage.from(bucket).createSignedUrl(path, expiresInSeconds);
+    if (error || !data) throw new Error(`Failed to create signed URL: ${error?.message ?? 'unknown error'}`);
+    return data.signedUrl;
   }
 }

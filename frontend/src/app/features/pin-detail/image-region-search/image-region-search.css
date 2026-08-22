@@ -1,0 +1,40 @@
+.crop-handle {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  border: 2px solid var(--color-text-on-accent);
+  touch-action: none;
+}
+
+.crop-handle-nw {
+  top: -9px;
+  left: -9px;
+  cursor: nwse-resize;
+}
+
+.crop-handle-ne {
+  top: -9px;
+  right: -9px;
+  cursor: nesw-resize;
+}
+
+.crop-handle-sw {
+  bottom: -9px;
+  left: -9px;
+  cursor: nesw-resize;
+}
+
+.crop-handle-se {
+  bottom: -9px;
+  right: -9px;
+  cursor: nwse-resize;
+}
+
+@media (max-width: 640px) {
+  .crop-handle {
+    width: 24px;
+    height: 24px;
+  }
+}

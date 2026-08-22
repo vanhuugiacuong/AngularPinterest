@@ -120,15 +120,5 @@
     (cropApplied)="applyLayerCrop($event)"
   />
 
-  <div
-    *ngIf="toastMessage() as message"
-    class="collage-toast"
-    [class.error]="toastKind() === 'error'"
-    role="status"
-  >
-    <span class="material-symbols-outlined">{{
-      toastKind() === 'error' ? 'error' : 'check_circle'
-    }}</span
-    >{{ message }}
-  </div>
+  <!-- Thông báo giờ dùng ToastService dùng chung (xem showToast() trong collage.ts). -->
 </div>

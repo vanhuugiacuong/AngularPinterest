@@ -26,4 +26,33 @@ describe('PinsService privacy', () => {
     );
     expect(prisma.pin.findUnique).toHaveBeenCalledTimes(1);
   });
+
+  it("selects and returns the pin author's and each comment author's membership plan", async () => {
+    prisma.pin.findUnique.mockResolvedValue({
+      id: 'pin-1',
+      title: 'Frame',
+      likes: [],
+      _count: { likes: 0, comments: 1 },
+      comments: [
+        { id: 'c1', content: 'nice', user: { id: 'commenter-id', username: 'fan', plan: 'PLUS' } },
+      ],
+      user: { id: 'author-id', username: 'artist', plan: 'PRO' },
+    });
+
+    const result = await service.getPinById('pin-1');
+
+    expect(prisma.pin.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          user: { select: expect.objectContaining({ plan: true }) },
+          comments: expect.objectContaining({
+            include: { user: { select: expect.objectContaining({ plan: true }) } },
+          }),
+        }),
+      }),
+    );
+    expect(result.user.plan).toBe('PRO');
+    expect(result.comments[0].user.plan).toBe('PLUS');
+    expect(result.user).not.toHaveProperty('email');
+  });
 });

@@ -87,6 +87,7 @@
                       [src]="conversation.otherUser.avatarUrl"
                       [name]="conversation.otherUser.username"
                       [size]="44"
+                      [plan]="conversation.otherUser.plan"
                     ></app-user-avatar>
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center justify-between gap-2">
@@ -177,7 +178,7 @@
                           (click)="navigateToProfile(request.sender?.username)"
                           class="flex items-center gap-2.5 text-left cursor-pointer bg-transparent border-none p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
                         >
-                          <app-user-avatar [src]="request.sender?.avatarUrl" [name]="request.sender?.username || ''" [size]="40"></app-user-avatar>
+                          <app-user-avatar [src]="request.sender?.avatarUrl" [name]="request.sender?.username || ''" [size]="40" [plan]="request.sender?.plan"></app-user-avatar>
                           <span class="text-sm font-bold text-text hover:underline">{{ request.sender?.username }}</span>
                         </button>
                         <div class="flex items-center gap-2">
@@ -224,7 +225,7 @@
                         (click)="navigateToProfile(request.receiver?.username)"
                         class="w-full flex items-center gap-3 p-3 border-b border-border text-left cursor-pointer hover:bg-surface-elevated transition-colors duration-150"
                       >
-                        <app-user-avatar [src]="request.receiver?.avatarUrl" [name]="request.receiver?.username || ''" [size]="40"></app-user-avatar>
+                        <app-user-avatar [src]="request.receiver?.avatarUrl" [name]="request.receiver?.username || ''" [size]="40" [plan]="request.receiver?.plan"></app-user-avatar>
                         <div class="flex-1 min-w-0">
                           <span class="text-sm font-bold text-text truncate block">{{ request.receiver?.username }}</span>
                           <span class="text-xs text-text-muted">{{ requestStatusLabel(request.status) }}</span>
@@ -266,7 +267,7 @@
                   (click)="navigateToProfile(otherUser.username)"
                   class="flex items-center gap-2.5 text-left cursor-pointer bg-transparent border-none p-0 min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
                 >
-                  <app-user-avatar [src]="otherUser.avatarUrl" [name]="otherUser.username" [size]="36"></app-user-avatar>
+                  <app-user-avatar [src]="otherUser.avatarUrl" [name]="otherUser.username" [size]="36" [plan]="otherUser.plan"></app-user-avatar>
                   <span class="flex flex-col min-w-0"><span class="text-sm font-bold text-text truncate hover:underline">{{ otherUser.username }}</span><span class="text-[10px] font-medium" [class.text-success]="otherUserOnline()" [class.text-text-muted]="!otherUserOnline()"><i class="inline-block w-1.5 h-1.5 rounded-full mr-1" [class.bg-success]="otherUserOnline()" [class.bg-text-muted]="!otherUserOnline()"></i>{{ otherUserOnline() ? 'Đang hoạt động' : 'Ngoại tuyến' }}</span></span>
                 </button>
               }
@@ -368,15 +369,17 @@
   </div>
 
   @if (reportTarget(); as request) {
-    <div class="fixed inset-0 z-[100] bg-ink/72 backdrop-blur-md flex items-center justify-center p-5" (click)="closeReportDialog()">
+    <div class="nf-dialog-backdrop" (click)="closeReportDialog()">
       <section
-        class="w-full max-w-md p-6 rounded-panel border border-border-strong bg-surface-elevated shadow-card"
+        class="nf-dialog-panel text-left"
         role="dialog"
         aria-modal="true"
         aria-labelledby="report-request-title"
+        data-messages-dialog="active"
+        tabindex="-1"
         (click)="$event.stopPropagation()"
       >
-        <h2 id="report-request-title" class="text-lg font-bold text-text mb-4">
+        <h2 id="report-request-title" class="nf-dialog-title mb-4">
           Báo cáo {{ request.sender?.username }}
         </h2>
         <form (ngSubmit)="submitReport()" class="flex flex-col gap-3">
@@ -410,7 +413,7 @@
           ></textarea>
 
           @if (reportError()) {
-            <p class="text-xs text-error" role="alert">{{ reportError() }}</p>
+            <p class="nf-dialog-error" role="alert">{{ reportError() }}</p>
           }
 
           <div class="flex justify-end gap-2 mt-2">
@@ -418,16 +421,17 @@
               type="button"
               (click)="closeReportDialog()"
               [disabled]="reportPending()"
-              class="h-10 px-4 rounded-control bg-surface border border-border text-text text-sm font-bold cursor-pointer disabled:opacity-50"
+              class="nf-dialog-btn nf-dialog-btn--cancel"
             >
               Hủy
             </button>
             <button
               type="submit"
               [disabled]="reportPending()"
-              class="h-10 px-4 rounded-control bg-error text-text-on-accent text-sm font-bold cursor-pointer disabled:opacity-50"
+              class="nf-dialog-btn nf-dialog-btn--danger"
             >
               @if (reportPending()) {
+                <span class="nf-dialog-spinner" aria-hidden="true"></span>
                 Đang gửi
               } @else {
                 Gửi báo cáo

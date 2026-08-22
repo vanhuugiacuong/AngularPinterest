@@ -34,14 +34,43 @@ export class ImageSearchModal implements AfterViewInit {
 
   private readonly previouslyFocused: HTMLElement | null =
     typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
+  private readonly previousBodyOverflow =
+    typeof document !== 'undefined' ? document.body.style.overflow : '';
+
+  constructor() {
+    if (typeof document !== 'undefined') document.body.style.overflow = 'hidden';
+  }
 
   ngAfterViewInit(): void {
     this.panel?.nativeElement.focus();
   }
 
-  @HostListener('document:keydown.escape')
-  onEscapeKey() {
-    this.close();
+  @HostListener('document:keydown', ['$event'])
+  onKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      this.close();
+      return;
+    }
+
+    if (event.key === 'Tab') {
+      const panel = this.panel?.nativeElement;
+      if (!panel) return;
+      const focusable = Array.from(
+        panel.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
   }
 
   onDragOver(event: DragEvent) {
@@ -103,6 +132,7 @@ export class ImageSearchModal implements AfterViewInit {
     this.revokeLocalPreview();
     this.selectedFile.set(null);
     this.validationError.set(null);
+    document.body.style.overflow = this.previousBodyOverflow;
     this.closed.emit();
     this.previouslyFocused?.focus();
   }

@@ -3,10 +3,12 @@ import { Router, RouterOutlet } from '@angular/router';
 import { SupabaseService } from './core/services/supabase';
 import { ThemeService } from './core/services/theme';
 import { OfflineBanner } from './shared/offline-banner/offline-banner';
+import { ToastHost } from './shared/toast-host/toast-host';
+import { DialogHost } from './shared/dialog-host/dialog-host';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, OfflineBanner],
+  imports: [RouterOutlet, OfflineBanner, ToastHost, DialogHost],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })

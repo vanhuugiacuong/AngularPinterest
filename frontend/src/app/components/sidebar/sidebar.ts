@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { SidebarStateService } from '../../core/services/sidebar-state';
 import { NotificationService, Notification } from '../../core/services/notification';
 import { Observable } from 'rxjs';
+import { UserAvatar } from '../../shared/user-avatar/user-avatar';
 
 /** Reserves room for the fixed mobile bottom nav so it never covers page
  * content — set once for the lifetime of the (always-mounted, one-per-app)
@@ -14,7 +15,7 @@ const BODY_DOCK_CLASS = 'nf-has-dock';
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, UserAvatar],
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.css'
 })

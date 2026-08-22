@@ -6,10 +6,12 @@ import {
   Param,
   Query,
   Body,
+  Res,
   UseGuards,
   UseInterceptors,
   UploadedFile,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PinsService } from './pins.service';
 import { SupabaseAuthGuard } from '../supabase/supabase.guard';
@@ -81,6 +83,20 @@ export class PinsController {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
     return this.pinsService.getSimilarPins(id, pageNum, limitNum);
+  }
+
+  /** Same-origin proxy for a pin's own stored image. Used by the pin-detail
+   * region-select image search tool as a canvas-safe fallback when the CDN
+   * itself doesn't send CORS headers permissive enough for the browser to
+   * read a cross-origin fetch's response body (needed to draw the crop to
+   * a canvas without tainting it). Only ever fetches the URL already on
+   * file for this specific pin id — no arbitrary-URL fetch/SSRF surface. */
+  @Get(':id/image-proxy')
+  async proxyPinImage(@Param('id') id: string, @Res() res: Response) {
+    const { buffer, contentType } = await this.pinsService.getPinImageForProxy(id);
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.send(buffer);
   }
 
   @Get(':id')

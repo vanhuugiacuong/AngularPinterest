@@ -185,7 +185,7 @@
                 [class.bg-surface-elevated]="activeSuggestionIndex() === suggestKeywords().length + pinsSuggestionCount() + i"
                 class="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-control hover:bg-surface-elevated cursor-pointer border-none outline-none bg-transparent focus-visible:ring-2 focus-visible:ring-accent"
               >
-                <app-user-avatar [src]="u.avatarUrl" [name]="u.username" [size]="28" [ring]="false"></app-user-avatar>
+                <app-user-avatar [src]="u.avatarUrl" [name]="u.username" [size]="28" [ring]="false" [plan]="u.plan"></app-user-avatar>
                 <span class="text-sm font-bold text-text truncate">{{ u.username }}</span>
               </button>
             </div>
@@ -255,7 +255,7 @@
         aria-haspopup="menu"
         [attr.aria-expanded]="showProfilePopup()"
       >
-        <app-user-avatar [src]="avatarUrl()" [name]="displayName()" [size]="36"></app-user-avatar>
+        <app-user-avatar [src]="avatarUrl()" [name]="displayName()" [size]="36" [plan]="myPlan()"></app-user-avatar>
         <span
           class="material-symbols-outlined text-[20px] text-text-muted font-semibold leading-none select-none"
           >keyboard_arrow_down</span
@@ -275,7 +275,7 @@
 
         <!-- User Card -->
         <div class="flex items-center gap-3.5 select-none">
-          <app-user-avatar [src]="avatarUrl()" [name]="displayName()" [size]="56"></app-user-avatar>
+          <app-user-avatar [src]="avatarUrl()" [name]="displayName()" [size]="56" [plan]="myPlan()"></app-user-avatar>
           <div class="flex-1 min-w-0 flex flex-col justify-center">
             <!-- Full Name -->
             <span class="text-[15px] font-extrabold text-text truncate leading-tight font-display">

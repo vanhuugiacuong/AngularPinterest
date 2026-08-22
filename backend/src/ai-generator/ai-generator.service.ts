@@ -29,13 +29,11 @@ export class AiGeneratorService {
   }
 
   /**
-   * Downloads the generated image from Pollinations.ai URL and uploads it
-   * permanently to the Supabase "pins" bucket.
+   * Downloads the generated image bytes from a Pollinations.ai preview URL.
+   * Caller (PinsService) is responsible for storing the original + preview -
+   * this service only knows how to talk to the Pollinations temp URL.
    */
-  async saveAiImageToStorage(
-    imageUrl: string,
-    userId: string,
-  ): Promise<string> {
+  async downloadGeneratedImage(imageUrl: string): Promise<{ buffer: Buffer; contentType: string }> {
     try {
       const response = await fetch(imageUrl);
       if (!response.ok) {
@@ -43,22 +41,11 @@ export class AiGeneratorService {
           `Failed to fetch image from Pollinations: ${response.statusText}`,
         );
       }
-
       const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const contentType = response.headers.get('Content-Type') || 'image/png';
-
-      const filename = `${userId}/ai_${Date.now()}.png`;
-
-      // Upload to permanent bucket "pins"
-      const permanentUrl = await this.supabaseService.uploadImage(
-        'pins',
-        filename,
-        buffer,
-        contentType,
-      );
-
-      return permanentUrl;
+      return {
+        buffer: Buffer.from(arrayBuffer),
+        contentType: response.headers.get('Content-Type') || 'image/png',
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       throw new BadRequestException(`Failed to save AI image: ${message}`);

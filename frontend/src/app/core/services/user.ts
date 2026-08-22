@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
 import { API_BASE_URL } from '../api-base';
+import { safeFetch } from '../utils/http-error';
+import type { MembershipPlan } from '../models/membership-plan';
 
 export interface ProfileUser {
   id: string;
@@ -7,6 +9,7 @@ export interface ProfileUser {
   avatarUrl?: string | null;
   bio?: string | null;
   createdAt: string;
+  plan: MembershipPlan;
 }
 
 export interface ProfileCounts {
@@ -15,6 +18,7 @@ export interface ProfileCounts {
   followers: number;
   following: number;
   favorites: number | null;
+  privateBoards: number | null;
 }
 
 /** Mirrors backend MessageRequestStatus, but from the viewer's point of
@@ -34,6 +38,7 @@ export interface ProfileViewerState {
   isFollowedBy: boolean;
   isMutualFollow: boolean;
   canViewFavorites: boolean;
+  canViewPrivateBoards: boolean;
   messageRequestStatus: MessageRequestRelationshipStatus;
   conversationId: string | null;
   isBlocked: boolean;
@@ -67,6 +72,7 @@ export interface ProfilePin {
     id: string;
     username: string;
     avatarUrl?: string | null;
+    plan: MembershipPlan;
   };
   _count: {
     likes: number;
@@ -106,6 +112,20 @@ export interface UserSearchResult {
   id: string;
   username: string;
   avatarUrl?: string | null;
+  plan: MembershipPlan;
+}
+
+/** One row in a followers/following list — includes the viewer's relationship
+ * to this person so the row can render the right follow-button state without
+ * a second round-trip. */
+export interface UserConnection {
+  id: string;
+  username: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
+  plan: MembershipPlan;
+  viewerIsFollowing: boolean;
+  followsViewer: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -140,6 +160,17 @@ export class UserService {
     );
   }
 
+  async getPrivateBoards(
+    page: number,
+    limit: number,
+    token: string,
+  ): Promise<PagedResponse<ProfileAlbum>> {
+    return this.request<PagedResponse<ProfileAlbum>>(
+      `${this.baseUrl}/me/private-boards?page=${page}&limit=${limit}`,
+      token,
+    );
+  }
+
   async getFavorites(
     page: number,
     limit: number,
@@ -160,11 +191,35 @@ export class UserService {
     return result.items || [];
   }
 
+  async getFollowers(
+    username: string,
+    page: number,
+    limit: number,
+    token?: string,
+  ): Promise<PagedResponse<UserConnection>> {
+    return this.request<PagedResponse<UserConnection>>(
+      `${this.baseUrl}/${encodeURIComponent(username)}/followers?page=${page}&limit=${limit}`,
+      token,
+    );
+  }
+
+  async getFollowing(
+    username: string,
+    page: number,
+    limit: number,
+    token?: string,
+  ): Promise<PagedResponse<UserConnection>> {
+    return this.request<PagedResponse<UserConnection>>(
+      `${this.baseUrl}/${encodeURIComponent(username)}/following?page=${page}&limit=${limit}`,
+      token,
+    );
+  }
+
   async toggleFollow(
     id: string,
     token: string,
-  ): Promise<{ followed: boolean; followerCount: number }> {
-    return this.request<{ followed: boolean; followerCount: number }>(
+  ): Promise<{ followed: boolean; followerCount: number; followingCount: number }> {
+    return this.request<{ followed: boolean; followerCount: number; followingCount: number }>(
       `${this.baseUrl}/${id}/follow`,
       token,
       { method: 'POST' },
@@ -180,7 +235,7 @@ export class UserService {
       headers.set('Content-Type', 'application/json');
     }
 
-    const response = await fetch(url, { ...init, headers });
+    const response = await safeFetch(url, { ...init, headers });
     if (!response.ok) {
       let message = `Yêu cầu thất bại (${response.status})`;
       try {

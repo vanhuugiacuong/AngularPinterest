@@ -323,19 +323,13 @@
       >
         <!-- Sender Avatar or Initial -->
         <div class="relative shrink-0 mt-0.5">
-          <ng-container *ngIf="item.sender as sender; else initialFallback">
-            <img
-              *ngIf="sender.avatarUrl; else initialFallback"
-              [src]="sender.avatarUrl"
-              [alt]="sender.username || 'User'"
-              class="h-10 w-10 rounded-full object-cover ring-1 ring-border"
-            />
-          </ng-container>
-          <ng-template #initialFallback>
-            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-brand text-text-on-accent text-sm font-semibold shadow-sm">
-              {{ (item.sender?.username || 'P').charAt(0).toUpperCase() }}
-            </div>
-          </ng-template>
+          <app-user-avatar
+            [src]="item.sender?.avatarUrl"
+            [name]="item.sender?.username || 'P'"
+            [size]="40"
+            [plan]="item.sender?.plan"
+            [showPlanBadge]="false"
+          ></app-user-avatar>
 
           <!-- Notification Type Badge -->
           <span

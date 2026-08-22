@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { ReportReason } from './messaging';
 import { API_BASE_URL } from '../api-base';
+import { safeFetch } from '../utils/http-error';
 
 @Injectable({ providedIn: 'root' })
 export class SafetyService {
@@ -33,7 +34,7 @@ export class SafetyService {
       headers.set('Content-Type', 'application/json');
     }
 
-    const response = await fetch(url, { ...init, headers });
+    const response = await safeFetch(url, { ...init, headers });
     if (!response.ok) {
       let message = `Yêu cầu thất bại (${response.status})`;
       try {

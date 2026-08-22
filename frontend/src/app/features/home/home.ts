@@ -9,6 +9,7 @@ import { BoardService, Board } from '../../core/services/board';
 import { UserService, ProfilePin } from '../../core/services/user';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
 import { ImageSearchStore } from '../../core/services/image-search-store';
+import { ToastService } from '../../core/services/toast';
 
 /** Vietnamese labels for the category codes the backend's auto-classifier
  * assigns (see PinsService.classifyCategory) — chips are only ever built
@@ -35,6 +36,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   private pinService = inject(PinService);
   private supabaseService = inject(SupabaseService);
   private boardService = inject(BoardService);
+  private toast = inject(ToastService);
   private userService = inject(UserService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -444,6 +446,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
         hasBottomBar,
         author,
         authorAvatarUrl: p.user?.avatarUrl || null,
+        authorPlan: p.user?.plan || 'FREE',
         likes,
         isAiGenerated: p.isAiGenerated,
         category: p.category,
@@ -521,8 +524,12 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     return 'Hồ sơ';
   }
 
-  async savePinToBoard(pinId: string, event: MouseEvent) {
+  savePinToBoard(pinId: string, event: MouseEvent) {
     event.stopPropagation();
+    void this.performSaveToBoard(pinId);
+  }
+
+  private async performSaveToBoard(pinId: string): Promise<void> {
     const currentUser = this.supabaseService.user();
     if (!currentUser) return;
 
@@ -548,10 +555,12 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       }
 
       await this.boardService.addPinToBoard(boardId, pinId, token);
-      alert('Đã lưu ảnh vào bộ sưu tập thành công!');
+      this.toast.success('Đã lưu vào bộ sưu tập');
     } catch (error) {
       console.error('Error saving pin to board:', error);
-      alert('Lỗi khi lưu ảnh vào bộ sưu tập.');
+      this.toast.error('Không thể lưu ảnh vào bộ sưu tập.', {
+        action: { label: 'Thử lại', onClick: () => this.performSaveToBoard(pinId) },
+      });
     }
   }
 }

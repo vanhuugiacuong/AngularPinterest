@@ -1,5 +1,21 @@
 import { Injectable } from '@angular/core';
 import { API_BASE_URL } from '../api-base';
+import { safeFetch } from '../utils/http-error';
+import type { MembershipPlan } from '../models/membership-plan';
+
+export interface PinAuthor {
+  id: string;
+  username: string;
+  avatarUrl?: string;
+  plan: MembershipPlan;
+}
+
+export interface PinComment {
+  id: string;
+  content: string;
+  createdAt: string;
+  user: PinAuthor;
+}
 
 export interface Pin {
   id: string;
@@ -13,12 +29,8 @@ export interface Pin {
   isLiked?: boolean;
   likeCount?: number;
   _count?: { likes: number; comments?: number };
-  comments?: any[];
-  user: {
-    id: string;
-    username: string;
-    avatarUrl?: string;
-  };
+  comments?: PinComment[];
+  user: PinAuthor;
 }
 
 @Injectable({
@@ -27,226 +39,104 @@ export interface Pin {
 export class PinService {
   private baseUrl = `${API_BASE_URL}/api/pins`;
 
-  async getPins(page = 1, limit = 20, token?: string, seed?: string): Promise<Pin[]> {
-    try {
-      const headers: Record<string, string> = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+  private async request<T>(url: string, token: string | undefined, init: RequestInit, fallback: string): Promise<T> {
+    const headers = new Headers(init.headers);
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    if (init.body && typeof init.body === 'string') headers.set('Content-Type', 'application/json');
+    const response = await safeFetch(url, { ...init, headers });
+    if (!response.ok) {
+      let message = `${fallback} (${response.status})`;
+      try {
+        const body = await response.json();
+        message = body.message || message;
+      } catch {
+        // Giữ message theo status nếu server không trả JSON.
       }
-      let url = `${this.baseUrl}?page=${page}&limit=${limit}`;
-      if (seed) {
-        url += `&seed=${seed}`;
-      }
-      const response = await fetch(url, {
-        headers,
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to fetch pins: ${response.statusText}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching pins in PinService:', error);
-      throw error;
+      throw new Error(message);
     }
+    return response.json() as Promise<T>;
   }
 
-  async searchPins(query: string, page = 1, limit = 20): Promise<Pin[]> {
-    try {
-      const url = `${this.baseUrl}/search?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`;
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Failed to search pins: ${response.statusText}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error('Error searching pins in PinService:', error);
-      throw error;
-    }
+  getPins(page = 1, limit = 20, token?: string, seed?: string): Promise<Pin[]> {
+    let url = `${this.baseUrl}?page=${page}&limit=${limit}`;
+    if (seed) url += `&seed=${seed}`;
+    return this.request<Pin[]>(url, token, {}, 'Không thể tải ảnh');
+  }
+
+  searchPins(query: string, page = 1, limit = 20): Promise<Pin[]> {
+    const url = `${this.baseUrl}/search?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`;
+    return this.request<Pin[]>(url, undefined, {}, 'Không thể tìm kiếm');
   }
 
   /** Reverse image search: uploads a File (not yet a saved Pin) to the CLIP
    * embedding pipeline on the backend and returns real database matches. */
-  async searchPinsByImage(file: File, limit = 40): Promise<Pin[]> {
-    try {
-      const formData = new FormData();
-      formData.append('image', file);
-      const response = await fetch(`${this.baseUrl}/search-by-image?limit=${limit}`, {
-        method: 'POST',
-        body: formData,
-      });
-      if (!response.ok) {
-        let message = `Tìm kiếm bằng hình ảnh thất bại (${response.status})`;
-        try {
-          const body = await response.json();
-          message = body.message || message;
-        } catch {
-          // Keep the status-based message when the server does not return JSON.
-        }
-        throw new Error(message);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error('Error searching pins by image in PinService:', error);
-      throw error;
-    }
+  searchPinsByImage(file: File, limit = 40): Promise<Pin[]> {
+    const formData = new FormData();
+    formData.append('image', file);
+    return this.request<Pin[]>(
+      `${this.baseUrl}/search-by-image?limit=${limit}`,
+      undefined,
+      { method: 'POST', body: formData },
+      'Tìm kiếm bằng hình ảnh thất bại',
+    );
   }
 
-  async getRelatedPins(id: string, page = 1, limit = 20): Promise<Pin[]> {
-    try {
-      const response = await fetch(`${this.baseUrl}/${id}/related?page=${page}&limit=${limit}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch related pins: ${response.statusText}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error(`Error fetching related pins for ${id}:`, error);
-      throw error;
-    }
+  /** Same-origin-CORS proxy for a pin's own stored image — used as a
+   * canvas-safe fallback by the region-select image search tool when the
+   * CDN itself doesn't allow a cross-origin fetch to read the response. */
+  getImageProxyUrl(id: string): string {
+    return `${this.baseUrl}/${id}/image-proxy`;
   }
 
-  async getPinById(id: string, token?: string): Promise<Pin> {
-    try {
-      const headers: Record<string, string> = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      const response = await fetch(`${this.baseUrl}/${id}`, { headers });
-      if (!response.ok) {
-        throw new Error(`Failed to fetch pin details: ${response.statusText}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error(`Error fetching pin ${id}:`, error);
-      throw error;
-    }
+  getRelatedPins(id: string, page = 1, limit = 20): Promise<Pin[]> {
+    return this.request<Pin[]>(`${this.baseUrl}/${id}/related?page=${page}&limit=${limit}`, undefined, {}, 'Không thể tải ảnh liên quan');
   }
 
-  async toggleLike(id: string, token: string): Promise<{ liked: boolean; likeCount: number }> {
-    try {
-      const response = await fetch(`${this.baseUrl}/${id}/like`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to toggle like: ${response.statusText}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error(`Error toggling like for pin ${id}:`, error);
-      throw error;
-    }
+  getPinById(id: string, token?: string): Promise<Pin> {
+    return this.request<Pin>(`${this.baseUrl}/${id}`, token, {}, 'Không thể tải chi tiết ảnh');
   }
 
-  async deletePin(id: string, token: string): Promise<{ success: boolean }> {
-    try {
-      const response = await fetch(`${this.baseUrl}/${id}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to delete pin: ${response.statusText}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error(`Error deleting pin ${id}:`, error);
-      throw error;
-    }
+  toggleLike(id: string, token: string): Promise<{ liked: boolean; likeCount: number }> {
+    return this.request(`${this.baseUrl}/${id}/like`, token, { method: 'POST' }, 'Không thể thích ảnh');
   }
 
-  async addComment(id: string, content: string, token: string): Promise<any> {
-    try {
-      const response = await fetch(`${this.baseUrl}/${id}/comment`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ content }),
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to add comment: ${response.statusText}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error(`Error adding comment to pin ${id}:`, error);
-      throw error;
-    }
+  deletePin(id: string, token: string): Promise<{ success: boolean }> {
+    return this.request(`${this.baseUrl}/${id}`, token, { method: 'DELETE' }, 'Không thể xoá ảnh');
+  }
+
+  addComment(id: string, content: string, token: string): Promise<PinComment> {
+    return this.request<PinComment>(
+      `${this.baseUrl}/${id}/comment`,
+      token,
+      { method: 'POST', body: JSON.stringify({ content }) },
+      'Không thể thêm bình luận',
+    );
   }
 
   /** Pre-submit NSFW check so the user gets feedback before hitting "Đăng".
    * This is a UX convenience only — createUploadPin() below is checked again
    * server-side, since the backend can never trust a client-reported result. */
-  async checkImageModeration(file: File, token: string): Promise<{ safe: boolean; message?: string }> {
+  checkImageModeration(file: File, token: string): Promise<{ safe: boolean; message?: string }> {
     const formData = new FormData();
     formData.append('image', file);
-    const response = await fetch(`${this.baseUrl}/check-image`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
-    if (!response.ok) {
-      let message = 'Không thể kiểm tra ảnh lúc này. Vui lòng thử lại.';
-      try {
-        const body = await response.json();
-        message = body.message || message;
-      } catch {
-        // Keep the default message when the server does not return JSON.
-      }
-      throw new Error(message);
-    }
-    return await response.json();
+    return this.request(
+      `${this.baseUrl}/check-image`,
+      token,
+      { method: 'POST', body: formData },
+      'Không thể kiểm tra ảnh lúc này',
+    );
   }
 
-  async createUploadPin(formData: FormData, token: string): Promise<any> {
-    try {
-      const response = await fetch(this.baseUrl, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-      if (!response.ok) {
-        let message = `Failed to upload pin: ${response.statusText}`;
-        try {
-          const body = await response.json();
-          message = body.message || message;
-        } catch {
-          // Keep the status-based message when the server does not return JSON.
-        }
-        throw new Error(message);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error('Error uploading pin in PinService:', error);
-      throw error;
-    }
+  createUploadPin(formData: FormData, token: string): Promise<Pin> {
+    return this.request<Pin>(this.baseUrl, token, { method: 'POST', body: formData }, 'Không thể tải ảnh lên');
   }
 
-  async saveAiPin(body: any, token: string): Promise<any> {
-    try {
-      const response = await fetch(`${this.baseUrl}/ai-save`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to save AI pin: ${response.statusText}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error('Error saving AI pin in PinService:', error);
-      throw error;
-    }
+  saveAiPin(body: unknown, token: string): Promise<Pin> {
+    return this.request<Pin>(
+      `${this.baseUrl}/ai-save`,
+      token,
+      { method: 'POST', body: JSON.stringify(body) },
+      'Không thể lưu ảnh AI',
+    );
   }
 }
