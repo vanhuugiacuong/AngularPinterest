@@ -25,6 +25,15 @@
            state to represent here. Hidden on mobile: the bottom nav replaces
            this entirely below md. -->
       <span class="material-symbols-outlined text-2xl">menu</span>
+      <!-- Combined unread badge (notifications + messages) — visible even
+           while the sidebar is collapsed. -->
+      <span
+        *ngIf="(totalUnread$ | async)! > 0"
+        [appBadgeBump]="(totalUnread$ | async)!"
+        class="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-text-on-accent ring-2 ring-bg shadow-glow"
+      >
+        {{ (totalUnread$ | async)! > 99 ? '99+' : (totalUnread$ | async) }}
+      </span>
     </button>
 
     <div

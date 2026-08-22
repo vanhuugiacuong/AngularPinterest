@@ -3,8 +3,13 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { SidebarStateService } from '../../core/services/sidebar-state';
 import { NotificationService, Notification } from '../../core/services/notification';
+import { MessagingService } from '../../core/services/messaging';
+import { UserService } from '../../core/services/user';
+import { SupabaseService } from '../../core/services/supabase';
+import { ToastService } from '../../core/services/toast';
 import { Observable } from 'rxjs';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
+import { BadgeBumpDirective } from '../../shared/badge-bump.directive';
 
 /** Reserves room for the fixed mobile bottom nav so it never covers page
  * content — set once for the lifetime of the (always-mounted, one-per-app)
@@ -15,18 +20,29 @@ const BODY_DOCK_CLASS = 'nf-has-dock';
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, UserAvatar],
+  imports: [CommonModule, UserAvatar, BadgeBumpDirective],
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.css'
 })
 export class Sidebar implements OnInit, OnDestroy {
   public sidebarState = inject(SidebarStateService);
   private notificationService = inject(NotificationService);
+  private messagingService = inject(MessagingService);
+  private userService = inject(UserService);
+  private supabaseService = inject(SupabaseService);
+  private toast = inject(ToastService);
   private router = inject(Router);
 
   isNotificationOpen = false;
   unreadCount$: Observable<number> = this.notificationService.unreadCount$;
   notifications$: Observable<Notification[]> = this.notificationService.notifications$;
+  unreadMessageCount$: Observable<number> = this.messagingService.unreadCount$;
+
+  /** Follow requests the viewer has just accepted/rejected inline from the
+   * notification list — hides the Accept/Reject row for that item without
+   * needing a full reload. Keyed by requester id (== notification.senderId). */
+  private respondingFollowRequests = new Set<string>();
+  private handledFollowRequests = new Set<string>();
 
   ngOnInit(): void {
     this.notificationService.loadNotifications();
@@ -59,6 +75,9 @@ export class Sidebar implements OnInit, OnDestroy {
     if (this.isNotificationOpen) {
       this.sidebarState.openSidebar();
       this.notificationService.loadNotifications();
+      // Opening the panel counts as viewing — clear the badge right away
+      // instead of requiring an explicit "Đọc tất cả" click.
+      this.notificationService.markAllAsRead().subscribe();
     } else {
       this.sidebarState.scheduleClose();
     }
@@ -82,6 +101,47 @@ export class Sidebar implements OnInit, OnDestroy {
     this.closeNotifications();
     if (item.pinId) {
       this.router.navigate(['/pin', item.pinId]);
+    }
+  }
+
+  isPendingFollowRequest(item: Notification): boolean {
+    return item.type === 'FOLLOW_REQUEST' && !!item.senderId && !this.handledFollowRequests.has(item.senderId);
+  }
+
+  isRespondingToFollowRequest(item: Notification): boolean {
+    return !!item.senderId && this.respondingFollowRequests.has(item.senderId);
+  }
+
+  async acceptFollowRequest(item: Notification, event: Event): Promise<void> {
+    event.stopPropagation();
+    await this.respondToFollowRequest(item, (requesterId, token) =>
+      this.userService.acceptFollowRequest(requesterId, token)
+    );
+  }
+
+  async rejectFollowRequest(item: Notification, event: Event): Promise<void> {
+    event.stopPropagation();
+    await this.respondToFollowRequest(item, (requesterId, token) =>
+      this.userService.rejectFollowRequest(requesterId, token)
+    );
+  }
+
+  private async respondToFollowRequest(
+    item: Notification,
+    action: (requesterId: string, token: string) => Promise<unknown>
+  ): Promise<void> {
+    const requesterId = item.senderId;
+    if (!requesterId || this.respondingFollowRequests.has(requesterId)) return;
+    this.respondingFollowRequests.add(requesterId);
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (!token) throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      await action(requesterId, token);
+      this.handledFollowRequests.add(requesterId);
+    } catch (error) {
+      this.toast.error(error instanceof Error ? error.message : 'Không thể xử lý yêu cầu theo dõi.');
+    } finally {
+      this.respondingFollowRequests.delete(requesterId);
     }
   }
 

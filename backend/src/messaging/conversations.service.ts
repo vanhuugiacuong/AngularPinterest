@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { BlocksService } from '../blocks/blocks.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import {
   PUBLIC_USER_SELECT,
   findOrCreateConversation,
@@ -15,6 +16,7 @@ export class ConversationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly blocksService: BlocksService,
+    private readonly supabase: SupabaseService,
   ) {}
 
   async listConversations(userId: string) {
@@ -131,7 +133,7 @@ export class ConversationsService {
       throw new ForbiddenException('Bạn không còn quyền nhắn tin trong cuộc trò chuyện này');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const message = await this.prisma.$transaction(async (tx) => {
       const message = await tx.message.create({
         data: { conversationId: conversation.id, senderId: userId, content },
       });
@@ -141,6 +143,15 @@ export class ConversationsService {
       });
       return message;
     });
+
+    const sender = await this.prisma.user.findUnique({ where: { id: userId }, select: PUBLIC_USER_SELECT });
+    void this.supabase.broadcast(`user:${otherUserId}`, 'message', {
+      conversationId: conversation.id,
+      message,
+      sender,
+    });
+
+    return message;
   }
 
   async markRead(conversationId: string, userId: string) {

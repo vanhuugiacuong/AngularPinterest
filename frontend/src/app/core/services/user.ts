@@ -32,11 +32,16 @@ export type MessageRequestRelationshipStatus =
   | 'REJECTED'
   | 'REPORTED';
 
+/** Mirrors backend FollowStatus, but from the viewer's point of view —
+ * PENDING is split into outgoing/incoming, matching MessageRequestRelationshipStatus. */
+export type FollowRelationshipStatus = 'NONE' | 'PENDING_OUTGOING' | 'PENDING_INCOMING' | 'ACCEPTED';
+
 export interface ProfileViewerState {
   isOwnProfile: boolean;
   isFollowing: boolean;
   isFollowedBy: boolean;
   isMutualFollow: boolean;
+  followRequestStatus: FollowRelationshipStatus;
   canViewFavorites: boolean;
   canViewPrivateBoards: boolean;
   messageRequestStatus: MessageRequestRelationshipStatus;
@@ -218,12 +223,16 @@ export class UserService {
   async toggleFollow(
     id: string,
     token: string,
-  ): Promise<{ followed: boolean; followerCount: number; followingCount: number }> {
-    return this.request<{ followed: boolean; followerCount: number; followingCount: number }>(
-      `${this.baseUrl}/${id}/follow`,
-      token,
-      { method: 'POST' },
-    );
+  ): Promise<{ followRequestStatus: FollowRelationshipStatus; followerCount: number; followingCount: number }> {
+    return this.request(`${this.baseUrl}/${id}/follow`, token, { method: 'POST' });
+  }
+
+  async acceptFollowRequest(requesterId: string, token: string): Promise<{ accepted: boolean }> {
+    return this.request(`${this.baseUrl}/follow-requests/${requesterId}/accept`, token, { method: 'PATCH' });
+  }
+
+  async rejectFollowRequest(requesterId: string, token: string): Promise<{ rejected: boolean }> {
+    return this.request(`${this.baseUrl}/follow-requests/${requesterId}/reject`, token, { method: 'PATCH' });
   }
 
   private async request<T>(url: string, token?: string, init: RequestInit = {}): Promise<T> {

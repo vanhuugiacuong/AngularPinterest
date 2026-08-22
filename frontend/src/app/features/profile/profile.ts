@@ -222,15 +222,20 @@ export class Profile implements OnInit, OnDestroy {
     const summary = this.profile();
     if (!summary || summary.viewer.isOwnProfile || this.followPending()) return;
 
-    const previousFollowing = summary.viewer.isFollowing;
+    const previousStatus = summary.viewer.followRequestStatus;
     const previousCount = summary.counts.followers;
+    // Unfollowing (leaving ACCEPTED) is the only transition that actually
+    // changes the follower count right away — sending/withdrawing a request
+    // never did, since it was never counted as a follower yet.
+    const wasAccepted = previousStatus === 'ACCEPTED';
+    const optimisticStatus = wasAccepted ? 'NONE' : previousStatus === 'NONE' ? 'PENDING_OUTGOING' : 'NONE';
     this.followPending.set(true);
     this.profile.set({
       ...summary,
-      viewer: { ...summary.viewer, isFollowing: !previousFollowing },
+      viewer: { ...summary.viewer, followRequestStatus: optimisticStatus, isFollowing: false },
       counts: {
         ...summary.counts,
-        followers: Math.max(0, previousCount + (previousFollowing ? -1 : 1)),
+        followers: Math.max(0, previousCount + (wasAccepted ? -1 : 0)),
       },
     });
 
@@ -239,13 +244,17 @@ export class Profile implements OnInit, OnDestroy {
       const result = await this.userService.toggleFollow(summary.user.id, token);
       this.updateProfile((current) => ({
         ...current,
-        viewer: { ...current.viewer, isFollowing: result.followed },
+        viewer: {
+          ...current.viewer,
+          followRequestStatus: result.followRequestStatus,
+          isFollowing: result.followRequestStatus === 'ACCEPTED',
+        },
         counts: { ...current.counts, followers: result.followerCount },
       }));
     } catch (error) {
       this.updateProfile((current) => ({
         ...current,
-        viewer: { ...current.viewer, isFollowing: previousFollowing },
+        viewer: { ...current.viewer, followRequestStatus: previousStatus, isFollowing: wasAccepted },
         counts: { ...current.counts, followers: previousCount },
       }));
       this.announce(this.errorMessage(error, 'Không thể cập nhật theo dõi.'));

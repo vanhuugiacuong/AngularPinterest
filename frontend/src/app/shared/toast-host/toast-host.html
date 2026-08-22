@@ -1,25 +1,35 @@
-<div class="nf-toast-region" aria-label="Thông báo">
-  @for (toast of toastService.toasts(); track toast.id) {
-    <div
-      class="nf-toast"
-      [class]="'nf-toast--' + toast.kind"
-      [attr.role]="toast.kind === 'error' ? 'alert' : 'status'"
-      [attr.aria-live]="toast.kind === 'error' ? 'assertive' : 'polite'"
-      aria-atomic="true"
-      tabindex="0"
-      (mouseenter)="pause(toast.id)"
-      (mouseleave)="resume(toast.id)"
-      (focusin)="pause(toast.id)"
-      (focusout)="resume(toast.id)"
-    >
-      <span class="nf-toast__icon material-symbols-outlined" aria-hidden="true">{{ iconFor(toast.kind) }}</span>
-      <span class="nf-toast__message">{{ toast.message }}</span>
-      @if (toast.action) {
-        <button type="button" class="nf-toast__action" (click)="runAction(toast)">{{ toast.action.label }}</button>
-      }
-      <button type="button" class="nf-toast__close" (click)="close(toast.id)" aria-label="Đóng thông báo">
-        <span class="material-symbols-outlined" aria-hidden="true">close</span>
-      </button>
-    </div>
+<ng-template #toastCard let-toast>
+  <div
+    class="nf-toast"
+    [class]="'nf-toast--' + toast.kind"
+    [attr.role]="toast.kind === 'error' ? 'alert' : 'status'"
+    [attr.aria-live]="toast.kind === 'error' ? 'assertive' : 'polite'"
+    aria-atomic="true"
+    tabindex="0"
+    (mouseenter)="pause(toast.id)"
+    (mouseleave)="resume(toast.id)"
+    (focusin)="pause(toast.id)"
+    (focusout)="resume(toast.id)"
+  >
+    <span class="nf-toast__icon material-symbols-outlined" aria-hidden="true">{{ iconFor(toast.kind) }}</span>
+    <span class="nf-toast__message">{{ toast.message }}</span>
+    @if (toast.action) {
+      <button type="button" class="nf-toast__action" (click)="runAction(toast)">{{ toast.action.label }}</button>
+    }
+    <button type="button" class="nf-toast__close" (click)="close(toast.id)" aria-label="Đóng thông báo">
+      <span class="material-symbols-outlined" aria-hidden="true">close</span>
+    </button>
+  </div>
+</ng-template>
+
+<div class="nf-toast-region nf-toast-region--top-right" aria-label="Thông báo">
+  @for (toast of topRightToasts(); track toast.id) {
+    <ng-container [ngTemplateOutlet]="toastCard" [ngTemplateOutletContext]="{ $implicit: toast }"></ng-container>
+  }
+</div>
+
+<div class="nf-toast-region nf-toast-region--bottom-left" aria-label="Thông báo mới">
+  @for (toast of bottomLeftToasts(); track toast.id) {
+    <ng-container [ngTemplateOutlet]="toastCard" [ngTemplateOutletContext]="{ $implicit: toast }"></ng-container>
   }
 </div>

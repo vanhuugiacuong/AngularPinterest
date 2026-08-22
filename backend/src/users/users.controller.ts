@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -118,5 +119,23 @@ export class UsersController {
     @Param('id') id: string,
   ) {
     return this.usersService.toggleFollow(user.id, id);
+  }
+
+  @Patch('follow-requests/:requesterId/accept')
+  @UseGuards(SupabaseAuthGuard)
+  async acceptFollowRequest(
+    @CurrentUser() user: UserPayload,
+    @Param('requesterId') requesterId: string,
+  ) {
+    return this.usersService.acceptFollowRequest(user.id, requesterId);
+  }
+
+  @Patch('follow-requests/:requesterId/reject')
+  @UseGuards(SupabaseAuthGuard)
+  async rejectFollowRequest(
+    @CurrentUser() user: UserPayload,
+    @Param('requesterId') requesterId: string,
+  ) {
+    return this.usersService.rejectFollowRequest(user.id, requesterId);
   }
 }
