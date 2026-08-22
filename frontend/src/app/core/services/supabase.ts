@@ -1,6 +1,23 @@
 import { Injectable, signal } from '@angular/core';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { API_BASE_URL } from '../api-base';
+import type { MembershipPlan } from '../models/membership-plan';
+
+/** Shape of the backend's own `User` row, as returned verbatim by
+ * `POST /api/users/sync` (the signed-in caller's own record — includes
+ * `plan` directly, so the navbar/account-popup avatar never needs a
+ * separate membership fetch just to know its own frame). */
+export interface DbUser {
+  id: string;
+  username: string;
+  email: string;
+  avatarUrl: string | null;
+  bio: string | null;
+  createdAt: string;
+  plan: MembershipPlan;
+  ownedPlans: MembershipPlan[];
+  planStartedAt: string | null;
+}
 
 @Injectable({
   providedIn: 'root',
@@ -9,7 +26,7 @@ export class SupabaseService {
   private supabase: SupabaseClient;
   public user = signal<User | null>(null);
   public loading = signal<boolean>(true);
-  public dbUser = signal<any | null>(null);
+  public dbUser = signal<DbUser | null>(null);
 
   constructor() {
     const supabaseUrl = 'https://ccepvvaicgjvuaxutrxd.supabase.co';

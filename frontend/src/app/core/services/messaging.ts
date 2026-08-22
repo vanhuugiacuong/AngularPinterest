@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
 import { API_BASE_URL } from '../api-base';
+import { safeFetch } from '../utils/http-error';
+import type { MembershipPlan } from '../models/membership-plan';
 
 export type MessageRequestStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'REPORTED';
 
@@ -15,6 +17,7 @@ export interface PublicUserSummary {
   id: string;
   username: string;
   avatarUrl?: string | null;
+  plan: MembershipPlan;
 }
 
 export interface MessageRequestRecord {
@@ -147,7 +150,7 @@ export class MessagingService {
       headers.set('Content-Type', 'application/json');
     }
 
-    const response = await fetch(url, { ...init, headers });
+    const response = await safeFetch(url, { ...init, headers });
     if (!response.ok) {
       let message = `Yêu cầu thất bại (${response.status})`;
       try {

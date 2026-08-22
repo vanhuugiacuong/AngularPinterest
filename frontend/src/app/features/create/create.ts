@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, effect, inject, signal, ViewChild } from '@angular/core';
+import { Component, OnInit, inject, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
@@ -10,6 +10,7 @@ import { ImageEditor } from './image-editor/image-editor';
 import { PublishDialogStatus, PublishProgressDialog } from './publish-progress-dialog/publish-progress-dialog';
 import { MembershipService } from '../../core/services/membership';
 import { CollageTransferService } from '../collage/services/collage-transfer.service';
+import { DialogService } from '../../core/services/dialog';
 
 /** 'idle' — no file selected / check not run yet.
  * 'checking' — request in flight.
@@ -33,26 +34,11 @@ export class Create implements OnInit {
   public supabaseService = inject(SupabaseService);
   public membership = inject(MembershipService);
   private collageTransfer = inject(CollageTransferService);
+  private dialogService = inject(DialogService);
 
   // Only ever mounted while activeTab() === 'upload' and an image is
   // selected — <app-image-editor> is not present anywhere in the AI tab.
   @ViewChild('editor') editorRef?: ImageEditor;
-
-  @ViewChild('discardPanel') private discardPanel?: ElementRef<HTMLElement>;
-  private previouslyFocusedBeforeDiscard: HTMLElement | null = null;
-
-  constructor() {
-    // Focus management for the discard-confirm dialog: move focus into it on
-    // open, return focus to whatever triggered it on close.
-    effect(() => {
-      if (this.showDiscardConfirm()) {
-        this.previouslyFocusedBeforeDiscard = (document.activeElement as HTMLElement) || null;
-        setTimeout(() => this.discardPanel?.nativeElement.focus());
-      } else {
-        this.previouslyFocusedBeforeDiscard?.focus();
-      }
-    });
-  }
 
   // Form Fields
   public title = '';
@@ -93,10 +79,6 @@ export class Create implements OnInit {
   public dialogStatus = signal<PublishDialogStatus>('processing');
   public dialogMessage = signal('');
   public dialogErrorMessage = signal('');
-
-  // Discard-edits confirm dialog — replaces window.confirm().
-  public showDiscardConfirm = signal(false);
-  private pendingDiscardAction: (() => void) | null = null;
 
   async ngOnInit() {
     await this.membership.load();
@@ -152,27 +134,21 @@ export class Create implements OnInit {
   }
 
   /** Routes an action that would discard the editor's in-progress edits
-   * (switching tabs, replacing the image) through an in-app confirm dialog
+   * (switching tabs, replacing the image) through the shared confirm dialog
    * instead of window.confirm(). Runs immediately when there's nothing to lose. */
-  private runOrConfirmDiscard(action: () => void): void {
+  private async runOrConfirmDiscard(action: () => void): Promise<void> {
     if (this.activeTab() === 'upload' && this.editorRef?.isDirty()) {
-      this.pendingDiscardAction = action;
-      this.showDiscardConfirm.set(true);
+      const confirmed = await this.dialogService.confirm({
+        variant: 'warning',
+        title: 'Bạn có chỉnh sửa chưa lưu',
+        description: 'Tiếp tục sẽ làm mất các thay đổi màu sắc và caption trên ảnh này. Bạn có chắc chắn muốn tiếp tục?',
+        confirmLabel: 'Tiếp tục, bỏ chỉnh sửa',
+        cancelLabel: 'Hủy',
+      });
+      if (confirmed) action();
       return;
     }
     action();
-  }
-
-  confirmDiscard(): void {
-    this.showDiscardConfirm.set(false);
-    const action = this.pendingDiscardAction;
-    this.pendingDiscardAction = null;
-    action?.();
-  }
-
-  cancelDiscard(): void {
-    this.showDiscardConfirm.set(false);
-    this.pendingDiscardAction = null;
   }
 
   replaceUploadedImage() {
@@ -262,7 +238,14 @@ export class Create implements OnInit {
   async generateAiImage() {
     if (this.dialogOpen() || !this.aiPrompt.trim()) return;
     this.formError.set(null);
-    try { await this.membership.consumeAi(); } catch (error) { this.formError.set(error instanceof Error ? error.message : 'Bạn đã hết lượt tạo AI hôm nay.'); return; }
+    // Kiểm tra mềm dựa trên trạng thái đã cache - chặn thật sự nằm ở
+    // saveAiPin() phía backend (trừ quota nguyên tử khi lưu, không thể bị
+    // bỏ qua bằng cách gọi thẳng Pollinations rồi chỉ submit form).
+    const remaining = this.membership.status()?.aiRemaining;
+    if (remaining !== undefined && remaining <= 0) {
+      this.formError.set('Bạn đã hết lượt tạo AI hôm nay.');
+      return;
+    }
     this.isGenerating.set(true);
 
     const seed = Math.floor(Math.random() * 1000000);
@@ -431,10 +414,11 @@ export class Create implements OnInit {
       };
 
       await this.pinService.saveAiPin(body, token);
+      await this.membership.load();
       await this.handlePublishSuccess();
     } catch (error) {
       console.error('Error saving AI pin:', error);
-      this.showDialogError('Không thể lưu ảnh AI. Vui lòng thử lại.');
+      this.showDialogError(error instanceof Error ? error.message : 'Không thể lưu ảnh AI. Vui lòng thử lại.');
     } finally {
       this.isSubmitting.set(false);
     }

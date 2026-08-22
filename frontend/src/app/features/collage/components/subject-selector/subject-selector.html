@@ -1,6 +1,8 @@
 <div class="modal-backdrop" (click)="cancelled.emit()" role="presentation">
   <section
+    #dialog
     class="selector-dialog"
+    tabindex="-1"
     (click)="$event.stopPropagation()"
     role="dialog"
     aria-modal="true"

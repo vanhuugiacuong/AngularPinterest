@@ -1,0 +1,103 @@
+<div class="fld-overlay" (click)="onOverlayClick()">
+  <section
+    class="fld-sheet"
+    data-follow-dialog
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="fld-heading"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="fld-header">
+      <h2 id="fld-heading" class="fld-title">Kết nối</h2>
+      <button type="button" class="fld-close" (click)="closeDialog.emit()" aria-label="Đóng">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </header>
+
+    <div class="fld-tabs" role="tablist">
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="activeTab() === 'followers'"
+        [class.active]="activeTab() === 'followers'"
+        (click)="setTab('followers')"
+      >
+        Người theo dõi
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="activeTab() === 'following'"
+        [class.active]="activeTab() === 'following'"
+        (click)="setTab('following')"
+      >
+        Đang theo dõi
+      </button>
+    </div>
+
+    <div class="fld-body">
+      @if (currentState().loading) {
+        <div class="fld-skeleton-list" aria-hidden="true">
+          @for (i of [1, 2, 3, 4, 5]; track i) {
+            <div class="fld-skeleton-row">
+              <span class="skeleton fld-skeleton-avatar"></span>
+              <div class="fld-skeleton-lines">
+                <span class="skeleton fld-skeleton-line" style="width: 40%"></span>
+                <span class="skeleton fld-skeleton-line" style="width: 65%"></span>
+              </div>
+            </div>
+          }
+        </div>
+      } @else if (currentState().error) {
+        <div class="fld-state" role="alert">
+          <span class="material-symbols-outlined text-2xl text-error">cloud_off</span>
+          <p>{{ currentState().error }}</p>
+          <button type="button" (click)="retry()">Thử lại</button>
+        </div>
+      } @else if (currentState().items.length === 0) {
+        <div class="fld-state">
+          <span class="material-symbols-outlined text-2xl text-text-muted">group_off</span>
+          @if (activeTab() === 'followers') {
+            <p>{{ isOwnProfile() ? 'Chưa có người theo dõi.' : 'Người này chưa có người theo dõi.' }}</p>
+          } @else {
+            <p>{{ isOwnProfile() ? 'Bạn chưa theo dõi ai.' : 'Người này chưa theo dõi ai.' }}</p>
+          }
+        </div>
+      } @else {
+        <ul class="fld-list">
+          @for (u of currentState().items; track u.id) {
+            <li class="fld-row">
+              <button type="button" class="fld-identity" (click)="goToProfile(u.username)">
+                <app-user-avatar [src]="u.avatarUrl" [name]="u.username" [size]="44" [plan]="u.plan"></app-user-avatar>
+                <span class="fld-identity-text">
+                  <span class="fld-username">{{ u.username }}</span>
+                  @if (u.bio) {
+                    <span class="fld-bio">{{ u.bio }}</span>
+                  }
+                </span>
+              </button>
+
+              @if (u.id !== myUserId()) {
+                <button
+                  type="button"
+                  class="fld-follow-btn"
+                  [class.is-following]="u.viewerIsFollowing"
+                  [disabled]="pendingIds().has(u.id)"
+                  (click)="toggleFollow(u)"
+                >
+                  {{ u.viewerIsFollowing ? (u.followsViewer ? 'Bạn bè' : 'Đang theo dõi') : (u.followsViewer ? 'Theo dõi lại' : 'Theo dõi') }}
+                </button>
+              }
+            </li>
+          }
+        </ul>
+
+        @if (currentState().hasMore) {
+          <button type="button" class="fld-load-more" [disabled]="currentState().loadingMore" (click)="loadMore()">
+            {{ currentState().loadingMore ? 'Đang tải...' : 'Xem thêm' }}
+          </button>
+        }
+      }
+    </div>
+  </section>
+</div>

@@ -336,7 +336,7 @@
                         class="flex items-center gap-1.5 min-w-0 bg-transparent border-none p-0 cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
                         [attr.aria-label]="'Xem trang cá nhân của ' + pin.author"
                       >
-                        <app-user-avatar [src]="pin.authorAvatarUrl" [name]="pin.author" [size]="18" [ring]="false"></app-user-avatar>
+                        <app-user-avatar [src]="pin.authorAvatarUrl" [name]="pin.author" [size]="18" [ring]="false" [plan]="pin.authorPlan"></app-user-avatar>
                         <span class="text-xs text-text-muted truncate hover:underline">{{ pin.author }}</span>
                       </button>
                       <div class="mono-label flex items-center gap-2 shrink-0 text-xs text-text-muted">

@@ -1,11 +1,14 @@
 import { CommonModule } from '@angular/common';
 import {
+  AfterViewInit,
   Component,
+  ElementRef,
   EventEmitter,
   HostListener,
   Input,
   OnDestroy,
   Output,
+  ViewChild,
   inject,
   signal,
 } from '@angular/core';
@@ -21,16 +24,22 @@ const WHOLE_IMAGE_MAX_EDGE = 2560;
   templateUrl: './subject-selector.html',
   styleUrl: './subject-selector.css',
 })
-export class SubjectSelectorComponent implements OnDestroy {
+export class SubjectSelectorComponent implements AfterViewInit, OnDestroy {
   @Input({ required: true }) source!: CollageImageSource;
   @Output() readonly cancelled = new EventEmitter<void>();
   @Output() readonly cutoutAdded = new EventEmitter<SegmentationResult>();
+
+  @ViewChild('dialog') private dialogRef?: ElementRef<HTMLElement>;
 
   private readonly provider = inject(SEGMENTATION_PROVIDER);
   private cutoutResult: SegmentationResult | null = null;
   private cutoutUrl: string | null = null;
   private requestId = 0;
   private destroyed = false;
+  private readonly previouslyFocused: HTMLElement | null =
+    typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
+  private readonly previousBodyOverflow =
+    typeof document !== 'undefined' ? document.body.style.overflow : '';
 
   readonly processing = signal(false);
   readonly adding = signal(false);
@@ -40,15 +49,48 @@ export class SubjectSelectorComponent implements OnDestroy {
   readonly selectedPoint = signal<SegmentationPoint | null>(null);
   readonly previewUrl = signal<string | null>(null);
 
+  constructor() {
+    if (typeof document !== 'undefined') document.body.style.overflow = 'hidden';
+  }
+
+  ngAfterViewInit(): void {
+    this.dialogRef?.nativeElement.focus();
+  }
+
   ngOnDestroy(): void {
     this.destroyed = true;
     this.requestId++;
     if (this.cutoutUrl) URL.revokeObjectURL(this.cutoutUrl);
+    if (typeof document !== 'undefined') {
+      document.body.style.overflow = this.previousBodyOverflow;
+      this.previouslyFocused?.focus();
+    }
   }
 
-  @HostListener('window:keydown.escape')
-  onEscape(): void {
-    if (!this.adding()) this.cancelled.emit();
+  @HostListener('window:keydown', ['$event'])
+  onKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      if (!this.adding()) this.cancelled.emit();
+      return;
+    }
+
+    if (event.key === 'Tab') {
+      const dialog = this.dialogRef?.nativeElement;
+      if (!dialog) return;
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>('button:not([disabled]), [tabindex]:not([tabindex="-1"])'),
+      );
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
   }
 
   selectAtPoint(event: MouseEvent): void {

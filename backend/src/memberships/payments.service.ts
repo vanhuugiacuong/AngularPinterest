@@ -1,0 +1,247 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  NotImplementedException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { MembershipPlan, PaymentStatus, Prisma } from '@prisma/client';
+import { randomBytes } from 'node:crypto';
+import { PrismaService } from '../database/prisma.service';
+import { PLAN_PRICE_VND, SUBSCRIPTION_DURATION_MS } from './entitlements';
+import { MembershipsService } from './memberships.service';
+import { writeAuditLog } from './audit.util';
+
+interface SepayWebhookPayload {
+  id?: string | number;
+  referenceCode?: string;
+  content?: string;
+  description?: string;
+  transferAmount?: number | string;
+  amount?: number | string;
+  transferType?: string;
+  type?: string;
+  [key: string]: unknown;
+}
+
+@Injectable()
+export class PaymentsService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly memberships: MembershipsService,
+  ) {}
+
+  private generatePaymentReference(): string {
+    return `NOVA${Date.now().toString(36).toUpperCase()}${randomBytes(3).toString('hex').toUpperCase()}`;
+  }
+
+  async createPayment(userId: string, plan: MembershipPlan) {
+    if (plan === 'FREE') {
+      throw new BadRequestException('Gói FREE không cần thanh toán.');
+    }
+    if (!Object.values(MembershipPlan).includes(plan)) {
+      throw new BadRequestException('Gói không hợp lệ.');
+    }
+
+    const existingPending = await this.prisma.membershipPayment.findFirst({
+      where: { userId, plan, status: 'PENDING' },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (existingPending) return existingPending;
+
+    const amount = PLAN_PRICE_VND[plan];
+    const paymentReference = this.generatePaymentReference();
+    const payment = await this.prisma.membershipPayment.create({
+      data: { userId, plan, amount, paymentReference, provider: 'sepay', status: 'PENDING' },
+    });
+    await writeAuditLog(this.prisma, userId, 'PAYMENT_CREATED', { paymentId: payment.id, plan, amount });
+    return payment;
+  }
+
+  async getPayment(userId: string, paymentId: string) {
+    const payment = await this.prisma.membershipPayment.findUnique({ where: { id: paymentId } });
+    if (!payment || payment.userId !== userId) throw new NotFoundException('Không tìm thấy giao dịch.');
+    return payment;
+  }
+
+  async listPayments(userId: string) {
+    return this.prisma.membershipPayment.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // Chuyển 1 payment PENDING -> PAID và kích hoạt gói. Dùng updateMany có
+  // điều kiện status=PENDING để nguyên tử - 2 lệnh gọi trùng lặp (webhook lặp
+  // lại hoặc admin bấm 2 lần) chỉ 1 lệnh thắng, các lệnh sau trả duplicate.
+  private async markPaidAndActivate(
+    paymentId: string,
+    extra: { providerTransactionId?: string; rawPayload?: unknown; verifiedBy?: string },
+  ): Promise<{ ok: true; duplicate?: true }> {
+    const payment = await this.prisma.membershipPayment.findUnique({ where: { id: paymentId } });
+    if (!payment) throw new NotFoundException('Không tìm thấy giao dịch.');
+
+    const updateResult = await this.prisma.membershipPayment.updateMany({
+      where: { id: paymentId, status: 'PENDING' },
+      data: {
+        status: 'PAID',
+        verifiedAt: new Date(),
+        providerTransactionId: extra.providerTransactionId,
+        rawPayload: extra.rawPayload as Prisma.InputJsonValue | undefined,
+        verifiedBy: extra.verifiedBy,
+      },
+    });
+    if (updateResult.count === 0) return { ok: true, duplicate: true };
+
+    const expiresAt = new Date(Date.now() + SUBSCRIPTION_DURATION_MS);
+    await this.memberships.activatePlan(payment.userId, payment.plan, payment.id, expiresAt);
+    await writeAuditLog(this.prisma, payment.userId, 'PAYMENT_CONFIRMED', {
+      paymentId,
+      plan: payment.plan,
+      provider: payment.provider,
+      verifiedBy: extra.verifiedBy ?? 'webhook',
+    });
+    return { ok: true };
+  }
+
+  async adminConfirm(paymentId: string, adminId: string) {
+    return this.markPaidAndActivate(paymentId, { verifiedBy: adminId });
+  }
+
+  async adminConfirmPurchase(purchaseId: string, adminId: string) {
+    const purchase = await this.prisma.imagePurchase.findUnique({ where: { id: purchaseId } });
+    if (!purchase) throw new NotFoundException('Không tìm thấy giao dịch mua ảnh.');
+    const updateResult = await this.prisma.imagePurchase.updateMany({
+      where: { id: purchaseId, status: 'PENDING' },
+      data: { status: 'PAID', verifiedAt: new Date() },
+    });
+    if (updateResult.count === 0) return { ok: true, duplicate: true };
+    await writeAuditLog(this.prisma, purchase.buyerId, 'PIN_PURCHASE_CONFIRMED', {
+      purchaseId,
+      pinId: purchase.pinId,
+      verifiedBy: adminId,
+    });
+    return { ok: true };
+  }
+
+  async adminRejectPurchase(purchaseId: string, adminId: string, reason?: string) {
+    const purchase = await this.prisma.imagePurchase.findUnique({ where: { id: purchaseId } });
+    if (!purchase) throw new NotFoundException('Không tìm thấy giao dịch mua ảnh.');
+    const updateResult = await this.prisma.imagePurchase.updateMany({
+      where: { id: purchaseId, status: 'PENDING' },
+      data: { status: 'FAILED' },
+    });
+    if (updateResult.count === 0) throw new ForbiddenException('Giao dịch không còn ở trạng thái chờ.');
+    await writeAuditLog(this.prisma, purchase.buyerId, 'PIN_PURCHASE_REJECTED', { purchaseId, adminId, reason });
+    return { ok: true };
+  }
+
+  async adminReject(paymentId: string, adminId: string, reason?: string) {
+    const updateResult = await this.prisma.membershipPayment.updateMany({
+      where: { id: paymentId, status: 'PENDING' },
+      data: { status: 'FAILED', verifiedAt: new Date(), verifiedBy: adminId },
+    });
+    if (updateResult.count === 0) throw new ForbiddenException('Giao dịch không còn ở trạng thái chờ.');
+    const payment = await this.prisma.membershipPayment.findUnique({ where: { id: paymentId } });
+    await writeAuditLog(this.prisma, payment?.userId ?? null, 'PAYMENT_REJECTED', {
+      paymentId,
+      adminId,
+      reason,
+    });
+    return { ok: true };
+  }
+
+  private extractPaymentReference(content: string): string | null {
+    const match = content.toUpperCase().match(/(NOVA|BUY)[A-Z0-9]{6,}/);
+    return match ? match[0] : null;
+  }
+
+  verifySepayApiKey(authHeader: string | undefined): void {
+    const expectedKey = process.env.SEPAY_WEBHOOK_API_KEY;
+    if (!expectedKey) {
+      throw new NotImplementedException({
+        ok: false,
+        error: 'MISSING_ENV',
+        missing: ['SEPAY_WEBHOOK_API_KEY'],
+        message: 'Webhook SePay chưa được cấu hình - thiếu biến môi trường SEPAY_WEBHOOK_API_KEY.',
+      });
+    }
+    if (authHeader !== `Apikey ${expectedKey}`) {
+      throw new UnauthorizedException('Chữ ký webhook không hợp lệ.');
+    }
+  }
+
+  async handleSepayWebhook(payload: SepayWebhookPayload) {
+    const providerTransactionId = String(payload.id ?? payload.referenceCode ?? '');
+    if (!providerTransactionId) throw new BadRequestException('Payload thiếu mã giao dịch.');
+
+    const [existingPayment, existingPurchase] = await Promise.all([
+      this.prisma.membershipPayment.findFirst({ where: { providerTransactionId } }),
+      this.prisma.imagePurchase.findFirst({ where: { providerTransactionId } }),
+    ]);
+    if (existingPayment || existingPurchase) return { ok: true, duplicate: true };
+
+    const transferType = String(payload.transferType ?? payload.type ?? '').toLowerCase();
+    if (transferType && transferType !== 'in') return { ok: true, ignored: true };
+
+    const content = String(payload.content ?? payload.description ?? '');
+    const amount = Number(payload.transferAmount ?? payload.amount ?? 0);
+    const reference = this.extractPaymentReference(content);
+    if (!reference) return { ok: true, unmatched: true };
+
+    if (reference.startsWith('BUY')) {
+      return this.confirmPinPurchase(reference, amount, providerTransactionId, payload);
+    }
+
+    const payment = await this.prisma.membershipPayment.findUnique({ where: { paymentReference: reference } });
+    if (!payment || payment.status !== ('PENDING' as PaymentStatus)) return { ok: true, unmatched: true };
+
+    if (Number(payment.amount) !== amount) {
+      await writeAuditLog(this.prisma, payment.userId, 'PAYMENT_AMOUNT_MISMATCH', {
+        paymentId: payment.id,
+        expected: payment.amount,
+        received: amount,
+      });
+      return { ok: true, mismatch: true };
+    }
+
+    return this.markPaidAndActivate(payment.id, { providerTransactionId, rawPayload: payload });
+  }
+
+  private async confirmPinPurchase(
+    reference: string,
+    amount: number,
+    providerTransactionId: string,
+    rawPayload: unknown,
+  ) {
+    const purchase = await this.prisma.imagePurchase.findUnique({ where: { paymentReference: reference } });
+    if (!purchase || purchase.status !== 'PENDING') return { ok: true, unmatched: true };
+
+    if (Number(purchase.amount) !== amount) {
+      await writeAuditLog(this.prisma, purchase.buyerId, 'PIN_PURCHASE_AMOUNT_MISMATCH', {
+        purchaseId: purchase.id,
+        expected: purchase.amount,
+        received: amount,
+      });
+      return { ok: true, mismatch: true };
+    }
+
+    const updateResult = await this.prisma.imagePurchase.updateMany({
+      where: { id: purchase.id, status: 'PENDING' },
+      data: {
+        status: 'PAID',
+        providerTransactionId,
+        verifiedAt: new Date(),
+      },
+    });
+    if (updateResult.count === 0) return { ok: true, duplicate: true };
+
+    await writeAuditLog(this.prisma, purchase.buyerId, 'PIN_PURCHASE_CONFIRMED', {
+      purchaseId: purchase.id,
+      pinId: purchase.pinId,
+      sellerId: purchase.sellerId,
+    });
+    return { ok: true };
+  }
+}

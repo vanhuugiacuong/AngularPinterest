@@ -28,6 +28,7 @@ import { CollageStoreService } from './services/collage-store.service';
 import { CollageTransferService } from './services/collage-transfer.service';
 import { SEGMENTATION_PROVIDER } from './services/segmentation-provider';
 import { InteractiveSegmentationService } from './services/interactive-segmentation.service';
+import { ToastService } from '../../core/services/toast';
 
 @Component({
   selector: 'app-collage',
@@ -55,6 +56,7 @@ export class Collage implements OnInit, OnDestroy {
   private readonly draftService = inject(CollageDraftService);
   private readonly transferService = inject(CollageTransferService);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
   readonly selectedSource = signal<CollageImageSource | null>(null);
   /** The layer currently open in the re-crop tool (null = tool closed).
@@ -63,9 +65,6 @@ export class Collage implements OnInit, OnDestroy {
   readonly cropTarget = signal<CollageLayer | null>(null);
   readonly isSaving = signal(false);
   readonly isExporting = signal(false);
-  readonly toastMessage = signal<string | null>(null);
-  readonly toastKind = signal<'success' | 'error'>('success');
-  private toastTimer?: ReturnType<typeof setTimeout>;
 
   async ngOnInit(): Promise<void> {
     try {
@@ -81,7 +80,6 @@ export class Collage implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.toastTimer) clearTimeout(this.toastTimer);
     this.releaseSelectedSource(false);
     this.store.disposeObjectUrls();
   }
@@ -245,9 +243,7 @@ export class Collage implements OnInit, OnDestroy {
   }
 
   private showToast(message: string, kind: 'success' | 'error' = 'success'): void {
-    if (this.toastTimer) clearTimeout(this.toastTimer);
-    this.toastKind.set(kind);
-    this.toastMessage.set(message);
-    this.toastTimer = setTimeout(() => this.toastMessage.set(null), 3600);
+    if (kind === 'error') this.toast.error(message);
+    else this.toast.success(message);
   }
 }

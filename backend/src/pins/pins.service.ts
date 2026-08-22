@@ -5,9 +5,12 @@ import {
   BadRequestException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { MembershipPlan } from '@prisma/client';
+import sharp from 'sharp';
 import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { AiGeneratorService } from '../ai-generator/ai-generator.service';
+import { MembershipsService } from '../memberships/memberships.service';
 
 interface EmbeddingResponse {
   embedding: number[];
@@ -25,6 +28,7 @@ interface SimilarPinRow {
   category: string;
   authorUsername: string | null;
   authorAvatarUrl: string | null;
+  authorPlan: MembershipPlan | null;
   likesCount: number;
   similarity: number;
 }
@@ -38,11 +42,61 @@ export class PinsService {
   private readonly clipServiceUrl =
     process.env.CLIP_SERVICE_URL || 'http://localhost:8001';
 
+  /** Minimum absolute cosine similarity (0-1) a reverse-image-search result
+   * must clear to be considered a real match at all. Configurable via env
+   * since the right cutoff depends on the CLIP model and the catalog's
+   * actual embedding distribution — tune with real data, don't guess. */
+  private readonly imageSearchMinSimilarity = PinsService.parseThreshold(
+    process.env.IMAGE_SEARCH_MIN_SIMILARITY,
+    0.75,
+  );
+  /** Maximum allowed drop in similarity relative to the best result in the
+   * batch — keeps a long tail of "technically above the floor but clearly
+   * worse than the top hits" pins out of the results. */
+  private readonly imageSearchMaxSimilarityGap = PinsService.parseThreshold(
+    process.env.IMAGE_SEARCH_MAX_SIMILARITY_GAP,
+    0.12,
+  );
+
+  private static parseThreshold(raw: string | undefined, fallback: number): number {
+    const parsed = raw !== undefined ? Number(raw) : NaN;
+    return Number.isFinite(parsed) && parsed >= 0 && parsed <= 1 ? parsed : fallback;
+  }
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly supabaseService: SupabaseService,
     private readonly aiGeneratorService: AiGeneratorService,
+    private readonly membershipsService: MembershipsService,
   ) {}
+
+  // Lưu bản gốc vào bucket private "pins-original" (chỉ backend đọc được) và
+  // sinh 1 bản preview đã tối ưu kích thước cho bucket public "pins". Pin.imageUrl
+  // luôn trỏ tới preview, không bao giờ là bản gốc từ giờ trở đi.
+  private async storeOriginalAndPreview(
+    buffer: Buffer,
+    contentType: string,
+    userId: string,
+    prefix: 'pin' | 'ai',
+  ): Promise<{ imageUrl: string; originalStoragePath: string }> {
+    const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
+    const stamp = `${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+    const originalStoragePath = `${userId}/${prefix}_${stamp}_original.${ext}`;
+    await this.supabaseService.uploadPrivate('pins-original', originalStoragePath, buffer, contentType);
+
+    const previewBuffer = await sharp(buffer, { limitInputPixels: 60_000_000 })
+      .resize({ width: 1600, withoutEnlargement: true })
+      .toBuffer();
+    const imageUrl = await this.supabaseService.uploadImage(
+      'pins',
+      `${userId}/${prefix}_${stamp}_preview.${ext}`,
+      previewBuffer,
+      contentType,
+    );
+
+    return { imageUrl, originalStoragePath };
+  }
 
   private async getImageEmbedding(
     buffer: Buffer,
@@ -189,7 +243,7 @@ export class PinsService {
     const pins = await this.prisma.pin.findMany({
       include: {
         user: {
-          select: { id: true, username: true, avatarUrl: true },
+          select: { id: true, username: true, avatarUrl: true, plan: true },
         },
         _count: {
           select: { likes: true },
@@ -281,7 +335,7 @@ export class PinsService {
       take: limit,
       orderBy: { createdAt: 'desc' },
       include: {
-        user: { select: { id: true, username: true, avatarUrl: true } },
+        user: { select: { id: true, username: true, avatarUrl: true, plan: true } },
         _count: { select: { likes: true } },
       },
     });
@@ -292,7 +346,7 @@ export class PinsService {
       where: { id },
       include: {
         user: {
-          select: { id: true, username: true, avatarUrl: true, bio: true },
+          select: { id: true, username: true, avatarUrl: true, bio: true, plan: true },
         },
         likes: {
           where: { userId: viewerId || '__anonymous__' },
@@ -302,7 +356,7 @@ export class PinsService {
         _count: { select: { likes: true, comments: true } },
         comments: {
           include: {
-            user: { select: { id: true, username: true, avatarUrl: true } },
+            user: { select: { id: true, username: true, avatarUrl: true, plan: true } },
           },
           orderBy: { createdAt: 'asc' },
         },
@@ -346,13 +400,11 @@ export class PinsService {
       throw new BadRequestException(moderation.message);
     }
 
-    const extension = file.originalname.split('.').pop() || 'png';
-    const filename = `${userId}/pin_${Date.now()}_${Math.floor(Math.random() * 1000)}.${extension}`;
-    const imageUrl = await this.supabaseService.uploadImage(
-      'pins',
-      filename,
+    const { imageUrl, originalStoragePath } = await this.storeOriginalAndPreview(
       file.buffer,
       file.mimetype,
+      userId,
+      'pin',
     );
 
     const category = this.classifyCategory(title, description);
@@ -374,6 +426,7 @@ export class PinsService {
         title,
         description,
         imageUrl,
+        originalStoragePath,
         userId,
         category,
         price: salePrice,
@@ -420,38 +473,42 @@ export class PinsService {
       await this.assertOwnedBoard(boardId, userId);
     }
 
-    // 1. Download image from temporary url and upload to permanent pins bucket
-    const imageUrl = await this.aiGeneratorService.saveAiImageToStorage(
-      previewUrl,
-      userId,
-    );
+    // Trừ quota AI nguyên tử ngay tại thời điểm lưu thật - đây là điểm gác cổng
+    // duy nhất đáng tin cậy phía backend. Không thể bị bỏ qua bằng cách gọi
+    // Pollinations trực tiếp từ trình duyệt rồi chỉ POST endpoint này.
+    await this.membershipsService.consumeAi(userId);
+
+    // 1. Download image from temporary url
+    const { buffer, contentType } = await this.aiGeneratorService.downloadGeneratedImage(previewUrl);
+
+    // Kiểm duyệt NSFW cho ảnh AI giống hệt luồng upload thủ công - trước đây
+    // bị bỏ sót, cho phép ảnh AI 18+ lọt qua không qua kiểm duyệt.
+    const moderation = await this.moderateImage(buffer, 'ai_pin.png', contentType);
+    if (moderation.nsfw) {
+      throw new BadRequestException('Ảnh AI có thể chứa nội dung không phù hợp hoặc nội dung 18+. Vui lòng thử prompt khác.');
+    }
+
+    // 2. Store original (private) + preview (public)
+    const { imageUrl, originalStoragePath } = await this.storeOriginalAndPreview(buffer, contentType, userId, 'ai');
 
     const category = this.classifyCategory(title, description);
 
-    // 2. Fetch embedding for AI generated image (gracefully handled)
+    // 3. Fetch embedding for AI generated image (gracefully handled) - reuse
+    // the buffer already downloaded above instead of re-fetching the preview URL.
     let embedding: number[] | null = null;
     try {
-      const response = await fetch(imageUrl);
-      if (response.ok) {
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        const contentType = response.headers.get('Content-Type') || 'image/png';
-        embedding = await this.getImageEmbedding(
-          buffer,
-          'ai_pin.png',
-          contentType,
-        );
-      }
+      embedding = await this.getImageEmbedding(buffer, 'ai_pin.png', contentType);
     } catch (e) {
       console.error('Error fetching CLIP embedding for AI pin:', e);
     }
 
-    // 3. Save to database
+    // 4. Save to database
     const pin = await this.prisma.pin.create({
       data: {
         title,
         description,
         imageUrl,
+        originalStoragePath,
         userId,
         isAiGenerated: true,
         promptUsed,
@@ -553,7 +610,7 @@ export class PinsService {
         userId,
       },
       include: {
-        user: { select: { id: true, username: true, avatarUrl: true } },
+        user: { select: { id: true, username: true, avatarUrl: true, plan: true } },
       },
     });
   }
@@ -753,14 +810,14 @@ export class PinsService {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          user: { select: { id: true, username: true, avatarUrl: true } },
+          user: { select: { id: true, username: true, avatarUrl: true, plan: true } },
           _count: { select: { likes: true } },
         },
       });
     }
 
     // 2. Query pgvector for cosine similarity against the search text's embedding
-    return this.queryPinsByEmbedding(JSON.stringify(embedding), null, null, limit, skip);
+    return this.queryPinsByEmbedding(JSON.stringify(embedding), null, null, limit, skip, false);
   }
 
   async getSimilarPins(pinId: string, page: number = 1, limit: number = 20) {
@@ -783,7 +840,36 @@ export class PinsService {
       return this.getRelatedPins(pinId, page, limit);
     }
 
-    return this.queryPinsByEmbedding(embeddingString, pinId, pin.imageUrl, limit, skip);
+    return this.queryPinsByEmbedding(embeddingString, pinId, pin.imageUrl, limit, skip, false);
+  }
+
+  /** Fetches a pin's own stored image server-side and returns its raw bytes
+   * — backs the `:id/image-proxy` route used as a canvas-safe fallback when
+   * the CDN doesn't send CORS headers the browser will accept for a
+   * cross-origin fetch. Only ever reads the imageUrl already on file for
+   * this pin id, never an arbitrary caller-supplied URL. */
+  async getPinImageForProxy(pinId: string): Promise<{ buffer: Buffer; contentType: string }> {
+    const pin = await this.prisma.pin.findUnique({
+      where: { id: pinId },
+      select: { imageUrl: true },
+    });
+    if (!pin) {
+      throw new NotFoundException('Pin not found');
+    }
+
+    try {
+      const response = await fetch(pin.imageUrl);
+      if (!response.ok) {
+        throw new ServiceUnavailableException('Không thể tải ảnh gốc lúc này.');
+      }
+      const contentType = response.headers.get('content-type') || 'image/jpeg';
+      const arrayBuffer = await response.arrayBuffer();
+      return { buffer: Buffer.from(arrayBuffer), contentType };
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) throw error;
+      console.error('Image proxy fetch error:', error);
+      throw new ServiceUnavailableException('Không thể tải ảnh gốc lúc này.');
+    }
   }
 
   /** Reverse image search: embeds an uploaded image (not yet a saved Pin)
@@ -811,65 +897,75 @@ export class PinsService {
       );
     }
 
-    return this.queryPinsByEmbedding(JSON.stringify(embedding), null, null, limit, skip);
+    return this.queryPinsByEmbedding(JSON.stringify(embedding), null, null, limit, skip, true);
   }
 
   /** Shared pgvector cosine-similarity query used by text search, pin-to-pin
    * similarity, and reverse image search. `excludePinId`/`excludeImageUrl`
    * (both from an already-fetched pin) exclude that pin's own image from
-   * results — used by getSimilarPins. */
+   * results — used by getSimilarPins. `applyThreshold` additionally drops
+   * results that are too dissimilar to be a real match — used only by
+   * reverse image search, where returning "closest but irrelevant" pins is
+   * worse than returning fewer/zero results. */
   private async queryPinsByEmbedding(
     vectorString: string,
     excludePinId: string | null,
     excludeImageUrl: string | null,
     limit: number,
     skip: number,
+    applyThreshold: boolean,
   ) {
-    const queryLimit = limit * 2;
+    const queryLimit = limit * 3;
     const pins: any[] = excludePinId
       ? await this.prisma.$queryRawUnsafe(`
         SELECT
           p.id, p.title, p.description, p."imageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
-          u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl",
+          u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl", u.plan AS "authorPlan",
           COUNT(l."pinId")::int AS "likesCount",
           1 - (p.embedding <=> $1::vector) AS similarity
         FROM "Pin" p
         LEFT JOIN "User" u ON p."userId" = u.id
         LEFT JOIN "Like" l ON p.id = l."pinId"
         WHERE p.id != $2 AND p.embedding IS NOT NULL
-        GROUP BY p.id, u.username, u."avatarUrl"
-        ORDER BY p.embedding <=> $1::vector
+        GROUP BY p.id, u.username, u."avatarUrl", u.plan
+        ORDER BY p.embedding <=> $1::vector, p.id
         LIMIT $3 OFFSET $4
       `, vectorString, excludePinId, queryLimit, skip)
       : await this.prisma.$queryRawUnsafe(`
         SELECT
           p.id, p.title, p.description, p."imageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
-          u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl",
+          u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl", u.plan AS "authorPlan",
           COUNT(l."pinId")::int AS "likesCount",
           1 - (p.embedding <=> $1::vector) AS similarity
         FROM "Pin" p
         LEFT JOIN "User" u ON p."userId" = u.id
         LEFT JOIN "Like" l ON p.id = l."pinId"
         WHERE p.embedding IS NOT NULL
-        GROUP BY p.id, u.username, u."avatarUrl"
-        ORDER BY p.embedding <=> $1::vector
+        GROUP BY p.id, u.username, u."avatarUrl", u.plan
+        ORDER BY p.embedding <=> $1::vector, p.id
         LIMIT $2 OFFSET $3
       `, vectorString, queryLimit, skip);
 
+    const seenIds = new Set<string>();
     const seenUrls = new Set<string>();
-    if (excludeImageUrl) {
-      seenUrls.add(excludeImageUrl);
-    }
+    if (excludePinId) seenIds.add(excludePinId);
+    if (excludeImageUrl) seenUrls.add(excludeImageUrl);
 
     const uniquePins: SimilarPinRow[] = [];
     for (const p of pins) {
-      if (!seenUrls.has(p.imageUrl)) {
-        seenUrls.add(p.imageUrl);
-        uniquePins.push(p);
-      }
+      if (seenIds.has(p.id) || seenUrls.has(p.imageUrl)) continue;
+      seenIds.add(p.id);
+      seenUrls.add(p.imageUrl);
+      uniquePins.push(p);
     }
 
-    return uniquePins.slice(0, limit).map((p) => ({
+    // Results already arrive ordered by ascending distance (descending
+    // similarity) from the SQL query, so uniquePins[0] is the best match.
+    const filteredPins = applyThreshold
+      ? this.filterBySimilarityThreshold(uniquePins)
+      : uniquePins;
+
+    return filteredPins.slice(0, limit).map((p) => ({
       id: p.id,
       title: p.title,
       description: p.description,
@@ -883,12 +979,29 @@ export class PinsService {
         id: p.userId,
         username: p.authorUsername || 'Pinterest AI',
         avatarUrl: p.authorAvatarUrl,
+        plan: p.authorPlan ?? 'FREE',
       },
       _count: {
         likes: p.likesCount || 0,
       },
       similarity: p.similarity,
     }));
+  }
+
+  /** Drops candidates that fail either the absolute similarity floor or the
+   * max-gap-from-best rule. Assumes `pins` is already sorted by descending
+   * similarity (ascending cosine distance). Returns [] if even the best
+   * candidate misses the floor — an empty result is correct there, not a
+   * bug to paper over with weaker matches. */
+  private filterBySimilarityThreshold(pins: SimilarPinRow[]): SimilarPinRow[] {
+    if (pins.length === 0) return [];
+    const best = pins[0].similarity;
+    if (best < this.imageSearchMinSimilarity) return [];
+    return pins.filter(
+      (p) =>
+        p.similarity >= this.imageSearchMinSimilarity &&
+        best - p.similarity <= this.imageSearchMaxSimilarityGap,
+    );
   }
 
   private readEmbedding(value: unknown): number[] | null {

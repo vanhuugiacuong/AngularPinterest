@@ -1,10 +1,13 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { buildParticipantKey } from '../common/relationship.util';
+import { buildParticipantKey, isUniqueConstraintError, PUBLIC_USER_SELECT } from '../common/relationship.util';
+import { BlocksService } from '../blocks/blocks.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export type MessageRequestRelationshipStatus =
   | 'NONE'
@@ -16,7 +19,11 @@ export type MessageRequestRelationshipStatus =
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly blocksService: BlocksService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async syncUser(
     id: string,
@@ -65,6 +72,7 @@ export class UsersService {
         avatarUrl: true,
         bio: true,
         createdAt: true,
+        plan: true,
       },
     });
 
@@ -77,7 +85,7 @@ export class UsersService {
       ? { userId: user.id }
       : { userId: user.id, isSecret: false };
 
-    const [posts, albums, followers, following, favorites, followingRow, followedByRow] =
+    const [posts, albums, followers, following, favorites, privateBoards, followingRow, followedByRow] =
       await Promise.all([
         this.prisma.pin.count({ where: { userId: user.id } }),
         this.prisma.board.count({ where: boardFilter }),
@@ -85,6 +93,9 @@ export class UsersService {
         this.prisma.follow.count({ where: { followerId: user.id } }),
         isOwnProfile
           ? this.prisma.like.count({ where: { userId: user.id } })
+          : Promise.resolve(null),
+        isOwnProfile
+          ? this.prisma.board.count({ where: { userId: user.id, isSecret: true } })
           : Promise.resolve(null),
         viewerId && !isOwnProfile
           ? this.prisma.follow.findUnique({
@@ -129,6 +140,7 @@ export class UsersService {
         followers,
         following,
         favorites,
+        privateBoards,
       },
       viewer: {
         isOwnProfile,
@@ -136,6 +148,7 @@ export class UsersService {
         isFollowedBy,
         isMutualFollow,
         canViewFavorites: isOwnProfile,
+        canViewPrivateBoards: isOwnProfile,
         ...relationship,
       },
     };
@@ -160,7 +173,7 @@ export class UsersService {
       return empty;
     }
 
-    const [request, conversation, blockedByViewer, blockedByTarget] = await Promise.all([
+    const [request, conversation, isBlocked, isBlockedByTarget] = await Promise.all([
       this.prisma.messageRequest.findFirst({
         where: {
           OR: [
@@ -175,18 +188,10 @@ export class UsersService {
         where: { participantKey: buildParticipantKey(viewerId, targetUserId) },
         select: { id: true },
       }),
-      this.prisma.userBlock.findUnique({
-        where: { blockerId_blockedId: { blockerId: viewerId, blockedId: targetUserId } },
-        select: { blockerId: true },
-      }),
-      this.prisma.userBlock.findUnique({
-        where: { blockerId_blockedId: { blockerId: targetUserId, blockedId: viewerId } },
-        select: { blockerId: true },
-      }),
+      this.blocksService.isBlocked(viewerId, targetUserId),
+      this.blocksService.isBlocked(targetUserId, viewerId),
     ]);
 
-    const isBlocked = Boolean(blockedByViewer);
-    const isBlockedByTarget = Boolean(blockedByTarget);
     const blockedEitherWay = isBlocked || isBlockedByTarget;
 
     let messageRequestStatus: MessageRequestRelationshipStatus = 'NONE';
@@ -244,7 +249,7 @@ export class UsersService {
           generationModel: true,
           category: true,
           user: {
-            select: { id: true, username: true, avatarUrl: true },
+            select: { id: true, username: true, avatarUrl: true, plan: true },
           },
           _count: { select: { likes: true, comments: true } },
           likes: {
@@ -351,7 +356,7 @@ export class UsersService {
               generationModel: true,
               category: true,
               user: {
-                select: { id: true, username: true, avatarUrl: true },
+                select: { id: true, username: true, avatarUrl: true, plan: true },
               },
               _count: { select: { likes: true, comments: true } },
             },
@@ -372,45 +377,187 @@ export class UsersService {
 
   async toggleFollow(followerId: string, followingId: string) {
     if (followerId === followingId) {
-      throw new BadRequestException('You cannot follow yourself');
+      throw new BadRequestException('Bạn không thể tự theo dõi chính mình.');
     }
 
     const targetUser = await this.prisma.user.findUnique({
       where: { id: followingId },
-      select: { id: true },
+      select: { id: true, username: true },
     });
     if (!targetUser) {
-      throw new NotFoundException('User to follow not found');
+      throw new NotFoundException('Không tìm thấy người dùng cần theo dõi.');
+    }
+
+    if (await this.blocksService.isBlockedEitherWay(followerId, followingId)) {
+      throw new ForbiddenException('Không thể theo dõi người dùng này.');
     }
 
     const existingFollow = await this.prisma.follow.findUnique({
-      where: {
-        followerId_followingId: { followerId, followingId },
-      },
+      where: { followerId_followingId: { followerId, followingId } },
+      select: { followerId: true },
     });
 
     let followed: boolean;
     if (existingFollow) {
-      await this.prisma.follow.delete({
-        where: { followerId_followingId: { followerId, followingId } },
-      });
+      await this.prisma.follow.deleteMany({ where: { followerId, followingId } });
       followed = false;
     } else {
-      await this.prisma.follow.create({
-        data: { followerId, followingId },
-      });
-      followed = true;
+      // deleteMany/create thay vì findUnique-rồi-create để giảm cửa sổ race, và
+      // bắt lỗi P2002 (đã tồn tại do request đồng thời khác vừa tạo) thay vì
+      // để nó văng ra ngoài thành lỗi 500.
+      try {
+        await this.prisma.follow.create({ data: { followerId, followingId } });
+        followed = true;
+      } catch (error) {
+        if (isUniqueConstraintError(error)) {
+          followed = true;
+        } else {
+          throw error;
+        }
+      }
     }
 
-    const followerCount = await this.prisma.follow.count({
-      where: { followingId },
-    });
-    return { followed, followerCount };
+    const [followerCount, followingCount] = await Promise.all([
+      this.prisma.follow.count({ where: { followingId } }),
+      this.prisma.follow.count({ where: { followerId } }),
+    ]);
+
+    if (followed && !existingFollow) {
+      const follower = await this.prisma.user.findUnique({
+        where: { id: followerId },
+        select: { username: true },
+      });
+      await this.notificationsService.createNotification(
+        followingId,
+        'FOLLOW',
+        `${follower?.username ?? 'Một người dùng'} đã bắt đầu theo dõi bạn.`,
+        followerId,
+      );
+    }
+
+    return { followed, followerCount, followingCount };
+  }
+
+  async getFollowers(username: string, viewerId: string | undefined, rawPage?: string, rawLimit?: string) {
+    const user = await this.findUserByUsername(username);
+    const { page, limit, skip } = this.getPagination(rawPage, rawLimit);
+    const where = { followingId: user.id };
+
+    const [rows, total] = await Promise.all([
+      this.prisma.follow.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        select: { follower: { select: PUBLIC_USER_SELECT } },
+      }),
+      this.prisma.follow.count({ where }),
+    ]);
+
+    return this.annotateConnections(rows.map((r) => r.follower), viewerId, page, limit, total);
+  }
+
+  async getFollowing(username: string, viewerId: string | undefined, rawPage?: string, rawLimit?: string) {
+    const user = await this.findUserByUsername(username);
+    const { page, limit, skip } = this.getPagination(rawPage, rawLimit);
+    const where = { followerId: user.id };
+
+    const [rows, total] = await Promise.all([
+      this.prisma.follow.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        select: { following: { select: PUBLIC_USER_SELECT } },
+      }),
+      this.prisma.follow.count({ where }),
+    ]);
+
+    return this.annotateConnections(rows.map((r) => r.following), viewerId, page, limit, total);
+  }
+
+  /** Lọc người đã bị chặn/đang chặn viewer khỏi danh sách, và gắn thêm
+   * viewerIsFollowing/followsViewer cho mỗi người - dùng chung cho cả
+   * followers và following. */
+  private async annotateConnections(
+    users: { id: string; username: string; avatarUrl: string | null; bio: string | null; plan: string }[],
+    viewerId: string | undefined,
+    page: number,
+    limit: number,
+    total: number,
+  ) {
+    const blockedFlags = viewerId
+      ? await Promise.all(users.map((u) => this.blocksService.isBlockedEitherWay(viewerId, u.id)))
+      : users.map(() => false);
+    const visibleUsers = users.filter((_, i) => !blockedFlags[i]);
+
+    let viewerFollowing = new Set<string>();
+    let viewerFollowers = new Set<string>();
+    if (viewerId && visibleUsers.length > 0) {
+      const ids = visibleUsers.map((u) => u.id);
+      const [followingRows, followerRows] = await Promise.all([
+        this.prisma.follow.findMany({
+          where: { followerId: viewerId, followingId: { in: ids } },
+          select: { followingId: true },
+        }),
+        this.prisma.follow.findMany({
+          where: { followerId: { in: ids }, followingId: viewerId },
+          select: { followerId: true },
+        }),
+      ]);
+      viewerFollowing = new Set(followingRows.map((r) => r.followingId));
+      viewerFollowers = new Set(followerRows.map((r) => r.followerId));
+    }
+
+    const items = visibleUsers.map((u) => ({
+      ...u,
+      viewerIsFollowing: viewerFollowing.has(u.id),
+      followsViewer: viewerFollowers.has(u.id),
+    }));
+
+    return { items, page, limit, total, hasMore: page * limit < total };
+  }
+
+  async getPrivateBoards(userId: string, rawPage?: string, rawLimit?: string) {
+    const { page, limit, skip } = this.getPagination(rawPage, rawLimit);
+    const where = { userId, isSecret: true };
+
+    const [boards, total] = await Promise.all([
+      this.prisma.board.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          isSecret: true,
+          userId: true,
+          createdAt: true,
+          _count: { select: { boardPins: true } },
+          boardPins: {
+            orderBy: { addedAt: 'desc' },
+            take: 3,
+            select: { pin: { select: { id: true, title: true, imageUrl: true, isAiGenerated: true } } },
+          },
+        },
+      }),
+      this.prisma.board.count({ where }),
+    ]);
+
+    const items = boards.map(({ boardPins, _count, ...board }) => ({
+      ...board,
+      pinCount: _count.boardPins,
+      thumbnails: boardPins.map(({ pin }) => pin),
+    }));
+
+    return this.pageResult(items, total, page, limit);
   }
 
   /** Account search for the navbar's search dropdown/results. Only ever
-   * selects public-safe fields (id, username, avatarUrl) — never email or
-   * other private profile data. Exact-prefix matches are ranked before
+   * selects public-safe fields (id, username, avatarUrl, plan) — never email
+   * or other private profile data. Exact-prefix matches are ranked before
    * matches that only contain the query elsewhere in the username. */
   async searchUsers(rawQuery: string, rawLimit?: string) {
     const query = rawQuery.trim();
@@ -426,7 +573,7 @@ export class UsersService {
 
     const matches = await this.prisma.user.findMany({
       where: { username: { contains: query, mode: 'insensitive' } },
-      select: { id: true, username: true, avatarUrl: true },
+      select: { id: true, username: true, avatarUrl: true, plan: true },
       take: limit * 3,
     });
 

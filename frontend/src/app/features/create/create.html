@@ -164,6 +164,12 @@
               </select>
             </div>
 
+            <p class="text-[11px] text-text-muted flex items-center gap-1" *ngIf="membership.status() as m">
+              <span class="material-symbols-outlined text-sm leading-none">bolt</span>
+              Còn <strong class="text-text">{{ m.aiRemaining }}/{{ m.aiLimit }}</strong> lượt tạo AI hôm nay
+              <span *ngIf="m.aiRemaining === 0"> · Làm mới lúc {{ m.aiResetAt | date:'HH:mm' }}</span>
+            </p>
+
             <!-- Action button for AI -->
             <button
               type="button"
@@ -304,48 +310,7 @@
     </main>
   </div>
 
-  <!-- Discard-edits confirm dialog — replaces window.confirm() -->
-  <div
-    *ngIf="showDiscardConfirm()"
-    (click)="cancelDiscard()"
-    class="fixed inset-0 bg-ink/60 backdrop-blur-md z-[150] flex items-center justify-center p-4 animate-fade-in"
-    role="presentation"
-  >
-    <div
-      #discardPanel
-      tabindex="-1"
-      (click)="$event.stopPropagation()"
-      class="glass-elevated max-w-[420px] w-full rounded-panel p-7 shadow-card text-center focus:outline-none"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="discard-confirm-title"
-    >
-      <div class="mx-auto mb-4 w-11 h-11 rounded-full bg-warning/15 flex items-center justify-center">
-        <span class="material-symbols-outlined text-xl text-warning">warning</span>
-      </div>
-      <h2 id="discard-confirm-title" class="text-base font-bold text-text mb-2">Bạn có chỉnh sửa chưa lưu</h2>
-      <p class="text-xs text-text-muted leading-relaxed mb-6">
-        Tiếp tục sẽ làm mất các thay đổi màu sắc và caption trên ảnh này. Bạn có chắc chắn muốn tiếp tục?
-      </p>
-      <div class="flex items-center justify-center gap-3">
-        <button
-          type="button"
-          (click)="cancelDiscard()"
-          class="h-10 px-5 rounded-control bg-surface-elevated hover:bg-surface-high text-text text-sm font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        >
-          Hủy
-        </button>
-        <button
-          type="button"
-          (click)="confirmDiscard()"
-          class="h-10 px-5 rounded-control bg-error/90 hover:bg-error text-text-on-accent text-sm font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        >
-          Tiếp tục, bỏ chỉnh sửa
-        </button>
-      </div>
-    </div>
-  </div>
-
+  <!-- Discard-edits confirm now goes through the shared DialogService (see runOrConfirmDiscard). -->
   <!-- Publish progress dialog -->
   <app-publish-progress-dialog
     [open]="dialogOpen()"

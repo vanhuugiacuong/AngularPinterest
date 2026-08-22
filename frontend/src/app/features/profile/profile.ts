@@ -12,14 +12,19 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, combineLatest } from 'rxjs';
 import { Navbar } from '../../components/navbar/navbar';
+import { UserAvatar } from '../../shared/user-avatar/user-avatar';
 import { BoardService } from '../../core/services/board';
 import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
 import { ProfileAlbum, ProfilePin, ProfileSummary, UserService } from '../../core/services/user';
 import { MessagingService, ReportReason } from '../../core/services/messaging';
 import { SafetyService } from '../../core/services/safety';
+import { MarketplaceSale, MembershipService } from '../../core/services/membership';
+import { toUserMessage } from '../../core/utils/http-error';
+import { FollowListDialog } from './follow-list-dialog/follow-list-dialog';
+import { DialogService } from '../../core/services/dialog';
 
-type ProfileTab = 'favorites' | 'albums' | 'posts';
+type ProfileTab = 'favorites' | 'albums' | 'posts' | 'private';
 
 interface TabState<T> {
   items: T[];
@@ -34,7 +39,7 @@ interface TabState<T> {
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, Navbar, FormsModule],
+  imports: [CommonModule, Navbar, FormsModule, UserAvatar, FollowListDialog],
   templateUrl: './profile.html',
   styleUrl: './profile.css',
 })
@@ -47,6 +52,14 @@ export class Profile implements OnInit, OnDestroy {
   private readonly supabaseService = inject(SupabaseService);
   private readonly messagingService = inject(MessagingService);
   private readonly safetyService = inject(SafetyService);
+  private readonly membershipService = inject(MembershipService);
+  private readonly dialogService = inject(DialogService);
+
+  readonly marketplaceSales = signal<MarketplaceSale[]>([]);
+  readonly marketplaceRevenue = signal(0);
+  readonly marketplacePurchases = signal<MarketplaceSale[]>([]);
+  readonly marketplaceLoading = signal(false);
+  readonly marketplaceError = signal<string | null>(null);
 
   readonly profile = signal<ProfileSummary | null>(null);
   readonly profileLoading = signal(true);
@@ -55,6 +68,7 @@ export class Profile implements OnInit, OnDestroy {
   readonly favoritesState = signal(this.emptyState<ProfilePin>());
   readonly albumsState = signal(this.emptyState<ProfileAlbum>());
   readonly postsState = signal(this.emptyState<ProfilePin>());
+  readonly privateState = signal(this.emptyState<ProfileAlbum>());
   readonly followPending = signal(false);
   readonly shareMessage = signal<string | null>(null);
   readonly actionMessage = signal<string | null>(null);
@@ -67,10 +81,6 @@ export class Profile implements OnInit, OnDestroy {
   newAlbumDescription = '';
   newAlbumSecret = false;
 
-  readonly deleteTarget = signal<ProfilePin | null>(null);
-  readonly deletePending = signal(false);
-  readonly deleteError = signal<string | null>(null);
-
   readonly messageActionPending = signal(false);
   readonly showSafetyMenu = signal(false);
 
@@ -80,17 +90,25 @@ export class Profile implements OnInit, OnDestroy {
   readonly reportError = signal<string | null>(null);
   reportDetails = '';
 
-  readonly showBlockDialog = signal(false);
-  readonly blockPending = signal(false);
-  readonly blockError = signal<string | null>(null);
-
   private readonly pageSize = 20;
   private routeSubscription?: Subscription;
   private currentUsername = '';
   private requestVersion = 0;
   private dialogReturnFocus?: HTMLElement;
 
+  /** Hero avatar's pixel size, matching the .profile-avatar-slot breakpoints
+   * in profile.css (108 / 80 / 72px) — set here rather than in CSS because
+   * <app-user-avatar>'s box size is driven by its `size` input, not a CSS
+   * width/height an ancestor stylesheet could override. */
+  public profileAvatarSize = signal(108);
+
+  @HostListener('window:resize')
+  onWindowResize() {
+    this.updateProfileAvatarSize();
+  }
+
   ngOnInit() {
+    this.updateProfileAvatarSize();
     this.routeSubscription = combineLatest([
       this.route.paramMap,
       this.route.queryParamMap,
@@ -106,6 +124,12 @@ export class Profile implements OnInit, OnDestroy {
         this.activateRequestedTab(requestedTab);
       }
     });
+  }
+
+  private updateProfileAvatarSize() {
+    if (typeof window === 'undefined') return;
+    const width = window.innerWidth;
+    this.profileAvatarSize.set(width <= 430 ? 72 : width <= 720 ? 80 : 108);
   }
 
   ngOnDestroy() {
@@ -128,6 +152,7 @@ export class Profile implements OnInit, OnDestroy {
 
       this.profile.set(summary);
       this.activateRequestedTab(requestedTab || 'posts');
+      if (summary.viewer.isOwnProfile) void this.loadMarketplace();
     } catch (error) {
       if (version !== this.requestVersion) return;
       this.profileError.set(this.errorMessage(error, 'Không thể tải hồ sơ này.'));
@@ -135,6 +160,24 @@ export class Profile implements OnInit, OnDestroy {
       if (version === this.requestVersion) {
         this.profileLoading.set(false);
       }
+    }
+  }
+
+  private async loadMarketplace(): Promise<void> {
+    this.marketplaceLoading.set(true);
+    this.marketplaceError.set(null);
+    try {
+      const [salesResult, purchases] = await Promise.all([
+        this.membershipService.listSales(),
+        this.membershipService.listPurchases(),
+      ]);
+      this.marketplaceSales.set(salesResult.sales);
+      this.marketplaceRevenue.set(salesResult.revenue);
+      this.marketplacePurchases.set(purchases);
+    } catch (error) {
+      this.marketplaceError.set(this.errorMessage(error, 'Không thể tải dữ liệu marketplace.'));
+    } finally {
+      this.marketplaceLoading.set(false);
     }
   }
 
@@ -309,6 +352,23 @@ export class Profile implements OnInit, OnDestroy {
     this.showSafetyMenu.update((value) => !value);
   }
 
+  followDialogTab = signal<'followers' | 'following' | null>(null);
+
+  openFollowersDialog() {
+    this.dialogReturnFocus = document.activeElement as HTMLElement;
+    this.followDialogTab.set('followers');
+  }
+
+  openFollowingDialog() {
+    this.dialogReturnFocus = document.activeElement as HTMLElement;
+    this.followDialogTab.set('following');
+  }
+
+  closeFollowDialog() {
+    this.followDialogTab.set(null);
+    this.restoreDialogFocus();
+  }
+
   openReportDialog() {
     this.showSafetyMenu.set(false);
     this.dialogReturnFocus = document.activeElement as HTMLElement;
@@ -349,43 +409,30 @@ export class Profile implements OnInit, OnDestroy {
     }
   }
 
-  openBlockDialog() {
+  async openBlockDialog() {
     this.showSafetyMenu.set(false);
-    this.dialogReturnFocus = document.activeElement as HTMLElement;
-    this.blockError.set(null);
-    this.showBlockDialog.set(true);
-    setTimeout(() => document.getElementById('confirm-block-user')?.focus());
-  }
-
-  closeBlockDialog() {
-    if (this.blockPending()) return;
-    this.showBlockDialog.set(false);
-    this.blockError.set(null);
-    this.restoreDialogFocus();
-  }
-
-  async confirmBlock() {
     const summary = this.profile();
-    if (!summary || this.blockPending()) return;
+    if (!summary) return;
     const wasBlocked = summary.viewer.isBlocked;
-    this.blockPending.set(true);
-    this.blockError.set(null);
-    try {
-      const token = await this.requireToken();
-      if (wasBlocked) {
-        await this.safetyService.unblockUser(summary.user.id, token);
-      } else {
-        await this.safetyService.blockUser(summary.user.id, token);
-      }
-      await this.refreshProfileViewerState();
-      this.showBlockDialog.set(false);
-      this.announce(wasBlocked ? 'Đã bỏ chặn người dùng.' : 'Đã chặn người dùng.');
-      this.restoreDialogFocus();
-    } catch (error) {
-      this.blockError.set(this.errorMessage(error, 'Không thể cập nhật trạng thái chặn.'));
-    } finally {
-      this.blockPending.set(false);
-    }
+    const confirmed = await this.dialogService.confirm({
+      variant: 'destructive',
+      title: wasBlocked ? `Bỏ chặn @${summary.user.username}?` : `Chặn @${summary.user.username}?`,
+      description: wasBlocked
+        ? 'Hai bạn sẽ có thể theo dõi và nhắn tin lại với nhau như bình thường.'
+        : 'Người này sẽ không thể gửi yêu cầu nhắn tin hoặc nhắn tin cho bạn nữa.',
+      confirmLabel: wasBlocked ? 'Bỏ chặn' : 'Chặn người dùng',
+      cancelLabel: 'Hủy',
+      onConfirm: async () => {
+        const token = await this.requireToken();
+        if (wasBlocked) {
+          await this.safetyService.unblockUser(summary.user.id, token);
+        } else {
+          await this.safetyService.blockUser(summary.user.id, token);
+        }
+        await this.refreshProfileViewerState();
+      },
+    });
+    if (confirmed) this.announce(wasBlocked ? 'Đã bỏ chặn người dùng.' : 'Đã chặn người dùng.');
   }
 
   navigateToProfile(username: string | undefined | null) {
@@ -436,51 +483,34 @@ export class Profile implements OnInit, OnDestroy {
     this.activePostMenu.update((current) => (current === pinId ? null : pinId));
   }
 
-  openDeleteDialog(pin: ProfilePin, event?: Event) {
+  async openDeleteDialog(pin: ProfilePin, event?: Event) {
     event?.stopPropagation();
     this.activePostMenu.set(null);
-    this.dialogReturnFocus = document.activeElement as HTMLElement;
-    this.deleteError.set(null);
-    this.deleteTarget.set(pin);
-    setTimeout(() => document.getElementById('confirm-delete-pin')?.focus());
+    const confirmed = await this.dialogService.confirm({
+      variant: 'destructive',
+      title: `Xóa "${pin.title}"?`,
+      description: 'Tác phẩm sẽ bị xóa khỏi NovaFrame và không thể khôi phục.',
+      confirmLabel: 'Xóa bài',
+      cancelLabel: 'Giữ lại',
+      onConfirm: async () => {
+        const token = await this.requireToken();
+        await this.pinService.deletePin(pin.id, token);
+        this.postsState.update((current) => ({
+          ...current,
+          items: current.items.filter((item) => item.id !== pin.id),
+        }));
+        this.adjustCount('posts', -1);
+      },
+    });
+    if (confirmed) this.announce('Đã xóa tác phẩm.');
   }
 
-  closeDeleteDialog() {
-    if (this.deletePending()) return;
-    this.deleteTarget.set(null);
-    this.deleteError.set(null);
-    this.restoreDialogFocus();
-  }
-
-  async confirmDeletePin() {
-    const pin = this.deleteTarget();
-    if (!pin || this.deletePending()) return;
-    this.deletePending.set(true);
-    this.deleteError.set(null);
-    try {
-      const token = await this.requireToken();
-      await this.pinService.deletePin(pin.id, token);
-      this.postsState.update((current) => ({
-        ...current,
-        items: current.items.filter((item) => item.id !== pin.id),
-      }));
-      this.adjustCount('posts', -1);
-      this.deleteTarget.set(null);
-      this.announce('Đã xóa tác phẩm.');
-      this.restoreDialogFocus();
-    } catch (error) {
-      this.deleteError.set(this.errorMessage(error, 'Không thể xóa tác phẩm.'));
-    } finally {
-      this.deletePending.set(false);
-    }
-  }
-
-  openCreateAlbumModal() {
+  openCreateAlbumModal(forcePrivate = false) {
     if (!this.isOwnProfile()) return;
     this.dialogReturnFocus = document.activeElement as HTMLElement;
     this.newAlbumName = '';
     this.newAlbumDescription = '';
-    this.newAlbumSecret = false;
+    this.newAlbumSecret = forcePrivate;
     this.albumFormError.set(null);
     this.showCreateAlbumModal.set(true);
     setTimeout(() => document.getElementById('album-name')?.focus());
@@ -512,12 +542,21 @@ export class Profile implements OnInit, OnDestroy {
         pinCount: 0,
         thumbnails: [],
       };
-      this.albumsState.update((current) => ({
-        ...current,
-        loaded: true,
-        items: [album, ...current.items],
-      }));
-      this.adjustCount('albums', 1);
+      if (this.newAlbumSecret) {
+        this.privateState.update((current) => ({
+          ...current,
+          loaded: true,
+          items: [album, ...current.items],
+        }));
+        this.adjustCount('private', 1);
+      } else {
+        this.albumsState.update((current) => ({
+          ...current,
+          loaded: true,
+          items: [album, ...current.items],
+        }));
+        this.adjustCount('albums', 1);
+      }
       this.showCreateAlbumModal.set(false);
       this.announce('Album mới đã được tạo.');
       this.restoreDialogFocus();
@@ -539,19 +578,14 @@ export class Profile implements OnInit, OnDestroy {
   @HostListener('document:keydown', ['$event'])
   onDocumentKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
-      if (this.deleteTarget()) this.closeDeleteDialog();
-      else if (this.showCreateAlbumModal()) this.closeCreateAlbumModal();
+      if (this.showCreateAlbumModal()) this.closeCreateAlbumModal();
       else if (this.showReportDialog()) this.closeReportDialog();
-      else if (this.showBlockDialog()) this.closeBlockDialog();
       else if (this.showSafetyMenu()) this.showSafetyMenu.set(false);
       else this.activePostMenu.set(null);
       return;
     }
 
-    if (
-      event.key === 'Tab' &&
-      (this.deleteTarget() || this.showCreateAlbumModal() || this.showReportDialog() || this.showBlockDialog())
-    ) {
+    if (event.key === 'Tab' && (this.showCreateAlbumModal() || this.showReportDialog())) {
       const dialog = document.querySelector<HTMLElement>('[data-profile-dialog="active"]');
       if (!dialog) return;
       const focusable = Array.from(
@@ -624,6 +658,9 @@ export class Profile implements OnInit, OnDestroy {
       if (tab === 'favorites') {
         if (!token) throw new Error('Phiên đăng nhập đã hết hạn.');
         response = await this.userService.getFavorites(page, this.pageSize, token);
+      } else if (tab === 'private') {
+        if (!token) throw new Error('Phiên đăng nhập đã hết hạn.');
+        response = await this.userService.getPrivateBoards(page, this.pageSize, token);
       } else if (tab === 'albums') {
         response = await this.userService.getUserAlbums(
           this.currentUsername,
@@ -681,20 +718,26 @@ export class Profile implements OnInit, OnDestroy {
   }
 
   private parseTab(raw: string | null): ProfileTab {
-    return raw === 'favorites' || raw === 'albums' || raw === 'posts' ? raw : 'posts';
+    return raw === 'favorites' || raw === 'albums' || raw === 'posts' || raw === 'private' ? raw : 'posts';
   }
 
   private canUseTab(tab: ProfileTab) {
-    return tab !== 'favorites' || this.profile()?.viewer.canViewFavorites === true;
+    if (tab === 'favorites') return this.profile()?.viewer.canViewFavorites === true;
+    if (tab === 'private') return this.profile()?.viewer.canViewPrivateBoards === true;
+    return true;
   }
 
   private availableTabs(): ProfileTab[] {
-    return this.canUseTab('favorites') ? ['posts', 'albums', 'favorites'] : ['posts', 'albums'];
+    const tabs: ProfileTab[] = ['posts', 'albums'];
+    if (this.canUseTab('favorites')) tabs.push('favorites');
+    if (this.canUseTab('private')) tabs.push('private');
+    return tabs;
   }
 
   private stateFor(tab: ProfileTab) {
     if (tab === 'favorites') return this.favoritesState;
     if (tab === 'albums') return this.albumsState;
+    if (tab === 'private') return this.privateState;
     return this.postsState;
   }
 
@@ -714,10 +757,17 @@ export class Profile implements OnInit, OnDestroy {
     this.favoritesState.set(this.emptyState<ProfilePin>());
     this.albumsState.set(this.emptyState<ProfileAlbum>());
     this.postsState.set(this.emptyState<ProfilePin>());
+    this.privateState.set(this.emptyState<ProfileAlbum>());
+  }
+
+  private countKey(tab: ProfileTab): keyof ProfileSummary['counts'] {
+    if (tab === 'albums') return 'albums';
+    if (tab === 'private') return 'privateBoards';
+    return tab;
   }
 
   private setCount(tab: ProfileTab, total: number) {
-    const key = tab === 'albums' ? 'albums' : tab;
+    const key = this.countKey(tab);
     this.updateProfile((current) => ({
       ...current,
       counts: { ...current.counts, [key]: total },
@@ -725,7 +775,7 @@ export class Profile implements OnInit, OnDestroy {
   }
 
   private adjustCount(tab: ProfileTab, difference: number) {
-    const key = tab === 'albums' ? 'albums' : tab;
+    const key = this.countKey(tab);
     this.updateProfile((current) => {
       const currentValue = current.counts[key];
       return {
@@ -770,7 +820,7 @@ export class Profile implements OnInit, OnDestroy {
   }
 
   private errorMessage(error: unknown, fallback: string) {
-    return error instanceof Error && error.message ? error.message : fallback;
+    return toUserMessage(error, fallback);
   }
 
   private restoreDialogFocus() {

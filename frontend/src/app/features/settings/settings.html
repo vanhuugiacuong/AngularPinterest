@@ -82,6 +82,130 @@
           </button>
         </div>
       </section>
+
+      <section aria-labelledby="nf-watermark-heading" class="bg-surface border border-border rounded-panel p-5 sm:p-6 mt-6">
+        <h2 id="nf-watermark-heading" class="text-lg font-bold text-text font-display">Watermark cá nhân</h2>
+        <p class="text-sm text-text-muted mt-1 mb-5">
+          Gắn thương hiệu của bạn lên ảnh khi tải xuống — chỉ dành cho gói Plus/Pro.
+        </p>
+
+        <!-- Free: locked state -->
+        <div *ngIf="!membershipLoading() && !canUseWatermark()" class="rounded-frame border border-border bg-canvas-neutral p-6 flex flex-col items-center text-center gap-3">
+          <span class="material-symbols-outlined text-3xl text-text-muted" aria-hidden="true">lock</span>
+          <p class="text-sm text-text-muted max-w-sm">
+            Gói Free chỉ được tải ảnh kèm watermark bắt buộc của NovaFrame. Nâng cấp lên Plus hoặc Pro để tạo watermark riêng của bạn.
+          </p>
+          <a routerLink="/pricing" class="h-10 px-5 rounded-control bg-gradient-brand text-text-on-accent font-bold text-xs flex items-center justify-center cursor-pointer">
+            Nâng cấp để tạo watermark
+          </a>
+        </div>
+
+        <!-- Plus/Pro: editor -->
+        <div *ngIf="!membershipLoading() && canUseWatermark()" class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+          <div class="flex flex-col gap-4">
+            <!-- Existing presets -->
+            <div *ngIf="watermark.presets().length > 0" class="flex flex-col gap-2">
+              <span class="text-xs font-bold text-text-muted uppercase tracking-wide">Cấu hình đã lưu</span>
+              <div *ngFor="let preset of watermark.presets()" class="flex items-center justify-between gap-2 rounded-frame border border-border bg-canvas-neutral p-3">
+                <div class="flex flex-col gap-0.5 min-w-0">
+                  <span class="text-sm font-bold text-text truncate">{{ preset.name }}</span>
+                  <span class="text-[11px] text-text-muted">{{ preset.type === 'TEXT' ? 'Chữ' : 'Logo' }} · {{ preset.isDefault ? 'Mặc định' : 'Phụ' }}</span>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button type="button" (click)="setDefault(preset)" *ngIf="!preset.isDefault" class="h-8 px-2.5 rounded-control bg-surface-elevated hover:bg-surface-high text-[11px] font-bold text-text border-none cursor-pointer">Đặt mặc định</button>
+                  <button type="button" (click)="editPreset(preset)" class="h-8 px-2.5 rounded-control bg-surface-elevated hover:bg-surface-high text-[11px] font-bold text-text border-none cursor-pointer">Sửa</button>
+                  <button type="button" (click)="deletePreset(preset.id)" class="h-8 px-2.5 rounded-control bg-surface-elevated hover:bg-error/20 text-[11px] font-bold text-error border-none cursor-pointer">Xoá</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-frame border border-border bg-canvas-neutral p-4 flex flex-col gap-3.5" *ngIf="!presetLimitReached() || editingId()">
+              <span class="text-xs font-bold text-text-muted uppercase tracking-wide">{{ editingId() ? 'Sửa cấu hình' : 'Tạo cấu hình mới' }}</span>
+
+              <label class="flex flex-col gap-1 text-xs font-bold text-text-muted">Tên cấu hình
+                <input [(ngModel)]="name" name="wmName" class="h-10 px-3 rounded-control bg-surface border border-border text-sm text-text" />
+              </label>
+
+              <div class="flex gap-2">
+                <button type="button" (click)="type = 'TEXT'" [class.bg-gradient-brand]="type === 'TEXT'" [class.text-text-on-accent]="type === 'TEXT'" class="flex-1 h-9 rounded-control text-xs font-bold border border-border cursor-pointer bg-surface text-text">Chữ</button>
+                <button type="button" (click)="type = 'LOGO'" [class.bg-gradient-brand]="type === 'LOGO'" [class.text-text-on-accent]="type === 'LOGO'" class="flex-1 h-9 rounded-control text-xs font-bold border border-border cursor-pointer bg-surface text-text">Logo (PNG/JPEG/WebP)</button>
+              </div>
+
+              <label *ngIf="type === 'TEXT'" class="flex flex-col gap-1 text-xs font-bold text-text-muted">Nội dung chữ
+                <input [(ngModel)]="text" name="wmText" class="h-10 px-3 rounded-control bg-surface border border-border text-sm text-text" placeholder="NovaFrame Studio" />
+              </label>
+              <label *ngIf="type === 'LOGO'" class="flex flex-col gap-1 text-xs font-bold text-text-muted">File logo
+                <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onLogoSelected($event)" class="text-xs text-text" />
+              </label>
+
+              <label class="flex flex-col gap-1 text-xs font-bold text-text-muted">Vị trí
+                <div class="grid grid-cols-3 gap-1.5">
+                  <button *ngFor="let p of positions" type="button" (click)="position = p.value"
+                    [class.bg-gradient-brand]="position === p.value" [class.text-text-on-accent]="position === p.value"
+                    class="h-9 rounded-control text-[10px] font-bold border border-border cursor-pointer bg-surface text-text">{{ p.label }}</button>
+                </div>
+              </label>
+
+              <div class="grid grid-cols-2 gap-3">
+                <label class="flex flex-col gap-1 text-xs font-bold text-text-muted">Độ mờ ({{ opacity }})
+                  <input type="range" min="0.05" max="1" step="0.05" [(ngModel)]="opacity" name="wmOpacity" />
+                </label>
+                <label class="flex flex-col gap-1 text-xs font-bold text-text-muted">Kích thước ({{ scale }})
+                  <input type="range" min="0.02" max="1" step="0.02" [(ngModel)]="scale" name="wmScale" />
+                </label>
+                <label class="flex flex-col gap-1 text-xs font-bold text-text-muted">Khoảng cách mép ({{ margin }})
+                  <input type="range" min="0" max="0.2" step="0.01" [(ngModel)]="margin" name="wmMargin" />
+                </label>
+                <label class="flex flex-col gap-1 text-xs font-bold text-text-muted" *ngIf="canUseAdvanced()">Xoay góc ({{ rotation }}°)
+                  <input type="range" min="-180" max="180" step="5" [(ngModel)]="rotation" name="wmRotation" />
+                </label>
+              </div>
+
+              <div *ngIf="canUseAdvanced()" class="flex items-center justify-between gap-3 pt-2 border-t border-border">
+                <span class="text-xs font-bold text-text">Lặp watermark (tiled) — Pro</span>
+                <button type="button" role="switch" [attr.aria-checked]="tiled" (click)="tiled = !tiled"
+                  [class.bg-gradient-brand]="tiled" [class.bg-surface-elevated]="!tiled"
+                  class="w-11 h-6 rounded-full relative border border-border-strong cursor-pointer shrink-0">
+                  <span class="absolute top-0.5 h-4 w-4 rounded-full bg-text transition-all duration-200" [class.left-[22px]]="tiled" [class.left-0.5]="!tiled"></span>
+                </button>
+              </div>
+              <label *ngIf="canUseAdvanced() && tiled" class="flex flex-col gap-1 text-xs font-bold text-text-muted">Khoảng cách lặp ({{ spacing }})
+                <input type="range" min="0" max="1" step="0.05" [(ngModel)]="spacing" name="wmSpacing" />
+              </label>
+              <p *ngIf="!canUseAdvanced()" class="text-[11px] text-text-muted">Lặp watermark, xoay góc và nhiều cấu hình chỉ dành cho gói Pro.</p>
+
+              <label class="flex items-center gap-2 text-xs font-bold text-text-muted">
+                <input type="checkbox" [(ngModel)]="isDefault" name="wmDefault" /> Đặt làm mặc định
+              </label>
+
+              <p *ngIf="formError()" class="text-xs text-error">{{ formError() }}</p>
+
+              <div class="flex gap-2 pt-1">
+                <button type="button" (click)="refreshPreview()" [disabled]="previewLoading()" class="flex-1 h-10 rounded-control bg-surface-elevated hover:bg-surface-high text-xs font-bold text-text border-none cursor-pointer disabled:opacity-50">
+                  {{ previewLoading() ? 'Đang tạo...' : 'Xem trước' }}
+                </button>
+                <button type="button" (click)="savePreset()" [disabled]="saving()" class="flex-1 h-10 rounded-control bg-gradient-brand text-text-on-accent text-xs font-bold border-none cursor-pointer disabled:opacity-50">
+                  {{ saving() ? 'Đang lưu...' : (editingId() ? 'Cập nhật' : 'Lưu cấu hình') }}
+                </button>
+                <button type="button" *ngIf="editingId()" (click)="cancelEdit()" class="h-10 px-3 rounded-control bg-surface-elevated hover:bg-surface-high text-xs font-bold text-text border-none cursor-pointer">Huỷ</button>
+              </div>
+            </div>
+
+            <p *ngIf="presetLimitReached() && !editingId()" class="text-xs text-text-muted">
+              Bạn đã đạt số lượng cấu hình tối đa cho gói hiện tại. Xoá bớt hoặc nâng cấp lên Pro để lưu nhiều hơn.
+            </p>
+          </div>
+
+          <!-- Live preview -->
+          <div class="flex flex-col gap-2">
+            <span class="text-xs font-bold text-text-muted uppercase tracking-wide">Xem trước trên ảnh thật</span>
+            <div class="rounded-frame border border-border bg-canvas-neutral aspect-square flex items-center justify-center overflow-hidden">
+              <img *ngIf="previewUrl()" [src]="previewUrl()" alt="Xem trước watermark" class="w-full h-full object-cover" />
+              <span *ngIf="!previewUrl()" class="text-xs text-text-muted px-4 text-center">Bấm "Xem trước" để render trên 1 ảnh thật của bạn.</span>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 </div>

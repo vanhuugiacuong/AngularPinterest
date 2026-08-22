@@ -21,6 +21,8 @@ import { SidebarStateService } from '../../core/services/sidebar-state';
 import { ThemeService } from '../../core/services/theme';
 import { PinService, Pin } from '../../core/services/pin';
 import { UserService, UserSearchResult } from '../../core/services/user';
+import { MembershipService } from '../../core/services/membership';
+import type { MembershipPlan } from '../../core/models/membership-plan';
 import { SearchHistoryService } from '../../core/services/search-history';
 import { Sidebar } from '../sidebar/sidebar';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
@@ -49,6 +51,7 @@ export class Navbar implements OnInit, OnDestroy {
   private pinService = inject(PinService);
   private userService = inject(UserService);
   private searchHistory = inject(SearchHistoryService);
+  private membership = inject(MembershipService);
 
   @Output() loginClick = new EventEmitter<void>();
   /** Emits the trimmed query on Enter / clear. Pages that care (e.g. /feed)
@@ -104,6 +107,16 @@ export class Navbar implements OnInit, OnDestroy {
   private searchSub?: Subscription;
 
   ngOnInit(): void {
+    // Loaded once per session (this is the only place that calls it besides
+    // the pricing page) so every avatar that needs the viewer's own plan
+    // reads the same cached signal instead of each issuing its own request.
+    if (!this.membership.status()) {
+      this.membership.load().catch(() => {
+        // Ignore — myPlan() falls back to the last-synced plan on dbUser,
+        // so a failed membership fetch never shows a wrong frame.
+      });
+    }
+
     this.searchSub = this.searchInput$
       .pipe(
         map((value) => value.trim()),
@@ -155,6 +168,16 @@ export class Navbar implements OnInit, OnDestroy {
     if (dbAvatar) return dbAvatar;
     const user = this.supabaseService.user();
     return user?.user_metadata?.['avatar_url'] || user?.user_metadata?.['picture'] || null;
+  }
+
+  /** The signed-in viewer's own active plan, driving their navbar/account-
+   * popup avatar frame. Prefers the live MembershipService signal (kept
+   * current after subscribe()/webhook-driven changes); falls back to the
+   * plan already carried on dbUser from the last /api/users/sync while
+   * membership.status() hasn't loaded yet or failed to load — never FREE by
+   * default, since that would flash a real Plus/Pro member down to no frame. */
+  myPlan(): MembershipPlan | null | undefined {
+    return this.membership.status()?.plan ?? this.supabaseService.dbUser()?.plan;
   }
 
   displayName(): string {

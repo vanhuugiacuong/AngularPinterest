@@ -21,6 +21,37 @@ describe('ConversationsService', () => {
     service = new ConversationsService(prisma as never, blocksService as never);
   });
 
+  describe('listConversations', () => {
+    it("selects and returns each conversation's otherUser membership plan", async () => {
+      prisma.conversation.findMany.mockResolvedValue([
+        {
+          id: 'conv-1',
+          userOneId: 'user-1',
+          userTwoId: 'user-2',
+          userOne: { id: 'user-1', username: 'me', avatarUrl: null, plan: 'FREE' },
+          userTwo: { id: 'user-2', username: 'friend', avatarUrl: null, plan: 'PRO' },
+          messages: [],
+          lastMessageAt: null,
+          createdAt: new Date('2026-01-01'),
+        },
+      ]);
+      prisma.message.groupBy.mockResolvedValue([]);
+
+      const result = await service.listConversations('user-1');
+
+      expect(prisma.conversation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            userOne: { select: expect.objectContaining({ plan: true }) },
+            userTwo: { select: expect.objectContaining({ plan: true }) },
+          }),
+        }),
+      );
+      expect(result[0].otherUser.plan).toBe('PRO');
+      expect(result[0].otherUser).not.toHaveProperty('email');
+    });
+  });
+
   describe('openDirectConversation', () => {
     it('rejects opening a conversation with yourself', async () => {
       await expect(service.openDirectConversation('user-1', 'user-1')).rejects.toBeInstanceOf(

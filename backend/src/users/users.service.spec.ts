@@ -2,20 +2,23 @@ import { UsersService } from './users.service';
 
 describe('UsersService profile data', () => {
   const prisma = {
-    user: { findUnique: jest.fn() },
+    user: { findUnique: jest.fn(), findMany: jest.fn() },
     pin: { count: jest.fn(), findMany: jest.fn() },
     board: { count: jest.fn(), findMany: jest.fn() },
     follow: { count: jest.fn(), findUnique: jest.fn() },
     like: { count: jest.fn(), findMany: jest.fn() },
     messageRequest: { findFirst: jest.fn() },
     conversation: { findUnique: jest.fn() },
-    userBlock: { findUnique: jest.fn() },
   };
+  const blocksService = { isBlocked: jest.fn(), isBlockedEitherWay: jest.fn() };
+  const notificationsService = { createNotification: jest.fn() };
   let service: UsersService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new UsersService(prisma as never);
+    blocksService.isBlocked.mockResolvedValue(false);
+    blocksService.isBlockedEitherWay.mockResolvedValue(false);
+    service = new UsersService(prisma as never, blocksService as never, notificationsService as never);
   });
 
   it('returns a safe summary and hides private favorite metadata from other users', async () => {
@@ -35,7 +38,6 @@ describe('UsersService profile data', () => {
       .mockResolvedValueOnce(null);
     prisma.messageRequest.findFirst.mockResolvedValue(null);
     prisma.conversation.findUnique.mockResolvedValue(null);
-    prisma.userBlock.findUnique.mockResolvedValue(null);
 
     const result = await service.getUserProfile('artist', 'viewer');
 
@@ -46,6 +48,7 @@ describe('UsersService profile data', () => {
       followers: 8,
       following: 4,
       favorites: null,
+      privateBoards: null,
     });
     expect(result.viewer).toEqual({
       isOwnProfile: false,
@@ -53,6 +56,7 @@ describe('UsersService profile data', () => {
       isFollowedBy: false,
       isMutualFollow: false,
       canViewFavorites: false,
+      canViewPrivateBoards: false,
       messageRequestStatus: 'NONE',
       conversationId: null,
       isBlocked: false,
@@ -82,7 +86,6 @@ describe('UsersService profile data', () => {
       .mockResolvedValueOnce({ followerId: 'profile-user' });
     prisma.messageRequest.findFirst.mockResolvedValue(null);
     prisma.conversation.findUnique.mockResolvedValue({ id: 'conversation-1' });
-    prisma.userBlock.findUnique.mockResolvedValue(null);
 
     const result = await service.getUserProfile('artist', 'viewer');
 
@@ -106,9 +109,7 @@ describe('UsersService profile data', () => {
     prisma.follow.findUnique.mockResolvedValue(null);
     prisma.messageRequest.findFirst.mockResolvedValue(null);
     prisma.conversation.findUnique.mockResolvedValue(null);
-    prisma.userBlock.findUnique
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ blockerId: 'profile-user' });
+    blocksService.isBlocked.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
 
     const result = await service.getUserProfile('artist', 'viewer');
 
@@ -134,13 +135,52 @@ describe('UsersService profile data', () => {
       status: 'PENDING',
     });
     prisma.conversation.findUnique.mockResolvedValue(null);
-    prisma.userBlock.findUnique.mockResolvedValue(null);
 
     const result = await service.getUserProfile('artist', 'viewer');
 
     expect(result.viewer.messageRequestStatus).toBe('PENDING_OUTGOING');
     expect(result.viewer.canSendMessageRequest).toBe(false);
     expect(result.viewer.canMessage).toBe(false);
+  });
+
+  it('selects and returns the profile owner\'s membership plan, never their email', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'profile-user',
+      username: 'artist',
+      avatarUrl: null,
+      bio: null,
+      createdAt: new Date('2026-01-01'),
+      plan: 'PRO',
+    });
+    prisma.pin.count.mockResolvedValue(0);
+    prisma.board.count.mockResolvedValue(0);
+    prisma.follow.count.mockResolvedValueOnce(0).mockResolvedValueOnce(0);
+    prisma.follow.findUnique.mockResolvedValue(null);
+    prisma.messageRequest.findFirst.mockResolvedValue(null);
+    prisma.conversation.findUnique.mockResolvedValue(null);
+
+    const result = await service.getUserProfile('artist', 'viewer');
+
+    expect(prisma.user.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ select: expect.objectContaining({ plan: true }) }),
+    );
+    expect(result.user.plan).toBe('PRO');
+    expect(result.user).not.toHaveProperty('email');
+  });
+
+  it('includes each match\'s membership plan in user search results', async () => {
+    prisma.user.findMany.mockResolvedValue([
+      { id: 'u1', username: 'artistone', avatarUrl: null, plan: 'PLUS' },
+      { id: 'u2', username: 'artisttwo', avatarUrl: null, plan: 'FREE' },
+    ]);
+
+    const result = await service.searchUsers('artist', '10');
+
+    expect(prisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ select: expect.objectContaining({ plan: true }) }),
+    );
+    expect(result.items.every((u) => !('email' in u))).toBe(true);
+    expect(result.items.map((u) => u.plan)).toEqual(['PLUS', 'FREE']);
   });
 
   it('uses the authenticated user id for the private favorites query', async () => {

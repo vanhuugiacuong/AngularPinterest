@@ -3,5 +3,16 @@ import { DatabaseModule } from '../database/database.module';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { MembershipsController } from './memberships.controller';
 import { MembershipsService } from './memberships.service';
-@Module({ imports: [DatabaseModule, SupabaseModule], controllers: [MembershipsController], providers: [MembershipsService], exports: [MembershipsService] })
+import { PaymentsController, PurchasesController } from './payments.controller';
+import { PaymentsWebhookController } from './payments-webhook.controller';
+import { PaymentsService } from './payments.service';
+import { PlansGuard } from './plans.guard';
+import { AdminGuard } from './admin.guard';
+
+@Module({
+  imports: [DatabaseModule, SupabaseModule],
+  controllers: [MembershipsController, PaymentsController, PurchasesController, PaymentsWebhookController],
+  providers: [MembershipsService, PaymentsService, PlansGuard, AdminGuard],
+  exports: [MembershipsService, PaymentsService],
+})
 export class MembershipsModule {}

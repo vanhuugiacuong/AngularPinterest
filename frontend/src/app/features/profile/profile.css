@@ -108,25 +108,12 @@ textarea:disabled {
   gap: 22px;
 }
 
-.avatar-ring {
-  display: grid;
-  width: 108px;
-  height: 108px;
+/* Sizing slot for the shared <app-user-avatar> profile hero avatar — the
+   membership frame ring itself lives entirely inside that component now
+   (see shared/user-avatar), this class only sets the flex-layout footprint
+   and its responsive overrides below. */
+.profile-avatar-slot {
   flex: 0 0 108px;
-  place-items: center;
-  padding: 3px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-secondary), var(--color-primary));
-  box-shadow: 0 8px 24px -10px color-mix(in srgb, var(--color-primary) 45%, transparent);
-}
-
-.profile-avatar {
-  width: 100%;
-  height: 100%;
-  border: 3px solid var(--color-surface);
-  border-radius: 50%;
-  background: var(--color-surface-elevated);
-  object-fit: cover;
 }
 
 .identity-copy {
@@ -200,6 +187,21 @@ textarea:disabled {
 
 .stat-readout + .stat-readout {
   border-left: 1px solid var(--color-border);
+}
+
+.stat-readout-button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--radius-control, 10px);
+  min-height: 44px;
+}
+.stat-readout-button:hover {
+  background: var(--color-surface-elevated);
+}
+.stat-readout-button:focus-visible {
+  outline: 2px solid var(--color-nova-blue);
+  outline-offset: -2px;
 }
 
 .stat-readout dt {
@@ -925,54 +927,16 @@ textarea:disabled {
   font-weight: 700;
 }
 
-/* ---------- Dialogs ---------- */
-
-.dialog-backdrop {
-  position: fixed;
-  z-index: 100;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: color-mix(in srgb, var(--color-ink) 72%, transparent);
-  backdrop-filter: blur(12px);
-  animation: backdrop-enter 180ms ease;
-}
-
-@keyframes backdrop-enter {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
+/* ---------- Dialogs ----------
+   Backdrop/panel chrome (blur, border, shadow, open animation) comes from
+   the shared .nf-dialog-backdrop / .nf-dialog-panel primitives in styles.css.
+   Only the form-specific layout deltas live here: wider panel, left-aligned
+   text instead of the centered confirm-dialog style, and the heading row
+   with an inline close button. */
 
 .profile-dialog {
   width: min(100%, 520px);
-  max-height: calc(100vh - 40px);
-  padding: 28px;
-  overflow-y: auto;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-lg);
-  /* Same neutral glass surface as the login modal / board-select dropdown
-     (.glass-elevated in styles.css) instead of a bespoke gradient panel. */
-  background-color: color-mix(in srgb, var(--color-surface-elevated) 75%, transparent);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 28px 80px color-mix(in srgb, var(--color-ink) 60%, transparent);
-  animation: dialog-enter 220ms var(--ease-spring);
-}
-
-@keyframes dialog-enter {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  text-align: left;
 }
 
 .dialog-heading {
@@ -983,8 +947,7 @@ textarea:disabled {
   margin-bottom: 24px;
 }
 
-.dialog-heading h2,
-.confirm-dialog h2 {
+.dialog-heading h2 {
   margin: 6px 0 0;
   font-size: 22px;
   font-weight: 700;
@@ -1124,38 +1087,6 @@ textarea:disabled {
   background: color-mix(in srgb, var(--color-error) 7%, transparent);
   font-size: 13px;
   line-height: 1.5;
-}
-
-.confirm-dialog {
-  width: min(100%, 430px);
-  text-align: center;
-}
-
-.confirm-dialog > p:not(.form-error) {
-  margin: 10px auto 0;
-  color: var(--color-text-muted);
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.confirm-dialog .dialog-actions {
-  justify-content: center;
-}
-
-.danger-icon {
-  display: grid;
-  width: 58px;
-  height: 58px;
-  place-items: center;
-  margin: 0 auto 14px;
-  border: 1px solid color-mix(in srgb, var(--color-error) 28%, transparent);
-  border-radius: 50%;
-  color: color-mix(in srgb, var(--color-error) 72%, white);
-  background: color-mix(in srgb, var(--color-error) 8%, transparent);
-}
-
-.danger-icon .material-symbols-outlined {
-  font-size: 27px;
 }
 
 /* ---------- Skeletons ---------- */
@@ -1303,9 +1234,7 @@ textarea:disabled {
     align-items: flex-start;
   }
 
-  .avatar-ring {
-    width: 80px;
-    height: 80px;
+  .profile-avatar-slot {
     flex-basis: 80px;
   }
 
@@ -1399,9 +1328,7 @@ textarea:disabled {
     gap: 14px;
   }
 
-  .avatar-ring {
-    width: 72px;
-    height: 72px;
+  .profile-avatar-slot {
     flex-basis: 72px;
   }
 
@@ -1417,8 +1344,6 @@ textarea:disabled {
 
 @media (prefers-reduced-motion: reduce) {
   .tab-panel,
-  .dialog-backdrop,
-  .profile-dialog,
   .button-spinner,
   .skeleton::after {
     animation: none;

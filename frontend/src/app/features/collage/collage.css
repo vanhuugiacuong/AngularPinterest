@@ -151,38 +151,6 @@
   letter-spacing: 0.04em;
   text-align: center;
 }
-.collage-toast {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  z-index: 220;
-  display: flex;
-  max-width: min(420px, calc(100vw - 32px));
-  align-items: center;
-  gap: 8px;
-  padding: 13px 16px;
-  border: 1px solid rgba(47, 230, 176, 0.35);
-  border-radius: var(--radius-control);
-  color: var(--color-success);
-  background: rgba(19, 19, 41, 0.96);
-  box-shadow: var(--shadow-card);
-  font-size: 12px;
-  font-weight: 750;
-  animation: toast-in 0.2s ease-out;
-}
-.collage-toast.error {
-  border-color: rgba(255, 59, 92, 0.35);
-  color: var(--color-error);
-}
-.collage-toast .material-symbols-outlined {
-  font-size: 19px;
-}
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-}
 @media (max-width: 1100px) {
   .workspace-grid {
     grid-template-columns: minmax(190px, 230px) minmax(0, 1fr);

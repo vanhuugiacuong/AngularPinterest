@@ -103,6 +103,26 @@ describe('MessageRequestsService', () => {
       );
     });
 
+    it("selects and returns the receiver's membership plan", async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'user-2' });
+      prisma.follow.findUnique.mockResolvedValue(null);
+      prisma.messageRequest.findFirst.mockResolvedValue(null);
+      prisma.messageRequest.create.mockResolvedValue({
+        id: 'req-1',
+        status: 'PENDING',
+        receiver: { id: 'user-2', username: 'friend', avatarUrl: null, plan: 'PLUS' },
+      });
+
+      const result = await service.sendRequest('user-1', 'user-2');
+
+      expect(prisma.messageRequest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: { receiver: { select: expect.objectContaining({ plan: true }) } },
+        }),
+      );
+      expect((result as { receiver: { plan: string } }).receiver.plan).toBe('PLUS');
+    });
+
     it('turns a unique-constraint race into a friendly conflict error', async () => {
       prisma.user.findUnique.mockResolvedValue({ id: 'user-2' });
       prisma.follow.findUnique.mockResolvedValue(null);
@@ -117,6 +137,40 @@ describe('MessageRequestsService', () => {
       await expect(service.sendRequest('user-1', 'user-2')).rejects.toBeInstanceOf(
         ConflictException,
       );
+    });
+  });
+
+  describe('listIncoming / listOutgoing', () => {
+    it("selects and returns the sender's membership plan for incoming requests", async () => {
+      prisma.messageRequest.findMany.mockResolvedValue([
+        { id: 'req-1', sender: { id: 'user-2', username: 'friend', avatarUrl: null, plan: 'PRO' } },
+      ]);
+
+      const result = await service.listIncoming('user-1');
+
+      expect(prisma.messageRequest.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { receiverId: 'user-1', status: 'PENDING' },
+          include: { sender: { select: expect.objectContaining({ plan: true }) } },
+        }),
+      );
+      expect(result[0].sender.plan).toBe('PRO');
+    });
+
+    it("selects and returns the receiver's membership plan for outgoing requests", async () => {
+      prisma.messageRequest.findMany.mockResolvedValue([
+        { id: 'req-1', receiver: { id: 'user-2', username: 'friend', avatarUrl: null, plan: 'FREE' } },
+      ]);
+
+      const result = await service.listOutgoing('user-1');
+
+      expect(prisma.messageRequest.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { senderId: 'user-1', status: 'PENDING' },
+          include: { receiver: { select: expect.objectContaining({ plan: true }) } },
+        }),
+      );
+      expect(result[0].receiver.plan).toBe('FREE');
     });
   });
 

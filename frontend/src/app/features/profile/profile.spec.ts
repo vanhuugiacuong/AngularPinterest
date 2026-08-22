@@ -17,6 +17,7 @@ function baseViewer(overrides: Partial<ProfileViewerState> = {}): ProfileViewerS
     isFollowedBy: false,
     isMutualFollow: false,
     canViewFavorites: false,
+    canViewPrivateBoards: false,
     messageRequestStatus: 'NONE',
     conversationId: null,
     isBlocked: false,
@@ -35,6 +36,7 @@ describe('Profile', () => {
       avatarUrl: null,
       bio: null,
       createdAt: '2026-01-01T00:00:00.000Z',
+      plan: 'FREE',
     },
     counts: {
       posts: 1,
@@ -42,11 +44,14 @@ describe('Profile', () => {
       followers: 2,
       following: 3,
       favorites: null,
+      privateBoards: null,
     },
     viewer: baseViewer(),
   };
 
-  function setup(overrides: { userService?: object; messagingService?: object; safetyService?: object } = {}) {
+  function setup(
+    overrides: { userService?: object; messagingService?: object; safetyService?: object; tab?: string } = {},
+  ) {
     const userService = {
       getUserProfile: vi.fn().mockResolvedValue(summary),
       getUserPosts: vi.fn().mockResolvedValue({
@@ -58,6 +63,7 @@ describe('Profile', () => {
       }),
       getUserAlbums: vi.fn(),
       getFavorites: vi.fn(),
+      getPrivateBoards: vi.fn(),
       ...overrides.userService,
     };
     const messagingService = {
@@ -80,7 +86,7 @@ describe('Profile', () => {
           provide: ActivatedRoute,
           useValue: {
             paramMap: of(convertToParamMap({ username: 'artist' })),
-            queryParamMap: of(convertToParamMap({ tab: 'favorites' })),
+            queryParamMap: of(convertToParamMap({ tab: overrides.tab ?? 'favorites' })),
           },
         },
         { provide: Router, useValue: router },
@@ -108,6 +114,45 @@ describe('Profile', () => {
     expect(fixture.componentInstance.activeTab()).toBe('posts');
     expect(userService.getFavorites).not.toHaveBeenCalled();
     expect(router.navigate).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({ queryParams: { tab: 'posts' } }),
+    );
+
+    fixture.destroy();
+  });
+
+  it('redirects ?tab=private to posts and never requests private boards when the viewer is not the owner', async () => {
+    const { fixture, userService, router } = setup({ tab: 'private' });
+    fixture.detectChanges();
+
+    await vi.waitFor(() => expect(userService.getUserPosts).toHaveBeenCalled());
+    expect(fixture.componentInstance.activeTab()).toBe('posts');
+    expect(userService.getPrivateBoards).not.toHaveBeenCalled();
+    expect(router.navigate).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({ queryParams: { tab: 'posts' } }),
+    );
+
+    fixture.destroy();
+  });
+
+  it('loads the private-boards tab for the profile owner when ?tab=private is requested', async () => {
+    const ownProfileSummary = {
+      ...summary,
+      viewer: baseViewer({ isOwnProfile: true, canViewFavorites: true, canViewPrivateBoards: true }),
+    };
+    const { fixture, userService, router } = setup({
+      tab: 'private',
+      userService: {
+        getUserProfile: vi.fn().mockResolvedValue(ownProfileSummary),
+        getPrivateBoards: vi.fn().mockResolvedValue({ items: [], page: 1, limit: 20, total: 0, hasMore: false }),
+      },
+    });
+    fixture.detectChanges();
+
+    await vi.waitFor(() => expect(userService.getPrivateBoards).toHaveBeenCalled());
+    expect(fixture.componentInstance.activeTab()).toBe('private');
+    expect(router.navigate).not.toHaveBeenCalledWith(
       [],
       expect.objectContaining({ queryParams: { tab: 'posts' } }),
     );

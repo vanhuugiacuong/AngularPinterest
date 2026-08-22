@@ -36,6 +36,17 @@ export class UsersController {
     return this.usersService.getFavorites(user.id, page, limit);
   }
 
+  // Phải đăng ký trước route ':username' bên dưới, giống 'me/favorites'.
+  @Get('me/private-boards')
+  @UseGuards(SupabaseAuthGuard)
+  async getPrivateBoards(
+    @CurrentUser() user: UserPayload,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.usersService.getPrivateBoards(user.id, page, limit);
+  }
+
   @Get(':username/posts')
   @UseGuards(OptionalSupabaseAuthGuard)
   async getUserPosts(
@@ -76,6 +87,28 @@ export class UsersController {
     @Param('username') username: string,
   ) {
     return this.usersService.getUserProfile(username, viewer?.id);
+  }
+
+  @Get(':username/followers')
+  @UseGuards(OptionalSupabaseAuthGuard)
+  async getFollowers(
+    @CurrentUser() viewer: UserPayload | undefined,
+    @Param('username') username: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.usersService.getFollowers(username, viewer?.id, page, limit);
+  }
+
+  @Get(':username/following')
+  @UseGuards(OptionalSupabaseAuthGuard)
+  async getFollowing(
+    @CurrentUser() viewer: UserPayload | undefined,
+    @Param('username') username: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.usersService.getFollowing(username, viewer?.id, page, limit);
   }
 
   @Post(':id/follow')

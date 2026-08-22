@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import {
   Component,
   ElementRef,
+  HostListener,
   OnDestroy,
   OnInit,
   ViewChild,
@@ -22,6 +23,7 @@ import {
   MessagingService,
   ReportReason,
 } from '../../core/services/messaging';
+import { toUserMessage } from '../../core/utils/http-error';
 
 type Section = 'chats' | 'requests';
 type RequestsTab = 'incoming' | 'outgoing';
@@ -76,12 +78,25 @@ export class Messages implements OnInit, OnDestroy {
   readonly reportPending = signal(false);
   readonly reportError = signal<string | null>(null);
   reportDetails = '';
+  private reportReturnFocus: HTMLElement | null = null;
+  private reportBodyOverflow?: string;
 
   private routeSubscription?: Subscription;
   private realtimeChannel?: RealtimeChannel;
   private typingTimer?: ReturnType<typeof setTimeout>;
   private messagesRequestVersion = 0;
   private messagesPage = 1;
+
+  /** Light polling + focus/visibility refresh so a sender's pending request
+   * and conversation list pick up the receiver's accept without a re-login.
+   * The backend/database is the source of truth — this only re-fetches it. */
+  private requestsPollTimer?: ReturnType<typeof setInterval>;
+  private isRefreshingLive = false;
+  private readonly REQUESTS_POLL_INTERVAL_MS = 15000;
+  private onWindowFocus = () => void this.refreshLiveState();
+  private onVisibilityChange = () => {
+    if (document.visibilityState === 'visible') void this.refreshLiveState();
+  };
 
   get currentUserId(): string | undefined {
     return this.supabaseService.dbUser()?.id || this.supabaseService.user()?.id;
@@ -106,6 +121,14 @@ export class Messages implements OnInit, OnDestroy {
 
     await Promise.all([this.loadConversations(), this.loadRequests()]);
 
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', this.onWindowFocus);
+      document.addEventListener('visibilitychange', this.onVisibilityChange);
+      this.requestsPollTimer = setInterval(
+        () => void this.refreshLiveState(),
+        this.REQUESTS_POLL_INTERVAL_MS,
+      );
+    }
   }
 
   ngOnDestroy() {
@@ -113,10 +136,30 @@ export class Messages implements OnInit, OnDestroy {
     void this.disconnectRealtime();
     if (this.typingTimer) clearTimeout(this.typingTimer);
     this.messagesRequestVersion += 1;
+
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('focus', this.onWindowFocus);
+      document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    }
+    if (this.requestsPollTimer) clearInterval(this.requestsPollTimer);
   }
 
   setSection(section: Section) {
     this.activeSection.set(section);
+    void this.refreshLiveState();
+  }
+
+  /** Re-fetches requests + conversations from the backend in the background.
+   * Safe to call frequently — de-duped via isRefreshingLive so overlapping
+   * triggers (poll tick + focus + tab switch) never stack up calls. */
+  private async refreshLiveState() {
+    if (this.isRefreshingLive) return;
+    this.isRefreshingLive = true;
+    try {
+      await Promise.all([this.loadRequests(true), this.loadConversations(true)]);
+    } finally {
+      this.isRefreshingLive = false;
+    }
   }
 
   setRequestsTab(tab: RequestsTab) {
@@ -159,21 +202,28 @@ export class Messages implements OnInit, OnDestroy {
     }
   }
 
-  async loadRequests() {
-    this.requestsLoading.set(true);
-    this.requestsError.set(null);
+  async loadRequests(silent = false) {
+    if (!silent) {
+      this.requestsLoading.set(true);
+      this.requestsError.set(null);
+    }
     try {
       const token = await this.requireToken();
       const [incoming, outgoing] = await Promise.all([
         this.messagingService.listIncomingRequests(token),
         this.messagingService.listOutgoingRequests(token),
       ]);
-      this.incomingRequests.set(incoming);
-      this.outgoingRequests.set(outgoing);
+      // The request inbox is an action queue, not a status history. Keep this
+      // client-side guard as well as the backend filter so a stale deployment
+      // or an in-flight refresh can never reinsert an already handled item.
+      this.incomingRequests.set(incoming.filter((request) => request.status === 'PENDING'));
+      this.outgoingRequests.set(outgoing.filter((request) => request.status === 'PENDING'));
     } catch (error) {
-      this.requestsError.set(this.errorMessage(error, 'Không thể tải danh sách yêu cầu.'));
+      if (!silent) {
+        this.requestsError.set(this.errorMessage(error, 'Không thể tải danh sách yêu cầu.'));
+      }
     } finally {
-      this.requestsLoading.set(false);
+      if (!silent) this.requestsLoading.set(false);
     }
   }
 
@@ -302,16 +352,54 @@ export class Messages implements OnInit, OnDestroy {
   }
 
   openReportDialog(request: MessageRequestRecord) {
+    this.reportReturnFocus = document.activeElement as HTMLElement;
+    this.reportBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     this.reportTarget.set(request);
     this.reportReason.set('SPAM');
     this.reportDetails = '';
     this.reportError.set(null);
+    setTimeout(() => document.querySelector<HTMLElement>('[data-messages-dialog="active"]')?.focus());
   }
 
   closeReportDialog() {
     if (this.reportPending()) return;
     this.reportTarget.set(null);
     this.reportError.set(null);
+    document.body.style.overflow = this.reportBodyOverflow ?? '';
+    this.reportReturnFocus?.focus();
+    this.reportReturnFocus = null;
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onReportDialogKeydown(event: KeyboardEvent) {
+    if (!this.reportTarget()) return;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.closeReportDialog();
+      return;
+    }
+
+    if (event.key === 'Tab') {
+      const dialog = document.querySelector<HTMLElement>('[data-messages-dialog="active"]');
+      if (!dialog) return;
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
   }
 
   async submitReport() {
@@ -329,6 +417,9 @@ export class Messages implements OnInit, OnDestroy {
       );
       this.incomingRequests.update((current) => current.filter((r) => r.id !== request.id));
       this.reportTarget.set(null);
+      document.body.style.overflow = this.reportBodyOverflow ?? '';
+      this.reportReturnFocus?.focus();
+      this.reportReturnFocus = null;
     } catch (error) {
       this.reportError.set(this.errorMessage(error, 'Không thể gửi báo cáo.'));
     } finally {
@@ -469,6 +560,6 @@ export class Messages implements OnInit, OnDestroy {
   }
 
   private errorMessage(error: unknown, fallback: string): string {
-    return error instanceof Error && error.message ? error.message : fallback;
+    return toUserMessage(error, fallback);
   }
 }

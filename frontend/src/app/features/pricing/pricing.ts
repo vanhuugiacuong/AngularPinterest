@@ -1,27 +1,72 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, HostListener, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Navbar } from '../../components/navbar/navbar';
-import { MembershipPlan, MembershipService } from '../../core/services/membership';
+import { MembershipPlan, MembershipPayment, MembershipService } from '../../core/services/membership';
+import { DialogService } from '../../core/services/dialog';
 type PaidPlan = 'PLUS' | 'PRO'; type PaymentMethod = 'bank' | 'momo' | 'card';
 @Component({ selector: 'app-pricing', standalone: true, imports: [CommonModule, FormsModule, Navbar], templateUrl: './pricing.html', styleUrls: ['./pricing.css', './payment-feedback.css', './qr-fix.css'] })
 export class Pricing implements OnInit {
-  membership = inject(MembershipService); selectedPlan = signal<PaidPlan | null>(null); method = signal<PaymentMethod>('bank'); processing = signal(false); message = signal('');
-  fieldErrors = signal<Record<string, string>>({}); successDialog = signal(false); paidPlan = signal<PaidPlan | null>(null);
+  membership = inject(MembershipService); private dialogService = inject(DialogService); selectedPlan = signal<PaidPlan | null>(null); method = signal<PaymentMethod>('bank'); processing = signal(false); message = signal('');
+  fieldErrors = signal<Record<string, string>>({});
   membershipLoading = signal(true);
+  currentPayment = signal<MembershipPayment | null>(null); paymentLoading = signal(false);
   cardNumber = ''; cardName = ''; expiry = ''; cvv = '';
+  private checkoutReturnFocus: HTMLElement | null = null;
   readonly plans = [
     { id: 'FREE' as const, name: 'Free', price: 0, kicker: 'Khởi đầu', description: 'Dành cho những ý tưởng đầu tiên.', features: ['3 lượt tạo AI mỗi ngày', 'Đăng, lưu và khám phá tác phẩm', 'Tải ảnh tiêu chuẩn'] },
     { id: 'PLUS' as const, name: 'Plus', price: 99000, kicker: 'Được yêu thích', description: 'Không gian rộng hơn cho người sáng tạo.', features: ['10 lượt tạo AI mỗi ngày', 'Tải ảnh nguyên bản, không watermark', 'Không chèn tên hoặc ID tác giả'] },
     { id: 'PRO' as const, name: 'Pro', price: 199000, kicker: 'Studio chuyên nghiệp', description: 'Biến tác phẩm thành một cửa hàng.', features: ['20 lượt tạo AI mỗi ngày', 'Toàn bộ quyền lợi Plus', 'Đặt giá và bán ảnh của bạn', 'Theo dõi giao dịch mua tác phẩm'] }
   ];
   async ngOnInit() { try { await this.membership.load(); } finally { this.membershipLoading.set(false); } }
-  openCheckout(plan: PaidPlan) { this.selectedPlan.set(plan); this.method.set('bank'); this.message.set(''); this.fieldErrors.set({}); document.body.style.overflow = 'hidden'; }
-  closeCheckout() { if (this.processing()) return; this.selectedPlan.set(null); document.body.style.overflow = ''; }
+  async openCheckout(plan: PaidPlan) {
+    this.checkoutReturnFocus = document.activeElement as HTMLElement;
+    this.selectedPlan.set(plan); this.method.set('bank'); this.message.set(''); this.fieldErrors.set({}); this.currentPayment.set(null);
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => document.querySelector<HTMLElement>('[data-pricing-dialog="active"]')?.focus());
+    await this.ensurePayment(plan);
+  }
+  closeCheckout() {
+    if (this.processing()) return;
+    this.selectedPlan.set(null); this.currentPayment.set(null); document.body.style.overflow = '';
+    this.checkoutReturnFocus?.focus();
+    this.checkoutReturnFocus = null;
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onDocumentKeydown(event: KeyboardEvent) {
+    if (!this.selectedPlan()) return;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.closeCheckout();
+      return;
+    }
+
+    if (event.key === 'Tab') {
+      const dialog = document.querySelector<HTMLElement>('[data-pricing-dialog="active"]');
+      if (!dialog) return;
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+  }
   priceOf(plan: PaidPlan | null) { return plan === 'PRO' ? 199000 : 99000; }
   chooseFree() { void this.activate('FREE'); }
   ownsPlan(plan: PaidPlan) { return this.membership.status()?.ownedPlans?.includes(plan) === true; }
-  choosePaid(plan: PaidPlan) { if (this.ownsPlan(plan)) void this.activate(plan); else this.openCheckout(plan); }
+  choosePaid(plan: PaidPlan) { if (this.ownsPlan(plan)) void this.activate(plan); else void this.openCheckout(plan); }
   paidButtonText(plan: PaidPlan, name: string) { if (this.membershipLoading()) return 'Đang kiểm tra gói…'; if (this.membership.status()?.plan === plan) return 'Gói hiện tại'; return this.ownsPlan(plan) ? `Dùng lại ${name}` : `Chọn ${name}`; }
   selectMethod(method: PaymentMethod) { this.method.set(method); this.message.set(''); }
   clearError(field: string) { const next = { ...this.fieldErrors() }; delete next[field]; this.fieldErrors.set(next); this.message.set(''); }
@@ -30,7 +75,28 @@ export class Pricing implements OnInit {
   formatExpiry() { this.clearError('expiry'); const digits = this.expiry.replace(/\D/g, '').slice(0, 4); this.expiry = digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits; }
   formatCvv() { this.clearError('cvv'); this.cvv = this.cvv.replace(/\D/g, '').slice(0, 4); }
   validateField(field: string) { const errors = this.collectCardErrors(); const next = { ...this.fieldErrors() }; if (errors[field]) next[field] = errors[field]; else delete next[field]; this.fieldErrors.set(next); }
-  bankQr(plan: PaidPlan) { const amount = this.priceOf(plan); return `https://img.vietqr.io/image/MB-0777920079-compact2.png?amount=${amount}&addInfo=NOVAFRAME%20${plan}&accountName=HUA%20DUY%20KHAI`; }
+  // Mã tham chiếu do backend sinh - QR luôn khớp đúng giao dịch PENDING thật,
+  // không còn dùng "NOVAFRAME {plan}" tĩnh (dễ gây lệch nội dung chuyển khoản).
+  bankQr() {
+    const payment = this.currentPayment(); if (!payment) return '';
+    return `https://img.vietqr.io/image/MB-110605043105-compact2.png?amount=${Number(payment.amount)}&addInfo=${encodeURIComponent(payment.paymentReference)}&accountName=NGUYEN%20DOAN%20PHUC`;
+  }
+  private async ensurePayment(plan: PaidPlan) {
+    const existing = this.currentPayment();
+    if (existing && existing.plan === plan && existing.status === 'PENDING') return;
+    this.paymentLoading.set(true); this.message.set('');
+    try { this.currentPayment.set(await this.membership.createPayment(plan)); }
+    catch (e) { this.message.set(e instanceof Error ? e.message : 'Không thể tạo giao dịch.'); }
+    finally { this.paymentLoading.set(false); }
+  }
+  private async pollPayment(id: string, attempts = 8, delayMs = 2000): Promise<MembershipPayment> {
+    for (let i = 0; i < attempts; i++) {
+      const payment = await this.membership.getPayment(id);
+      if (payment.status !== 'PENDING') return payment;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+    return this.membership.getPayment(id);
+  }
   private luhnValid(value: string) { let sum = 0; let double = false; for (let i = value.length - 1; i >= 0; i--) { let digit = Number(value[i]); if (double) { digit *= 2; if (digit > 9) digit -= 9; } sum += digit; double = !double; } return sum % 10 === 0; }
   private collectCardErrors() {
     const errors: Record<string, string> = {}; const digits = this.cardNumber.replace(/\s/g, ''); const name = this.cardName.trim();
@@ -46,17 +112,41 @@ export class Pricing implements OnInit {
   private validateCard() { const errors = this.collectCardErrors(); this.fieldErrors.set(errors); return Object.keys(errors).length === 0; }
   async confirmPayment() {
     const plan = this.selectedPlan(); if (!plan) return;
-    if (this.method() === 'card' && !this.validateCard()) { this.message.set('Vui lòng kiểm tra các trường được đánh dấu đỏ.'); return; }
+    if (this.method() !== 'bank') {
+      if (this.method() === 'card' && !this.validateCard()) { this.message.set('Vui lòng kiểm tra các trường được đánh dấu đỏ.'); return; }
+      this.message.set('Phương thức này chưa kết nối cổng thanh toán thật. Vui lòng dùng chuyển khoản ngân hàng.');
+      return;
+    }
+    const payment = this.currentPayment();
+    if (!payment) { this.message.set('Không tìm thấy giao dịch, vui lòng đóng và mở lại.'); return; }
     this.processing.set(true); this.message.set('Đang kiểm tra trạng thái giao dịch…');
     try {
-      await new Promise(r => setTimeout(r, 900));
-      // Client không được tự nâng gói. Chỉ webhook thanh toán đã được
-      // nhà cung cấp xác thực mới được phép kích hoạt quyền lợi.
-      this.paidPlan.set(plan); this.selectedPlan.set(null); this.successDialog.set(true);
+      const result = await this.pollPayment(payment.id);
+      this.currentPayment.set(result);
+      const paid = result.status === 'PAID';
+      if (paid) await this.membership.load();
+      this.selectedPlan.set(null);
+      document.body.style.overflow = '';
+      const planName = plan === 'PRO' ? 'Pro' : 'Plus';
+      if (paid) {
+        await this.dialogService.confirm({
+          variant: 'information',
+          title: `Đã kích hoạt gói ${planName}`,
+          description: 'Hệ thống đã xác nhận giao dịch và nâng gói của bạn ngay lập tức.',
+          confirmLabel: 'Tuyệt vời',
+        });
+      } else {
+        await this.dialogService.confirm({
+          variant: 'warning',
+          title: 'Bạn chưa thanh toán',
+          description: `Hệ thống chưa nhận được xác nhận tiền cho gói ${planName}. Gói của bạn chưa thay đổi. Ngân hàng có thể mất vài phút để báo giao dịch — vui lòng vào lại trang này sau ít phút để kiểm tra lại.`,
+          confirmLabel: 'Đã hiểu',
+        });
+      }
+      this.currentPayment.set(null);
     }
     catch (e) { this.message.set(e instanceof Error ? e.message : 'Không thể kiểm tra giao dịch.'); }
     finally { this.processing.set(false); this.cardNumber = ''; this.cvv = ''; }
   }
-  closeSuccess() { this.successDialog.set(false); this.paidPlan.set(null); document.body.style.overflow = ''; }
   private async activate(plan: MembershipPlan) { this.processing.set(true); try { await this.membership.subscribe(plan); this.message.set(`Đã chuyển sang gói ${plan}.`); } finally { this.processing.set(false); } }
 }

@@ -33,6 +33,10 @@ function colorSchemeOf(el: HTMLElement): string {
 
 describe('ThemeService', () => {
   let store: Record<string, string>;
+  // window.matchMedia is reassigned (not spied) below, so vi.restoreAllMocks()
+  // cannot undo it — without this, the mock leaks into every spec file that
+  // runs afterward in the same Vitest worker.
+  const originalMatchMedia = window.matchMedia;
 
   beforeEach(() => {
     store = {};
@@ -47,6 +51,7 @@ describe('ThemeService', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
+    window.matchMedia = originalMatchMedia;
   });
 
   it('defaults preference to system when nothing was previously saved', () => {

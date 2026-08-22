@@ -83,4 +83,6 @@ export const PUBLIC_USER_SELECT = {
   id: true,
   username: true,
   avatarUrl: true,
+  bio: true,
+  plan: true,
 } as const;

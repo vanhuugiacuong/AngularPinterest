@@ -32,16 +32,13 @@
     } @else if (profile(); as p) {
       <section class="identity-card" aria-labelledby="profile-username">
         <div class="identity-person">
-          <div class="avatar-ring">
-            <img
-              [src]="
-                p.user.avatarUrl ||
-                'https://api.dicebear.com/7.x/bottts/svg?seed=' + p.user.username
-              "
-              [alt]="'Ảnh đại diện của ' + p.user.username"
-              class="profile-avatar"
-            />
-          </div>
+          <app-user-avatar
+            [src]="p.user.avatarUrl"
+            [name]="p.user.username"
+            [size]="profileAvatarSize()"
+            [plan]="p.user.plan"
+            class="profile-avatar-slot"
+          ></app-user-avatar>
 
           <div class="identity-copy">
             <div class="identity-kicker">
@@ -68,14 +65,14 @@
             <dd>{{ p.counts.albums }}</dd>
             <dt>Bộ sưu tập</dt>
           </div>
-          <div class="stat-readout">
+          <button type="button" class="stat-readout stat-readout-button" (click)="openFollowersDialog()">
             <dd>{{ p.counts.followers }}</dd>
             <dt>Người theo dõi</dt>
-          </div>
-          <div class="stat-readout">
+          </button>
+          <button type="button" class="stat-readout stat-readout-button" (click)="openFollowingDialog()">
             <dd>{{ p.counts.following }}</dd>
             <dt>Đang theo dõi</dt>
-          </div>
+          </button>
         </dl>
 
         <div class="identity-actions">
@@ -165,6 +162,57 @@
         </div>
       </section>
 
+      @if (p.viewer.isOwnProfile && (marketplaceSales().length > 0 || marketplacePurchases().length > 0 || marketplaceLoading())) {
+        <section class="bg-surface border border-border rounded-panel p-5 sm:p-6 mb-6" aria-labelledby="nf-marketplace-heading">
+          <h2 id="nf-marketplace-heading" class="text-lg font-bold text-text font-display">Marketplace của bạn</h2>
+          <p class="text-sm text-text-muted mt-1 mb-4">Doanh thu và lịch sử giao dịch ảnh của bạn.</p>
+
+          @if (marketplaceLoading()) {
+            <p class="text-xs text-text-muted">Đang tải...</p>
+          }
+          @if (marketplaceError()) {
+            <p class="text-xs text-error">{{ marketplaceError() }}</p>
+          }
+
+          @if (!marketplaceLoading()) {
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <span class="text-xs font-bold text-text-muted uppercase tracking-wide">Doanh thu ({{ marketplaceSales().length }} giao dịch)</span>
+                <p class="text-2xl font-extrabold text-text font-display mt-1">{{ marketplaceRevenue() | number }}đ</p>
+                <ul class="flex flex-col gap-2 mt-3">
+                  @for (sale of marketplaceSales(); track sale.id) {
+                    <li class="flex items-center justify-between gap-2 text-xs">
+                      <span class="text-text truncate">{{ sale.pin.title }}</span>
+                      <span class="text-text-muted shrink-0">{{ sale.amount | number }}đ · {{ sale.buyer?.username }}</span>
+                    </li>
+                  }
+                  @if (marketplaceSales().length === 0) {
+                    <li class="text-xs text-text-muted">Chưa có ảnh nào được bán.</li>
+                  }
+                </ul>
+              </div>
+              <div>
+                <span class="text-xs font-bold text-text-muted uppercase tracking-wide">Lịch sử mua ({{ marketplacePurchases().length }})</span>
+                <ul class="flex flex-col gap-2 mt-3">
+                  @for (purchase of marketplacePurchases(); track purchase.id) {
+                    <li class="flex items-center justify-between gap-2 text-xs">
+                      <span class="text-text truncate">{{ purchase.pin.title }}</span>
+                      <span class="text-text-muted shrink-0">
+                        {{ purchase.amount | number }}đ ·
+                        {{ purchase.status === 'PAID' ? 'Đã thanh toán' : purchase.status === 'PENDING' ? 'Chờ xác nhận' : 'Thất bại' }}
+                      </span>
+                    </li>
+                  }
+                  @if (marketplacePurchases().length === 0) {
+                    <li class="text-xs text-text-muted">Bạn chưa mua ảnh nào.</li>
+                  }
+                </ul>
+              </div>
+            </div>
+          }
+        </section>
+      }
+
       <section class="profile-content" aria-label="Nội dung hồ sơ">
         <div
           class="profile-tabs"
@@ -214,6 +262,22 @@
               <span class="material-symbols-outlined">favorite</span>
               <span>Đã thích</span>
               <span class="tab-count">{{ p.counts.favorites || 0 }}</span>
+            </button>
+          }
+          @if (p.viewer.canViewPrivateBoards) {
+            <button
+              id="profile-tab-private"
+              type="button"
+              role="tab"
+              [attr.aria-selected]="activeTab() === 'private'"
+              aria-controls="profile-panel-private"
+              [attr.tabindex]="activeTab() === 'private' ? 0 : -1"
+              [class.active]="activeTab() === 'private'"
+              (click)="setTab('private')"
+            >
+              <span class="material-symbols-outlined">lock</span>
+              <span>Chỉ mình bạn</span>
+              <span class="tab-count">{{ p.counts.privateBoards || 0 }}</span>
             </button>
           }
         </div>
@@ -461,6 +525,101 @@
           </div>
         }
 
+        @if (activeTab() === 'private') {
+          <div
+            id="profile-panel-private"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="profile-tab-private"
+            tabindex="0"
+          >
+            <div class="panel-heading">
+              <div>
+                <span class="panel-kicker">Chỉ mình bạn thấy</span>
+                <h2>Bộ sưu tập riêng tư</h2>
+              </div>
+              <button type="button" class="primary-action" (click)="openCreateAlbumModal(true)">
+                <span class="material-symbols-outlined">add</span>
+                Tạo bộ sưu tập riêng tư
+              </button>
+            </div>
+
+            @if (privateState().loading) {
+              <div class="album-grid" aria-hidden="true">
+                @for (item of [1, 2, 3, 4]; track item; let i = $index) {
+                  <div class="skeleton album-skeleton" [class.rounded-frame]="i % 2 === 0" [class.rounded-frame-alt]="i % 2 !== 0"></div>
+                }
+              </div>
+            } @else if (privateState().error && privateState().items.length === 0) {
+              <ng-container
+                *ngTemplateOutlet="tabError; context: { $implicit: privateState().error }"
+              ></ng-container>
+            } @else if (privateState().loaded && privateState().items.length === 0) {
+              <div class="profile-state">
+                <span class="material-symbols-outlined state-icon">lock</span>
+                <h3>Bạn chưa có bộ sưu tập riêng tư nào.</h3>
+                <p>Lưu những ý tưởng chỉ dành cho bạn.</p>
+                <button type="button" class="primary-action" (click)="openCreateAlbumModal(true)">
+                  Tạo bộ sưu tập riêng tư
+                </button>
+              </div>
+            } @else {
+              <div class="album-grid">
+                @for (album of privateState().items; track album.id; let i = $index) {
+                  <article class="album-card">
+                    <button
+                      type="button"
+                      class="album-collage"
+                      [class.rounded-frame]="i % 2 === 0"
+                      [class.rounded-frame-alt]="i % 2 !== 0"
+                      (click)="navigateToAlbum(album.id)"
+                      [attr.aria-label]="'Mở bộ sưu tập riêng tư ' + album.name"
+                    >
+                      <div class="collage-cell collage-main">
+                        @if (album.thumbnails[0]) {
+                          <img [src]="album.thumbnails[0].imageUrl" [alt]="album.thumbnails[0].title" loading="lazy" />
+                        } @else {
+                          <span class="material-symbols-outlined empty-collage-icon">image</span>
+                        }
+                      </div>
+                      <div class="collage-cell collage-secondary">
+                        @if (album.thumbnails[1]) {
+                          <img [src]="album.thumbnails[1].imageUrl" [alt]="album.thumbnails[1].title" loading="lazy" />
+                        } @else {
+                          <span class="collage-coordinate">2</span>
+                        }
+                      </div>
+                      <div class="collage-cell collage-tertiary">
+                        @if (album.thumbnails[2]) {
+                          <img [src]="album.thumbnails[2].imageUrl" [alt]="album.thumbnails[2].title" loading="lazy" />
+                        } @else {
+                          <span class="collage-coordinate">3</span>
+                        }
+                      </div>
+                      <span class="secret-badge">
+                        <span class="material-symbols-outlined">lock</span>
+                        Chỉ mình bạn
+                      </span>
+                    </button>
+                    <div class="album-meta">
+                      <div>
+                        <h3>{{ album.name }}</h3>
+                        @if (album.description) {
+                          <p>{{ album.description }}</p>
+                        }
+                      </div>
+                      <div class="album-readout">
+                        <span>{{ album.pinCount }} tác phẩm</span>
+                        <span>{{ formatDate(album.createdAt) }}</span>
+                      </div>
+                    </div>
+                  </article>
+                }
+              </div>
+            }
+          </div>
+        }
+
         @if (activeTab() === 'favorites') {
           <div
             id="profile-panel-favorites"
@@ -572,9 +731,9 @@
   </div>
 
   @if (showCreateAlbumModal()) {
-    <div class="dialog-backdrop" (click)="closeCreateAlbumModal()">
+    <div class="nf-dialog-backdrop" (click)="closeCreateAlbumModal()">
       <section
-        class="profile-dialog"
+        class="nf-dialog-panel profile-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="create-album-title"
@@ -665,57 +824,12 @@
     </div>
   }
 
-  @if (deleteTarget(); as pin) {
-    <div class="dialog-backdrop" (click)="closeDeleteDialog()">
-      <section
-        class="profile-dialog confirm-dialog"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="delete-pin-title"
-        aria-describedby="delete-pin-description"
-        data-profile-dialog="active"
-        (click)="$event.stopPropagation()"
-      >
-        <div class="danger-icon" aria-hidden="true">
-          <span class="material-symbols-outlined">delete_forever</span>
-        </div>
-        <h2 id="delete-pin-title">Xóa “{{ pin.title }}”?</h2>
-        <p id="delete-pin-description">Tác phẩm sẽ bị xóa khỏi NovaFrame và không thể khôi phục.</p>
-        @if (deleteError()) {
-          <p class="form-error" role="alert">{{ deleteError() }}</p>
-        }
-        <div class="dialog-actions">
-          <button
-            type="button"
-            class="secondary-action"
-            (click)="closeDeleteDialog()"
-            [disabled]="deletePending()"
-          >
-            Giữ lại
-          </button>
-          <button
-            id="confirm-delete-pin"
-            type="button"
-            class="danger-action"
-            (click)="confirmDeletePin()"
-            [disabled]="deletePending()"
-          >
-            @if (deletePending()) {
-              <span class="button-spinner" aria-hidden="true"></span>
-              Đang xóa
-            } @else {
-              Xóa bài
-            }
-          </button>
-        </div>
-      </section>
-    </div>
-  }
+  <!-- Xóa tác phẩm giờ dùng DialogService dùng chung (xem openDeleteDialog). -->
 
   @if (showReportDialog()) {
-    <div class="dialog-backdrop" (click)="closeReportDialog()">
+    <div class="nf-dialog-backdrop" (click)="closeReportDialog()">
       <section
-        class="profile-dialog"
+        class="nf-dialog-panel profile-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="report-dialog-title"
@@ -792,66 +906,7 @@
     </div>
   }
 
-  @if (showBlockDialog()) {
-    <div class="dialog-backdrop" (click)="closeBlockDialog()">
-      <section
-        class="profile-dialog confirm-dialog"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="block-dialog-title"
-        aria-describedby="block-dialog-description"
-        data-profile-dialog="active"
-        (click)="$event.stopPropagation()"
-      >
-        <div class="danger-icon" aria-hidden="true">
-          <span class="material-symbols-outlined">block</span>
-        </div>
-        @if (profile(); as blockTargetProfile) {
-          <h2 id="block-dialog-title">
-            {{
-              blockTargetProfile.viewer.isBlocked
-                ? 'Bỏ chặn @' + blockTargetProfile.user.username + '?'
-                : 'Chặn @' + blockTargetProfile.user.username + '?'
-            }}
-          </h2>
-          <p id="block-dialog-description">
-            {{
-              blockTargetProfile.viewer.isBlocked
-                ? 'Hai bạn sẽ có thể theo dõi và nhắn tin lại với nhau như bình thường.'
-                : 'Người này sẽ không thể gửi yêu cầu nhắn tin hoặc nhắn tin cho bạn nữa.'
-            }}
-          </p>
-        }
-        @if (blockError()) {
-          <p class="form-error" role="alert">{{ blockError() }}</p>
-        }
-        <div class="dialog-actions">
-          <button
-            type="button"
-            class="secondary-action"
-            (click)="closeBlockDialog()"
-            [disabled]="blockPending()"
-          >
-            Hủy
-          </button>
-          <button
-            id="confirm-block-user"
-            type="button"
-            class="danger-action"
-            (click)="confirmBlock()"
-            [disabled]="blockPending()"
-          >
-            @if (blockPending()) {
-              <span class="button-spinner" aria-hidden="true"></span>
-              Đang xử lý
-            } @else {
-              {{ profile()?.viewer?.isBlocked ? 'Bỏ chặn' : 'Chặn' }}
-            }
-          </button>
-        </div>
-      </section>
-    </div>
-  }
+  <!-- Chặn/bỏ chặn người dùng giờ dùng DialogService dùng chung (xem openBlockDialog). -->
 </div>
 
 <ng-template #pinLoading>
@@ -873,3 +928,12 @@
     </button>
   </div>
 </ng-template>
+
+@if (followDialogTab() && profile()) {
+  <app-follow-list-dialog
+    [username]="profile()!.user.username"
+    [initialTab]="followDialogTab()!"
+    [isOwnProfile]="profile()!.viewer.isOwnProfile"
+    (closeDialog)="closeFollowDialog()"
+  ></app-follow-list-dialog>
+}

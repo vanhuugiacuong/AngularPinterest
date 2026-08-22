@@ -1,13 +1,8 @@
-<div
-  *ngIf="open"
-  class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-bg/70 backdrop-blur-sm animate-fade-in"
-  (click)="onBackdropClick()"
-  role="presentation"
->
+<div *ngIf="open" class="nf-dialog-backdrop" (click)="onBackdropClick()" role="presentation">
   <div
     #dialogEl
     (click)="$event.stopPropagation()"
-    class="glass-elevated w-full max-w-[400px] rounded-panel p-8 shadow-card text-center outline-none"
+    class="nf-dialog-panel"
     role="dialog"
     aria-modal="true"
     aria-labelledby="publish-dialog-title"
@@ -20,8 +15,8 @@
         class="mx-auto mb-5 w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"
         aria-hidden="true"
       ></div>
-      <h2 id="publish-dialog-title" class="text-lg font-bold text-text mb-2">{{ message }}</h2>
-      <p id="publish-dialog-desc" class="text-xs text-text-muted leading-relaxed">
+      <h2 id="publish-dialog-title" class="nf-dialog-title">{{ message }}</h2>
+      <p id="publish-dialog-desc" class="nf-dialog-description">
         Vui lòng không đóng trang trong lúc NovaFrame đang đăng tác phẩm của bạn.
       </p>
     </div>
@@ -34,31 +29,20 @@
       >
         <span class="material-symbols-outlined text-2xl text-text-on-accent">check</span>
       </div>
-      <h2 id="publish-dialog-title" class="text-lg font-bold text-text mb-2">Đăng ảnh thành công</h2>
-      <p id="publish-dialog-desc" class="text-xs text-text-muted">Đang chuyển đến trang cá nhân của bạn…</p>
+      <h2 id="publish-dialog-title" class="nf-dialog-title">Đăng ảnh thành công</h2>
+      <p id="publish-dialog-desc" class="nf-dialog-description">Đang chuyển đến trang cá nhân của bạn…</p>
     </div>
 
     <!-- ERROR -->
     <div *ngIf="status === 'error'" aria-live="assertive">
-      <div class="mx-auto mb-5 w-12 h-12 rounded-full bg-error/15 flex items-center justify-center" aria-hidden="true">
-        <span class="material-symbols-outlined text-2xl text-error">error</span>
+      <div class="nf-dialog-icon nf-dialog-icon--destructive" aria-hidden="true">
+        <span class="material-symbols-outlined">error</span>
       </div>
-      <h2 id="publish-dialog-title" class="text-lg font-bold text-text mb-2">Đăng ảnh thất bại</h2>
-      <p id="publish-dialog-desc" class="text-xs text-text-muted mb-6">{{ errorMessage }}</p>
-      <div class="flex items-center justify-center gap-3">
-        <button
-          type="button"
-          (click)="onCloseClick()"
-          class="h-10 px-5 rounded-control bg-surface-elevated hover:bg-surface-high text-text text-sm font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        >
-          Đóng
-        </button>
-        <button
-          #retryBtn
-          type="button"
-          (click)="onRetryClick()"
-          class="h-10 px-5 bg-gradient-brand cta-shape text-text-on-accent text-sm font-bold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        >
+      <h2 id="publish-dialog-title" class="nf-dialog-title">Đăng ảnh thất bại</h2>
+      <p id="publish-dialog-desc" class="nf-dialog-description">{{ errorMessage }}</p>
+      <div class="nf-dialog-actions">
+        <button type="button" (click)="onCloseClick()" class="nf-dialog-btn nf-dialog-btn--cancel">Đóng</button>
+        <button #retryBtn type="button" (click)="onRetryClick()" class="nf-dialog-btn nf-dialog-btn--primary">
           Thử lại
         </button>
       </div>
