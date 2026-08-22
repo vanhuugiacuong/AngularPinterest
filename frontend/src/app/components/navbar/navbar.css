@@ -42,31 +42,25 @@
   z-index: 5;
 }
 
-/* Fan-out positions: arc above Home, tilted in 3D via rotateY, staggered reveal */
+/* Fan-out positions: arc above Home, tilted in 3D via rotateY, staggered reveal.
+   3 petals now (Explore, Create, Profile) since Notifications moved to the top navbar. */
 .nav-fan-open .petal-1 {
   opacity: 1;
   pointer-events: auto;
-  transform: translate(-84px, -42px) scale(1) rotateY(-20deg);
+  transform: translate(-76px, -50px) scale(1) rotateY(-18deg);
   transition-delay: 0ms;
 }
 
 .nav-fan-open .petal-2 {
   opacity: 1;
   pointer-events: auto;
-  transform: translate(-34px, -88px) scale(1) rotateY(-10deg);
+  transform: translate(0px, -94px) scale(1) rotateY(0deg);
   transition-delay: 40ms;
-}
-
-.nav-fan-open .petal-3 {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translate(34px, -88px) scale(1) rotateY(10deg);
-  transition-delay: 80ms;
 }
 
 .nav-fan-open .petal-4 {
   opacity: 1;
   pointer-events: auto;
-  transform: translate(84px, -42px) scale(1) rotateY(20deg);
-  transition-delay: 120ms;
+  transform: translate(76px, -50px) scale(1) rotateY(18deg);
+  transition-delay: 80ms;
 }

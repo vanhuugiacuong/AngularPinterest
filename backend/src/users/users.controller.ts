@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { SupabaseAuthGuard } from '../supabase/supabase.guard';
 import { CurrentUser, UserPayload } from '../supabase/current-user.decorator';
@@ -26,6 +27,18 @@ export class UsersController {
     @Body('avatarUrl') avatarUrl?: string,
   ) {
     return this.usersService.updateProfile(user.id, { username, bio, avatarUrl });
+  }
+
+  @Post('me/avatar')
+  @UseGuards(SupabaseAuthGuard)
+  @UseInterceptors(FileInterceptor('avatar', {
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+  }))
+  async uploadAvatar(
+    @CurrentUser() user: UserPayload,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.usersService.uploadAvatar(user.id, file);
   }
 
   @Get(':username')

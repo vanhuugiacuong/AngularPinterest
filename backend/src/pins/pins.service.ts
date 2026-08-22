@@ -239,6 +239,12 @@ export class PinsService {
       });
     }
 
+    try {
+      await this.notificationsService.notifyFollowersOfNewPin(userId, pin.id);
+    } catch (err) {
+      console.error(`Failed to notify followers of new pin ${pin.id}:`, err);
+    }
+
     return pin;
   }
 
@@ -308,6 +314,13 @@ export class PinsService {
           pinId: pin.id,
         },
       });
+    }
+
+    // 6. Notify followers of the new pin
+    try {
+      await this.notificationsService.notifyFollowersOfNewPin(userId, pin.id);
+    } catch (err) {
+      console.error(`Failed to notify followers of new AI pin ${pin.id}:`, err);
     }
 
     return pin;

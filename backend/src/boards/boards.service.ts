@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class BoardsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async getUserBoards(userId: string) {
     return this.prisma.board.findMany({
@@ -110,12 +114,19 @@ export class BoardsService {
       return existing;
     }
 
-    return this.prisma.boardPin.create({
+    const boardPin = await this.prisma.boardPin.create({
       data: {
         boardId,
         pinId,
       },
     });
+
+    const pin = await this.prisma.pin.findUnique({ where: { id: pinId } });
+    if (pin) {
+      await this.notificationsService.create(pin.userId, userId, 'save', pinId);
+    }
+
+    return boardPin;
   }
 
   async removePinFromBoard(boardId: string, pinId: string, userId: string) {

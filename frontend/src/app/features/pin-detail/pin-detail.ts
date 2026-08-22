@@ -5,6 +5,8 @@ import { Navbar } from '../../components/navbar/navbar';
 import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
+import { ToastService } from '../../core/services/toast';
+import { ConfirmService } from '../../core/services/confirm';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -19,6 +21,8 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   private router = inject(Router);
   private pinService = inject(PinService);
   private boardService = inject(BoardService);
+  private toastService = inject(ToastService);
+  private confirmService = inject(ConfirmService);
   public supabaseService = inject(SupabaseService);
   private elementRef = inject(ElementRef);
 
@@ -173,7 +177,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   async copyLink() {
     try {
       await navigator.clipboard.writeText(window.location.href);
-      alert('Đã sao chép liên kết ảnh!');
+      this.toastService.success('Đã sao chép liên kết ảnh!');
     } catch (error) {
       console.error('Error copying link:', error);
     }
@@ -193,17 +197,22 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   async deleteCurrentPin() {
     const currentPin = this.pin();
     if (!currentPin || !this.isOwner()) return;
-    if (!confirm('Bạn có chắc muốn xóa ảnh này? Hành động này không thể hoàn tác.')) return;
+    const confirmed = await this.confirmService.ask(
+      'Bạn có chắc muốn xóa ảnh này? Hành động này không thể hoàn tác.',
+      { title: 'Xóa ảnh', confirmLabel: 'Xóa', danger: true }
+    );
+    if (!confirmed) return;
 
     try {
       const token = await this.supabaseService.getSessionToken();
       if (!token) return;
       await this.pinService.deletePin(currentPin.id, token);
       this.showOptionsMenu.set(false);
+      this.toastService.success('Đã xóa ảnh thành công!');
       this.router.navigate(['/feed']);
     } catch (error) {
       console.error('Error deleting pin:', error);
-      alert('Lỗi khi xóa ảnh.');
+      this.toastService.error('Lỗi khi xóa ảnh.');
     }
   }
 
@@ -295,9 +304,11 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       if (!token) return;
 
       let boardId = this.selectedBoard()?.id;
-      
+      let boardName = this.selectedBoard()?.name;
+
       if (!boardId && this.boards().length > 0) {
         boardId = this.boards()[0].id;
+        boardName = this.boards()[0].name;
       }
 
       if (!boardId) {
@@ -309,13 +320,14 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
         );
         this.boards.update(current => [newBoard, ...current]);
         boardId = newBoard.id;
+        boardName = newBoard.name;
       }
 
       await this.boardService.addPinToBoard(boardId, currentPin.id, token);
-      alert('Đã lưu ảnh vào bảng thành công!');
+      this.toastService.success(`Đã lưu vào bảng "${boardName}"!`);
     } catch (error) {
       console.error('Error saving pin to board:', error);
-      alert('Lỗi khi lưu ảnh vào bảng.');
+      this.toastService.error('Lỗi khi lưu ảnh vào bảng.');
     }
   }
 

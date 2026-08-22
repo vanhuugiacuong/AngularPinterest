@@ -5,6 +5,7 @@ import { Navbar } from '../../components/navbar/navbar';
 import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
+import { ToastService } from '../../core/services/toast';
 
 @Component({
   selector: 'app-home',
@@ -17,6 +18,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   private pinService = inject(PinService);
   private supabaseService = inject(SupabaseService);
   private boardService = inject(BoardService);
+  private toastService = inject(ToastService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
@@ -35,6 +37,16 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   // Whether the "for you" horizontal strip is scrolled to the top (visible)
   public isInterestBarVisible = signal<boolean>(true);
   private lastScrollY = 0;
+
+  // Once the user manually drags/touches the interest strip, pause the auto-scroll
+  // animation so it doesn't fight their scroll position. Resumes after 10s of no interaction.
+  public isInterestMarqueePaused = signal<boolean>(false);
+  private marqueeResumeTimer: any = null;
+  pauseInterestMarquee() {
+    this.isInterestMarqueePaused.set(true);
+    clearTimeout(this.marqueeResumeTimer);
+    this.marqueeResumeTimer = setTimeout(() => this.isInterestMarqueePaused.set(false), 10000);
+  }
 
   // Pins the user likely has an interest in, derived from the (personalized) feed order
   public interestPins = computed(() => this.pins().slice(0, 15));
@@ -336,29 +348,21 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  selectBoardForPin(pinId: string, board: Board, event: MouseEvent) {
+  // "Lưu" opens the board picker so the user chooses where to save — if they have
+  // no boards yet, there's nothing to pick from, so we fall back to saving into an
+  // auto-created default board immediately (same as before).
+  async onSaveClick(pinId: string, event: MouseEvent) {
     event.stopPropagation();
-    this.selectedBoardMap.update(current => ({
-      ...current,
-      [pinId]: board
-    }));
+    if (this.boards().length > 0) {
+      this.activeDropdownPinId.set(this.activeDropdownPinId() === pinId ? null : pinId);
+      return;
+    }
+    await this.saveToBoard(pinId, null, event);
+  }
+
+  async saveToBoard(pinId: string, board: Board | null, event: MouseEvent) {
+    event.stopPropagation();
     this.activeDropdownPinId.set(null);
-  }
-
-  getSelectedBoardName(pinId: string): string {
-    const selected = this.selectedBoardMap()[pinId];
-    if (selected) {
-      return selected.name;
-    }
-    const list = this.boards();
-    if (list.length > 0) {
-      return list[0].name;
-    }
-    return 'Hồ sơ';
-  }
-
-  async savePinToBoard(pinId: string, event: MouseEvent) {
-    event.stopPropagation();
     const currentUser = this.supabaseService.user();
     if (!currentUser) return;
 
@@ -366,11 +370,8 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       const token = await this.supabaseService.getSessionToken();
       if (!token) return;
 
-      let boardId = this.selectedBoardMap()[pinId]?.id;
-      
-      if (!boardId && this.boards().length > 0) {
-        boardId = this.boards()[0].id;
-      }
+      let boardId = board?.id;
+      let boardName = board?.name;
 
       if (!boardId) {
         const newBoard = await this.boardService.createBoard(
@@ -381,13 +382,15 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
         );
         this.boards.update(current => [newBoard, ...current]);
         boardId = newBoard.id;
+        boardName = newBoard.name;
       }
 
+      this.selectedBoardMap.update(current => ({ ...current, [pinId]: { id: boardId!, name: boardName! } as Board }));
       await this.boardService.addPinToBoard(boardId, pinId, token);
-      alert('Đã lưu ảnh vào bảng thành công!');
+      this.toastService.success(`Đã lưu vào bảng "${boardName}"!`);
     } catch (error) {
       console.error('Error saving pin to board:', error);
-      alert('Lỗi khi lưu ảnh vào bảng.');
+      this.toastService.error('Lỗi khi lưu ảnh vào bảng.');
     }
   }
 }
