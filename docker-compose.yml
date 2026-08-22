@@ -10,10 +10,9 @@ services:
       - "8001:8001"
     environment:
       - PORT=8001
-      # Minimum combined probability on NSFW prompts (0-1) before an image is
-      # rejected by the create-post moderation check. Raise it to allow more
-      # borderline images through, lower it to be stricter.
-      - NSFW_THRESHOLD=0.35
+      # Minimum unsafe-vs-safe probability (0-1) before an image is rejected.
+      # 0.5 means the strongest unsafe prompt must beat the strongest safe one.
+      - NSFW_THRESHOLD=0.5
     volumes:
       # Persists the downloaded CLIP model weights (~600MB) across container
       # rebuilds — without this, `docker-compose up --build` re-downloads
