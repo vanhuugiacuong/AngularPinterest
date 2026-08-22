@@ -17,7 +17,7 @@ model User {
   avatarUrl    String?
   bio          String?
   createdAt    DateTime  @default(now())
-  
+
   pins         Pin[]
   boards       Board[]
   likes        Like[]
@@ -27,7 +27,7 @@ model User {
   following    Follow[]  @relation("UserFollowing")
 
   notificationsReceived Notification[] @relation("NotificationRecipient")
-  notificationsSent     Notification[] @relation("NotificationActor")
+  notificationsSent     Notification[] @relation("NotificationSender")
 
   sentMessageRequests     MessageRequest[] @relation("MessageRequestSender")
   receivedMessageRequests MessageRequest[] @relation("MessageRequestReceiver")
@@ -112,23 +112,23 @@ model Comment {
   pin       Pin      @relation(fields: [pinId], references: [id], onDelete: Cascade)
 }
 
-// type: "like" | "comment" | "follow"
+// type: "like" | "comment" | "follow" | "save" | "new_pin"
 model Notification {
-  id            String   @id @default(uuid())
-  type          String
-  isRead        Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  id        String   @id @default(uuid())
+  type      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
 
-  recipientId   String
-  actorId       String
-  pinId         String?
-  commentSnippet String?
+  userId    String
+  senderId  String?
+  pinId     String?
+  content   String
 
-  recipient     User     @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
-  actor         User     @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
-  pin           Pin?     @relation(fields: [pinId], references: [id], onDelete: Cascade)
+  user      User     @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  sender    User?    @relation("NotificationSender", fields: [senderId], references: [id], onDelete: SetNull)
+  pin       Pin?     @relation(fields: [pinId], references: [id], onDelete: SetNull)
 
-  @@index([recipientId, createdAt])
+  @@index([userId, createdAt])
 }
 
 enum MessageRequestStatus {
