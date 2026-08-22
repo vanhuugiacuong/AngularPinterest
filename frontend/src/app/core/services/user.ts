@@ -37,4 +37,37 @@ export class UserService {
       throw error;
     }
   }
+
+  async updateProfile(updates: { username?: string; bio?: string }, token: string): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/me`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updates)
+    });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      throw new Error(errorBody?.message || `Failed to update profile: ${response.statusText}`);
+    }
+    return await response.json();
+  }
+
+  async uploadAvatar(file: File, token: string): Promise<any> {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    const response = await fetch(`${this.baseUrl}/me/avatar`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      throw new Error(errorBody?.message || `Failed to upload avatar: ${response.statusText}`);
+    }
+    return await response.json();
+  }
 }

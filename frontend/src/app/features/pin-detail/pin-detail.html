@@ -77,13 +77,69 @@
                     </button>
                     
                     <!-- Share -->
-                    <button
-                      (click)="copyLink()"
-                      title="Sao chép liên kết"
-                      class="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] flex items-center justify-center cursor-pointer transition-colors active:scale-90 border-none outline-none select-none text-black dark:text-white"
-                    >
-                      <span class="material-symbols-outlined text-lg leading-none">upload</span>
-                    </button>
+                    <div class="relative">
+                      <button
+                        (click)="toggleSharePopover($event)"
+                        title="Chia sẻ"
+                        class="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] flex items-center justify-center cursor-pointer transition-colors active:scale-90 border-none outline-none select-none text-black dark:text-white"
+                      >
+                        <span class="material-symbols-outlined text-lg leading-none">upload</span>
+                      </button>
+
+                      @if (showSharePopover()) {
+                        <div class="fixed inset-0 z-40" (click)="closeSharePopover()"></div>
+                        <div
+                          class="absolute left-0 top-11 w-64 bg-white dark:bg-[#242424] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-50 text-left"
+                          (click)="$event.stopPropagation()"
+                        >
+                          <button
+                            type="button"
+                            (click)="copyLink()"
+                            class="w-full flex items-center gap-2.5 px-4 py-2.5 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#2a2a2a] border-none bg-transparent text-sm font-bold text-black dark:text-white"
+                          >
+                            <span class="material-symbols-outlined text-lg leading-none">link</span>
+                            Sao chép liên kết
+                          </button>
+
+                          <span class="text-[10px] uppercase text-gray-400 dark:text-[#777] font-bold px-4 py-1 block mt-1">
+                            Gửi qua tin nhắn
+                          </span>
+                          <div class="max-h-56 overflow-y-auto">
+                            @if (shareLoading()) {
+                              <div class="flex items-center justify-center py-6">
+                                <span class="material-symbols-outlined animate-spin text-lg text-gray-400">progress_activity</span>
+                              </div>
+                            } @else if (shareConversations().length === 0) {
+                              <p class="text-xs text-gray-400 dark:text-[#777] px-4 py-3">Chưa có cuộc trò chuyện nào. Hãy nhắn tin cho ai đó trước.</p>
+                            } @else {
+                              @for (conversation of shareConversations(); track conversation.id) {
+                                <button
+                                  type="button"
+                                  (click)="shareToConversation(conversation.id, $event)"
+                                  [disabled]="!!shareSendingId()"
+                                  class="w-full flex items-center gap-2.5 px-4 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#2a2a2a] border-none bg-transparent disabled:opacity-60"
+                                >
+                                  <img
+                                    [src]="conversation.otherUser.avatarUrl || ('https://api.dicebear.com/7.x/bottts/svg?seed=' + conversation.otherUser.username)"
+                                    alt=""
+                                    class="w-7 h-7 rounded-full object-cover border border-gray-100 dark:border-[#444]"
+                                  />
+                                  <span class="text-sm font-bold text-black dark:text-white truncate flex-1">{{ conversation.otherUser.username }}</span>
+                                  @if (shareSentToId() === conversation.id) {
+                                    <span class="material-symbols-outlined text-base text-[#22c55e] leading-none">check_circle</span>
+                                  } @else if (shareSendingId() === conversation.id) {
+                                    <span class="material-symbols-outlined animate-spin text-base text-gray-400 leading-none">progress_activity</span>
+                                  }
+                                </button>
+                              }
+                            }
+                          </div>
+                          @if (shareError()) {
+                            <p class="text-xs text-red-500 px-4 pt-1">{{ shareError() }}</p>
+                          }
+                        </div>
+                      }
+                    </div>
 
                     <!-- Option menu -->
                     <div class="relative">

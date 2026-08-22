@@ -5,6 +5,7 @@ import { Navbar } from '../../components/navbar/navbar';
 import { PinService } from '../../core/services/pin';
 import { BoardService, Board } from '../../core/services/board';
 import { SupabaseService } from '../../core/services/supabase';
+import { ToastService } from '../../core/services/toast';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -18,6 +19,7 @@ export class Create implements OnInit {
   private router = inject(Router);
   private pinService = inject(PinService);
   private boardService = inject(BoardService);
+  private toastService = inject(ToastService);
   public supabaseService = inject(SupabaseService);
 
   // Form Fields
@@ -128,7 +130,7 @@ export class Create implements OnInit {
     };
     img.onerror = () => {
       console.error('Error generating AI image');
-      alert('Lỗi tạo ảnh AI. Vui lòng thử lại.');
+      this.toastService.error('Lỗi tạo ảnh AI. Vui lòng thử lại.');
       this.isGenerating.set(false);
     };
   }
@@ -163,11 +165,11 @@ export class Create implements OnInit {
 
     if (currentTab === 'upload') {
       if (!this.selectedFile) {
-        alert('Vui lòng chọn ảnh tải lên!');
+        this.toastService.error('Vui lòng chọn ảnh tải lên!');
         return;
       }
       if (!this.title.trim()) {
-        alert('Vui lòng nhập tiêu đề!');
+        this.toastService.error('Vui lòng nhập tiêu đề!');
         return;
       }
 
@@ -182,22 +184,22 @@ export class Create implements OnInit {
         }
 
         await this.pinService.createUploadPin(formData, token);
-        alert('Tạo ghim thành công!');
+        this.toastService.success('Tạo ghim thành công!');
         this.router.navigate(['/feed']);
       } catch (error) {
         console.error('Error uploading pin:', error);
-        alert('Lỗi khi tải ghim lên.');
+        this.toastService.error('Lỗi khi tải ghim lên.');
       } finally {
         this.isSubmitting.set(false);
       }
     } else {
       const previewUrl = this.aiImagePreviewUrl();
       if (!previewUrl) {
-        alert('Vui lòng tạo ảnh AI trước!');
+        this.toastService.error('Vui lòng tạo ảnh AI trước!');
         return;
       }
       if (!this.title.trim()) {
-        alert('Vui lòng nhập tiêu đề!');
+        this.toastService.error('Vui lòng nhập tiêu đề!');
         return;
       }
 
@@ -213,11 +215,11 @@ export class Create implements OnInit {
         };
 
         await this.pinService.saveAiPin(body, token);
-        alert('Tạo ghim AI thành công!');
+        this.toastService.success('Tạo ghim AI thành công!');
         this.router.navigate(['/feed']);
       } catch (error) {
         console.error('Error saving AI pin:', error);
-        alert('Lỗi khi lưu ghim AI.');
+        this.toastService.error('Lỗi khi lưu ghim AI.');
       } finally {
         this.isSubmitting.set(false);
       }

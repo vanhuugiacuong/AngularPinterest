@@ -5,6 +5,9 @@ import { Navbar } from '../../components/navbar/navbar';
 import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
+import { ToastService } from '../../core/services/toast';
+import { ConfirmService } from '../../core/services/confirm';
+import { ChatService, ConversationSummary } from '../../core/services/chat';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -19,6 +22,9 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   private router = inject(Router);
   private pinService = inject(PinService);
   private boardService = inject(BoardService);
+  private toastService = inject(ToastService);
+  private confirmService = inject(ConfirmService);
+  private chatService = inject(ChatService);
   public supabaseService = inject(SupabaseService);
   private elementRef = inject(ElementRef);
 
@@ -34,6 +40,13 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   public isScrollingLoad = signal<boolean>(false);
   public isLandscape = signal<boolean>(false);
   public isDesktop = signal<boolean>(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
+
+  public showSharePopover = signal(false);
+  public shareConversations = signal<ConversationSummary[]>([]);
+  public shareLoading = signal(false);
+  public shareError = signal<string | null>(null);
+  public shareSendingId = signal<string | null>(null);
+  public shareSentToId = signal<string | null>(null);
   public numSideColumns = signal<number>(2);
   public numBottomColumns = signal<number>(3);
   public newCommentText = '';
@@ -173,9 +186,59 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   async copyLink() {
     try {
       await navigator.clipboard.writeText(window.location.href);
-      alert('Đã sao chép liên kết ảnh!');
+      this.toastService.success('Đã sao chép liên kết ảnh!');
     } catch (error) {
       console.error('Error copying link:', error);
+    }
+  }
+
+  async toggleSharePopover(event: MouseEvent) {
+    event.stopPropagation();
+    const next = !this.showSharePopover();
+    this.showSharePopover.set(next);
+    if (next && this.shareConversations().length === 0) {
+      await this.loadShareConversations();
+    }
+  }
+
+  closeSharePopover() {
+    this.showSharePopover.set(false);
+  }
+
+  private async loadShareConversations() {
+    this.shareLoading.set(true);
+    this.shareError.set(null);
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (!token) throw new Error('Phiên đăng nhập đã hết hạn.');
+      this.shareConversations.set(await this.chatService.listConversations(token));
+    } catch (error) {
+      this.shareError.set(error instanceof Error ? error.message : 'Không thể tải danh sách trò chuyện.');
+    } finally {
+      this.shareLoading.set(false);
+    }
+  }
+
+  async shareToConversation(conversationId: string, event: MouseEvent) {
+    event.stopPropagation();
+    const currentPin = this.pin();
+    if (!currentPin || this.shareSendingId()) return;
+
+    this.shareSendingId.set(conversationId);
+    this.shareError.set(null);
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (!token) throw new Error('Phiên đăng nhập đã hết hạn.');
+      await this.chatService.sendMessage(conversationId, { type: 'PIN', pinId: currentPin.id }, token);
+      this.shareSentToId.set(conversationId);
+      setTimeout(() => {
+        this.shareSentToId.set(null);
+        this.showSharePopover.set(false);
+      }, 1200);
+    } catch (error) {
+      this.shareError.set(error instanceof Error ? error.message : 'Không thể chia sẻ Pin này.');
+    } finally {
+      this.shareSendingId.set(null);
     }
   }
 
@@ -193,17 +256,22 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   async deleteCurrentPin() {
     const currentPin = this.pin();
     if (!currentPin || !this.isOwner()) return;
-    if (!confirm('Bạn có chắc muốn xóa ảnh này? Hành động này không thể hoàn tác.')) return;
+    const confirmed = await this.confirmService.ask(
+      'Bạn có chắc muốn xóa ảnh này? Hành động này không thể hoàn tác.',
+      { title: 'Xóa ảnh', confirmLabel: 'Xóa', danger: true }
+    );
+    if (!confirmed) return;
 
     try {
       const token = await this.supabaseService.getSessionToken();
       if (!token) return;
       await this.pinService.deletePin(currentPin.id, token);
       this.showOptionsMenu.set(false);
+      this.toastService.success('Đã xóa ảnh thành công!');
       this.router.navigate(['/feed']);
     } catch (error) {
       console.error('Error deleting pin:', error);
-      alert('Lỗi khi xóa ảnh.');
+      this.toastService.error('Lỗi khi xóa ảnh.');
     }
   }
 
@@ -295,9 +363,11 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       if (!token) return;
 
       let boardId = this.selectedBoard()?.id;
-      
+      let boardName = this.selectedBoard()?.name;
+
       if (!boardId && this.boards().length > 0) {
         boardId = this.boards()[0].id;
+        boardName = this.boards()[0].name;
       }
 
       if (!boardId) {
@@ -309,13 +379,14 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
         );
         this.boards.update(current => [newBoard, ...current]);
         boardId = newBoard.id;
+        boardName = newBoard.name;
       }
 
       await this.boardService.addPinToBoard(boardId, currentPin.id, token);
-      alert('Đã lưu ảnh vào bảng thành công!');
+      this.toastService.success(`Đã lưu vào bảng "${boardName}"!`);
     } catch (error) {
       console.error('Error saving pin to board:', error);
-      alert('Lỗi khi lưu ảnh vào bảng.');
+      this.toastService.error('Lỗi khi lưu ảnh vào bảng.');
     }
   }
 

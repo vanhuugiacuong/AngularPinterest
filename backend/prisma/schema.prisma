@@ -17,7 +17,7 @@ model User {
   avatarUrl    String?
   bio          String?
   createdAt    DateTime  @default(now())
-  
+
   pins         Pin[]
   boards       Board[]
   likes        Like[]
@@ -27,10 +27,15 @@ model User {
   following    Follow[]  @relation("UserFollowing")
 
   notificationsReceived Notification[] @relation("NotificationRecipient")
-  notificationsSent     Notification[] @relation("NotificationActor")
+  notificationsSent     Notification[] @relation("NotificationSender")
 
   sentMessageRequests     MessageRequest[] @relation("MessageRequestSender")
   receivedMessageRequests MessageRequest[] @relation("MessageRequestReceiver")
+
+  conversationsAsUserOne Conversation[]    @relation("ConversationsAsUserOne")
+  conversationsAsUserTwo Conversation[]    @relation("ConversationsAsUserTwo")
+  sentMessages           Message[]         @relation("MessageSender")
+  messageReactions       MessageReaction[]
 }
 
 model Follow {
@@ -65,6 +70,7 @@ model Pin {
   likes           Like[]
   comments        Comment[]
   notifications   Notification[]
+  sharedInMessages Message[]
 }
 
 model Board {
@@ -112,23 +118,23 @@ model Comment {
   pin       Pin      @relation(fields: [pinId], references: [id], onDelete: Cascade)
 }
 
-// type: "like" | "comment" | "follow"
+// type: "like" | "comment" | "follow" | "save" | "new_pin"
 model Notification {
-  id            String   @id @default(uuid())
-  type          String
-  isRead        Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  id        String   @id @default(uuid())
+  type      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
 
-  recipientId   String
-  actorId       String
-  pinId         String?
-  commentSnippet String?
+  userId    String
+  senderId  String?
+  pinId     String?
+  content   String
 
-  recipient     User     @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
-  actor         User     @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
-  pin           Pin?     @relation(fields: [pinId], references: [id], onDelete: Cascade)
+  user      User     @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  sender    User?    @relation("NotificationSender", fields: [senderId], references: [id], onDelete: SetNull)
+  pin       Pin?     @relation(fields: [pinId], references: [id], onDelete: SetNull)
 
-  @@index([recipientId, createdAt])
+  @@index([userId, createdAt])
 }
 
 enum MessageRequestStatus {
@@ -148,4 +154,69 @@ model MessageRequest {
 
   sender      User @relation("MessageRequestSender", fields: [senderId], references: [id], onDelete: Cascade)
   receiver    User @relation("MessageRequestReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+}
+
+// 1-1 conversation between two users. participantKey normalizes the pair
+// (sorted user ids joined together) so the unique constraint prevents
+// creating a duplicate conversation for the same pair.
+model Conversation {
+  id             String    @id @default(uuid())
+  participantKey String    @unique
+  userOneId      String
+  userTwoId      String
+  createdAt      DateTime  @default(now())
+  lastMessageAt  DateTime?
+
+  userOne  User      @relation("ConversationsAsUserOne", fields: [userOneId], references: [id], onDelete: Cascade)
+  userTwo  User      @relation("ConversationsAsUserTwo", fields: [userTwoId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@index([userOneId])
+  @@index([userTwoId])
+}
+
+enum MessageContentType {
+  TEXT
+  IMAGE
+  GIF
+  PIN
+}
+
+model Message {
+  id             String             @id @default(uuid())
+  conversationId String
+  senderId       String
+  type           MessageContentType @default(TEXT)
+  content        String?            @db.VarChar(4000)
+  imageUrl       String?
+  gifUrl         String?
+  pinId          String?
+  replyToId      String?
+  createdAt      DateTime           @default(now())
+  readAt         DateTime?
+  deletedAt      DateTime?
+  pinnedAt       DateTime?
+
+  conversation Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User              @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  pin          Pin?              @relation(fields: [pinId], references: [id], onDelete: SetNull)
+  replyTo      Message?          @relation("MessageReplyTo", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies      Message[]         @relation("MessageReplyTo")
+  reactions    MessageReaction[]
+
+  @@index([conversationId, createdAt])
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([messageId])
 }

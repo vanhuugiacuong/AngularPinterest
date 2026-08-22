@@ -1,0 +1,46 @@
+<div
+  (click)="onClick()"
+  class="flex items-center gap-3 px-3 py-2.5 rounded-2xl cursor-pointer transition-colors select-none"
+  [class.bg-[#FCEAF4]]="!notification.isRead"
+  [class.dark:bg-[#2a1a24]]="!notification.isRead"
+  [class.hover:bg-[#f6f6f3]]="notification.isRead"
+  [class.dark:hover:bg-[#2a2a2a]]="notification.isRead"
+>
+  <!-- Avatar with type-icon badge -->
+  <div class="relative shrink-0">
+    <img [src]="senderAvatar" alt="" class="w-11 h-11 rounded-full object-cover border border-[#dadad3] dark:border-[#444]" />
+    <img
+      *ngIf="typeIconImage as img; else iconFont"
+      [src]="img"
+      alt=""
+      class="absolute object-contain drop-shadow-[0_1px_3px_rgba(0,0,0,0.45)]"
+      [ngClass]="typeIconImageSize"
+    />
+    <ng-template #iconFont>
+      <span
+        class="absolute -bottom-1 -right-1 w-[22px] h-[22px] rounded-full flex items-center justify-center text-white border-[2.5px] border-white dark:border-[#1e1e1e] shadow-[0_1px_4px_rgba(0,0,0,0.35)]"
+        [ngClass]="typeIconColor"
+      >
+        <span class="material-symbols-outlined text-[13px] leading-none block" style="font-variation-settings: 'FILL' 1, 'wght' 500;">{{ typeIcon }}</span>
+      </span>
+    </ng-template>
+  </div>
+
+  <!-- Text -->
+  <div class="flex-1 min-w-0">
+    <p class="text-[13px] text-[#211922] dark:text-[#e5e5e5] leading-snug">
+      <span class="font-bold">{{ senderName }}</span>
+      <span *ngIf="extraCount > 0" class="font-bold"> và {{ extraCount }} người khác</span>
+      <span class="ml-1">{{ notification.content }}</span>
+    </p>
+    <p class="text-[11px] font-semibold mt-0.5" [class.text-[#F94083]]="!notification.isRead" [class.text-[#62625b]]="notification.isRead" [class.dark:text-[#999]]="notification.isRead">
+      {{ timeAgo }}
+    </p>
+  </div>
+
+  <!-- Pin thumbnail -->
+  <img *ngIf="notification.pin as pin" [src]="pin.imageUrl" [alt]="pin.title" class="w-10 h-10 rounded-lg object-cover shrink-0" />
+
+  <!-- Unread dot -->
+  <span *ngIf="!notification.isRead" class="w-2.5 h-2.5 rounded-full bg-[#F94083] shrink-0"></span>
+</div>

@@ -1,0 +1,55 @@
+<div class="fixed top-20 left-1/2 -translate-x-1/2 z-[70] flex flex-col gap-2.5 items-center pointer-events-none w-full px-4">
+  <div
+    *ngFor="let toast of toastService.toasts()"
+    class="toast-pop pointer-events-auto relative flex max-w-[440px] w-full sm:w-auto overflow-hidden bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-[0_16px_40px_rgba(0,0,0,0.22)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.6)] border border-[#dadad3] dark:border-[#333]"
+  >
+    <!-- Left accent stripe -->
+    <div
+      class="w-[5px] shrink-0"
+      [class.bg-[#16A34A]]="toast.kind === 'success'"
+      [class.bg-[#DC2626]]="toast.kind === 'error'"
+      [class.bg-[#2563EB]]="toast.kind === 'info'"
+    ></div>
+
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-3 pl-3 pr-2.5 py-3">
+        <span
+          class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+          [class.bg-[#DCFCE7]]="toast.kind === 'success'"
+          [class.dark:bg-[#0f2a1a]]="toast.kind === 'success'"
+          [class.text-[#16A34A]]="toast.kind === 'success'"
+          [class.bg-[#FEE2E2]]="toast.kind === 'error'"
+          [class.dark:bg-[#2a1414]]="toast.kind === 'error'"
+          [class.text-[#DC2626]]="toast.kind === 'error'"
+          [class.bg-[#DBEAFE]]="toast.kind === 'info'"
+          [class.dark:bg-[#12203f]]="toast.kind === 'info'"
+          [class.text-[#2563EB]]="toast.kind === 'info'"
+        >
+          <span class="material-symbols-outlined text-[19px] leading-none" style="font-variation-settings: 'FILL' 1, 'wght' 700;">
+            {{ toast.kind === 'success' ? 'check_circle' : toast.kind === 'error' ? 'error' : 'info' }}
+          </span>
+        </span>
+
+        <span class="flex-1 min-w-0 text-[14px] font-bold text-[#211922] dark:text-white leading-snug">{{ toast.message }}</span>
+
+        <button
+          (click)="toastService.dismiss(toast.id)"
+          class="shrink-0 w-6 h-6 flex items-center justify-center rounded-full hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] text-[#91918c] dark:text-[#777] border-none outline-none cursor-pointer"
+          title="Đóng"
+        >
+          <span class="material-symbols-outlined text-base leading-none select-none">close</span>
+        </button>
+      </div>
+
+      <div class="h-[3px] w-full bg-[#f0f0ed] dark:bg-[#2a2a2a]">
+        <div
+          class="h-full toast-countdown"
+          [style.animation-duration.ms]="toast.durationMs"
+          [class.bg-[#16A34A]]="toast.kind === 'success'"
+          [class.bg-[#DC2626]]="toast.kind === 'error'"
+          [class.bg-[#2563EB]]="toast.kind === 'info'"
+        ></div>
+      </div>
+    </div>
+  </div>
+</div>

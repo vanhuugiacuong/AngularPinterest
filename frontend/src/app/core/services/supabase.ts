@@ -90,6 +90,21 @@ export class SupabaseService {
     return session?.access_token || null;
   }
 
+  // Ensures dbUser() is populated before code that needs the real DB username
+  // (e.g. navigating to "my profile") runs — covers the case where a click
+  // happens before the initial sync from initSession()/onAuthStateChange finishes.
+  async ensureDbUser(): Promise<any | null> {
+    const existing = this.dbUser();
+    if (existing) return existing;
+
+    const token = await this.getSessionToken();
+    const user = this.user();
+    if (!token || !user) return null;
+
+    await this.syncUserWithBackend(token, user);
+    return this.dbUser();
+  }
+
   private async syncUserWithBackend(token: string, user: User) {
     try {
       const email = user.email || '';
@@ -117,5 +132,10 @@ export class SupabaseService {
     } catch (error) {
       console.error('Error syncing user with backend:', error);
     }
+  }
+
+  /** Shared authenticated client for Realtime channels (chat presence/broadcast). */
+  getRealtimeClient(): SupabaseClient {
+    return this.supabase;
   }
 }
