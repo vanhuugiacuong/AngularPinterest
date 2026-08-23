@@ -730,17 +730,35 @@ export class Chat implements OnInit, OnDestroy {
   }
 
   /** Fire-and-forget broadcast to another user's own inbox channel — joins
-   * just long enough to send, since we're not the owner of that channel. */
+   * just long enough to send, since we're not the owner of that channel.
+   * Best-effort only: if the subscribe hangs or errors (flaky network,
+   * channel churn), this must still resolve so callers like sendMessage()
+   * never get stuck waiting on it — the primary action already persisted,
+   * a missed live-notify just means the other side updates on next reload. */
   private async sendToUser(userId: string, event: string, payload: unknown) {
     const client = this.supabaseService.getRealtimeClient();
     const channel = client.channel(`chat-user:${userId}`, { config: { broadcast: { self: false } } });
-    await new Promise<void>((resolve) => {
-      channel.subscribe((status) => {
-        if (status === 'SUBSCRIBED') resolve();
+    try {
+      const subscribed = await new Promise<boolean>((resolve) => {
+        const timeout = setTimeout(() => resolve(false), 4000);
+        channel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            clearTimeout(timeout);
+            resolve(true);
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            clearTimeout(timeout);
+            resolve(false);
+          }
+        });
       });
-    });
-    await channel.send({ type: 'broadcast', event, payload });
-    await client.removeChannel(channel);
+      if (subscribed) {
+        await channel.send({ type: 'broadcast', event, payload });
+      }
+    } catch {
+      // Best-effort — see comment above.
+    } finally {
+      void client.removeChannel(channel);
+    }
   }
 
   private async broadcastTyping(typing: boolean) {
