@@ -9,6 +9,7 @@ import { PinsModule } from './pins/pins.module';
 import { BoardsModule } from './boards/boards.module';
 import { UsersModule } from './users/users.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { MessagingModule } from './messaging/messaging.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     BoardsModule,
     UsersModule,
     NotificationsModule,
+    MessagingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

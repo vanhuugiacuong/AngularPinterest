@@ -41,21 +41,21 @@
       <span class="material-symbols-outlined text-2xl">add</span>
     </div>
 
-    <!-- Notifications (also covers chat/messages for now) -->
+    <!-- Chat -->
     <div
-      (click)="navigateToNotifications()"
+      (click)="navigateToChat()"
       class="nav-petal petal-3 border border-[#dadad3] dark:border-[#555] shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
-      [class.bg-black]="isNotificationsPage()"
-      [class.text-white]="isNotificationsPage()"
-      [class.dark:bg-white]="isNotificationsPage()"
-      [class.dark:text-black]="isNotificationsPage()"
-      [class.bg-white]="!isNotificationsPage()"
-      [class.text-black]="!isNotificationsPage()"
-      [class.dark:bg-[#3a3a3a]]="!isNotificationsPage()"
-      [class.dark:text-white]="!isNotificationsPage()"
-      title="Thông báo & Tin nhắn"
+      [class.bg-black]="isChatPage()"
+      [class.text-white]="isChatPage()"
+      [class.dark:bg-white]="isChatPage()"
+      [class.dark:text-black]="isChatPage()"
+      [class.bg-white]="!isChatPage()"
+      [class.text-black]="!isChatPage()"
+      [class.dark:bg-[#3a3a3a]]="!isChatPage()"
+      [class.dark:text-white]="!isChatPage()"
+      title="Nhắn tin"
     >
-      <span class="material-symbols-outlined text-2xl">notifications</span>
+      <span class="material-symbols-outlined text-2xl">chat_bubble</span>
     </div>
 
     <!-- Profile -->
@@ -147,6 +147,52 @@
         {{ themeService.theme() === 'dark' ? 'light_mode' : 'dark_mode' }}
       </span>
     </button>
+
+    <!-- Notifications -->
+    <div class="relative flex items-center" *ngIf="supabaseService.user()">
+      <button
+        (click)="toggleNotifPopup($event)"
+        class="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] transition-colors cursor-pointer border-none outline-none"
+        [class.text-[#211922]]="!isNotificationsPage() && !showNotifPopup()"
+        [class.dark:text-white]="!isNotificationsPage() && !showNotifPopup()"
+        [class.text-[#F94083]]="isNotificationsPage() || showNotifPopup()"
+        [class.dark:text-[#F94083]]="isNotificationsPage() || showNotifPopup()"
+        title="Thông báo"
+      >
+        <span class="material-symbols-outlined text-xl leading-none select-none" [class.font-bold]="isNotificationsPage() || showNotifPopup()">notifications</span>
+        <span
+          *ngIf="unreadCount() > 0"
+          class="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#F94083] text-white text-[10px] font-bold flex items-center justify-center leading-none border-2 border-white dark:border-[#1a1a1a]"
+        >
+          {{ unreadCount() > 99 ? '99+' : unreadCount() }}
+        </span>
+      </button>
+
+      <!-- Notifications Dropdown Popup -->
+      <div
+        *ngIf="showNotifPopup()"
+        class="absolute right-0 top-12 mt-2 w-96 max-h-[70vh] bg-white dark:bg-[#1e1e1e] rounded-[24px] shadow-[0_16px_48px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_48px_rgba(0,0,0,0.5)] border border-[#dadad3] dark:border-[#333] flex flex-col z-50 animate-fade-in text-left overflow-hidden"
+      >
+        <div class="px-5 py-4 shrink-0 border-b border-[#f0f0ed] dark:border-[#2a2a2a]">
+          <h2 class="text-lg font-extrabold text-black dark:text-white select-none">Thông báo</h2>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-2 py-2 flex flex-col gap-1">
+          <p *ngIf="notifLoading()" class="text-xs text-center text-[#62625b] dark:text-[#999] py-8 select-none">Đang tải...</p>
+
+          <div *ngIf="!notifLoading() && notifications().length === 0" class="flex flex-col items-center justify-center text-center gap-2 py-12 px-4">
+            <span class="material-symbols-outlined text-3xl text-gray-400">notifications</span>
+            <p class="text-xs font-semibold text-gray-500 dark:text-[#999]">Chưa có thông báo mới nào.</p>
+          </div>
+
+          <app-notification-item
+            *ngFor="let notif of notifications()"
+            [notification]="notif"
+            (itemClick)="onNotificationClick($event)"
+          ></app-notification-item>
+        </div>
+      </div>
+    </div>
 
     <!-- Logged in state -->
     <div class="relative flex items-center" *ngIf="supabaseService.user() as user">
@@ -245,3 +291,25 @@
     </button>
   </div>
 </header>
+
+<!-- Live notification toasts -->
+<div class="fixed top-20 right-6 z-[60] flex flex-col gap-2 w-80 pointer-events-none">
+  <div
+    *ngFor="let toast of toasts()"
+    class="pointer-events-auto bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-[0_16px_48px_rgba(0,0,0,0.18)] dark:shadow-[0_16px_48px_rgba(0,0,0,0.5)] border border-[#dadad3] dark:border-[#333] p-2 flex items-center gap-2 animate-fade-in"
+  >
+    <div class="flex-1 min-w-0">
+      <app-notification-item
+        [notification]="toast.notification"
+        (itemClick)="onToastClick(toast.id, $event)"
+      ></app-notification-item>
+    </div>
+    <button
+      (click)="dismissToast(toast.id)"
+      class="shrink-0 w-6 h-6 flex items-center justify-center rounded-full hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] text-[#62625b] dark:text-[#999] border-none outline-none cursor-pointer"
+      title="Đóng"
+    >
+      <span class="material-symbols-outlined text-base leading-none select-none">close</span>
+    </button>
+  </div>
+</div>

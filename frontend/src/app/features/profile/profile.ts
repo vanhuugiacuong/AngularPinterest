@@ -5,6 +5,7 @@ import { Navbar } from '../../components/navbar/navbar';
 import { UserService } from '../../core/services/user';
 import { BoardService } from '../../core/services/board';
 import { SupabaseService } from '../../core/services/supabase';
+import { ToastService } from '../../core/services/toast';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -19,6 +20,7 @@ export class Profile implements OnInit {
   private router = inject(Router);
   private userService = inject(UserService);
   private boardService = inject(BoardService);
+  private toastService = inject(ToastService);
   public supabaseService = inject(SupabaseService);
 
   public userProfile = signal<any | null>(null);
@@ -65,6 +67,7 @@ export class Profile implements OnInit {
       this.userProfile.set(profile);
     } catch (error) {
       console.error('Error loading user profile:', error);
+      this.toastService.error(`Không tìm thấy trang cá nhân "${username}".`);
       this.router.navigate(['/feed']);
     } finally {
       this.isLoading.set(false);
@@ -148,9 +151,11 @@ export class Profile implements OnInit {
           this.userProfile.set({ ...profile, boards: updatedBoards });
         }
         this.closeCreateBoardModal();
+        this.toastService.success('Tạo bảng thành công!');
       }
     } catch (error) {
       console.error('Error creating board:', error);
+      this.toastService.error('Lỗi khi tạo bảng.');
     } finally {
       this.isSubmittingBoard = false;
     }

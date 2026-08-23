@@ -89,6 +89,39 @@ export class BoardService {
     }
   }
 
+  async updateBoard(
+    boardId: string,
+    updates: { name?: string; description?: string; isSecret?: boolean },
+    token: string
+  ): Promise<Board> {
+    const response = await fetch(`${this.baseUrl}/${boardId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updates)
+    });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      throw new Error(errorBody?.message || `Failed to update board: ${response.statusText}`);
+    }
+    return await response.json();
+  }
+
+  async deleteBoard(boardId: string, token: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/${boardId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      throw new Error(errorBody?.message || `Failed to delete board: ${response.statusText}`);
+    }
+  }
+
   async removePinFromBoard(boardId: string, pinId: string, token: string): Promise<any> {
     try {
       const response = await fetch(`${this.baseUrl}/${boardId}/pins/${pinId}`, {

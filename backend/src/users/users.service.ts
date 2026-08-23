@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly supabaseService: SupabaseService,
   ) {}
 
   async syncUser(id: string, email: string, username?: string, avatarUrl?: string) {
@@ -135,5 +137,12 @@ export class UsersService {
     }
 
     return this.prisma.user.update({ where: { id }, data });
+  }
+
+  async uploadAvatar(id: string, file: Express.Multer.File) {
+    const extension = file.originalname.split('.').pop() || 'png';
+    const filename = `${id}/avatar_${Date.now()}.${extension}`;
+    const avatarUrl = await this.supabaseService.uploadImage('avatars', filename, file.buffer, file.mimetype);
+    return this.prisma.user.update({ where: { id }, data: { avatarUrl } });
   }
 }
