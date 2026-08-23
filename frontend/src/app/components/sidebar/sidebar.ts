@@ -42,7 +42,7 @@ export class Sidebar implements OnInit, OnDestroy {
    * notification list — hides the Accept/Reject row for that item without
    * needing a full reload. Keyed by requester id (== notification.senderId). */
   private respondingFollowRequests = new Set<string>();
-  private handledFollowRequests = new Set<string>();
+  private handledFollowRequests = new Map<string, 'accepted' | 'rejected'>();
 
   ngOnInit(): void {
     this.notificationService.loadNotifications();
@@ -108,26 +108,38 @@ export class Sidebar implements OnInit, OnDestroy {
     return item.type === 'FOLLOW_REQUEST' && !!item.senderId && !this.handledFollowRequests.has(item.senderId);
   }
 
+  getFollowRequestResult(item: Notification): 'accepted' | 'rejected' | null {
+    return item.senderId ? this.handledFollowRequests.get(item.senderId) ?? null : null;
+  }
+
   isRespondingToFollowRequest(item: Notification): boolean {
     return !!item.senderId && this.respondingFollowRequests.has(item.senderId);
   }
 
   async acceptFollowRequest(item: Notification, event: Event): Promise<void> {
     event.stopPropagation();
-    await this.respondToFollowRequest(item, (requesterId, token) =>
-      this.userService.acceptFollowRequest(requesterId, token)
+    await this.respondToFollowRequest(
+      item,
+      'accepted',
+      'Đã chấp nhận yêu cầu theo dõi.',
+      (requesterId, token) => this.userService.acceptFollowRequest(requesterId, token),
     );
   }
 
   async rejectFollowRequest(item: Notification, event: Event): Promise<void> {
     event.stopPropagation();
-    await this.respondToFollowRequest(item, (requesterId, token) =>
-      this.userService.rejectFollowRequest(requesterId, token)
+    await this.respondToFollowRequest(
+      item,
+      'rejected',
+      'Đã từ chối yêu cầu theo dõi.',
+      (requesterId, token) => this.userService.rejectFollowRequest(requesterId, token),
     );
   }
 
   private async respondToFollowRequest(
     item: Notification,
+    result: 'accepted' | 'rejected',
+    successMessage: string,
     action: (requesterId: string, token: string) => Promise<unknown>
   ): Promise<void> {
     const requesterId = item.senderId;
@@ -137,7 +149,11 @@ export class Sidebar implements OnInit, OnDestroy {
       const token = await this.supabaseService.getSessionToken();
       if (!token) throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
       await action(requesterId, token);
-      this.handledFollowRequests.add(requesterId);
+      this.handledFollowRequests.set(requesterId, result);
+      if (!item.isRead) {
+        this.notificationService.markAsRead(item.id).subscribe();
+      }
+      this.toast.success(successMessage);
     } catch (error) {
       this.toast.error(error instanceof Error ? error.message : 'Không thể xử lý yêu cầu theo dõi.');
     } finally {

@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { UsersService } from './users.service';
 
@@ -86,6 +86,53 @@ describe('UsersService.toggleFollow', () => {
     // The loser of the race still reports the request as pending (the row
     // exists either way) but must not fire a second notification for it.
     expect(result.followRequestStatus).toBe('PENDING_OUTGOING');
+  });
+});
+
+describe('UsersService follow-request responses', () => {
+  const prisma = {
+    user: { findUnique: jest.fn() },
+    follow: { updateMany: jest.fn(), deleteMany: jest.fn() },
+  };
+  const blocksService = { isBlocked: jest.fn(), isBlockedEitherWay: jest.fn() };
+  const notificationsService = { createNotification: jest.fn() };
+  const service = new UsersService(prisma as never, blocksService as never, notificationsService as never);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('accepts only the matching pending request and notifies its requester', async () => {
+    prisma.follow.updateMany.mockResolvedValue({ count: 1 });
+    prisma.user.findUnique.mockResolvedValue({ username: 'nova_owner' });
+
+    await expect(service.acceptFollowRequest('owner-1', 'requester-1')).resolves.toEqual({ accepted: true });
+    expect(prisma.follow.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { followerId: 'requester-1', followingId: 'owner-1', status: 'PENDING' },
+      data: expect.objectContaining({ status: 'ACCEPTED' }),
+    }));
+    expect(notificationsService.createNotification).toHaveBeenCalledWith(
+      'requester-1',
+      'FOLLOW',
+      expect.stringContaining('nova_owner'),
+      'owner-1',
+    );
+  });
+
+  it('rejects by deleting only the matching pending request', async () => {
+    prisma.follow.deleteMany.mockResolvedValue({ count: 1 });
+
+    await expect(service.rejectFollowRequest('owner-1', 'requester-1')).resolves.toEqual({ rejected: true });
+    expect(prisma.follow.deleteMany).toHaveBeenCalledWith({
+      where: { followerId: 'requester-1', followingId: 'owner-1', status: 'PENDING' },
+    });
+  });
+
+  it('reports a stale or already-handled request instead of changing another relationship', async () => {
+    prisma.follow.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(service.acceptFollowRequest('owner-1', 'missing-requester')).rejects.toThrow(NotFoundException);
+    expect(notificationsService.createNotification).not.toHaveBeenCalled();
   });
 });
 

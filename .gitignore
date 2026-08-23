@@ -102,3 +102,5 @@ web_modules/
 # Python virtual environments (local editor tooling only)
 .venv/
 venv/
+__pycache__/
+*.py[cod]
