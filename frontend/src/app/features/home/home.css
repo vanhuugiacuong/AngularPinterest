@@ -1,9 +1,25 @@
 /* Component-specific styles for Home */
 
 /* Infinite left-to-right auto scroll for the "for you" interest strip.
-   The track renders the pin list twice; animating to -50% loops seamlessly. */
+   The track renders the pin list twice; animating to -50% loops seamlessly.
+   The viewport is also manually scrollable (drag/wheel/touch) — interacting with it
+   pauses the auto-scroll via the .marquee-paused class so the two don't fight. */
+.interest-marquee-viewport {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.interest-marquee-viewport::-webkit-scrollbar {
+  display: none;
+}
+
 .interest-marquee-track {
   animation: interest-marquee 40s linear infinite;
+}
+
+.interest-marquee-viewport:hover .interest-marquee-track,
+.interest-marquee-viewport.marquee-paused .interest-marquee-track {
+  animation-play-state: paused;
 }
 
 @keyframes interest-marquee {
