@@ -1,13 +1,22 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
+import sharp from 'sharp';
 import { PrismaService } from '../database/prisma.service';
-import { buildParticipantKey, isUniqueConstraintError, PUBLIC_USER_SELECT } from '../common/relationship.util';
+import {
+  buildParticipantKey,
+  isUniqueConstraintError,
+  PUBLIC_USER_SELECT,
+} from '../common/relationship.util';
 import { BlocksService } from '../blocks/blocks.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SupabaseService } from '../supabase/supabase.service';
 
 export type MessageRequestRelationshipStatus =
   | 'NONE'
@@ -17,33 +26,69 @@ export type MessageRequestRelationshipStatus =
   | 'REJECTED'
   | 'REPORTED';
 
+// 3-20 ký tự, chỉ chữ/số/dấu chấm/gạch dưới - khớp với cách username hiện
+// dùng làm định danh trong URL (/u/:username) nên không cho ký tự cần encode.
+const USERNAME_PATTERN = /^[a-zA-Z0-9_.]{3,20}$/;
+const MAX_BIO_LENGTH = 280;
+const MAX_DISPLAY_NAME_LENGTH = 50;
+
 @Injectable()
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly blocksService: BlocksService,
     private readonly notificationsService: NotificationsService,
+    private readonly supabaseService: SupabaseService,
   ) {}
+
+  /** Turns an OAuth display name (spaces, accents, any script) into a
+   * username-pattern-safe slug — the raw name was previously stored
+   * directly as `username`, silently violating the same 3-20
+   * chars/letters/digits/./_  rule that updateProfile() enforces on every
+   * edit, which is exactly the "display name and unique ID are the same
+   * field" bug. `username` is now always a real slug; the human-readable
+   * name goes to `displayName` instead. */
+  private slugifyUsername(raw: string): string {
+    const slug = raw
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9_.]+/g, '')
+      .slice(0, 20);
+    return slug.length >= 3
+      ? slug
+      : `user${Math.random().toString(36).slice(2, 8)}`;
+  }
 
   async syncUser(
     id: string,
     email: string,
-    username?: string,
+    displayName?: string,
     avatarUrl?: string,
   ) {
-    const baseUsername = username || email.split('@')[0];
     const existingUser = await this.prisma.user.findUnique({ where: { id } });
 
     if (existingUser) {
+      // `/sync` fires on every sign-in AND every page reload with a live
+      // session (see SupabaseService.syncUserWithBackend), always carrying
+      // the OAuth provider's own avatar URL. Previously this unconditionally
+      // preferred that value, so a custom avatar uploaded via
+      // updateProfile() was silently overwritten back to the Google/OAuth
+      // picture the very next reload. The OAuth avatar should only ever
+      // seed a user who has no avatar at all yet — once any avatar is set
+      // (OAuth-seeded or custom-uploaded), only updateProfile() may change it.
       return this.prisma.user.update({
         where: { id },
         data: {
           email,
-          avatarUrl: avatarUrl || existingUser.avatarUrl,
+          avatarUrl: existingUser.avatarUrl || avatarUrl,
         },
       });
     }
 
+    const baseUsername = this.slugifyUsername(
+      displayName || email.split('@')[0],
+    );
     let uniqueUsername = baseUsername;
     let count = 0;
     while (
@@ -58,9 +103,168 @@ export class UsersService {
         id,
         email,
         username: uniqueUsername,
+        displayName: displayName || null,
         avatarUrl,
       },
     });
+  }
+
+  /** Chỉnh sửa hồ sơ của chính người dùng đang đăng nhập — tên hiển thị
+   * (displayName, text tự do) tách riêng khỏi ID/username (định danh duy
+   * nhất dùng trong URL), tiểu sử, và tuỳ chọn ảnh đại diện mới. Không bao
+   * giờ nhận userId từ body, luôn dùng id đã xác thực (userId tham số) làm
+   * mục tiêu duy nhất được phép sửa - chặn việc sửa hồ sơ người khác ở tầng
+   * service.
+   *
+   * Toàn bộ thay đổi (kể cả avatar đã upload) chỉ có hiệu lực qua ĐÚNG MỘT
+   * lệnh `prisma.user.update` ở cuối - nếu bước nào phía trên ném lỗi trước
+   * đó, database không hề bị đổi, không có chuyện hồ sơ rơi vào trạng thái
+   * cập nhật dở dang. */
+  async updateProfile(
+    userId: string,
+    input: { displayName?: string; username?: string; bio?: string },
+    avatarFile?: Express.Multer.File,
+  ) {
+    const data: {
+      displayName?: string | null;
+      username?: string;
+      bio?: string | null;
+      avatarUrl?: string;
+    } = {};
+
+    if (input.displayName !== undefined) {
+      const displayName = input.displayName.trim();
+      if (displayName.length > MAX_DISPLAY_NAME_LENGTH) {
+        throw new BadRequestException(
+          `Tên hiển thị tối đa ${MAX_DISPLAY_NAME_LENGTH} ký tự.`,
+        );
+      }
+      data.displayName = displayName || null;
+    }
+
+    if (input.username !== undefined) {
+      const username = input.username.trim();
+      if (!USERNAME_PATTERN.test(username)) {
+        throw new BadRequestException(
+          'ID phải từ 3-20 ký tự, chỉ gồm chữ, số, dấu chấm hoặc gạch dưới.',
+        );
+      }
+      const existing = await this.prisma.user.findFirst({
+        where: {
+          username: { equals: username, mode: 'insensitive' },
+          NOT: { id: userId },
+        },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new ConflictException('ID này đã có người sử dụng.');
+      }
+      data.username = username;
+    }
+
+    if (input.bio !== undefined) {
+      const bio = input.bio.trim();
+      if (bio.length > MAX_BIO_LENGTH) {
+        throw new BadRequestException(
+          `Tiểu sử tối đa ${MAX_BIO_LENGTH} ký tự.`,
+        );
+      }
+      data.bio = bio || null;
+    }
+
+    if (avatarFile) {
+      try {
+        data.avatarUrl = await this.uploadAvatar(userId, avatarFile);
+      } catch (error) {
+        if (error instanceof BadRequestException) throw error;
+        console.error(
+          `[UsersService.updateProfile] Upload avatar thất bại cho user ${userId}:`,
+          error,
+        );
+        throw new ServiceUnavailableException(
+          'Không thể tải ảnh đại diện lên lúc này. Vui lòng thử lại.',
+        );
+      }
+    }
+
+    if (Object.keys(data).length === 0) {
+      throw new BadRequestException('Không có thay đổi nào để lưu.');
+    }
+
+    try {
+      return await this.prisma.user.update({ where: { id: userId }, data });
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        throw new ConflictException('ID này đã có người sử dụng.');
+      }
+      console.error(
+        `[UsersService.updateProfile] Lưu hồ sơ thất bại cho user ${userId}:`,
+        error,
+      );
+      throw new InternalServerErrorException(
+        'Không thể lưu hồ sơ lúc này. Vui lòng thử lại sau.',
+      );
+    }
+  }
+
+  private async uploadAvatar(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<string> {
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+    ];
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException('Ảnh đại diện phải là JPG, PNG hoặc WebP.');
+    }
+
+    const buffer = await sharp(file.buffer, { limitInputPixels: 30_000_000 })
+      .rotate()
+      .resize({ width: 512, height: 512, fit: 'cover' })
+      .jpeg({ quality: 88 })
+      .toBuffer();
+
+    return this.supabaseService.uploadImage(
+      'avatars',
+      `${userId}/avatar_${Date.now()}.jpg`,
+      buffer,
+      'image/jpeg',
+    );
+  }
+
+  /** Bật/tắt chế độ riêng tư cho chính người dùng đang đăng nhập. */
+  async updatePrivacy(userId: string, isPrivate: boolean) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { isPrivate },
+    });
+  }
+
+  /** Chặn xem nội dung (bài đăng/bộ sưu tập) của một tài khoản riêng tư khi
+   * người xem không phải chủ tài khoản và chưa được chủ tài khoản chấp nhận
+   * theo dõi. Đây là điểm thực thi quyền riêng tư thật ở backend - không chỉ
+   * ẩn bằng CSS ở frontend. */
+  private async assertCanViewContent(
+    target: { id: string; isPrivate: boolean },
+    viewerId?: string,
+  ): Promise<void> {
+    if (!target.isPrivate || viewerId === target.id) return;
+    if (viewerId) {
+      const follow = await this.prisma.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: viewerId,
+            followingId: target.id,
+          },
+        },
+        select: { followerId: true },
+      });
+      if (follow) return;
+    }
+    throw new ForbiddenException('Tài khoản này ở chế độ riêng tư.');
   }
 
   async getUserProfile(username: string, viewerId?: string) {
@@ -69,10 +273,12 @@ export class UsersService {
       select: {
         id: true,
         username: true,
+        displayName: true,
         avatarUrl: true,
         bio: true,
         createdAt: true,
         plan: true,
+        isPrivate: true,
       },
     });
 
@@ -85,45 +291,66 @@ export class UsersService {
       ? { userId: user.id }
       : { userId: user.id, isSecret: false };
 
-    const [posts, albums, followers, following, favorites, privateBoards, followingRow, followedByRow] =
-      await Promise.all([
-        this.prisma.pin.count({ where: { userId: user.id } }),
-        this.prisma.board.count({ where: boardFilter }),
-        this.prisma.follow.count({ where: { followingId: user.id } }),
-        this.prisma.follow.count({ where: { followerId: user.id } }),
-        isOwnProfile
-          ? this.prisma.like.count({ where: { userId: user.id } })
-          : Promise.resolve(null),
-        isOwnProfile
-          ? this.prisma.board.count({ where: { userId: user.id, isSecret: true } })
-          : Promise.resolve(null),
-        viewerId && !isOwnProfile
-          ? this.prisma.follow.findUnique({
-              where: {
-                followerId_followingId: {
-                  followerId: viewerId,
-                  followingId: user.id,
-                },
+    const [
+      posts,
+      albums,
+      followers,
+      following,
+      favorites,
+      privateBoards,
+      followingRow,
+      followedByRow,
+      pendingFollowRequest,
+    ] = await Promise.all([
+      this.prisma.pin.count({ where: { userId: user.id } }),
+      this.prisma.board.count({ where: boardFilter }),
+      this.prisma.follow.count({ where: { followingId: user.id } }),
+      this.prisma.follow.count({ where: { followerId: user.id } }),
+      isOwnProfile
+        ? this.prisma.like.count({ where: { userId: user.id } })
+        : Promise.resolve(null),
+      isOwnProfile
+        ? this.prisma.board.count({
+            where: { userId: user.id, isSecret: true },
+          })
+        : Promise.resolve(null),
+      viewerId && !isOwnProfile
+        ? this.prisma.follow.findUnique({
+            where: {
+              followerId_followingId: {
+                followerId: viewerId,
+                followingId: user.id,
               },
-              select: { followerId: true },
-            })
-          : Promise.resolve(null),
-        viewerId && !isOwnProfile
-          ? this.prisma.follow.findUnique({
-              where: {
-                followerId_followingId: {
-                  followerId: user.id,
-                  followingId: viewerId,
-                },
+            },
+            select: { followerId: true },
+          })
+        : Promise.resolve(null),
+      viewerId && !isOwnProfile
+        ? this.prisma.follow.findUnique({
+            where: {
+              followerId_followingId: {
+                followerId: user.id,
+                followingId: viewerId,
               },
-              select: { followerId: true },
-            })
-          : Promise.resolve(null),
-      ]);
+            },
+            select: { followerId: true },
+          })
+        : Promise.resolve(null),
+      viewerId && !isOwnProfile
+        ? this.prisma.followRequest.findUnique({
+            where: {
+              senderId_receiverId: { senderId: viewerId, receiverId: user.id },
+            },
+            select: { status: true },
+          })
+        : Promise.resolve(null),
+    ]);
 
     const isFollowing = Boolean(followingRow);
     const isFollowedBy = Boolean(followedByRow);
     const isMutualFollow = isFollowing && isFollowedBy;
+    const canViewPosts = !user.isPrivate || isOwnProfile || isFollowing;
+    const hasPendingFollowRequest = pendingFollowRequest?.status === 'PENDING';
 
     const relationship = await this.getMessagingRelationship(
       viewerId,
@@ -147,8 +374,10 @@ export class UsersService {
         isFollowing,
         isFollowedBy,
         isMutualFollow,
+        hasPendingFollowRequest,
         canViewFavorites: isOwnProfile,
         canViewPrivateBoards: isOwnProfile,
+        canViewPosts,
         ...relationship,
       },
     };
@@ -173,24 +402,27 @@ export class UsersService {
       return empty;
     }
 
-    const [request, conversation, isBlocked, isBlockedByTarget] = await Promise.all([
-      this.prisma.messageRequest.findFirst({
-        where: {
-          OR: [
-            { senderId: viewerId, receiverId: targetUserId },
-            { senderId: targetUserId, receiverId: viewerId },
-          ],
-        },
-        orderBy: { createdAt: 'desc' },
-        select: { senderId: true, status: true },
-      }),
-      this.prisma.conversation.findUnique({
-        where: { participantKey: buildParticipantKey(viewerId, targetUserId) },
-        select: { id: true },
-      }),
-      this.blocksService.isBlocked(viewerId, targetUserId),
-      this.blocksService.isBlocked(targetUserId, viewerId),
-    ]);
+    const [request, conversation, isBlocked, isBlockedByTarget] =
+      await Promise.all([
+        this.prisma.messageRequest.findFirst({
+          where: {
+            OR: [
+              { senderId: viewerId, receiverId: targetUserId },
+              { senderId: targetUserId, receiverId: viewerId },
+            ],
+          },
+          orderBy: { createdAt: 'desc' },
+          select: { senderId: true, status: true },
+        }),
+        this.prisma.conversation.findUnique({
+          where: {
+            participantKey: buildParticipantKey(viewerId, targetUserId),
+          },
+          select: { id: true },
+        }),
+        this.blocksService.isBlocked(viewerId, targetUserId),
+        this.blocksService.isBlocked(targetUserId, viewerId),
+      ]);
 
     const blockedEitherWay = isBlocked || isBlockedByTarget;
 
@@ -198,14 +430,17 @@ export class UsersService {
     if (request) {
       const outgoing = request.senderId === viewerId;
       if (request.status === 'PENDING') {
-        messageRequestStatus = outgoing ? 'PENDING_OUTGOING' : 'PENDING_INCOMING';
+        messageRequestStatus = outgoing
+          ? 'PENDING_OUTGOING'
+          : 'PENDING_INCOMING';
       } else {
-        messageRequestStatus = request.status as MessageRequestRelationshipStatus;
+        messageRequestStatus = request.status;
       }
     }
 
     const canMessage =
-      !blockedEitherWay && (isMutualFollow || messageRequestStatus === 'ACCEPTED');
+      !blockedEitherWay &&
+      (isMutualFollow || messageRequestStatus === 'ACCEPTED');
     const canSendMessageRequest =
       !blockedEitherWay && !isMutualFollow && messageRequestStatus === 'NONE';
 
@@ -227,6 +462,7 @@ export class UsersService {
   ) {
     const { page, limit, skip } = this.getPagination(rawPage, rawLimit);
     const user = await this.findUserByUsername(username);
+    await this.assertCanViewContent(user, viewerId);
 
     const where = { userId: user.id };
     const [items, total] = await Promise.all([
@@ -281,6 +517,7 @@ export class UsersService {
   ) {
     const { page, limit, skip } = this.getPagination(rawPage, rawLimit);
     const user = await this.findUserByUsername(username);
+    await this.assertCanViewContent(user, viewerId);
     const isOwner = viewerId === user.id;
     const where = {
       userId: user.id,
@@ -356,7 +593,12 @@ export class UsersService {
               generationModel: true,
               category: true,
               user: {
-                select: { id: true, username: true, avatarUrl: true, plan: true },
+                select: {
+                  id: true,
+                  username: true,
+                  avatarUrl: true,
+                  plan: true,
+                },
               },
               _count: { select: { likes: true, comments: true } },
             },
@@ -375,6 +617,12 @@ export class UsersService {
     return this.pageResult(items, total, page, limit);
   }
 
+  /** Theo dõi/bỏ theo dõi hoặc gửi/thu hồi yêu cầu theo dõi, tuỳ theo tài
+   * khoản đích là công khai hay riêng tư:
+   * - Công khai: follow có hiệu lực ngay, giống hành vi cũ.
+   * - Riêng tư: tạo FollowRequest ở trạng thái PENDING, chỉ trở thành Follow
+   *   thật sau khi chủ tài khoản accept (xem acceptFollowRequest). Bấm lại
+   *   lần nữa trong lúc đang PENDING sẽ thu hồi yêu cầu đó. */
   async toggleFollow(followerId: string, followingId: string) {
     if (followerId === followingId) {
       throw new BadRequestException('Bạn không thể tự theo dõi chính mình.');
@@ -382,7 +630,7 @@ export class UsersService {
 
     const targetUser = await this.prisma.user.findUnique({
       where: { id: followingId },
-      select: { id: true, username: true },
+      select: { id: true, username: true, isPrivate: true },
     });
     if (!targetUser) {
       throw new NotFoundException('Không tìm thấy người dùng cần theo dõi.');
@@ -397,48 +645,196 @@ export class UsersService {
       select: { followerId: true },
     });
 
-    let followed: boolean;
     if (existingFollow) {
-      await this.prisma.follow.deleteMany({ where: { followerId, followingId } });
-      followed = false;
-    } else {
-      // deleteMany/create thay vì findUnique-rồi-create để giảm cửa sổ race, và
-      // bắt lỗi P2002 (đã tồn tại do request đồng thời khác vừa tạo) thay vì
-      // để nó văng ra ngoài thành lỗi 500.
-      try {
-        await this.prisma.follow.create({ data: { followerId, followingId } });
-        followed = true;
-      } catch (error) {
-        if (isUniqueConstraintError(error)) {
-          followed = true;
-        } else {
-          throw error;
-        }
-      }
+      await this.prisma.follow.deleteMany({
+        where: { followerId, followingId },
+      });
+      const [followerCount, followingCount] = await this.followCounts(
+        followerId,
+        followingId,
+      );
+      return {
+        followed: false,
+        requested: false,
+        followerCount,
+        followingCount,
+      };
     }
 
-    const [followerCount, followingCount] = await Promise.all([
+    if (targetUser.isPrivate) {
+      return this.toggleFollowRequest(followerId, followingId);
+    }
+
+    // deleteMany/create thay vì findUnique-rồi-create để giảm cửa sổ race, và
+    // bắt lỗi P2002 (đã tồn tại do request đồng thời khác vừa tạo) thay vì
+    // để nó văng ra ngoài thành lỗi 500.
+    try {
+      await this.prisma.follow.create({ data: { followerId, followingId } });
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) throw error;
+    }
+
+    const follower = await this.prisma.user.findUnique({
+      where: { id: followerId },
+      select: { username: true },
+    });
+    await this.notificationsService.createNotification(
+      followingId,
+      'FOLLOW',
+      `${follower?.username ?? 'Một người dùng'} đã bắt đầu theo dõi bạn.`,
+      followerId,
+    );
+
+    const [followerCount, followingCount] = await this.followCounts(
+      followerId,
+      followingId,
+    );
+    return { followed: true, requested: false, followerCount, followingCount };
+  }
+
+  private async followCounts(followerId: string, followingId: string) {
+    return Promise.all([
       this.prisma.follow.count({ where: { followingId } }),
       this.prisma.follow.count({ where: { followerId } }),
     ]);
-
-    if (followed && !existingFollow) {
-      const follower = await this.prisma.user.findUnique({
-        where: { id: followerId },
-        select: { username: true },
-      });
-      await this.notificationsService.createNotification(
-        followingId,
-        'FOLLOW',
-        `${follower?.username ?? 'Một người dùng'} đã bắt đầu theo dõi bạn.`,
-        followerId,
-      );
-    }
-
-    return { followed, followerCount, followingCount };
   }
 
-  async getFollowers(username: string, viewerId: string | undefined, rawPage?: string, rawLimit?: string) {
+  /** Gửi hoặc thu hồi yêu cầu theo dõi tới một tài khoản riêng tư. */
+  private async toggleFollowRequest(followerId: string, followingId: string) {
+    const existingRequest = await this.prisma.followRequest.findUnique({
+      where: {
+        senderId_receiverId: { senderId: followerId, receiverId: followingId },
+      },
+    });
+
+    if (existingRequest?.status === 'PENDING') {
+      await this.prisma.followRequest.delete({
+        where: { id: existingRequest.id },
+      });
+      const [followerCount, followingCount] = await this.followCounts(
+        followerId,
+        followingId,
+      );
+      return {
+        followed: false,
+        requested: false,
+        followerCount,
+        followingCount,
+      };
+    }
+
+    if (existingRequest) {
+      await this.prisma.followRequest.update({
+        where: { id: existingRequest.id },
+        data: { status: 'PENDING', respondedAt: null },
+      });
+    } else {
+      try {
+        await this.prisma.followRequest.create({
+          data: { senderId: followerId, receiverId: followingId },
+        });
+      } catch (error) {
+        if (!isUniqueConstraintError(error)) throw error;
+      }
+    }
+
+    const sender = await this.prisma.user.findUnique({
+      where: { id: followerId },
+      select: { username: true },
+    });
+    await this.notificationsService.createNotification(
+      followingId,
+      'FOLLOW_REQUEST',
+      `${sender?.username ?? 'Một người dùng'} muốn theo dõi bạn.`,
+      followerId,
+    );
+
+    const [followerCount, followingCount] = await this.followCounts(
+      followerId,
+      followingId,
+    );
+    return { followed: false, requested: true, followerCount, followingCount };
+  }
+
+  /** Chủ tài khoản riêng tư chấp nhận một yêu cầu theo dõi đang chờ - tạo
+   * quan hệ Follow thật, dùng updateMany với WHERE status:'PENDING' để chặn
+   * xử lý trùng khi hai request accept/reject chạy gần như đồng thời (giống
+   * pattern MessageRequestsService.accept). */
+  async acceptFollowRequest(receiverId: string, senderId: string) {
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const request = await tx.followRequest.findUnique({
+        where: { senderId_receiverId: { senderId, receiverId } },
+      });
+      if (!request) {
+        throw new NotFoundException('Yêu cầu theo dõi không tồn tại.');
+      }
+
+      const result = await tx.followRequest.updateMany({
+        where: { senderId, receiverId, status: 'PENDING' },
+        data: { status: 'ACCEPTED', respondedAt: new Date() },
+      });
+      if (result.count === 0) {
+        throw new ConflictException('Yêu cầu này đã được xử lý.');
+      }
+
+      try {
+        await tx.follow.create({
+          data: { followerId: senderId, followingId: receiverId },
+        });
+      } catch (error) {
+        if (!isUniqueConstraintError(error)) throw error;
+      }
+
+      return tx.followRequest.findUniqueOrThrow({
+        where: { senderId_receiverId: { senderId, receiverId } },
+      });
+    });
+
+    const acceptor = await this.prisma.user.findUnique({
+      where: { id: receiverId },
+      select: { username: true },
+    });
+    await this.notificationsService.createNotification(
+      senderId,
+      'FOLLOW',
+      `${acceptor?.username ?? 'Người dùng'} đã chấp nhận yêu cầu theo dõi của bạn.`,
+      receiverId,
+    );
+
+    return updated;
+  }
+
+  /** Chủ tài khoản riêng tư từ chối một yêu cầu theo dõi đang chờ. */
+  async rejectFollowRequest(receiverId: string, senderId: string) {
+    const result = await this.prisma.followRequest.updateMany({
+      where: { senderId, receiverId, status: 'PENDING' },
+      data: { status: 'REJECTED', respondedAt: new Date() },
+    });
+    if (result.count === 0) {
+      throw new ConflictException(
+        'Yêu cầu này đã được xử lý hoặc không tồn tại.',
+      );
+    }
+    return this.prisma.followRequest.findUniqueOrThrow({
+      where: { senderId_receiverId: { senderId, receiverId } },
+    });
+  }
+
+  /** Danh sách yêu cầu theo dõi đang chờ chủ tài khoản (đang đăng nhập) xử lý. */
+  async listIncomingFollowRequests(userId: string) {
+    return this.prisma.followRequest.findMany({
+      where: { receiverId: userId, status: 'PENDING' },
+      orderBy: { createdAt: 'desc' },
+      include: { sender: { select: PUBLIC_USER_SELECT } },
+    });
+  }
+
+  async getFollowers(
+    username: string,
+    viewerId: string | undefined,
+    rawPage?: string,
+    rawLimit?: string,
+  ) {
     const user = await this.findUserByUsername(username);
     const { page, limit, skip } = this.getPagination(rawPage, rawLimit);
     const where = { followingId: user.id };
@@ -454,10 +850,21 @@ export class UsersService {
       this.prisma.follow.count({ where }),
     ]);
 
-    return this.annotateConnections(rows.map((r) => r.follower), viewerId, page, limit, total);
+    return this.annotateConnections(
+      rows.map((r) => r.follower),
+      viewerId,
+      page,
+      limit,
+      total,
+    );
   }
 
-  async getFollowing(username: string, viewerId: string | undefined, rawPage?: string, rawLimit?: string) {
+  async getFollowing(
+    username: string,
+    viewerId: string | undefined,
+    rawPage?: string,
+    rawLimit?: string,
+  ) {
     const user = await this.findUserByUsername(username);
     const { page, limit, skip } = this.getPagination(rawPage, rawLimit);
     const where = { followerId: user.id };
@@ -473,21 +880,37 @@ export class UsersService {
       this.prisma.follow.count({ where }),
     ]);
 
-    return this.annotateConnections(rows.map((r) => r.following), viewerId, page, limit, total);
+    return this.annotateConnections(
+      rows.map((r) => r.following),
+      viewerId,
+      page,
+      limit,
+      total,
+    );
   }
 
   /** Lọc người đã bị chặn/đang chặn viewer khỏi danh sách, và gắn thêm
    * viewerIsFollowing/followsViewer cho mỗi người - dùng chung cho cả
    * followers và following. */
   private async annotateConnections(
-    users: { id: string; username: string; avatarUrl: string | null; bio: string | null; plan: string }[],
+    users: {
+      id: string;
+      username: string;
+      avatarUrl: string | null;
+      bio: string | null;
+      plan: string;
+    }[],
     viewerId: string | undefined,
     page: number,
     limit: number,
     total: number,
   ) {
     const blockedFlags = viewerId
-      ? await Promise.all(users.map((u) => this.blocksService.isBlockedEitherWay(viewerId, u.id)))
+      ? await Promise.all(
+          users.map((u) =>
+            this.blocksService.isBlockedEitherWay(viewerId, u.id),
+          ),
+        )
       : users.map(() => false);
     const visibleUsers = users.filter((_, i) => !blockedFlags[i]);
 
@@ -539,7 +962,16 @@ export class UsersService {
           boardPins: {
             orderBy: { addedAt: 'desc' },
             take: 3,
-            select: { pin: { select: { id: true, title: true, imageUrl: true, isAiGenerated: true } } },
+            select: {
+              pin: {
+                select: {
+                  id: true,
+                  title: true,
+                  imageUrl: true,
+                  isAiGenerated: true,
+                },
+              },
+            },
           },
         },
       }),
@@ -594,7 +1026,7 @@ export class UsersService {
   private async findUserByUsername(username: string) {
     const user = await this.prisma.user.findUnique({
       where: { username },
-      select: { id: true, username: true },
+      select: { id: true, username: true, isPrivate: true },
     });
     if (!user) {
       throw new NotFoundException('User not found');

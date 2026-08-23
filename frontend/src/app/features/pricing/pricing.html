@@ -1,13 +1,13 @@
 <app-navbar></app-navbar>
 <main class="membership-page"><div class="aurora aurora-a"></div><div class="aurora aurora-b"></div>
-  <header class="hero"><div class="mini-mark"><span></span> NOVAFRAME MEMBERSHIP</div><h1>Mở rộng thế giới<br><em>sáng tạo của bạn.</em></h1><p>Một gói thành viên đúng với nhịp sáng tạo — từ ý tưởng đầu tiên đến tác phẩm có giá trị.</p></header>
+  <header class="hero"><div class="mini-mark">NOVAFRAME MEMBERSHIP</div><h1>Mở rộng thế giới<br><em>sáng tạo của bạn.</em></h1><p>Một gói thành viên đúng với nhịp sáng tạo — từ ý tưởng đầu tiên đến tác phẩm có giá trị.</p></header>
   <section class="plan-grid"><article *ngFor="let plan of plans; let i = index" class="plan-card" [class.is-featured]="plan.id === 'PLUS'" [class.is-current]="membership.status()?.plan === plan.id">
     <div class="card-top"><span class="index">0{{ i + 1 }}</span><span class="kicker">{{ plan.kicker }}</span></div><h2>{{ plan.name }}</h2><p class="description">{{ plan.description }}</p><div class="price"><strong>{{ plan.price | number:'1.0-0' }}đ</strong><span *ngIf="plan.price">/ tháng</span></div><div class="rule"></div><ul><li *ngFor="let feature of plan.features"><span>✓</span>{{ feature }}</li></ul>
     <button *ngIf="plan.id === 'FREE'" (click)="chooseFree()" [disabled]="membershipLoading() || membership.status()?.plan === 'FREE'">{{ membershipLoading() ? 'Đang kiểm tra gói…' : (membership.status()?.plan === 'FREE' ? 'Gói hiện tại' : 'Chọn Free') }}</button><button *ngIf="plan.id !== 'FREE'" (click)="choosePaid(plan.id)" [disabled]="membershipLoading() || membership.status()?.plan === plan.id">{{ paidButtonText(plan.id, plan.name) }}</button>
   </article></section><p class="secure-note"><span>✦</span> Thanh toán an toàn · Kích hoạt ngay · Có thể đổi gói bất cứ lúc nào</p>
 </main>
 
-<div class="checkout-backdrop" *ngIf="selectedPlan() as plan" (click)="closeCheckout()"><section class="checkout" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="checkout-title" data-pricing-dialog="active" tabindex="-1">
+<div class="checkout-backdrop" *ngIf="selectedPlan() as plan" (mousedown)="onBackdropMouseDown($event)" (click)="onCheckoutBackdropClick($event)"><section class="checkout" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="checkout-title" data-pricing-dialog="active" tabindex="-1">
   <button class="close" (click)="closeCheckout()" aria-label="Đóng">×</button><div class="checkout-head"><span>HOÀN TẤT ĐĂNG KÝ</span><h2 id="checkout-title">Gói {{ plan === 'PRO' ? 'Pro' : 'Plus' }}</h2><p><strong>{{ priceOf(plan) | number:'1.0-0' }}đ</strong> / tháng</p></div>
   <div class="method-tabs"><button [class.active]="method() === 'bank'" (click)="selectMethod('bank')"><span>🏦</span>Ngân hàng</button><button [class.active]="method() === 'momo'" (click)="selectMethod('momo')"><span class="momo">M</span>MoMo</button><button [class.active]="method() === 'card'" (click)="selectMethod('card')"><span>💳</span>Visa / Thẻ</button></div>
   <div class="payment-body">

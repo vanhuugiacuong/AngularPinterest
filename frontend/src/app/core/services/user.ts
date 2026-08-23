@@ -6,10 +6,12 @@ import type { MembershipPlan } from '../models/membership-plan';
 export interface ProfileUser {
   id: string;
   username: string;
+  displayName?: string | null;
   avatarUrl?: string | null;
   bio?: string | null;
   createdAt: string;
   plan: MembershipPlan;
+  isPrivate?: boolean;
 }
 
 export interface ProfileCounts {
@@ -37,6 +39,9 @@ export interface ProfileViewerState {
   isFollowing: boolean;
   isFollowedBy: boolean;
   isMutualFollow: boolean;
+  /** true when the viewer has sent a follow request to this (private)
+   * account that the owner has not yet accepted/rejected. */
+  hasPendingFollowRequest: boolean;
   canViewFavorites: boolean;
   canViewPrivateBoards: boolean;
   messageRequestStatus: MessageRequestRelationshipStatus;
@@ -45,6 +50,11 @@ export interface ProfileViewerState {
   isBlockedByTarget: boolean;
   canMessage: boolean;
   canSendMessageRequest: boolean;
+  /** false when the profile owner has a private account and the viewer is
+   * neither the owner nor an accepted follower — the posts/albums grid must
+   * not be requested or rendered in this case (backend also enforces this,
+   * this flag only decides what the UI should even attempt to show). */
+  canViewPosts: boolean;
 }
 
 export interface ProfileSummary {
@@ -128,6 +138,23 @@ export interface UserConnection {
   followsViewer: boolean;
 }
 
+/** A pending request to follow a private account, from the receiver's
+ * point of view (list of people asking to follow them). */
+export interface FollowRequestRecord {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  createdAt: string;
+  respondedAt: string | null;
+  sender: {
+    id: string;
+    username: string;
+    avatarUrl?: string | null;
+    plan: MembershipPlan;
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class UserService {
   private readonly baseUrl = `${API_BASE_URL}/api/users`;
@@ -182,6 +209,37 @@ export class UserService {
     );
   }
 
+  /** Sửa hồ sơ của chính người dùng đang đăng nhập - tên hiển thị/ID, tiểu sử,
+   * và tuỳ chọn ảnh đại diện mới. Trả về bản ghi User đầy đủ (khớp DbUser)
+   * để gọi nơi cập nhật ngay SupabaseService.dbUser mà không cần tải lại. */
+  async updateProfile(
+    input: { displayName?: string; username?: string; bio?: string; avatar?: File },
+    token: string,
+  ): Promise<{
+    id: string;
+    username: string;
+    displayName: string | null;
+    email: string;
+    avatarUrl: string | null;
+    bio: string | null;
+    createdAt: string;
+    plan: MembershipPlan;
+  }> {
+    const formData = new FormData();
+    if (input.displayName !== undefined) formData.append('displayName', input.displayName);
+    if (input.username !== undefined) formData.append('username', input.username);
+    if (input.bio !== undefined) formData.append('bio', input.bio);
+    if (input.avatar) formData.append('avatar', input.avatar);
+    return this.request(`${this.baseUrl}/me`, token, { method: 'PATCH', body: formData });
+  }
+
+  async updatePrivacy(isPrivate: boolean, token: string): Promise<{ isPrivate: boolean }> {
+    return this.request(`${this.baseUrl}/me/privacy`, token, {
+      method: 'PATCH',
+      body: JSON.stringify({ isPrivate }),
+    });
+  }
+
   async searchUsers(query: string, limit = 8): Promise<UserSearchResult[]> {
     const trimmed = query.trim();
     if (!trimmed) return [];
@@ -218,12 +276,31 @@ export class UserService {
   async toggleFollow(
     id: string,
     token: string,
-  ): Promise<{ followed: boolean; followerCount: number; followingCount: number }> {
-    return this.request<{ followed: boolean; followerCount: number; followingCount: number }>(
-      `${this.baseUrl}/${id}/follow`,
-      token,
-      { method: 'POST' },
-    );
+  ): Promise<{
+    followed: boolean;
+    /** true when the target account is private and this call created (or
+     * left standing) a pending follow request instead of an actual follow. */
+    requested: boolean;
+    followerCount: number;
+    followingCount: number;
+  }> {
+    return this.request(`${this.baseUrl}/${id}/follow`, token, { method: 'POST' });
+  }
+
+  async getIncomingFollowRequests(token: string): Promise<FollowRequestRecord[]> {
+    return this.request<FollowRequestRecord[]>(`${this.baseUrl}/me/follow-requests`, token);
+  }
+
+  async acceptFollowRequest(senderId: string, token: string): Promise<FollowRequestRecord> {
+    return this.request(`${this.baseUrl}/follow-requests/${senderId}/accept`, token, {
+      method: 'PATCH',
+    });
+  }
+
+  async rejectFollowRequest(senderId: string, token: string): Promise<FollowRequestRecord> {
+    return this.request(`${this.baseUrl}/follow-requests/${senderId}/reject`, token, {
+      method: 'PATCH',
+    });
   }
 
   private async request<T>(url: string, token?: string, init: RequestInit = {}): Promise<T> {
@@ -231,7 +308,7 @@ export class UserService {
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
     }
-    if (init.body) {
+    if (init.body && typeof init.body === 'string') {
       headers.set('Content-Type', 'application/json');
     }
 

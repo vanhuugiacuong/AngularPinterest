@@ -11,6 +11,7 @@ import { PublishDialogStatus, PublishProgressDialog } from './publish-progress-d
 import { MembershipService } from '../../core/services/membership';
 import { CollageTransferService } from '../collage/services/collage-transfer.service';
 import { DialogService } from '../../core/services/dialog';
+import { toUserMessage } from '../../core/utils/http-error';
 
 /** 'idle' — no file selected / check not run yet.
  * 'checking' — request in flight.
@@ -202,11 +203,21 @@ export class Create implements OnInit {
    * non-2xx response instead sets 'error' — the image was never judged,
    * so it must not be treated as blocked-for-content. */
   private async checkSelectedImage(file: File): Promise<void> {
-    const token = await this.supabaseService.getSessionToken();
-    if (!token || this.selectedFile !== file) return;
-
+    if (this.selectedFile !== file) return;
     this.imageModerationStatus.set('checking');
     this.imageModerationMessage.set(null);
+
+    const token = await this.supabaseService.getSessionToken();
+    if (this.selectedFile !== file) return;
+    if (!token) {
+      // Was silently leaving status at 'idle' with no explanation — the
+      // submit button stays disabled forever (requires 'safe') with no clue
+      // why. A missing session is a real, actionable error, not "nothing
+      // happened yet".
+      this.imageModerationStatus.set('error');
+      this.imageModerationMessage.set('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      return;
+    }
 
     try {
       const result = await this.pinService.checkImageModeration(file, token);
@@ -224,7 +235,13 @@ export class Create implements OnInit {
       console.error('Error checking image moderation (service/network failure, not a content verdict):', error);
       if (this.selectedFile !== file) return;
       this.imageModerationStatus.set('error');
-      this.imageModerationMessage.set('Không thể kiểm tra ảnh lúc này. Vui lòng thử lại.');
+      // Surfaces the backend's real reason (e.g. "Không thể kiểm duyệt ảnh
+      // lúc này..." when the moderation service itself is down/unreachable,
+      // or "Không thể kết nối đến máy chủ..." for an actual network failure)
+      // instead of one hardcoded string for every possible failure mode.
+      this.imageModerationMessage.set(
+        toUserMessage(error, 'Không thể kiểm tra ảnh lúc này. Vui lòng thử lại.'),
+      );
     }
   }
 
@@ -233,6 +250,34 @@ export class Create implements OnInit {
   retryImageCheck(): void {
     if (!this.selectedFile) return;
     void this.checkSelectedImage(this.selectedFile);
+  }
+
+  /** Explains exactly why the submit button is currently disabled — mirrors
+   * the same conditions as the button's own [disabled] binding in
+   * create.html, in the order a user would naturally fix them. Returns null
+   * once nothing is blocking submission, so the button never shows a stale
+   * reason once it's actually clickable. */
+  submitDisabledReason(): string | null {
+    if (this.isSubmitting()) return null;
+    if (!this.title.trim()) return 'Nhập tiêu đề cho tác phẩm để tiếp tục.';
+
+    if (this.activeTab() === 'upload') {
+      if (!this.selectedFile) return 'Chọn một ảnh để đăng.';
+      switch (this.imageModerationStatus()) {
+        case 'checking':
+          return 'Đang kiểm tra ảnh, vui lòng đợi...';
+        case 'unsafe':
+          return 'Ảnh chưa vượt qua kiểm duyệt nội dung — hãy chọn ảnh khác.';
+        case 'error':
+          return 'Chưa kiểm tra được ảnh — bấm "Thử lại kiểm tra" ở trên trước khi đăng.';
+        case 'idle':
+          return 'Đang chuẩn bị kiểm tra ảnh...';
+      }
+    } else if (this.activeTab() === 'ai' && !this.aiImagePreviewUrl()) {
+      return 'Tạo một ảnh AI trước khi đăng.';
+    }
+
+    return null;
   }
 
   async generateAiImage() {
@@ -314,8 +359,8 @@ export class Create implements OnInit {
     }
   }
 
-  /** Resolves the board to save into, creating the default "Hồ sơ" board on
-   * first use — unchanged from the previous flow. */
+  /** Resolves the board to save into, creating the default "Bộ sưu tập của
+   * tôi" board on first use — unchanged from the previous flow. */
   private async resolveBoardId(token: string): Promise<string | undefined> {
     let boardId = this.selectedBoard()?.id;
     if (!boardId && this.boards().length > 0) {
@@ -323,7 +368,7 @@ export class Create implements OnInit {
     }
     if (!boardId) {
       try {
-        const defaultBoard = await this.boardService.createBoard('Hồ sơ', 'Bộ sưu tập lưu mặc định', false, token);
+        const defaultBoard = await this.boardService.createBoard('Bộ sưu tập của tôi', 'Bộ sưu tập lưu mặc định', false, token);
         this.boards.update(list => [defaultBoard, ...list]);
         boardId = defaultBoard.id;
       } catch (err) {

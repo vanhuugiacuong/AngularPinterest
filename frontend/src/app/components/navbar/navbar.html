@@ -1,9 +1,16 @@
 <!-- Collapsible left sidebar (overlay, only for authenticated users) -->
 <app-sidebar *ngIf="supabaseService.user()" />
 
-<!-- Sticky header — three hairline-separated zones instead of one glass bar -->
+<!-- Sticky header — three hairline-separated zones instead of one glass bar.
+     Solid background, no backdrop-blur: this bar is fixed and on screen for
+     every scroll frame on every page, so blurring everything scrolling
+     underneath it forces the GPU to recompute the blur continuously. That's
+     invisible on a fast discrete GPU but a real, constant source of jank on
+     integrated/low-power graphics — exactly the "smooth on their machine,
+     stutters on mine" pattern. A solid bar reads identically and costs
+     nothing to composite regardless of GPU. -->
 <header
-  class="nf-header fixed top-0 inset-x-0 h-16 flex items-center gap-2 sm:gap-4 px-3 sm:px-6 z-50 bg-bg/92 backdrop-blur-md border-b border-border"
+  class="nf-header fixed top-0 inset-x-0 h-16 flex items-center gap-2 sm:gap-4 px-3 sm:px-6 z-50 bg-bg border-b border-border"
 >
   <!-- Left cluster: hamburger (logged in) + logo -->
   <div class="flex items-center gap-2 shrink-0">
@@ -99,7 +106,7 @@
       *ngIf="supabaseService.user() && showSearchDropdown()"
       (click)="$event.stopPropagation()"
       id="nf-search-listbox"
-      class="glass-elevated absolute left-0 right-0 top-12 mt-1 max-h-[70vh] overflow-y-auto rounded-panel shadow-card p-3 flex flex-col gap-3 z-50 animate-fade-in text-left"
+      class="bg-surface-elevated border border-border absolute left-0 right-0 top-12 mt-1 max-h-[70vh] overflow-y-auto rounded-panel shadow-card p-3 flex flex-col gap-3 z-50 animate-fade-in text-left"
       role="listbox"
     >
       <ng-container *ngIf="!searchQuery().trim()">
@@ -266,7 +273,7 @@
       <div
         *ngIf="showProfilePopup()"
         role="menu"
-        class="glass-elevated absolute right-0 top-12 mt-2 w-80 rounded-panel shadow-card p-4 flex flex-col gap-3.5 z-50 animate-fade-in text-left"
+        class="bg-surface-elevated border border-border absolute right-0 top-12 mt-2 w-80 rounded-panel shadow-card p-4 flex flex-col gap-3.5 z-50 animate-fade-in text-left"
       >
         <!-- Header: Đang đăng nhập -->
         <span class="text-xs font-semibold text-text-muted px-2 select-none">
@@ -355,10 +362,10 @@
   </div>
 </header>
 
-<!-- Rendered as a sibling of <header>, not a descendant — header's
-     backdrop-blur creates a new containing block for `position: fixed`
-     descendants, which would trap this modal's fixed backdrop inside
-     the 64px-tall header box instead of the full viewport. -->
+<!-- Rendered as a sibling of <header>, not a descendant, so this modal's
+     own `position: fixed` backdrop is never at risk of being constrained to
+     the header's box by some ancestor CSS property (e.g. a filter/transform)
+     that creates a new containing block. -->
 <app-image-search-modal
   *ngIf="showImageSearchModal()"
   (closed)="closeImageSearchModal()"

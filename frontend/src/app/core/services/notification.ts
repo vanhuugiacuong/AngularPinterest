@@ -12,7 +12,7 @@ export interface Notification {
   userId: string;
   senderId?: string;
   pinId?: string;
-  type: 'LIKE' | 'COMMENT' | 'SAVE' | 'POST_SUCCESS' | 'FOLLOW';
+  type: 'LIKE' | 'COMMENT' | 'SAVE' | 'POST_SUCCESS' | 'POST_AI_SUCCESS' | 'FOLLOW' | 'FOLLOW_REQUEST';
   content: string;
   isRead: boolean;
   createdAt: string;

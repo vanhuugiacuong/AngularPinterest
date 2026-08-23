@@ -273,7 +273,7 @@
                   </button>
                 </div>
                 <div *ngIf="boards().length === 0" class="px-4 py-3 text-xs text-text-muted italic">
-                  Chưa có bộ sưu tập nào. Chúng tôi sẽ tự động tạo bộ sưu tập "Hồ sơ" cho bạn khi lưu.
+                  Chưa có bộ sưu tập nào. Chúng tôi sẽ tự động tạo bộ sưu tập "Bộ sưu tập của tôi" cho bạn khi lưu.
                 </div>
               </div>
             </div>
@@ -291,11 +291,20 @@
               <span>{{ formError() }}</span>
             </div>
 
+            <!-- Why the button below is locked — never leave the user guessing. -->
+            <p
+              *ngIf="submitDisabledReason() as reason"
+              class="text-xs text-text-muted text-right"
+            >
+              {{ reason }}
+            </p>
+
             <div class="flex items-center justify-end">
               <button
                 type="button"
                 (click)="onSubmit()"
                 [disabled]="isSubmitting() || !title.trim() || (activeTab() === 'upload' && !selectedFile) || (activeTab() === 'ai' && !aiImagePreviewUrl()) || (activeTab() === 'upload' && imageModerationStatus() !== 'safe')"
+                [attr.title]="submitDisabledReason()"
                 class="w-full h-12 bg-gradient-brand cta-shape text-text-on-accent font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <div *ngIf="isSubmitting()" class="w-4 h-4 border-2 border-text-on-accent border-t-transparent rounded-full animate-spin"></div>

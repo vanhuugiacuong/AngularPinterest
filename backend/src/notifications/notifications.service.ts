@@ -1,9 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { NotificationTemplateHelper, NotificationData, NOTIFICATION_TEMPLATES, NotificationTemplate } from '../templates/notification.templates';
+import {
+  NotificationTemplateHelper,
+  NotificationData,
+} from '../templates/notification.templates';
 import { PUBLIC_USER_SELECT } from '../common/relationship.util';
 
-export type NotificationType = 'LIKE' | 'COMMENT' | 'SAVE' | 'POST_SUCCESS' | 'POST_AI_SUCCESS' | 'FOLLOW';
+export type NotificationType =
+  | 'LIKE'
+  | 'COMMENT'
+  | 'SAVE'
+  | 'POST_SUCCESS'
+  | 'POST_AI_SUCCESS'
+  | 'FOLLOW'
+  | 'FOLLOW_REQUEST';
 
 @Injectable()
 export class NotificationsService {
@@ -23,7 +33,10 @@ export class NotificationsService {
     if (templateData && !content) {
       const template = NotificationTemplateHelper.getTemplate(type, 'friendly');
       if (template) {
-        finalContent = NotificationTemplateHelper.formatMessage(template, templateData);
+        finalContent = NotificationTemplateHelper.formatMessage(
+          template,
+          templateData,
+        );
       }
     }
 

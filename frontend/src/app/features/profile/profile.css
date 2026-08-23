@@ -152,6 +152,13 @@ textarea:disabled {
   white-space: nowrap;
 }
 
+.profile-handle {
+  margin: 2px 0 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .profile-bio {
   display: -webkit-box;
   max-width: 460px;
@@ -524,11 +531,16 @@ textarea:disabled {
 }
 
 /* ---------- Post / favorite grid ---------- */
+/* Instagram-style square collection wall: uniform 1:1 tiles packed tight
+   (small gap, no per-tile asymmetric NovaFrame radius) instead of a varied
+   masonry — this grid reads as "your collection", not a discovery feed, so
+   it stays deliberately plain and dense rather than matching the home
+   feed's card treatment. */
 
 .pin-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 20px;
+  gap: 4px;
 }
 
 .pin-card {
@@ -539,26 +551,17 @@ textarea:disabled {
   position: relative;
   display: block;
   width: 100%;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 1 / 1;
   padding: 0;
   overflow: hidden;
-  border: 1px solid var(--color-border);
-  /* NovaFrame signature — asymmetric radius applied via [class.rounded-frame]/
-     [class.rounded-frame-alt] in profile.html, alternating per card index. */
+  border-radius: var(--radius-sm);
   background: var(--color-surface);
-  box-shadow: var(--shadow-card);
   cursor: pointer;
-  transition:
-    transform 260ms var(--ease-spring),
-    box-shadow 260ms ease,
-    border-color 260ms ease;
 }
 
-.pin-media:hover,
 .pin-media:focus-visible {
-  border-color: var(--color-border-strong);
-  box-shadow: var(--shadow-glow-soft);
-  transform: translateY(-3px);
+  outline: 2px solid var(--color-nova-blue);
+  outline-offset: 2px;
 }
 
 .pin-media img {
@@ -1089,35 +1092,93 @@ textarea:disabled {
   line-height: 1.5;
 }
 
+.dialog-field-hint {
+  margin: -4px 0 4px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* ---------- Edit profile — avatar picker ---------- */
+.avatar-edit-field {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.avatar-edit-preview {
+  position: relative;
+  flex: 0 0 auto;
+  width: 72px;
+  height: 72px;
+}
+
+.avatar-edit-preview img {
+  display: block;
+  width: 72px;
+  height: 72px;
+  border-radius: 9999px;
+  object-fit: cover;
+}
+
+.avatar-edit-badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  background: var(--color-primary);
+  color: var(--color-text-on-accent);
+  box-shadow: 0 0 0 3px var(--color-surface);
+  cursor: pointer;
+}
+
+.avatar-edit-badge:focus-visible {
+  outline: 2px solid var(--color-nova-blue);
+  outline-offset: 2px;
+}
+
+.avatar-edit-badge .material-symbols-outlined {
+  font-size: 15px;
+}
+
+.avatar-edit-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.avatar-edit-copy strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.avatar-edit-copy small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.avatar-edit-field input[type='file'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* ---------- Skeletons ---------- */
 
+/* Static — see the shared .skeleton utility in styles.css for why the
+   shimmer was removed (this page can show 9+ skeleton tiles at once while
+   loading, and each one animating background-position every frame was a
+   real, broadly-felt source of jank). */
 .skeleton {
-  position: relative;
-  overflow: hidden;
   background: var(--color-surface-elevated);
-}
-
-.skeleton::after {
-  position: absolute;
-  inset: 0;
-  content: '';
-  background: linear-gradient(
-    100deg,
-    transparent 30%,
-    color-mix(in srgb, var(--color-accent) 8%, transparent) 50%,
-    transparent 70%
-  );
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.7s ease-in-out infinite;
-}
-
-@keyframes skeleton-shimmer {
-  from {
-    background-position: -200% 0;
-  }
-  to {
-    background-position: 200% 0;
-  }
 }
 
 .identity-skeleton {
@@ -1155,13 +1216,14 @@ textarea:disabled {
 .content-skeleton-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 20px;
+  gap: 4px;
   margin-top: 78px;
 }
 
 .pin-skeleton {
   width: 100%;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-sm);
 }
 
 .album-skeleton {
@@ -1297,8 +1359,8 @@ textarea:disabled {
 
   .pin-grid,
   .content-skeleton-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 3px;
   }
 
   .pin-meta {
@@ -1334,7 +1396,12 @@ textarea:disabled {
 
   .pin-grid,
   .content-skeleton-grid {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3px;
+  }
+
+  .pin-meta {
+    padding-inline: 1px;
   }
 
   .profile-dialog {

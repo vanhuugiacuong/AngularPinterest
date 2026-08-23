@@ -37,15 +37,16 @@
   box-shadow: 0 0 10px 1px color-mix(in srgb, var(--color-nova-blue) 55%, transparent);
 }
 
-/* Focus backdrop behind the open sidebar — soft ink tint + blur, never pure
-   black. Opacity-only transition keeps it in sync with the sidebar's own
-   transform transition and stays cheap to composite. */
+/* Focus backdrop behind the open sidebar — soft ink tint, never pure black.
+   No backdrop-filter: the sidebar opens on hover of the header's hamburger
+   trigger, so on a weak/integrated GPU this scrim was recomputing a blur
+   every time the pointer merely passed near that button — the same class of
+   jank as the header bar itself (see navbar.html). A slightly deeper flat
+   tint reads just as clearly without costing anything to composite. */
 .nf-sidebar-backdrop {
   background:
     radial-gradient(120% 100% at 0% 50%, color-mix(in srgb, var(--color-iris-violet) 13%, transparent), transparent 60%),
-    color-mix(in srgb, var(--color-ink) 62%, transparent);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+    color-mix(in srgb, var(--color-ink) 74%, transparent);
   transition: opacity 0.25s ease-out;
 }
 

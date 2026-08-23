@@ -59,7 +59,7 @@
         [class.rounded-frame-alt]="isFeedPage()"
         [class.text-accent]="isFeedPage()"
         [class.text-text-muted]="!isFeedPage()"
-        class="flex h-11 w-11 items-center justify-center rounded-control transition-all duration-300 ease-spring hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
+        class="flex h-11 w-11 items-center justify-center rounded-control transition-colors duration-200 hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
         aria-label="Trang chủ"
         [attr.aria-current]="isFeedPage() ? 'page' : null"
       >
@@ -108,7 +108,7 @@
         [class.rounded-frame-alt]="isCreatePage()"
         [class.text-accent]="isCreatePage()"
         [class.text-text-muted]="!isCreatePage()"
-        class="flex h-11 w-11 items-center justify-center rounded-control transition-all duration-300 ease-spring hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
+        class="flex h-11 w-11 items-center justify-center rounded-control transition-colors duration-200 hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
         aria-label="Tạo mới"
         [attr.aria-current]="isCreatePage() ? 'page' : null"
       >
@@ -136,7 +136,7 @@
         [class.rounded-frame-alt]="isCollagePage()"
         [class.text-accent]="isCollagePage()"
         [class.text-text-muted]="!isCollagePage()"
-        class="flex h-11 w-11 items-center justify-center rounded-control transition-all duration-300 ease-spring hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
+        class="flex h-11 w-11 items-center justify-center rounded-control transition-colors duration-200 hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
         aria-label="Tạo ảnh ghép"
         [attr.aria-current]="isCollagePage() ? 'page' : null"
       >
@@ -144,7 +144,7 @@
       </button>
       <span
         role="tooltip"
-        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control mono-label bg-surface-high border border-border-strong px-2.5 py-1.5 text-[11px] uppercase text-text opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control bg-surface-high border border-border-strong px-2.5 py-1.5 text-xs font-semibold text-text opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
       >
         Tạo ảnh ghép
       </span>
@@ -164,7 +164,7 @@
         [class.rounded-frame-alt]="isNotificationOpen"
         [class.text-accent]="isNotificationOpen"
         [class.text-text-muted]="!isNotificationOpen"
-        class="relative flex h-11 w-11 items-center justify-center rounded-control transition-all duration-300 ease-spring hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
+        class="relative flex h-11 w-11 items-center justify-center rounded-control transition-colors duration-200 hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
         aria-label="Thông báo"
         aria-controls="nf-notification-panel"
         [attr.aria-expanded]="isNotificationOpen"
@@ -200,7 +200,7 @@
         [class.rounded-frame-alt]="isMessagesPage()"
         [class.text-accent]="isMessagesPage()"
         [class.text-text-muted]="!isMessagesPage()"
-        class="flex h-11 w-11 items-center justify-center rounded-control transition-all duration-300 ease-spring hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
+        class="flex h-11 w-11 items-center justify-center rounded-control transition-colors duration-200 hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
         aria-label="Tin nhắn"
         [attr.aria-current]="isMessagesPage() ? 'page' : null"
       >
@@ -229,7 +229,7 @@
       [class.rounded-frame-alt]="isSettingsPage()"
       [class.text-accent]="isSettingsPage()"
       [class.text-text-muted]="!isSettingsPage()"
-      class="flex h-11 w-11 items-center justify-center rounded-control transition-all duration-300 ease-spring hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
+      class="flex h-11 w-11 items-center justify-center rounded-control transition-colors duration-200 hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
       aria-label="Cài đặt"
       [attr.aria-current]="isSettingsPage() ? 'page' : null"
     >
@@ -313,11 +313,17 @@
         </p>
       </div>
 
-      <!-- Item List -->
-      <button
-        type="button"
+      <!-- Item List — a div (not a button) because FOLLOW_REQUEST rows nest
+           real Accept/Reject buttons inside; a button-in-button is invalid
+           HTML and unreliable for click targeting, so this is kept keyboard-
+           operable (role/tabindex/Enter+Space) instead. -->
+      <div
+        role="button"
+        tabindex="0"
         *ngFor="let item of list"
         (click)="onNotificationClick(item)"
+        (keydown.enter)="onNotificationClick(item)"
+        (keydown.space)="$event.preventDefault(); onNotificationClick(item)"
         [class.bg-accent/5]="!item.isRead"
         class="group relative flex w-full items-start gap-3.5 p-4 text-left hover:bg-surface-elevated transition-colors cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
       >
@@ -338,14 +344,17 @@
               'bg-error': item.type === 'LIKE',
               'bg-primary': item.type === 'COMMENT',
               'bg-secondary': item.type === 'SAVE',
-              'bg-success': item.type === 'POST_SUCCESS'
+              'bg-success': item.type === 'POST_SUCCESS' || item.type === 'POST_AI_SUCCESS',
+              'bg-accent': item.type === 'FOLLOW' || item.type === 'FOLLOW_REQUEST'
             }"
           >
             <span class="material-symbols-outlined text-[12px]">
               {{
                 item.type === 'LIKE' ? 'favorite' :
                 item.type === 'COMMENT' ? 'chat_bubble' :
-                item.type === 'SAVE' ? 'bookmark' : 'check_circle'
+                item.type === 'SAVE' ? 'bookmark' :
+                item.type === 'FOLLOW_REQUEST' ? 'person_add' :
+                item.type === 'FOLLOW' ? 'how_to_reg' : 'check_circle'
               }}
             </span>
           </span>
@@ -372,6 +381,34 @@
           <span class="mono-label text-xs text-text-muted mt-1 inline-block">
             {{ getTimeAgo(item.createdAt) }}
           </span>
+
+          <!-- Inline Accept/Reject for pending follow requests -->
+          <div
+            *ngIf="item.type === 'FOLLOW_REQUEST' && item.senderId as requesterId"
+            class="flex items-center gap-2 mt-2.5"
+          >
+            <ng-container *ngIf="!isFollowRequestHandled(requesterId); else handledLabel">
+              <button
+                type="button"
+                class="px-3 py-1.5 rounded-control bg-primary text-text-on-accent text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                [disabled]="isFollowRequestPending(requesterId)"
+                (click)="$event.stopPropagation(); acceptFollowRequest(item)"
+              >
+                Chấp nhận
+              </button>
+              <button
+                type="button"
+                class="px-3 py-1.5 rounded-control bg-surface-high text-text text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                [disabled]="isFollowRequestPending(requesterId)"
+                (click)="$event.stopPropagation(); rejectFollowRequest(item)"
+              >
+                Từ chối
+              </button>
+            </ng-container>
+            <ng-template #handledLabel>
+              <span class="text-xs text-text-muted italic">{{ followRequestOutcome(requesterId) }}</span>
+            </ng-template>
+          </div>
         </div>
 
         <!-- Pin Image Preview if attached -->
@@ -383,7 +420,7 @@
             class="h-11 w-11 rounded-frame-alt object-cover border border-border shadow-sm group-hover:scale-105 transition-transform"
           />
         </div>
-      </button>
+      </div>
     </ng-container>
   </div>
 </ng-template>
@@ -469,13 +506,20 @@
 </nav>
 
 <!-- Background Backdrop — z-30 (behind rail/drawer on desktop AND the
-     mobile sheet, which sit at z-40) -->
+     mobile sheet, which sit at z-40). Deliberately NOT wired to
+     onZoneEnter/onZoneLeave: it covers the entire page below the header
+     (inset-x-0), so treating "cursor is anywhere on the backdrop" as "still
+     hovering the sidebar" would mean the rail almost never auto-closes on
+     its own — the close-on-mouseleave debounce in SidebarStateService
+     (280ms, tuned longer than the rail's own 250ms slide-in) already
+     handles the hamburger→rail hand-off correctly without the backdrop's
+     help; only the rail/trigger's own zones should extend the open state. -->
 <div
-  (click)="closeNotifications()"
-  [class.opacity-100]="sidebarState.isOpen() || isNotificationOpen"
-  [class.opacity-0]="!sidebarState.isOpen() && !isNotificationOpen"
-  [class.pointer-events-auto]="sidebarState.isOpen() || isNotificationOpen"
-  [class.pointer-events-none]="!sidebarState.isOpen() && !isNotificationOpen"
+  (click)="onBackdropClick()"
+  [class.opacity-100]="showBackdrop()"
+  [class.opacity-0]="!showBackdrop()"
+  [class.pointer-events-auto]="showBackdrop()"
+  [class.pointer-events-none]="!showBackdrop()"
   class="nf-sidebar-backdrop fixed inset-x-0 top-16 bottom-0 z-30"
   aria-hidden="true"
 ></div>

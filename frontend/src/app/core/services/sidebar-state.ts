@@ -22,10 +22,12 @@ export class SidebarStateService {
     mql.addEventListener('change', (event) => this.supportsHoverSignal.set(event.matches));
   }
 
-  // 150-300ms window so the cursor can travel from the trigger zone to the
-  // panel, or from an icon to its tooltip, without the sidebar flickering
-  // shut in between.
-  private static readonly CLOSE_DELAY_MS = 220;
+  // Comfortably longer than the rail's own open/close slide (see
+  // sidebar.html's `duration-[250ms]`) so a fast cursor moving from the
+  // trigger toward the rail never gets closed out from under it mid-slide —
+  // the close-timer must not be able to win a race against the animation
+  // it's waiting behind.
+  private static readonly CLOSE_DELAY_MS = 280;
 
   private closeTimer: ReturnType<typeof setTimeout> | null = null;
 

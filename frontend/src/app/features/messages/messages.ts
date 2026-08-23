@@ -371,6 +371,25 @@ export class Messages implements OnInit, OnDestroy {
     this.reportReturnFocus = null;
   }
 
+  /** Tracks where a press on the backdrop started. Closing must only happen
+   * when BOTH the mousedown and the resulting click land on the backdrop
+   * itself — see profile.ts's identical helper for the full writeup of why
+   * a plain (click) closes the dialog out from under a text-selection drag
+   * that starts in the report-details textarea. */
+  private backdropMouseDownTarget: EventTarget | null = null;
+
+  onBackdropMouseDown(event: MouseEvent) {
+    this.backdropMouseDownTarget = event.target;
+  }
+
+  onReportBackdropClick(event: MouseEvent) {
+    const startedOnBackdrop = this.backdropMouseDownTarget === event.currentTarget;
+    this.backdropMouseDownTarget = null;
+    if (startedOnBackdrop && event.target === event.currentTarget) {
+      this.closeReportDialog();
+    }
+  }
+
   @HostListener('document:keydown', ['$event'])
   onReportDialogKeydown(event: KeyboardEvent) {
     if (!this.reportTarget()) return;
