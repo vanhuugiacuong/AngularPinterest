@@ -1,115 +1,18 @@
-<!-- Floating Bottom Tab Bar: collapsed to just Home; hover (desktop) / long-press (mobile) fans the rest out in 3D -->
-<div
-  *ngIf="supabaseService.user()"
-  #bottomNavEl
-  class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 select-none nav-fan-perspective"
-  (mouseenter)="onNavMouseEnter()"
-  (mouseleave)="onNavMouseLeave()"
->
-  <div class="relative w-14 h-14" [class.nav-fan-open]="isNavExpanded()">
-    <!-- Explore -->
-    <div
-      (click)="navigateToExplore()"
-      class="nav-petal petal-1 border border-[#dadad3] dark:border-[#555] shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
-      [class.bg-black]="isExplorePage()"
-      [class.text-white]="isExplorePage()"
-      [class.dark:bg-white]="isExplorePage()"
-      [class.dark:text-black]="isExplorePage()"
-      [class.bg-white]="!isExplorePage()"
-      [class.text-black]="!isExplorePage()"
-      [class.dark:bg-[#3a3a3a]]="!isExplorePage()"
-      [class.dark:text-white]="!isExplorePage()"
-      title="Khám phá"
-    >
-      <span class="material-symbols-outlined text-2xl">explore</span>
-    </div>
-
-    <!-- Create -->
-    <div
-      (click)="navigateToCreate()"
-      class="nav-petal petal-2 border border-[#dadad3] dark:border-[#555] shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
-      [class.bg-black]="isCreatePage()"
-      [class.text-white]="isCreatePage()"
-      [class.dark:bg-white]="isCreatePage()"
-      [class.dark:text-black]="isCreatePage()"
-      [class.bg-white]="!isCreatePage()"
-      [class.text-black]="!isCreatePage()"
-      [class.dark:bg-[#3a3a3a]]="!isCreatePage()"
-      [class.dark:text-white]="!isCreatePage()"
-      title="Tạo"
-    >
-      <span class="material-symbols-outlined text-2xl">add</span>
-    </div>
-
-    <!-- Chat -->
-    <div
-      (click)="navigateToChat()"
-      class="nav-petal petal-3 border border-[#dadad3] dark:border-[#555] shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
-      [class.bg-black]="isChatPage()"
-      [class.text-white]="isChatPage()"
-      [class.dark:bg-white]="isChatPage()"
-      [class.dark:text-black]="isChatPage()"
-      [class.bg-white]="!isChatPage()"
-      [class.text-black]="!isChatPage()"
-      [class.dark:bg-[#3a3a3a]]="!isChatPage()"
-      [class.dark:text-white]="!isChatPage()"
-      title="Nhắn tin"
-    >
-      <span class="material-symbols-outlined text-2xl">chat_bubble</span>
-    </div>
-
-    <!-- Profile -->
-    <div
-      (click)="navigateToMyProfile()"
-      class="nav-petal petal-4 border border-[#dadad3] dark:border-[#555] shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
-      [class.bg-black]="isProfilePage()"
-      [class.text-white]="isProfilePage()"
-      [class.dark:bg-white]="isProfilePage()"
-      [class.dark:text-black]="isProfilePage()"
-      [class.bg-white]="!isProfilePage()"
-      [class.text-black]="!isProfilePage()"
-      [class.dark:bg-[#3a3a3a]]="!isProfilePage()"
-      [class.dark:text-white]="!isProfilePage()"
-      title="Cá nhân"
-    >
-      <span class="material-symbols-outlined text-2xl">person</span>
-    </div>
-
-    <!-- Home: always visible, anchors the fan. Tap = navigate, hold/hover = expand -->
-    <button
-      (click)="onHomeClick()"
-      (touchstart)="onHomeTouchStart()"
-      (touchend)="onHomeTouchEnd()"
-      (touchcancel)="onHomeTouchEnd()"
-      class="nav-home-btn border border-[#dadad3] dark:border-[#555] shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
-      [class.bg-black]="isFeedPage()"
-      [class.text-white]="isFeedPage()"
-      [class.dark:bg-white]="isFeedPage()"
-      [class.dark:text-black]="isFeedPage()"
-      [class.bg-white]="!isFeedPage()"
-      [class.text-black]="!isFeedPage()"
-      [class.dark:bg-[#3a3a3a]]="!isFeedPage()"
-      [class.dark:text-white]="!isFeedPage()"
-      title="Trang chủ (giữ để mở menu)"
-    >
-      <span class="material-symbols-outlined text-2xl font-bold">home</span>
-    </button>
-  </div>
-</div>
-
 <!-- Header (Navbar) -->
 <header
   class="fixed top-0 left-0 right-0 h-16 bg-white dark:bg-[#1a1a1a] border-b border-[#dadad3] dark:border-[#333] flex items-center justify-between px-6 z-40 transition-colors"
 >
-  <!-- Left Side: Logo icon always visible; wordmark only when logged out (search bar needs the room) -->
-  <div
-    (click)="onLogoClick()"
-    class="flex items-center gap-2 cursor-pointer select-none shrink-0"
-  >
-    <img src="favicon-pinhub.png" alt="PinHub" class="w-8 h-8 object-contain" />
-    <span *ngIf="!supabaseService.user()" class="text-xl font-bold tracking-tight">
-      <span class="text-[#F94083]">Pin</span><span class="text-[#211922] dark:text-white">Hub</span>
-    </span>
+  <!-- Left Side: logo. Wordmark only when logged out (search bar needs the room) -->
+  <div class="flex items-center gap-1 shrink-0">
+    <div
+      (click)="onLogoClick()"
+      class="flex items-center gap-2 cursor-pointer select-none shrink-0"
+    >
+      <img src="favicon-pinhub.png" alt="PinHub" class="w-8 h-8 object-contain" />
+      <span *ngIf="!supabaseService.user()" class="text-xl font-bold tracking-tight">
+        <span class="text-[#F94083]">Pin</span><span class="text-[#211922] dark:text-white">Hub</span>
+      </span>
+    </div>
   </div>
 
   <!-- Center Search Bar: only shown once logged in, and hidden on the collage editor
@@ -385,6 +288,91 @@
     </button>
   </div>
 </header>
+
+<!-- Floating capsule nav: height hugs its content (not full viewport). Home only
+     navigates; the chevron below it is the sole open/close toggle. The chevron sits
+     AFTER the icon panel in the DOM so it visually "flows" below the last icon once
+     the panel expands — no JS position math needed. -->
+<nav
+  *ngIf="supabaseService.user()"
+  class="nav-capsule fixed left-6 top-[88px] z-40 flex flex-col items-center py-3 gap-1"
+>
+  <button
+    type="button"
+    (click)="onLogoClick()"
+    title="Trang chủ"
+    class="nav-icon-btn group relative w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer shrink-0"
+    [class.nav-icon-active]="isFeedPage()"
+  >
+    <span class="material-symbols-outlined text-2xl leading-none" [class.icon-filled]="isFeedPage()">home</span>
+    <span class="nav-tooltip">Trang chủ</span>
+  </button>
+
+  <!-- The other 4 destinations: grid-rows 0fr -> 1fr, not max-height (no jank) -->
+  <div id="nav-rail-panel" class="nav-panel-grid" [class.nav-panel-open]="showNavMenu()">
+    <div class="nav-panel-inner flex flex-col items-center gap-1">
+      <button
+        type="button"
+        (click)="navigateToExplore()"
+        title="Khám phá"
+        [attr.tabindex]="showNavMenu() ? 0 : -1"
+        class="nav-icon-btn group relative w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer shrink-0"
+        [class.nav-icon-active]="isExplorePage()"
+      >
+        <span class="material-symbols-outlined text-2xl leading-none" [class.icon-filled]="isExplorePage()">explore</span>
+        <span class="nav-tooltip">Khám phá</span>
+      </button>
+
+      <button
+        type="button"
+        (click)="navigateToCreate()"
+        title="Tạo"
+        [attr.tabindex]="showNavMenu() ? 0 : -1"
+        class="nav-icon-btn group relative w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer shrink-0"
+        [class.nav-icon-active]="isCreatePage()"
+      >
+        <span class="material-symbols-outlined text-2xl leading-none" [class.icon-filled]="isCreatePage()">add_circle</span>
+        <span class="nav-tooltip">Tạo</span>
+      </button>
+
+      <button
+        type="button"
+        (click)="navigateToChat()"
+        title="Nhắn tin"
+        [attr.tabindex]="showNavMenu() ? 0 : -1"
+        class="nav-icon-btn group relative w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer shrink-0"
+        [class.nav-icon-active]="isChatPage()"
+      >
+        <span class="material-symbols-outlined text-2xl leading-none" [class.icon-filled]="isChatPage()">chat_bubble</span>
+        <span class="nav-tooltip">Nhắn tin</span>
+      </button>
+
+      <button
+        type="button"
+        (click)="navigateToMyProfile()"
+        title="Cá nhân"
+        [attr.tabindex]="showNavMenu() ? 0 : -1"
+        class="nav-icon-btn group relative w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer shrink-0"
+        [class.nav-icon-active]="isProfilePage()"
+      >
+        <span class="material-symbols-outlined text-2xl leading-none" [class.icon-filled]="isProfilePage()">person</span>
+        <span class="nav-tooltip">Cá nhân</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Toggle: bare chevron, no border/fill, sits below whatever's currently visible -->
+  <button
+    type="button"
+    (click)="toggleNavMenu($event)"
+    [attr.aria-expanded]="showNavMenu()"
+    aria-controls="nav-rail-panel"
+    [title]="showNavMenu() ? 'Thu gọn menu' : 'Mở rộng menu'"
+    class="nav-chevron-btn w-8 h-6 flex items-center justify-center border-none bg-transparent cursor-pointer shrink-0"
+  >
+    <span class="material-symbols-outlined text-xl leading-none nav-chevron" [class.nav-chevron-open]="showNavMenu()">expand_more</span>
+  </button>
+</nav>
 
 <!-- Live notification toasts -->
 <div class="fixed top-20 right-6 z-[60] flex flex-col gap-2 w-80 pointer-events-none">

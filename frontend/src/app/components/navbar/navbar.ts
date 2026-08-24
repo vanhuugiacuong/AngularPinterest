@@ -1,4 +1,4 @@
-import { Component, inject, signal, ElementRef, HostListener, Output, EventEmitter, ViewChild, effect } from '@angular/core';
+import { Component, inject, signal, ElementRef, HostListener, Output, EventEmitter, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, NavigationEnd } from '@angular/router';
 import { SupabaseService } from '../../core/services/supabase';
@@ -39,10 +39,13 @@ export class Navbar {
   private chatService = inject(ChatService);
 
   @Output() loginClick = new EventEmitter<void>();
-  @ViewChild('bottomNavEl') bottomNavEl?: ElementRef;
 
   public showProfilePopup = signal(false);
-  public isNavExpanded = signal(false);
+
+  // Left rail's expand/collapse state — remembered across visits. Wrapped in try/catch
+  // since localStorage can throw (private browsing, storage disabled, quota).
+  private navMenuKey = 'pinhub_nav_menu_open';
+  public showNavMenu = signal(this.readNavMenuPref());
 
   public showNotifPopup = signal(false);
   public notifications = signal<AppNotification[]>([]);
@@ -53,9 +56,6 @@ export class Navbar {
   private toastSeq = 0;
   private toastTimers = new Map<number, any>();
 
-  private collapseTimer: any = null;
-  private longPressTimer: any = null;
-  private longPressTriggered = false;
   private unreadPollTimer: any = null;
 
   constructor() {
@@ -173,6 +173,39 @@ export class Navbar {
     this.showProfilePopup.update(val => !val);
   }
 
+  toggleNavMenu(event: MouseEvent) {
+    event.stopPropagation();
+    this.setNavMenu(!this.showNavMenu());
+  }
+
+  closeNavMenu() {
+    this.setNavMenu(false);
+  }
+
+  private setNavMenu(open: boolean) {
+    this.showNavMenu.set(open);
+    try {
+      localStorage.setItem(this.navMenuKey, open ? '1' : '0');
+    } catch {
+      // Storage unavailable (private browsing, disabled, quota) — state just won't persist.
+    }
+  }
+
+  private readNavMenuPref(): boolean {
+    try {
+      return localStorage.getItem(this.navMenuKey) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey() {
+    if (this.showNavMenu()) {
+      this.closeNavMenu();
+    }
+  }
+
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent) {
     const target = event.target as HTMLElement;
@@ -180,53 +213,10 @@ export class Navbar {
       this.showProfilePopup.set(false);
       this.showNotifPopup.set(false);
       this.showSearchDropdown.set(false);
+      if (this.showNavMenu()) {
+        this.closeNavMenu();
+      }
     }
-    if (this.bottomNavEl && !this.bottomNavEl.nativeElement.contains(target)) {
-      this.isNavExpanded.set(false);
-    }
-  }
-
-  // Desktop: hover over the bottom nav fans the icons out
-  onNavMouseEnter() {
-    if (this.collapseTimer) {
-      clearTimeout(this.collapseTimer);
-      this.collapseTimer = null;
-    }
-    this.isNavExpanded.set(true);
-  }
-
-  onNavMouseLeave() {
-    this.collapseTimer = setTimeout(() => this.isNavExpanded.set(false), 200);
-  }
-
-  // Mobile: press and hold the Home button to fan the icons out
-  onHomeTouchStart() {
-    this.longPressTriggered = false;
-    this.longPressTimer = setTimeout(() => {
-      this.longPressTriggered = true;
-      this.isNavExpanded.set(true);
-    }, 350);
-  }
-
-  onHomeTouchEnd() {
-    if (this.longPressTimer) {
-      clearTimeout(this.longPressTimer);
-      this.longPressTimer = null;
-    }
-  }
-
-  onHomeClick() {
-    // Swallow the click that follows a long-press touch (it already opened the fan)
-    if (this.longPressTriggered) {
-      this.longPressTriggered = false;
-      return;
-    }
-    this.onLogoClick();
-    this.isNavExpanded.set(false);
-  }
-
-  collapseNav() {
-    this.isNavExpanded.set(false);
   }
 
   onLoginClick() {
@@ -243,7 +233,6 @@ export class Navbar {
 
   async navigateToMyProfile() {
     this.showProfilePopup.set(false);
-    this.collapseNav();
 
     const dbUser = await this.supabaseService.ensureDbUser();
     if (dbUser?.username) {
@@ -263,17 +252,14 @@ export class Navbar {
 
   navigateToCreate() {
     this.router.navigate(['/create']);
-    this.collapseNav();
   }
 
   navigateToExplore() {
     this.router.navigate(['/feed'], { queryParams: { sort: 'trending' } });
-    this.collapseNav();
   }
 
   navigateToChat() {
     this.router.navigate(['/chat']);
-    this.collapseNav();
   }
 
   isChatPage(): boolean {
