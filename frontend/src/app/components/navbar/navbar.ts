@@ -1,6 +1,6 @@
 import { Component, inject, signal, ElementRef, HostListener, Output, EventEmitter, ViewChild, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, NavigationEnd } from '@angular/router';
 import { SupabaseService } from '../../core/services/supabase';
 import { ThemeService } from '../../core/services/theme';
 import { NotificationService, AppNotification } from '../../core/services/notification';
@@ -84,6 +84,24 @@ export class Navbar {
         }
       }
     });
+
+    // Keeps the search box showing the active query (e.g. "chó cute") whenever it's the
+    // one driving /search — covers typing+submitting here, but also refinement tags on
+    // the results page itself, which navigate straight to /search?q=... without going
+    // through this component at all.
+    this.syncSearchQueryFromUrl(this.router.url);
+    this.router.events.subscribe((event) => {
+      if (event instanceof NavigationEnd) {
+        this.syncSearchQueryFromUrl(event.urlAfterRedirects);
+      }
+    });
+  }
+
+  private syncSearchQueryFromUrl(url: string) {
+    const [path, queryString] = url.split('?');
+    if (!path.startsWith('/search')) return;
+    const params = new URLSearchParams(queryString || '');
+    this.searchQuery.set(params.get('q') || '');
   }
 
   private async refreshUnreadCount() {
@@ -377,7 +395,7 @@ export class Navbar {
 
   goToSearch(query: string) {
     this.showSearchDropdown.set(false);
-    this.searchQuery.set('');
+    this.searchQuery.set(query);
     this.userSuggestions.set([]);
     this.saveRecentSearch(query);
     this.router.navigate(['/search'], { queryParams: query ? { q: query } : {} });

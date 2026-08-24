@@ -12,6 +12,42 @@
         }
       </h1>
 
+      @if (refinementTags().length > 0) {
+        <div class="relative mb-6">
+          <div #pillsScroll class="flex gap-3 overflow-x-auto pb-1 scroll-smooth">
+            @for (tag of refinementTags(); track tag.label; let i = $index) {
+              <button
+                type="button"
+                (click)="applyRefinementTag(tag.label)"
+                class="shrink-0 flex items-center gap-2.5 pl-2 pr-6 py-2 rounded-full border-none cursor-pointer hover:brightness-95"
+                [ngClass]="pillColorClass(i)"
+              >
+                @if (tag.imageUrl) {
+                  <img [src]="tag.imageUrl" alt="" class="w-12 h-12 rounded-full object-cover shrink-0" />
+                } @else {
+                  <span class="w-12 h-12 rounded-full bg-white/50 shrink-0"></span>
+                }
+                <span class="text-base font-bold text-[#211922] dark:text-white whitespace-nowrap">{{ tag.label }}</span>
+              </button>
+            }
+          </div>
+          <button
+            type="button"
+            (click)="pillsScroll.scrollBy({ left: -320, behavior: 'smooth' })"
+            class="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white dark:bg-[#1e1e1e] shadow-[0_4px_14px_rgba(0,0,0,0.2)] items-center justify-center border-none cursor-pointer text-black dark:text-white"
+          >
+            <span class="material-symbols-outlined text-xl">chevron_left</span>
+          </button>
+          <button
+            type="button"
+            (click)="pillsScroll.scrollBy({ left: 320, behavior: 'smooth' })"
+            class="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white dark:bg-[#1e1e1e] shadow-[0_4px_14px_rgba(0,0,0,0.2)] items-center justify-center border-none cursor-pointer text-black dark:text-white"
+          >
+            <span class="material-symbols-outlined text-xl">chevron_right</span>
+          </button>
+        </div>
+      }
+
       @if (userResults().length > 0) {
         <div class="mb-6">
           <h2 class="text-sm font-extrabold mb-3">Tài khoản</h2>
