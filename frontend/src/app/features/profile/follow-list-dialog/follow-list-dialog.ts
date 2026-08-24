@@ -148,8 +148,22 @@ export class FollowListDialog implements OnInit {
     this.router.navigate(['/profile', username]);
   }
 
-  onOverlayClick(): void {
-    this.closeDialog.emit();
+  /** Tracks where a press on the overlay started — see profile.ts's
+   * identical helper for why closing must check both the mousedown and
+   * click targets instead of the click alone (otherwise selecting a
+   * username/bio to copy it can close this dialog out from under you). */
+  private overlayMouseDownTarget: EventTarget | null = null;
+
+  onOverlayMouseDown(event: MouseEvent): void {
+    this.overlayMouseDownTarget = event.target;
+  }
+
+  onOverlayClick(event: MouseEvent): void {
+    const startedOnOverlay = this.overlayMouseDownTarget === event.currentTarget;
+    this.overlayMouseDownTarget = null;
+    if (startedOnOverlay && event.target === event.currentTarget) {
+      this.closeDialog.emit();
+    }
   }
 
   @HostListener('document:keydown', ['$event'])

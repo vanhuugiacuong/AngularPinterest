@@ -1,4 +1,4 @@
-<div class="modal-backdrop" (click)="cancelled.emit()" role="presentation">
+<div class="modal-backdrop" (mousedown)="onBackdropMouseDown($event)" (click)="onBackdropClick($event)" role="presentation">
   <section
     #dialog
     class="selector-dialog"

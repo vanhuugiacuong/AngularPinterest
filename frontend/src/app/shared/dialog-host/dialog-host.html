@@ -1,5 +1,10 @@
 @if (dialogService.current(); as dialog) {
-  <div class="nf-dialog-backdrop" (click)="onBackdropClick()" role="presentation">
+  <div
+    class="nf-dialog-backdrop"
+    (mousedown)="onBackdropMouseDown($event)"
+    (click)="onBackdropClick($event)"
+    role="presentation"
+  >
     <section
       #panel
       class="nf-dialog-panel"

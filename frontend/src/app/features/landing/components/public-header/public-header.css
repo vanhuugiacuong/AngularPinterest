@@ -26,15 +26,20 @@
   color: var(--nf-ink);
   background: transparent;
   border-bottom: 1px solid transparent;
-  transition: background-color 0.45s ease, border-color 0.45s ease, height 0.45s ease,
-    backdrop-filter 0.45s ease;
+  transition: background-color 0.45s ease, border-color 0.45s ease, height 0.45s ease;
 }
 
+/* Solid background, no backdrop-filter — this is the very first thing a
+   logged-out visitor sees, it's `position: fixed` so it's on screen for
+   every scroll frame, and it used to animate backdrop-filter's own blur
+   radius on top of that (a transition on backdrop-filter re-blurs on every
+   frame of the 0.45s transition, not just once). That combination is one of
+   the heaviest things a browser can be asked to do continuously, and it's
+   invisible on a strong GPU but a real source of jank on weaker/integrated
+   ones — see app-navbar's header for the authenticated-app equivalent fix. */
 .nf-head--pinned {
   height: 64px;
-  background: color-mix(in srgb, var(--nf-paper) 78%, transparent);
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  background: color-mix(in srgb, var(--nf-paper) 96%, transparent);
   border-bottom-color: color-mix(in srgb, var(--nf-ink) 10%, transparent);
 }
 
@@ -228,9 +233,7 @@
   flex-direction: column;
   padding: 10px;
   gap: 2px;
-  background: color-mix(in srgb, var(--nf-paper) 92%, transparent);
-  backdrop-filter: blur(18px) saturate(160%);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  background: color-mix(in srgb, var(--nf-paper) 98%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--nf-ink) 10%, transparent);
   animation: nf-head-sheet 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
 }

@@ -10,6 +10,7 @@ import type { MembershipPlan } from '../models/membership-plan';
 export interface DbUser {
   id: string;
   username: string;
+  displayName: string | null;
   email: string;
   avatarUrl: string | null;
   bio: string | null;
@@ -17,6 +18,7 @@ export interface DbUser {
   plan: MembershipPlan;
   ownedPlans: MembershipPlan[];
   planStartedAt: string | null;
+  isPrivate: boolean;
 }
 
 @Injectable({

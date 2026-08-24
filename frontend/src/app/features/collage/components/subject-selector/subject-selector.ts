@@ -67,6 +67,23 @@ export class SubjectSelectorComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /** Tracks where a press on the backdrop started — see profile.ts's
+   * identical helper for why closing must check both the mousedown and
+   * click targets instead of the click alone. */
+  private backdropMouseDownTarget: EventTarget | null = null;
+
+  onBackdropMouseDown(event: MouseEvent): void {
+    this.backdropMouseDownTarget = event.target;
+  }
+
+  onBackdropClick(event: MouseEvent): void {
+    const startedOnBackdrop = this.backdropMouseDownTarget === event.currentTarget;
+    this.backdropMouseDownTarget = null;
+    if (startedOnBackdrop && event.target === event.currentTarget) {
+      this.cancelled.emit();
+    }
+  }
+
   @HostListener('window:keydown', ['$event'])
   onKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {

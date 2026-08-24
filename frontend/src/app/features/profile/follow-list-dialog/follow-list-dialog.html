@@ -1,4 +1,4 @@
-<div class="fld-overlay" (click)="onOverlayClick()">
+<div class="fld-overlay" (mousedown)="onOverlayMouseDown($event)" (click)="onOverlayClick($event)">
   <section
     class="fld-sheet"
     data-follow-dialog

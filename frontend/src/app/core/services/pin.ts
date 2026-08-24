@@ -6,6 +6,7 @@ import type { MembershipPlan } from '../models/membership-plan';
 export interface PinAuthor {
   id: string;
   username: string;
+  displayName?: string | null;
   avatarUrl?: string;
   plan: MembershipPlan;
 }

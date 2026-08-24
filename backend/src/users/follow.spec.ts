@@ -5,11 +5,21 @@ import { UsersService } from './users.service';
 describe('UsersService.toggleFollow', () => {
   const prisma = {
     user: { findUnique: jest.fn() },
-    follow: { findUnique: jest.fn(), create: jest.fn(), deleteMany: jest.fn(), count: jest.fn() },
+    follow: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      deleteMany: jest.fn(),
+      count: jest.fn(),
+    },
   };
   const blocksService = { isBlocked: jest.fn(), isBlockedEitherWay: jest.fn() };
   const notificationsService = { createNotification: jest.fn() };
-  const service = new UsersService(prisma as never, blocksService as never, notificationsService as never);
+  const service = new UsersService(
+    prisma as never,
+    blocksService as never,
+    notificationsService as never,
+    {} as never,
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -17,14 +27,21 @@ describe('UsersService.toggleFollow', () => {
   });
 
   it('rejects following yourself', async () => {
-    await expect(service.toggleFollow('user-1', 'user-1')).rejects.toThrow(BadRequestException);
+    await expect(service.toggleFollow('user-1', 'user-1')).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('rejects following someone you have blocked or who has blocked you', async () => {
-    prisma.user.findUnique.mockResolvedValue({ id: 'user-2', username: 'target' });
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-2',
+      username: 'target',
+    });
     blocksService.isBlockedEitherWay.mockResolvedValue(true);
 
-    await expect(service.toggleFollow('user-1', 'user-2')).rejects.toThrow(ForbiddenException);
+    await expect(service.toggleFollow('user-1', 'user-2')).rejects.toThrow(
+      ForbiddenException,
+    );
     expect(prisma.follow.create).not.toHaveBeenCalled();
   });
 
@@ -46,12 +63,15 @@ describe('UsersService.toggleFollow', () => {
     );
   });
 
-  it('puts the follower\'s real username in the notification text, never their raw user id', async () => {
+  it("puts the follower's real username in the notification text, never their raw user id", async () => {
     prisma.user.findUnique
       .mockResolvedValueOnce({ id: 'user-2', username: 'target' }) // target lookup
       .mockResolvedValueOnce({ username: 'nova_artist' }); // follower lookup for the notification text
     prisma.follow.findUnique.mockResolvedValue(null);
-    prisma.follow.create.mockResolvedValue({ followerId: 'user-1', followingId: 'user-2' });
+    prisma.follow.create.mockResolvedValue({
+      followerId: 'user-1',
+      followingId: 'user-2',
+    });
     prisma.follow.count.mockResolvedValueOnce(1).mockResolvedValueOnce(1);
 
     await service.toggleFollow('user-1', 'user-2');
@@ -74,10 +94,17 @@ describe('UsersService.toggleFollow', () => {
   });
 
   it('does not send a duplicate notification when a concurrent request already created the same Follow row (P2002 race)', async () => {
-    prisma.user.findUnique.mockResolvedValue({ id: 'user-2', username: 'target' });
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-2',
+      username: 'target',
+    });
     prisma.follow.findUnique.mockResolvedValue(null);
     const p2002 = Object.create(Prisma.PrismaClientKnownRequestError.prototype);
-    Object.assign(p2002, { code: 'P2002', message: 'Unique constraint failed', clientVersion: 'test' });
+    Object.assign(p2002, {
+      code: 'P2002',
+      message: 'Unique constraint failed',
+      clientVersion: 'test',
+    });
     prisma.follow.create.mockRejectedValue(p2002);
     prisma.follow.count.mockResolvedValueOnce(1).mockResolvedValueOnce(1);
 
@@ -136,6 +163,8 @@ describe('UsersService follow-request responses', () => {
   });
 });
 
+
+
 describe('UsersService.getFollowers / getFollowing', () => {
   const prisma = {
     user: { findUnique: jest.fn() },
@@ -143,7 +172,12 @@ describe('UsersService.getFollowers / getFollowing', () => {
   };
   const blocksService = { isBlocked: jest.fn(), isBlockedEitherWay: jest.fn() };
   const notificationsService = { createNotification: jest.fn() };
-  const service = new UsersService(prisma as never, blocksService as never, notificationsService as never);
+  const service = new UsersService(
+    prisma as never,
+    blocksService as never,
+    notificationsService as never,
+    {} as never,
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -151,16 +185,37 @@ describe('UsersService.getFollowers / getFollowing', () => {
   });
 
   it('excludes a follower who has blocked (or is blocked by) the viewer', async () => {
-    prisma.user.findUnique.mockResolvedValue({ id: 'owner-1', username: 'owner' });
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'owner-1',
+      username: 'owner',
+    });
     prisma.follow.findMany
       .mockResolvedValueOnce([
-        { follower: { id: 'blocked-user', username: 'blocked', avatarUrl: null, bio: null, plan: 'FREE' } },
-        { follower: { id: 'ok-user', username: 'ok', avatarUrl: null, bio: null, plan: 'PLUS' } },
+        {
+          follower: {
+            id: 'blocked-user',
+            username: 'blocked',
+            avatarUrl: null,
+            bio: null,
+            plan: 'FREE',
+          },
+        },
+        {
+          follower: {
+            id: 'ok-user',
+            username: 'ok',
+            avatarUrl: null,
+            bio: null,
+            plan: 'PLUS',
+          },
+        },
       ])
       .mockResolvedValueOnce([]) // viewerFollowing lookup
       .mockResolvedValueOnce([]); // viewerFollowers lookup
     prisma.follow.count.mockResolvedValue(2);
-    blocksService.isBlockedEitherWay.mockImplementation(async (_viewer: string, other: string) => other === 'blocked-user');
+    blocksService.isBlockedEitherWay.mockImplementation(
+      async (_viewer: string, other: string) => other === 'blocked-user',
+    );
 
     const result = await service.getFollowers('owner', 'viewer-1');
 
@@ -168,11 +223,30 @@ describe('UsersService.getFollowers / getFollowing', () => {
   });
 
   it('marks viewerIsFollowing / followsViewer correctly per user', async () => {
-    prisma.user.findUnique.mockResolvedValue({ id: 'owner-1', username: 'owner' });
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'owner-1',
+      username: 'owner',
+    });
     prisma.follow.findMany
       .mockResolvedValueOnce([
-        { following: { id: 'u1', username: 'u1', avatarUrl: null, bio: null, plan: 'FREE' } },
-        { following: { id: 'u2', username: 'u2', avatarUrl: null, bio: null, plan: 'FREE' } },
+        {
+          following: {
+            id: 'u1',
+            username: 'u1',
+            avatarUrl: null,
+            bio: null,
+            plan: 'FREE',
+          },
+        },
+        {
+          following: {
+            id: 'u2',
+            username: 'u2',
+            avatarUrl: null,
+            bio: null,
+            plan: 'FREE',
+          },
+        },
       ])
       .mockResolvedValueOnce([{ followingId: 'u1' }]) // viewer follows u1
       .mockResolvedValueOnce([{ followerId: 'u2' }]); // u2 follows viewer back
@@ -181,18 +255,35 @@ describe('UsersService.getFollowers / getFollowing', () => {
     const result = await service.getFollowing('owner', 'viewer-1');
 
     expect(result.items.find((u) => u.id === 'u1')).toEqual(
-      expect.objectContaining({ viewerIsFollowing: true, followsViewer: false }),
+      expect.objectContaining({
+        viewerIsFollowing: true,
+        followsViewer: false,
+      }),
     );
     expect(result.items.find((u) => u.id === 'u2')).toEqual(
-      expect.objectContaining({ viewerIsFollowing: false, followsViewer: true }),
+      expect.objectContaining({
+        viewerIsFollowing: false,
+        followsViewer: true,
+      }),
     );
   });
 
   it('never includes email in the returned user shape', async () => {
-    prisma.user.findUnique.mockResolvedValue({ id: 'owner-1', username: 'owner' });
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'owner-1',
+      username: 'owner',
+    });
     prisma.follow.findMany
       .mockResolvedValueOnce([
-        { follower: { id: 'u1', username: 'u1', avatarUrl: null, bio: null, plan: 'FREE' } },
+        {
+          follower: {
+            id: 'u1',
+            username: 'u1',
+            avatarUrl: null,
+            bio: null,
+            plan: 'FREE',
+          },
+        },
       ])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);

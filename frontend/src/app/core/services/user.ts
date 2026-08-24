@@ -6,10 +6,12 @@ import type { MembershipPlan } from '../models/membership-plan';
 export interface ProfileUser {
   id: string;
   username: string;
+  displayName?: string | null;
   avatarUrl?: string | null;
   bio?: string | null;
   createdAt: string;
   plan: MembershipPlan;
+  isPrivate?: boolean;
 }
 
 export interface ProfileCounts {
@@ -41,6 +43,7 @@ export interface ProfileViewerState {
   isFollowing: boolean;
   isFollowedBy: boolean;
   isMutualFollow: boolean;
+  hasPendingFollowRequest?: boolean;
   followRequestStatus: FollowRelationshipStatus;
   canViewFavorites: boolean;
   canViewPrivateBoards: boolean;
@@ -50,6 +53,11 @@ export interface ProfileViewerState {
   isBlockedByTarget: boolean;
   canMessage: boolean;
   canSendMessageRequest: boolean;
+  /** false when the profile owner has a private account and the viewer is
+   * neither the owner nor an accepted follower — the posts/albums grid must
+   * not be requested or rendered in this case (backend also enforces this,
+   * this flag only decides what the UI should even attempt to show). */
+  canViewPosts: boolean;
 }
 
 export interface ProfileSummary {
@@ -133,6 +141,23 @@ export interface UserConnection {
   followsViewer: boolean;
 }
 
+/** A pending request to follow a private account, from the receiver's
+ * point of view (list of people asking to follow them). */
+export interface FollowRequestRecord {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  createdAt: string;
+  respondedAt: string | null;
+  sender: {
+    id: string;
+    username: string;
+    avatarUrl?: string | null;
+    plan: MembershipPlan;
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class UserService {
   private readonly baseUrl = `${API_BASE_URL}/api/users`;
@@ -187,6 +212,37 @@ export class UserService {
     );
   }
 
+  /** Sửa hồ sơ của chính người dùng đang đăng nhập - tên hiển thị/ID, tiểu sử,
+   * và tuỳ chọn ảnh đại diện mới. Trả về bản ghi User đầy đủ (khớp DbUser)
+   * để gọi nơi cập nhật ngay SupabaseService.dbUser mà không cần tải lại. */
+  async updateProfile(
+    input: { displayName?: string; username?: string; bio?: string; avatar?: File },
+    token: string,
+  ): Promise<{
+    id: string;
+    username: string;
+    displayName: string | null;
+    email: string;
+    avatarUrl: string | null;
+    bio: string | null;
+    createdAt: string;
+    plan: MembershipPlan;
+  }> {
+    const formData = new FormData();
+    if (input.displayName !== undefined) formData.append('displayName', input.displayName);
+    if (input.username !== undefined) formData.append('username', input.username);
+    if (input.bio !== undefined) formData.append('bio', input.bio);
+    if (input.avatar) formData.append('avatar', input.avatar);
+    return this.request(`${this.baseUrl}/me`, token, { method: 'PATCH', body: formData });
+  }
+
+  async updatePrivacy(isPrivate: boolean, token: string): Promise<{ isPrivate: boolean }> {
+    return this.request(`${this.baseUrl}/me/privacy`, token, {
+      method: 'PATCH',
+      body: JSON.stringify({ isPrivate }),
+    });
+  }
+
   async searchUsers(query: string, limit = 8): Promise<UserSearchResult[]> {
     const trimmed = query.trim();
     if (!trimmed) return [];
@@ -227,6 +283,10 @@ export class UserService {
     return this.request(`${this.baseUrl}/${id}/follow`, token, { method: 'POST' });
   }
 
+  async getIncomingFollowRequests(token: string): Promise<FollowRequestRecord[]> {
+    return this.request<FollowRequestRecord[]>(`${this.baseUrl}/me/follow-requests`, token);
+  }
+
   async acceptFollowRequest(requesterId: string, token: string): Promise<{ accepted: boolean }> {
     return this.request(`${this.baseUrl}/follow-requests/${requesterId}/accept`, token, { method: 'PATCH' });
   }
@@ -240,7 +300,7 @@ export class UserService {
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
     }
-    if (init.body) {
+    if (init.body && typeof init.body === 'string') {
       headers.set('Content-Type', 'application/json');
     }
 

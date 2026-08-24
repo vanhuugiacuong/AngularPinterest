@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy, HostListener } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, HostListener, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { SidebarStateService } from '../../core/services/sidebar-state';
@@ -9,6 +9,7 @@ import { SupabaseService } from '../../core/services/supabase';
 import { ToastService } from '../../core/services/toast';
 import { Observable } from 'rxjs';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
+import { toUserMessage } from '../../core/utils/http-error';
 import { BadgeBumpDirective } from '../../shared/badge-bump.directive';
 
 /** Reserves room for the fixed mobile bottom nav so it never covers page
@@ -30,7 +31,7 @@ export class Sidebar implements OnInit, OnDestroy {
   private messagingService = inject(MessagingService);
   private userService = inject(UserService);
   private supabaseService = inject(SupabaseService);
-  private toast = inject(ToastService);
+  private toastService = inject(ToastService);
   private router = inject(Router);
 
   isNotificationOpen = false;
@@ -43,6 +44,13 @@ export class Sidebar implements OnInit, OnDestroy {
    * needing a full reload. Keyed by requester id (== notification.senderId). */
   private respondingFollowRequests = new Set<string>();
   private handledFollowRequests = new Map<string, 'accepted' | 'rejected'>();
+
+  /** Local, session-only bookkeeping for inline follow-request actions in
+   * the notification list - keyed by the requester's user id (senderId),
+   * since a Notification row has no follow-request id to key off of and the
+   * backend's accept/reject endpoints are themselves keyed by sender. */
+  private followRequestPendingIds = signal<Set<string>>(new Set());
+  private followRequestOutcomes = signal<Map<string, 'accepted' | 'rejected'>>(new Map());
 
   ngOnInit(): void {
     this.notificationService.loadNotifications();
@@ -70,13 +78,22 @@ export class Sidebar implements OnInit, OnDestroy {
     }
   }
 
+  showBackdrop(): boolean {
+    return this.isNotificationOpen || this.sidebarState.isOpen();
+  }
+
+  onBackdropClick(): void {
+    this.closeNotifications();
+    if (!this.sidebarState.supportsHover) {
+      this.sidebarState.close();
+    }
+  }
+
   toggleNotifications(): void {
     this.isNotificationOpen = !this.isNotificationOpen;
     if (this.isNotificationOpen) {
       this.sidebarState.openSidebar();
       this.notificationService.loadNotifications();
-      // Opening the panel counts as viewing — clear the badge right away
-      // instead of requiring an explicit "Đọc tất cả" click.
       this.notificationService.markAllAsRead().subscribe();
     } else {
       this.sidebarState.scheduleClose();
@@ -104,60 +121,79 @@ export class Sidebar implements OnInit, OnDestroy {
     }
   }
 
+  isFollowRequestPending(requesterId: string): boolean {
+    return this.followRequestPendingIds().has(requesterId) || this.respondingFollowRequests.has(requesterId);
+  }
+
+  isFollowRequestHandled(requesterId: string): boolean {
+    return this.followRequestOutcomes().has(requesterId) || this.handledFollowRequests.has(requesterId);
+  }
+
+  followRequestOutcome(requesterId: string): string {
+    const outcome = this.followRequestOutcomes().get(requesterId) || this.handledFollowRequests.get(requesterId);
+    return outcome === 'accepted' ? 'Đã chấp nhận' : 'Đã từ chối';
+  }
+
   isPendingFollowRequest(item: Notification): boolean {
-    return item.type === 'FOLLOW_REQUEST' && !!item.senderId && !this.handledFollowRequests.has(item.senderId);
+    return item.type === 'FOLLOW_REQUEST' && !!item.senderId && !this.isFollowRequestHandled(item.senderId);
   }
 
   getFollowRequestResult(item: Notification): 'accepted' | 'rejected' | null {
-    return item.senderId ? this.handledFollowRequests.get(item.senderId) ?? null : null;
+    return item.senderId ? this.handledFollowRequests.get(item.senderId) ?? this.followRequestOutcomes().get(item.senderId) ?? null : null;
   }
 
   isRespondingToFollowRequest(item: Notification): boolean {
-    return !!item.senderId && this.respondingFollowRequests.has(item.senderId);
+    return !!item.senderId && this.isFollowRequestPending(item.senderId);
   }
 
-  async acceptFollowRequest(item: Notification, event: Event): Promise<void> {
-    event.stopPropagation();
-    await this.respondToFollowRequest(
-      item,
-      'accepted',
-      'Đã chấp nhận yêu cầu theo dõi.',
-      (requesterId, token) => this.userService.acceptFollowRequest(requesterId, token),
-    );
+  async acceptFollowRequest(item: Notification, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    if (!item.senderId || this.isFollowRequestPending(item.senderId)) return;
+    await this.resolveFollowRequest(item, 'accepted');
   }
 
-  async rejectFollowRequest(item: Notification, event: Event): Promise<void> {
-    event.stopPropagation();
-    await this.respondToFollowRequest(
-      item,
-      'rejected',
-      'Đã từ chối yêu cầu theo dõi.',
-      (requesterId, token) => this.userService.rejectFollowRequest(requesterId, token),
-    );
+  async rejectFollowRequest(item: Notification, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    if (!item.senderId || this.isFollowRequestPending(item.senderId)) return;
+    await this.resolveFollowRequest(item, 'rejected');
   }
 
-  private async respondToFollowRequest(
+  private async resolveFollowRequest(
     item: Notification,
-    result: 'accepted' | 'rejected',
-    successMessage: string,
-    action: (requesterId: string, token: string) => Promise<unknown>
+    outcome: 'accepted' | 'rejected',
   ): Promise<void> {
     const requesterId = item.senderId;
-    if (!requesterId || this.respondingFollowRequests.has(requesterId)) return;
+    if (!requesterId) return;
+
     this.respondingFollowRequests.add(requesterId);
+    this.followRequestPendingIds.update((ids) => new Set(ids).add(requesterId));
+
     try {
       const token = await this.supabaseService.getSessionToken();
-      if (!token) throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-      await action(requesterId, token);
-      this.handledFollowRequests.set(requesterId, result);
+      if (!token) throw new Error('Bạn cần đăng nhập lại để thực hiện thao tác này.');
+
+      if (outcome === 'accepted') {
+        await this.userService.acceptFollowRequest(requesterId, token);
+      } else {
+        await this.userService.rejectFollowRequest(requesterId, token);
+      }
+
+      this.handledFollowRequests.set(requesterId, outcome);
+      this.followRequestOutcomes.update((map) => new Map(map).set(requesterId, outcome));
+
       if (!item.isRead) {
         this.notificationService.markAsRead(item.id).subscribe();
       }
-      this.toast.success(successMessage);
+      this.toastService.success(outcome === 'accepted' ? 'Đã chấp nhận yêu cầu theo dõi.' : 'Đã từ chối yêu cầu theo dõi.');
     } catch (error) {
-      this.toast.error(error instanceof Error ? error.message : 'Không thể xử lý yêu cầu theo dõi.');
+      this.toastService.error(toUserMessage(error, 'Không thể xử lý yêu cầu theo dõi.'));
     } finally {
       this.respondingFollowRequests.delete(requesterId);
+      this.followRequestPendingIds.update((ids) => {
+        const next = new Set(ids);
+        next.delete(requesterId);
+        return next;
+      });
     }
   }
 

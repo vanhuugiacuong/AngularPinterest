@@ -33,6 +33,25 @@ export class Pricing implements OnInit {
     this.checkoutReturnFocus = null;
   }
 
+  /** Tracks where a press on the backdrop started — see profile.ts's
+   * identical helper for why closing must check both the mousedown and
+   * click targets instead of the click alone (otherwise selecting text in
+   * the card-number/name fields to retype it can close checkout out from
+   * under the person paying). */
+  private backdropMouseDownTarget: EventTarget | null = null;
+
+  onBackdropMouseDown(event: MouseEvent) {
+    this.backdropMouseDownTarget = event.target;
+  }
+
+  onCheckoutBackdropClick(event: MouseEvent) {
+    const startedOnBackdrop = this.backdropMouseDownTarget === event.currentTarget;
+    this.backdropMouseDownTarget = null;
+    if (startedOnBackdrop && event.target === event.currentTarget) {
+      this.closeCheckout();
+    }
+  }
+
   @HostListener('document:keydown', ['$event'])
   onDocumentKeydown(event: KeyboardEvent) {
     if (!this.selectedPlan()) return;

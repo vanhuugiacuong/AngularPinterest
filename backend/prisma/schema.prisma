@@ -12,7 +12,8 @@ datasource db {
 // Bảng User đồng bộ với id từ auth.users của Supabase
 model User {
   id           String    @id // Trùng với ID UUID do Supabase Auth cấp
-  username     String    @unique
+  username     String    @unique // ID duy nhất dùng trong URL hồ sơ - khác với displayName
+  displayName  String?   // Tên hiển thị - text tự do, không cần duy nhất. Null = hiển thị username thay thế.
   email        String    @unique
   avatarUrl    String?
   bio          String?
@@ -22,6 +23,7 @@ model User {
   planStartedAt DateTime?
   planExpiresAt DateTime?
   isAdmin       Boolean   @default(false)
+  isPrivate     Boolean   @default(false)
   aiUsages      AiUsage[]
   purchases     ImagePurchase[] @relation("BuyerPurchases")
   sales         ImagePurchase[] @relation("SellerSales")
@@ -36,6 +38,8 @@ model User {
   
   followers    Follow[]  @relation("UserFollowers")
   following    Follow[]  @relation("UserFollowing")
+  followRequestsSent     FollowRequest[] @relation("FollowRequestsSent")
+  followRequestsReceived FollowRequest[] @relation("FollowRequestsReceived")
   messageRequestsSent     MessageRequest[] @relation("MessageRequestsSent")
   messageRequestsReceived MessageRequest[] @relation("MessageRequestsReceived")
   conversationsAsUserOne  Conversation[]   @relation("ConversationsAsUserOne")
@@ -309,6 +313,30 @@ model MessageRequest {
   sender   User        @relation("MessageRequestsSent", fields: [senderId], references: [id], onDelete: Cascade)
   receiver User        @relation("MessageRequestsReceived", fields: [receiverId], references: [id], onDelete: Cascade)
   report   UserReport?
+
+  @@unique([senderId, receiverId])
+  @@index([receiverId, status])
+  @@index([senderId, status])
+}
+
+enum FollowRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+// Yêu cầu theo dõi một tài khoản riêng tư (isPrivate = true). Tài khoản công
+// khai không tạo bản ghi này — follow có hiệu lực ngay lập tức (xem Follow).
+model FollowRequest {
+  id          String              @id @default(uuid())
+  senderId    String
+  receiverId  String
+  status      FollowRequestStatus @default(PENDING)
+  createdAt   DateTime            @default(now())
+  respondedAt DateTime?
+
+  sender   User @relation("FollowRequestsSent", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("FollowRequestsReceived", fields: [receiverId], references: [id], onDelete: Cascade)
 
   @@unique([senderId, receiverId])
   @@index([receiverId, status])

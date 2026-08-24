@@ -90,8 +90,19 @@ export class PublishProgressDialog implements OnChanges {
     }
   }
 
-  onBackdropClick(): void {
-    if (this.status === 'error') {
+  /** Tracks where a press on the backdrop started — see profile.ts's
+   * identical helper for why dismissal must check both the mousedown and
+   * click targets instead of the click alone. */
+  private backdropMouseDownTarget: EventTarget | null = null;
+
+  onBackdropMouseDown(event: MouseEvent): void {
+    this.backdropMouseDownTarget = event.target;
+  }
+
+  onBackdropClick(event: MouseEvent): void {
+    const startedOnBackdrop = this.backdropMouseDownTarget === event.currentTarget;
+    this.backdropMouseDownTarget = null;
+    if (this.status === 'error' && startedOnBackdrop && event.target === event.currentTarget) {
       this.dismiss.emit();
     }
   }
