@@ -33,6 +33,13 @@
             </span>
             <div *ngIf="activeTab() === 'ai'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-[#B15CAA] rounded-full"></div>
           </div>
+
+          <div (click)="goToCollage()" class="relative cursor-pointer transition-all pb-1.5 opacity-60 hover:opacity-100">
+            <span class="text-sm font-bold text-black dark:text-white flex items-center gap-1">
+              <span class="material-symbols-outlined text-sm leading-none text-[#B15CAA] font-bold">content_cut</span>
+              Ảnh ghép
+            </span>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-10 mt-2">
