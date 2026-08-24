@@ -46,7 +46,7 @@ describe('PinsService.searchPinsByImage', () => {
   beforeEach(() => {
     queryRawUnsafe = jest.fn();
     prisma = { $queryRawUnsafe: queryRawUnsafe };
-    service = new PinsService(prisma as never, {} as never, {} as never);
+    service = new PinsService(prisma as never, {} as never, {} as never, {} as never, {} as never);
     fetchMock = jest.fn();
     global.fetch = fetchMock as never;
   });

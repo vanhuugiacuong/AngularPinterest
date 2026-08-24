@@ -65,6 +65,67 @@
   box-shadow: 0 -10px 30px -5px color-mix(in srgb, var(--color-ink) 55%, transparent);
 }
 
+/* One cohesive interaction surface: hovering or keyboard-focusing either the
+   message or its follow controls highlights the complete notification card. */
+.nf-notification-card {
+  position: relative;
+  background: transparent;
+  transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.nf-notification-card--unread {
+  background: color-mix(in srgb, var(--color-studio-aqua) 5%, transparent);
+}
+
+.nf-notification-card:hover,
+.nf-notification-card:focus-within {
+  background: color-mix(in srgb, var(--color-surface-elevated) 88%, var(--color-studio-aqua) 12%);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--color-studio-aqua) 72%, transparent);
+}
+
+.nf-notification-card__main {
+  background: transparent;
+}
+
+.nf-follow-action {
+  min-width: 0;
+  transition: transform 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.nf-follow-action:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.nf-follow-action--accept:not(:disabled):hover {
+  background: color-mix(in srgb, var(--color-studio-aqua) 82%, white 18%);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--color-studio-aqua) 20%, transparent);
+}
+
+.nf-follow-action--reject:not(:disabled):hover {
+  background: color-mix(in srgb, var(--color-surface-elevated) 78%, var(--color-text) 8%);
+  border-color: color-mix(in srgb, var(--color-border) 55%, var(--color-text-muted) 45%);
+}
+
+.nf-follow-action:focus-visible {
+  outline: 2px solid var(--color-studio-aqua);
+  outline-offset: 2px;
+}
+
+.nf-notification-card__result {
+  color: var(--color-studio-aqua);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nf-notification-card,
+  .nf-follow-action {
+    transition: none;
+  }
+
+  .nf-follow-action:not(:disabled):hover {
+    transform: none;
+  }
+}
+
 @keyframes drawerSlideIn {
   from {
     opacity: 0;

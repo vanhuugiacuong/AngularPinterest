@@ -173,6 +173,7 @@
         <!-- Unread Badge -->
         <span
           *ngIf="(unreadCount$ | async)! > 0"
+          [appBadgeBump]="(unreadCount$ | async)!"
           class="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-text-on-accent ring-2 ring-surface shadow-glow"
         >
           {{ (unreadCount$ | async)! > 99 ? '99+' : (unreadCount$ | async) }}
@@ -200,11 +201,19 @@
         [class.rounded-frame-alt]="isMessagesPage()"
         [class.text-accent]="isMessagesPage()"
         [class.text-text-muted]="!isMessagesPage()"
-        class="flex h-11 w-11 items-center justify-center rounded-control transition-colors duration-200 hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
+        class="relative flex h-11 w-11 items-center justify-center rounded-control transition-all duration-300 ease-spring hover:bg-surface-elevated hover:text-text hover:rounded-frame-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
         aria-label="Tin nhắn"
         [attr.aria-current]="isMessagesPage() ? 'page' : null"
       >
         <span class="material-symbols-outlined text-xl" [class.font-bold]="isMessagesPage()">sms</span>
+        <!-- Unread Badge -->
+        <span
+          *ngIf="(unreadMessageCount$ | async)! > 0"
+          [appBadgeBump]="(unreadMessageCount$ | async)!"
+          class="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-text-on-accent ring-2 ring-surface shadow-glow"
+        >
+          {{ (unreadMessageCount$ | async)! > 99 ? '99+' : (unreadMessageCount$ | async) }}
+        </span>
       </button>
       <span
         role="tooltip"
@@ -313,19 +322,16 @@
         </p>
       </div>
 
-      <!-- Item List — a div (not a button) because FOLLOW_REQUEST rows nest
-           real Accept/Reject buttons inside; a button-in-button is invalid
-           HTML and unreliable for click targeting, so this is kept keyboard-
-           operable (role/tabindex/Enter+Space) instead. -->
-      <div
-        role="button"
-        tabindex="0"
+      <!-- Item List -->
+      <article
         *ngFor="let item of list"
+        class="nf-notification-card group"
+        [class.nf-notification-card--unread]="!item.isRead"
+      >
+      <button
+        type="button"
         (click)="onNotificationClick(item)"
-        (keydown.enter)="onNotificationClick(item)"
-        (keydown.space)="$event.preventDefault(); onNotificationClick(item)"
-        [class.bg-accent/5]="!item.isRead"
-        class="group relative flex w-full items-start gap-3.5 p-4 text-left hover:bg-surface-elevated transition-colors cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
+        class="nf-notification-card__main relative flex w-full items-start gap-3.5 p-4 text-left cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
       >
         <!-- Sender Avatar or Initial -->
         <div class="relative shrink-0 mt-0.5">
@@ -344,8 +350,8 @@
               'bg-error': item.type === 'LIKE',
               'bg-primary': item.type === 'COMMENT',
               'bg-secondary': item.type === 'SAVE',
-              'bg-success': item.type === 'POST_SUCCESS' || item.type === 'POST_AI_SUCCESS',
-              'bg-accent': item.type === 'FOLLOW' || item.type === 'FOLLOW_REQUEST'
+              'bg-success': item.type === 'POST_SUCCESS' || item.type === 'FOLLOW',
+              'bg-accent': item.type === 'FOLLOW_REQUEST'
             }"
           >
             <span class="material-symbols-outlined text-[12px]">
@@ -353,8 +359,7 @@
                 item.type === 'LIKE' ? 'favorite' :
                 item.type === 'COMMENT' ? 'chat_bubble' :
                 item.type === 'SAVE' ? 'bookmark' :
-                item.type === 'FOLLOW_REQUEST' ? 'person_add' :
-                item.type === 'FOLLOW' ? 'how_to_reg' : 'check_circle'
+                item.type === 'FOLLOW' || item.type === 'FOLLOW_REQUEST' ? 'person' : 'check_circle'
               }}
             </span>
           </span>
@@ -392,7 +397,7 @@
                 type="button"
                 class="px-3 py-1.5 rounded-control bg-primary text-text-on-accent text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
                 [disabled]="isFollowRequestPending(requesterId)"
-                (click)="$event.stopPropagation(); acceptFollowRequest(item)"
+                (click)="$event.stopPropagation(); acceptFollowRequest(item, $event)"
               >
                 Chấp nhận
               </button>
@@ -400,7 +405,7 @@
                 type="button"
                 class="px-3 py-1.5 rounded-control bg-surface-high text-text text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
                 [disabled]="isFollowRequestPending(requesterId)"
-                (click)="$event.stopPropagation(); rejectFollowRequest(item)"
+                (click)="$event.stopPropagation(); rejectFollowRequest(item, $event)"
               >
                 Từ chối
               </button>
@@ -420,7 +425,45 @@
             class="h-11 w-11 rounded-frame-alt object-cover border border-border shadow-sm group-hover:scale-105 transition-transform"
           />
         </div>
+      </button>
+
+      <!-- Follow-request action row — accept/reject inline, no need to
+           leave the notification panel. Hidden once handled this session. -->
+      <div
+        *ngIf="isPendingFollowRequest(item)"
+        class="nf-notification-card__actions flex items-center gap-2 px-4 pb-3.5 pl-[74px]"
+        [attr.aria-busy]="isRespondingToFollowRequest(item)"
+      >
+        <button
+          type="button"
+          [disabled]="isRespondingToFollowRequest(item)"
+          (click)="acceptFollowRequest(item, $event)"
+          class="nf-follow-action nf-follow-action--accept flex flex-1 h-9 items-center justify-center gap-1.5 rounded-control bg-accent text-text-on-accent text-xs font-bold cursor-pointer border-none disabled:opacity-60 disabled:cursor-wait"
+        >
+          <span *ngIf="isRespondingToFollowRequest(item)" class="material-symbols-outlined text-sm animate-spin" aria-hidden="true">progress_activity</span>
+          {{ isRespondingToFollowRequest(item) ? 'Đang xử lý' : 'Chấp nhận' }}
+        </button>
+        <button
+          type="button"
+          [disabled]="isRespondingToFollowRequest(item)"
+          (click)="rejectFollowRequest(item, $event)"
+          class="nf-follow-action nf-follow-action--reject flex flex-1 h-9 items-center justify-center rounded-control bg-surface-elevated text-text text-xs font-bold cursor-pointer border border-border disabled:opacity-60 disabled:cursor-wait"
+        >
+          Từ chối
+        </button>
       </div>
+
+      <div
+        *ngIf="getFollowRequestResult(item) as result"
+        class="nf-notification-card__result flex items-center gap-2 px-4 pb-3.5 pl-[74px] text-xs font-semibold"
+        role="status"
+      >
+        <span class="material-symbols-outlined text-base" aria-hidden="true">
+          {{ result === 'accepted' ? 'person_check' : 'person_cancel' }}
+        </span>
+        {{ result === 'accepted' ? 'Đã chấp nhận yêu cầu' : 'Đã từ chối yêu cầu' }}
+      </div>
+      </article>
     </ng-container>
   </div>
 </ng-template>
@@ -472,6 +515,7 @@
     <span class="text-xs font-medium">Thông báo</span>
     <span
       *ngIf="(unreadCount$ | async)! > 0"
+      [appBadgeBump]="(unreadCount$ | async)!"
       class="absolute top-1 right-[calc(50%-20px)] flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-text-on-accent ring-2 ring-surface"
     >
       {{ (unreadCount$ | async)! > 99 ? '99+' : (unreadCount$ | async) }}
@@ -483,12 +527,19 @@
     (click)="navigateToMessages()"
     [class.text-accent]="isMessagesPage()"
     [class.text-text-muted]="!isMessagesPage()"
-    class="flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[56px] cursor-pointer border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
+    class="relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[56px] cursor-pointer border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
     aria-label="Tin nhắn"
     [attr.aria-current]="isMessagesPage() ? 'page' : null"
   >
     <span class="material-symbols-outlined text-2xl" [class.font-bold]="isMessagesPage()">sms</span>
     <span class="text-xs font-medium">Tin nhắn</span>
+    <span
+      *ngIf="(unreadMessageCount$ | async)! > 0"
+      [appBadgeBump]="(unreadMessageCount$ | async)!"
+      class="absolute top-1 right-[calc(50%-20px)] flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-text-on-accent ring-2 ring-surface"
+    >
+      {{ (unreadMessageCount$ | async)! > 99 ? '99+' : (unreadMessageCount$ | async) }}
+    </span>
   </button>
 
   <button

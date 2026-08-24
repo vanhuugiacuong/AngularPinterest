@@ -3,12 +3,19 @@ import {
   OnModuleInit,
   UnauthorizedException,
 } from '@nestjs/common';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, RealtimeChannel } from '@supabase/supabase-js';
 import { UserPayload } from './current-user.decorator';
 
 @Injectable()
 export class SupabaseService implements OnModuleInit {
   private supabaseClient?: ReturnType<typeof createClient>;
+  /** One persistent, subscribed websocket channel per broadcast topic —
+   * the same connect-then-send flow the frontend already uses successfully
+   * for per-conversation chat, proven to work against this project's actual
+   * Realtime configuration (unlike the newer, connectionless REST broadcast
+   * endpoint, which some projects don't have fully enabled). Kept open for
+   * the process lifetime since topics are per-user and reused constantly. */
+  private readonly broadcastChannels = new Map<string, RealtimeChannel>();
 
   async onModuleInit() {
     const url = process.env.SUPABASE_URL;
@@ -238,5 +245,44 @@ export class SupabaseService implements OnModuleInit {
         `Failed to create signed URL: ${error?.message ?? 'unknown error'}`,
       );
     return data.signedUrl;
+  }
+
+  /** Server-side push — best-effort: a missed realtime push must never fail
+   * the write it's reporting on, since clients still reconcile via polling. */
+  async broadcast(topic: string, event: string, payload: Record<string, unknown>): Promise<void> {
+    try {
+      const channel = await this.getOrSubscribeBroadcastChannel(topic);
+      if (!channel) return;
+      const result = await channel.send({ type: 'broadcast', event, payload });
+      if (result !== 'ok') {
+        console.error(`[SupabaseService] Broadcast không gửi được (topic=${topic}, event=${event}): ${result}`);
+      }
+    } catch (error) {
+      console.error(`[SupabaseService] Broadcast thất bại (topic=${topic}, event=${event}):`, error);
+    }
+  }
+
+  private async getOrSubscribeBroadcastChannel(topic: string): Promise<RealtimeChannel | null> {
+    const existing = this.broadcastChannels.get(topic);
+    if (existing) return existing;
+    if (!this.supabaseClient) return null;
+
+    // ack: true makes send() actually wait for the server's confirmation
+    // instead of resolving 'ok' optimistically — so a rejected broadcast
+    // shows up as a real, logged failure instead of looking successful.
+    const channel = this.supabaseClient.channel(topic, { config: { broadcast: { ack: true } } });
+    const subscribed = await new Promise<boolean>((resolve) => {
+      channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') resolve(true);
+        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') resolve(false);
+      });
+    });
+
+    if (!subscribed) {
+      console.error(`[SupabaseService] Không thể subscribe kênh broadcast (topic=${topic})`);
+      return null;
+    }
+    this.broadcastChannels.set(topic, channel);
+    return channel;
   }
 }

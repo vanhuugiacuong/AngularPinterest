@@ -12,6 +12,7 @@ import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { AiGeneratorService } from '../ai-generator/ai-generator.service';
 import { MembershipsService } from '../memberships/memberships.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 interface EmbeddingResponse {
   embedding: number[];
@@ -74,6 +75,7 @@ export class PinsService {
     private readonly supabaseService: SupabaseService,
     private readonly aiGeneratorService: AiGeneratorService,
     private readonly membershipsService: MembershipsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   // Lưu bản gốc vào bucket private "pins-original" (chỉ backend đọc được) và
@@ -693,7 +695,7 @@ export class PinsService {
   async toggleLike(pinId: string, userId: string) {
     const pin = await this.prisma.pin.findUnique({
       where: { id: pinId },
-      select: { id: true },
+      select: { id: true, userId: true },
     });
     if (!pin) {
       throw new NotFoundException('Pin not found');
@@ -721,6 +723,18 @@ export class PinsService {
         },
       });
       const likeCount = await this.prisma.like.count({ where: { pinId } });
+      // Unliking never notifies (nothing new happened for the owner to see);
+      // only a fresh like does, and never for liking your own pin.
+      if (pin.userId !== userId) {
+        const liker = await this.prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
+        await this.notificationsService.createNotification(
+          pin.userId,
+          'LIKE',
+          `${liker?.username ?? 'Một người dùng'} đã thích ảnh của bạn.`,
+          userId,
+          pinId,
+        );
+      }
       return { liked: true, likeCount };
     }
   }
@@ -733,7 +747,7 @@ export class PinsService {
     if (!content || content.trim().length === 0) {
       throw new BadRequestException('Comment content cannot be empty');
     }
-    return this.prisma.comment.create({
+    const comment = await this.prisma.comment.create({
       data: {
         content,
         pinId,
@@ -751,6 +765,18 @@ export class PinsService {
         },
       },
     });
+
+    if (pin.userId !== userId) {
+      await this.notificationsService.createNotification(
+        pin.userId,
+        'COMMENT',
+        `${comment.user.username} đã bình luận về ảnh của bạn.`,
+        userId,
+        pinId,
+      );
+    }
+
+    return comment;
   }
 
   private classifyCategory(title: string, description?: string): string {

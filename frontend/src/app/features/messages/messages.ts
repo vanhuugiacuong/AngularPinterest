@@ -107,6 +107,7 @@ export class Messages implements OnInit, OnDestroy {
       const conversationId = params.get('conversationId');
       if (conversationId !== this.selectedConversationId()) {
         this.selectedConversationId.set(conversationId);
+        this.messagingService.activeConversationId = conversationId;
         if (conversationId) {
           this.messagesPage = 1;
           void this.loadMessages(conversationId);
@@ -133,6 +134,7 @@ export class Messages implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.routeSubscription?.unsubscribe();
+    this.messagingService.activeConversationId = null;
     void this.disconnectRealtime();
     if (this.typingTimer) clearTimeout(this.typingTimer);
     this.messagesRequestVersion += 1;
@@ -497,6 +499,7 @@ export class Messages implements OnInit, OnDestroy {
     try {
       const token = await this.requireToken();
       await this.messagingService.markRead(conversationId, token);
+      this.messagingService.markConversationRead(conversationId);
       await this.realtimeChannel?.send({ type: 'broadcast', event: 'read', payload: { readerId: this.currentUserId, readAt: new Date().toISOString() } });
       this.conversations.update((current) =>
         current.map((c) => (c.id === conversationId ? { ...c, unreadCount: 0 } : c)),

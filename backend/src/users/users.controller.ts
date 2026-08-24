@@ -164,21 +164,21 @@ export class UsersController {
     return this.usersService.toggleFollow(user.id, id);
   }
 
-  @Patch('follow-requests/:senderId/accept')
+  @Patch('follow-requests/:requesterId/accept')
   @UseGuards(SupabaseAuthGuard)
   async acceptFollowRequest(
     @CurrentUser() user: UserPayload,
-    @Param('senderId') senderId: string,
+    @Param('requesterId') requesterId: string,
   ) {
-    return this.usersService.acceptFollowRequest(user.id, senderId);
+    return this.usersService.acceptFollowRequest(user.id, requesterId);
   }
 
-  @Patch('follow-requests/:senderId/reject')
+  @Patch('follow-requests/:requesterId/reject')
   @UseGuards(SupabaseAuthGuard)
   async rejectFollowRequest(
     @CurrentUser() user: UserPayload,
-    @Param('senderId') senderId: string,
+    @Param('requesterId') requesterId: string,
   ) {
-    return this.usersService.rejectFollowRequest(user.id, senderId);
+    return this.usersService.rejectFollowRequest(user.id, requesterId);
   }
 }

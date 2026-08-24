@@ -11,11 +11,13 @@ describe('NotificationsService', () => {
     },
   };
 
+  const supabase = { broadcast: jest.fn() };
+
   let service: NotificationsService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new NotificationsService(prisma as never);
+    service = new NotificationsService(prisma as never, supabase as never);
   });
 
   describe('createNotification', () => {

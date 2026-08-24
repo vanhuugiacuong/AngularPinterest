@@ -1,6 +1,12 @@
-import { Injectable } from '@angular/core';
+import { Injectable, effect, inject } from '@angular/core';
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import { BehaviorSubject, timer } from 'rxjs';
+import { switchMap, tap, catchError } from 'rxjs/operators';
+import { of } from 'rxjs';
 import { API_BASE_URL } from '../api-base';
 import { safeFetch } from '../utils/http-error';
+import { SupabaseService } from './supabase';
+import { ToastService } from './toast';
 import type { MembershipPlan } from '../models/membership-plan';
 
 export type MessageRequestStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'REPORTED';
@@ -61,10 +67,118 @@ export interface PagedMessages {
   hasMore: boolean;
 }
 
+interface RealtimeMessagePayload {
+  conversationId: string;
+  message: ConversationMessage;
+  sender: PublicUserSummary;
+}
+
 @Injectable({ providedIn: 'root' })
 export class MessagingService {
   private readonly requestsUrl = `${API_BASE_URL}/api/message-requests`;
   private readonly conversationsUrl = `${API_BASE_URL}/api/conversations`;
+  private auth = inject(SupabaseService);
+  private toast = inject(ToastService);
+
+  private unreadCountSubject = new BehaviorSubject<number>(0);
+  unreadCount$ = this.unreadCountSubject.asObservable();
+  private lastConversations: ConversationSummary[] = [];
+
+  private realtimeChannel: RealtimeChannel | null = null;
+  private realtimeUserId: string | null = null;
+  /** Conversation currently open in the messages feature — set by
+   * MessagesComponent. Suppresses the global toast/badge-bump for a message
+   * the user is already looking at (that page has its own per-conversation
+   * realtime channel + immediate markRead for that case). */
+  activeConversationId: string | null = null;
+
+  constructor() {
+    this.startPolling();
+    // Instant push — a per-user Supabase Realtime channel the backend
+    // broadcasts to right after creating a message (see
+    // ConversationsService.sendMessage). Polling stays on as a silent
+    // reconciliation fallback in case a broadcast is missed.
+    effect(() => {
+      const userId = this.auth.user()?.id ?? null;
+      this.connectRealtime(userId);
+    });
+  }
+
+  private connectRealtime(userId: string | null): void {
+    if (this.realtimeUserId === userId) return;
+    if (this.realtimeChannel) {
+      this.auth.getRealtimeClient().removeChannel(this.realtimeChannel);
+      this.realtimeChannel = null;
+    }
+    this.realtimeUserId = userId;
+    if (!userId) return;
+
+    this.realtimeChannel = this.auth
+      .getRealtimeClient()
+      .channel(`user:${userId}`)
+      .on('broadcast', { event: 'message' }, ({ payload }) => {
+        this.handleRealtimeMessage(payload as RealtimeMessagePayload);
+      })
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.debug(`[MessagingService] Realtime kết nối OK — kênh user:${userId}`);
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          console.error(`[MessagingService] Realtime lỗi (${status}) trên kênh user:${userId}`, err);
+        }
+      });
+  }
+
+  private handleRealtimeMessage(payload: RealtimeMessagePayload): void {
+    const { conversationId, message, sender } = payload;
+
+    const existing = this.lastConversations.find((c) => c.id === conversationId);
+    if (existing) {
+      existing.lastMessage = { content: message.content, createdAt: message.createdAt, senderId: message.senderId };
+      existing.updatedAt = message.createdAt;
+      if (conversationId !== this.activeConversationId) existing.unreadCount += 1;
+    }
+
+    // Already looking at this conversation — its own realtime channel
+    // renders the message and marks it read; no toast/badge needed here.
+    if (conversationId === this.activeConversationId) return;
+
+    this.unreadCountSubject.next(this.unreadCountSubject.value + 1);
+    this.toast.notify(`${sender.username}: ${message.content}`);
+  }
+
+  /** Optimistically zeroes this conversation's contribution to the global
+   * unread badge — called right after a successful markRead so the badge
+   * clears the moment the user reads, not on the next 30s poll. */
+  markConversationRead(conversationId: string): void {
+    const conversation = this.lastConversations.find((c) => c.id === conversationId);
+    if (!conversation || conversation.unreadCount === 0) return;
+    const delta = conversation.unreadCount;
+    conversation.unreadCount = 0;
+    this.unreadCountSubject.next(Math.max(0, this.unreadCountSubject.value - delta));
+  }
+
+  private startPolling(): void {
+    // timer(0, 30000) fires immediately (establishing the baseline) and then
+    // every 30s after, mirroring NotificationService's cadence.
+    timer(0, 30000)
+      .pipe(
+        switchMap(() => this.fetchUnreadState()),
+        tap(({ total, conversations }) => {
+          this.lastConversations = conversations;
+          this.unreadCountSubject.next(total);
+        }),
+        catchError(() => of({ total: 0, conversations: [] as ConversationSummary[] }))
+      )
+      .subscribe();
+  }
+
+  private async fetchUnreadState(): Promise<{ total: number; conversations: ConversationSummary[] }> {
+    const token = await this.auth.getSessionToken();
+    if (!token) return { total: 0, conversations: [] };
+    const conversations = await this.listConversations(token);
+    const total = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
+    return { total, conversations };
+  }
 
   async sendMessageRequest(receiverId: string, token: string): Promise<MessageRequestRecord> {
     return this.request<MessageRequestRecord>(`${this.requestsUrl}/${receiverId}`, token, {

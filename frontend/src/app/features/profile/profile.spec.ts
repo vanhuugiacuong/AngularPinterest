@@ -16,7 +16,7 @@ function baseViewer(overrides: Partial<ProfileViewerState> = {}): ProfileViewerS
     isFollowing: false,
     isFollowedBy: false,
     isMutualFollow: false,
-    hasPendingFollowRequest: false,
+    followRequestStatus: 'NONE',
     canViewFavorites: false,
     canViewPrivateBoards: false,
     canViewPosts: true,

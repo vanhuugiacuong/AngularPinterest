@@ -34,14 +34,17 @@ export type MessageRequestRelationshipStatus =
   | 'REJECTED'
   | 'REPORTED';
 
+/** Mirrors backend FollowStatus, but from the viewer's point of view —
+ * PENDING is split into outgoing/incoming, matching MessageRequestRelationshipStatus. */
+export type FollowRelationshipStatus = 'NONE' | 'PENDING_OUTGOING' | 'PENDING_INCOMING' | 'ACCEPTED';
+
 export interface ProfileViewerState {
   isOwnProfile: boolean;
   isFollowing: boolean;
   isFollowedBy: boolean;
   isMutualFollow: boolean;
-  /** true when the viewer has sent a follow request to this (private)
-   * account that the owner has not yet accepted/rejected. */
-  hasPendingFollowRequest: boolean;
+  hasPendingFollowRequest?: boolean;
+  followRequestStatus: FollowRelationshipStatus;
   canViewFavorites: boolean;
   canViewPrivateBoards: boolean;
   messageRequestStatus: MessageRequestRelationshipStatus;
@@ -276,14 +279,7 @@ export class UserService {
   async toggleFollow(
     id: string,
     token: string,
-  ): Promise<{
-    followed: boolean;
-    /** true when the target account is private and this call created (or
-     * left standing) a pending follow request instead of an actual follow. */
-    requested: boolean;
-    followerCount: number;
-    followingCount: number;
-  }> {
+  ): Promise<{ followRequestStatus: FollowRelationshipStatus; followerCount: number; followingCount: number }> {
     return this.request(`${this.baseUrl}/${id}/follow`, token, { method: 'POST' });
   }
 
@@ -291,16 +287,12 @@ export class UserService {
     return this.request<FollowRequestRecord[]>(`${this.baseUrl}/me/follow-requests`, token);
   }
 
-  async acceptFollowRequest(senderId: string, token: string): Promise<FollowRequestRecord> {
-    return this.request(`${this.baseUrl}/follow-requests/${senderId}/accept`, token, {
-      method: 'PATCH',
-    });
+  async acceptFollowRequest(requesterId: string, token: string): Promise<{ accepted: boolean }> {
+    return this.request(`${this.baseUrl}/follow-requests/${requesterId}/accept`, token, { method: 'PATCH' });
   }
 
-  async rejectFollowRequest(senderId: string, token: string): Promise<FollowRequestRecord> {
-    return this.request(`${this.baseUrl}/follow-requests/${senderId}/reject`, token, {
-      method: 'PATCH',
-    });
+  async rejectFollowRequest(requesterId: string, token: string): Promise<{ rejected: boolean }> {
+    return this.request(`${this.baseUrl}/follow-requests/${requesterId}/reject`, token, { method: 'PATCH' });
   }
 
   private async request<T>(url: string, token?: string, init: RequestInit = {}): Promise<T> {

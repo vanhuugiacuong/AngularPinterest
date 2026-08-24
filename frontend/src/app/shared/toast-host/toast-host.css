@@ -2,15 +2,24 @@
    over the toast cards themselves — toasts must never lock the UI. */
 .nf-toast-region {
   position: fixed;
-  top: 76px;
-  right: 16px;
   z-index: 300;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
   gap: 10px;
   max-width: min(380px, calc(100vw - 32px));
   pointer-events: none;
+}
+
+.nf-toast-region--top-right {
+  top: 76px;
+  right: 16px;
+  align-items: flex-end;
+}
+
+.nf-toast-region--bottom-left {
+  bottom: 16px;
+  left: 16px;
+  align-items: flex-start;
 }
 
 .nf-toast {
@@ -132,11 +141,21 @@
 /* Mobile — bottom of screen, above safe area, never covers primary actions
    since toasts stay compact and are stacked bottom-up. */
 @media (max-width: 640px) {
-  .nf-toast-region {
+  .nf-toast-region--top-right {
     top: auto;
     bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     right: 12px;
     left: 12px;
+    max-width: none;
+    align-items: stretch;
+  }
+
+  /* Sits above the (now bottom, full-width) top-right region on mobile so
+     the two streams never overlap when both are active at once. */
+  .nf-toast-region--bottom-left {
+    bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+    left: 12px;
+    right: 12px;
     max-width: none;
     align-items: stretch;
   }

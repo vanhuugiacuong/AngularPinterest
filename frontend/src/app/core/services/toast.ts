@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 
 export type ToastKind = 'success' | 'error' | 'warning' | 'info';
+export type ToastCorner = 'top-right' | 'bottom-left';
 
 export interface ToastAction {
   label: string;
@@ -13,11 +14,13 @@ export interface Toast {
   message: string;
   action?: ToastAction;
   duration: number;
+  corner: ToastCorner;
 }
 
 export interface ToastOptions {
   action?: ToastAction;
   duration?: number;
+  corner?: ToastCorner;
 }
 
 const DEFAULT_DURATION: Record<ToastKind, number> = {
@@ -44,7 +47,8 @@ export class ToastService {
 
     const id = ++this.idCounter;
     const duration = options.duration ?? DEFAULT_DURATION[kind];
-    this.toasts.update((list) => [...list, { id, kind, message, action: options.action, duration }]);
+    const corner = options.corner ?? 'top-right';
+    this.toasts.update((list) => [...list, { id, kind, message, action: options.action, duration, corner }]);
     return id;
   }
 
@@ -62,6 +66,12 @@ export class ToastService {
 
   info(message: string, options?: ToastOptions): number {
     return this.show('info', message, options);
+  }
+
+  /** Live-activity ping (new message / new interaction) — bottom-left corner
+   * so it never collides with the top-right success/error/warning stream. */
+  notify(message: string, options: ToastOptions = {}): number {
+    return this.show('info', message, { corner: 'bottom-left', ...options });
   }
 
   dismiss(id: number): void {

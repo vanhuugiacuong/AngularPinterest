@@ -32,6 +32,16 @@ const USERNAME_PATTERN = /^[a-zA-Z0-9_.]{3,20}$/;
 const MAX_BIO_LENGTH = 280;
 const MAX_DISPLAY_NAME_LENGTH = 50;
 
+/** Mirrors backend FollowStatus, but from the viewer's point of view —
+ * PENDING is split into outgoing/incoming so the profile action button can
+ * render the right label ("Đã gửi yêu cầu" vs "Chấp nhận/Từ chối") without
+ * knowing who sent it. */
+export type FollowRelationshipStatus =
+  | 'NONE'
+  | 'PENDING_OUTGOING'
+  | 'PENDING_INCOMING'
+  | 'ACCEPTED';
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -304,8 +314,12 @@ export class UsersService {
     ] = await Promise.all([
       this.prisma.pin.count({ where: { userId: user.id } }),
       this.prisma.board.count({ where: boardFilter }),
-      this.prisma.follow.count({ where: { followingId: user.id } }),
-      this.prisma.follow.count({ where: { followerId: user.id } }),
+      this.prisma.follow.count({
+        where: { followingId: user.id, status: 'ACCEPTED' },
+      }),
+      this.prisma.follow.count({
+        where: { followerId: user.id, status: 'ACCEPTED' },
+      }),
       isOwnProfile
         ? this.prisma.like.count({ where: { userId: user.id } })
         : Promise.resolve(null),
@@ -322,7 +336,7 @@ export class UsersService {
                 followingId: user.id,
               },
             },
-            select: { followerId: true },
+            select: { status: true },
           })
         : Promise.resolve(null),
       viewerId && !isOwnProfile
@@ -333,7 +347,7 @@ export class UsersService {
                 followingId: viewerId,
               },
             },
-            select: { followerId: true },
+            select: { status: true },
           })
         : Promise.resolve(null),
       viewerId && !isOwnProfile
@@ -346,11 +360,16 @@ export class UsersService {
         : Promise.resolve(null),
     ]);
 
-    const isFollowing = Boolean(followingRow);
-    const isFollowedBy = Boolean(followedByRow);
+    const isFollowing = followingRow?.status === 'ACCEPTED';
+    const isFollowedBy = followedByRow?.status === 'ACCEPTED';
     const isMutualFollow = isFollowing && isFollowedBy;
     const canViewPosts = !user.isPrivate || isOwnProfile || isFollowing;
     const hasPendingFollowRequest = pendingFollowRequest?.status === 'PENDING';
+
+    let followRequestStatus: FollowRelationshipStatus = 'NONE';
+    if (isFollowing) followRequestStatus = 'ACCEPTED';
+    else if (followingRow?.status === 'PENDING') followRequestStatus = 'PENDING_OUTGOING';
+    else if (followedByRow?.status === 'PENDING') followRequestStatus = 'PENDING_INCOMING';
 
     const relationship = await this.getMessagingRelationship(
       viewerId,
@@ -374,7 +393,10 @@ export class UsersService {
         isFollowing,
         isFollowedBy,
         isMutualFollow,
-        hasPendingFollowRequest,
+        hasPendingFollowRequest:
+          hasPendingFollowRequest ||
+          followRequestStatus === 'PENDING_OUTGOING',
+        followRequestStatus,
         canViewFavorites: isOwnProfile,
         canViewPrivateBoards: isOwnProfile,
         canViewPosts,
@@ -617,12 +639,10 @@ export class UsersService {
     return this.pageResult(items, total, page, limit);
   }
 
-  /** Theo dõi/bỏ theo dõi hoặc gửi/thu hồi yêu cầu theo dõi, tuỳ theo tài
-   * khoản đích là công khai hay riêng tư:
-   * - Công khai: follow có hiệu lực ngay, giống hành vi cũ.
-   * - Riêng tư: tạo FollowRequest ở trạng thái PENDING, chỉ trở thành Follow
-   *   thật sau khi chủ tài khoản accept (xem acceptFollowRequest). Bấm lại
-   *   lần nữa trong lúc đang PENDING sẽ thu hồi yêu cầu đó. */
+  /** Toggles the follow relationship. Every account now requires approval —
+   * a first-time follow creates a PENDING request (notifying the target)
+   * instead of following instantly; calling this again while PENDING
+   * withdraws the request; calling it on an ACCEPTED relationship unfollows. */
   async toggleFollow(followerId: string, followingId: string) {
     if (followerId === followingId) {
       throw new BadRequestException('Bạn không thể tự theo dõi chính mình.');
@@ -642,182 +662,80 @@ export class UsersService {
 
     const existingFollow = await this.prisma.follow.findUnique({
       where: { followerId_followingId: { followerId, followingId } },
-      select: { followerId: true },
+      select: { status: true },
     });
 
+    let followRequestStatus: FollowRelationshipStatus;
     if (existingFollow) {
-      await this.prisma.follow.deleteMany({
-        where: { followerId, followingId },
-      });
-      const [followerCount, followingCount] = await this.followCounts(
-        followerId,
-        followingId,
-      );
-      return {
-        followed: false,
-        requested: false,
-        followerCount,
-        followingCount,
-      };
-    }
-
-    if (targetUser.isPrivate) {
-      return this.toggleFollowRequest(followerId, followingId);
-    }
-
-    // deleteMany/create thay vì findUnique-rồi-create để giảm cửa sổ race, và
-    // bắt lỗi P2002 (đã tồn tại do request đồng thời khác vừa tạo) thay vì
-    // để nó văng ra ngoài thành lỗi 500.
-    try {
-      await this.prisma.follow.create({ data: { followerId, followingId } });
-    } catch (error) {
-      if (!isUniqueConstraintError(error)) throw error;
-    }
-
-    const follower = await this.prisma.user.findUnique({
-      where: { id: followerId },
-      select: { username: true },
-    });
-    await this.notificationsService.createNotification(
-      followingId,
-      'FOLLOW',
-      `${follower?.username ?? 'Một người dùng'} đã bắt đầu theo dõi bạn.`,
-      followerId,
-    );
-
-    const [followerCount, followingCount] = await this.followCounts(
-      followerId,
-      followingId,
-    );
-    return { followed: true, requested: false, followerCount, followingCount };
-  }
-
-  private async followCounts(followerId: string, followingId: string) {
-    return Promise.all([
-      this.prisma.follow.count({ where: { followingId } }),
-      this.prisma.follow.count({ where: { followerId } }),
-    ]);
-  }
-
-  /** Gửi hoặc thu hồi yêu cầu theo dõi tới một tài khoản riêng tư. */
-  private async toggleFollowRequest(followerId: string, followingId: string) {
-    const existingRequest = await this.prisma.followRequest.findUnique({
-      where: {
-        senderId_receiverId: { senderId: followerId, receiverId: followingId },
-      },
-    });
-
-    if (existingRequest?.status === 'PENDING') {
-      await this.prisma.followRequest.delete({
-        where: { id: existingRequest.id },
-      });
-      const [followerCount, followingCount] = await this.followCounts(
-        followerId,
-        followingId,
-      );
-      return {
-        followed: false,
-        requested: false,
-        followerCount,
-        followingCount,
-      };
-    }
-
-    if (existingRequest) {
-      await this.prisma.followRequest.update({
-        where: { id: existingRequest.id },
-        data: { status: 'PENDING', respondedAt: null },
-      });
+      // Already following or already requested — toggle means "undo".
+      await this.prisma.follow.deleteMany({ where: { followerId, followingId } });
+      followRequestStatus = 'NONE';
     } else {
+      // deleteMany/create thay vì findUnique-rồi-create để giảm cửa sổ race, và
+      // bắt lỗi P2002 (đã tồn tại do request đồng thời khác vừa tạo) thay vì
+      // để nó văng ra ngoài thành lỗi 500.
       try {
-        await this.prisma.followRequest.create({
-          data: { senderId: followerId, receiverId: followingId },
-        });
+        await this.prisma.follow.create({ data: { followerId, followingId, status: 'PENDING' } });
       } catch (error) {
         if (!isUniqueConstraintError(error)) throw error;
       }
+      followRequestStatus = 'PENDING_OUTGOING';
     }
 
-    const sender = await this.prisma.user.findUnique({
-      where: { id: followerId },
-      select: { username: true },
-    });
-    await this.notificationsService.createNotification(
-      followingId,
-      'FOLLOW_REQUEST',
-      `${sender?.username ?? 'Một người dùng'} muốn theo dõi bạn.`,
-      followerId,
-    );
+    const [followerCount, followingCount] = await Promise.all([
+      this.prisma.follow.count({ where: { followingId, status: 'ACCEPTED' } }),
+      this.prisma.follow.count({ where: { followerId, status: 'ACCEPTED' } }),
+    ]);
 
-    const [followerCount, followingCount] = await this.followCounts(
-      followerId,
-      followingId,
-    );
-    return { followed: false, requested: true, followerCount, followingCount };
+    if (followRequestStatus === 'PENDING_OUTGOING' && !existingFollow) {
+      const follower = await this.prisma.user.findUnique({
+        where: { id: followerId },
+        select: { username: true },
+      });
+      await this.notificationsService.createNotification(
+        followingId,
+        'FOLLOW_REQUEST',
+        `${follower?.username ?? 'Một người dùng'} muốn theo dõi bạn.`,
+        followerId,
+      );
+    }
+
+    return { followRequestStatus, followerCount, followingCount };
   }
 
-  /** Chủ tài khoản riêng tư chấp nhận một yêu cầu theo dõi đang chờ - tạo
-   * quan hệ Follow thật, dùng updateMany với WHERE status:'PENDING' để chặn
-   * xử lý trùng khi hai request accept/reject chạy gần như đồng thời (giống
-   * pattern MessageRequestsService.accept). */
-  async acceptFollowRequest(receiverId: string, senderId: string) {
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const request = await tx.followRequest.findUnique({
-        where: { senderId_receiverId: { senderId, receiverId } },
-      });
-      if (!request) {
-        throw new NotFoundException('Yêu cầu theo dõi không tồn tại.');
-      }
-
-      const result = await tx.followRequest.updateMany({
-        where: { senderId, receiverId, status: 'PENDING' },
-        data: { status: 'ACCEPTED', respondedAt: new Date() },
-      });
-      if (result.count === 0) {
-        throw new ConflictException('Yêu cầu này đã được xử lý.');
-      }
-
-      try {
-        await tx.follow.create({
-          data: { followerId: senderId, followingId: receiverId },
-        });
-      } catch (error) {
-        if (!isUniqueConstraintError(error)) throw error;
-      }
-
-      return tx.followRequest.findUniqueOrThrow({
-        where: { senderId_receiverId: { senderId, receiverId } },
-      });
-    });
-
-    const acceptor = await this.prisma.user.findUnique({
-      where: { id: receiverId },
-      select: { username: true },
-    });
-    await this.notificationsService.createNotification(
-      senderId,
-      'FOLLOW',
-      `${acceptor?.username ?? 'Người dùng'} đã chấp nhận yêu cầu theo dõi của bạn.`,
-      receiverId,
-    );
-
-    return updated;
-  }
-
-  /** Chủ tài khoản riêng tư từ chối một yêu cầu theo dõi đang chờ. */
-  async rejectFollowRequest(receiverId: string, senderId: string) {
-    const result = await this.prisma.followRequest.updateMany({
-      where: { senderId, receiverId, status: 'PENDING' },
-      data: { status: 'REJECTED', respondedAt: new Date() },
+  /** Target user accepts a pending follow request from `requesterId`. */
+  async acceptFollowRequest(currentUserId: string, requesterId: string) {
+    const result = await this.prisma.follow.updateMany({
+      where: { followerId: requesterId, followingId: currentUserId, status: 'PENDING' },
+      data: { status: 'ACCEPTED', respondedAt: new Date() },
     });
     if (result.count === 0) {
-      throw new ConflictException(
-        'Yêu cầu này đã được xử lý hoặc không tồn tại.',
-      );
+      throw new NotFoundException('Không tìm thấy yêu cầu theo dõi này.');
     }
-    return this.prisma.followRequest.findUniqueOrThrow({
-      where: { senderId_receiverId: { senderId, receiverId } },
+
+    const target = await this.prisma.user.findUnique({
+      where: { id: currentUserId },
+      select: { username: true },
     });
+    await this.notificationsService.createNotification(
+      requesterId,
+      'FOLLOW',
+      `${target?.username ?? 'Một người dùng'} đã chấp nhận yêu cầu theo dõi của bạn.`,
+      currentUserId,
+    );
+
+    return { accepted: true };
+  }
+
+  /** Target user rejects (or the requester withdraws) a pending request. */
+  async rejectFollowRequest(currentUserId: string, requesterId: string) {
+    const result = await this.prisma.follow.deleteMany({
+      where: { followerId: requesterId, followingId: currentUserId, status: 'PENDING' },
+    });
+    if (result.count === 0) {
+      throw new NotFoundException('Không tìm thấy yêu cầu theo dõi này.');
+    }
+    return { rejected: true };
   }
 
   /** Danh sách yêu cầu theo dõi đang chờ chủ tài khoản (đang đăng nhập) xử lý. */
@@ -837,7 +755,7 @@ export class UsersService {
   ) {
     const user = await this.findUserByUsername(username);
     const { page, limit, skip } = this.getPagination(rawPage, rawLimit);
-    const where = { followingId: user.id };
+    const where = { followingId: user.id, status: 'ACCEPTED' as const };
 
     const [rows, total] = await Promise.all([
       this.prisma.follow.findMany({
@@ -867,7 +785,7 @@ export class UsersService {
   ) {
     const user = await this.findUserByUsername(username);
     const { page, limit, skip } = this.getPagination(rawPage, rawLimit);
-    const where = { followerId: user.id };
+    const where = { followerId: user.id, status: 'ACCEPTED' as const };
 
     const [rows, total] = await Promise.all([
       this.prisma.follow.findMany({
@@ -920,11 +838,11 @@ export class UsersService {
       const ids = visibleUsers.map((u) => u.id);
       const [followingRows, followerRows] = await Promise.all([
         this.prisma.follow.findMany({
-          where: { followerId: viewerId, followingId: { in: ids } },
+          where: { followerId: viewerId, followingId: { in: ids }, status: 'ACCEPTED' },
           select: { followingId: true },
         }),
         this.prisma.follow.findMany({
-          where: { followerId: { in: ids }, followingId: viewerId },
+          where: { followerId: { in: ids }, followingId: viewerId, status: 'ACCEPTED' },
           select: { followerId: true },
         }),
       ]);

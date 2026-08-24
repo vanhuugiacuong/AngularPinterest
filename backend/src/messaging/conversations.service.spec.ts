@@ -11,6 +11,7 @@ describe('ConversationsService', () => {
     $transaction: jest.fn(),
   };
   const blocksService = { isBlockedEitherWay: jest.fn() };
+  const supabase = { broadcast: jest.fn() };
 
   let service: ConversationsService;
 
@@ -18,7 +19,7 @@ describe('ConversationsService', () => {
     jest.clearAllMocks();
     prisma.$transaction.mockImplementation((cb: (tx: typeof prisma) => unknown) => cb(prisma));
     blocksService.isBlockedEitherWay.mockResolvedValue(false);
-    service = new ConversationsService(prisma as never, blocksService as never);
+    service = new ConversationsService(prisma as never, blocksService as never, supabase as never);
   });
 
   describe('listConversations', () => {

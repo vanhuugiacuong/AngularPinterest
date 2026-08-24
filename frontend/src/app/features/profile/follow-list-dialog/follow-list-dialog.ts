@@ -121,7 +121,7 @@ export class FollowListDialog implements OnInit {
       if (!token) throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
       const result = await this.userService.toggleFollow(user.id, token);
       const confirm = (items: UserConnection[]) =>
-        items.map((u) => (u.id === user.id ? { ...u, viewerIsFollowing: result.followed } : u));
+        items.map((u) => (u.id === user.id ? { ...u, viewerIsFollowing: result.followRequestStatus === 'ACCEPTED' } : u));
       this.followersState.update((s) => ({ ...s, items: confirm(s.items) }));
       this.followingState.update((s) => ({ ...s, items: confirm(s.items) }));
     } catch {

@@ -14,7 +14,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Subject, Subscription, from, of } from 'rxjs';
+import { Observable, Subject, Subscription, combineLatest, from, of } from 'rxjs';
 import { debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 import { SupabaseService } from '../../core/services/supabase';
 import { SidebarStateService } from '../../core/services/sidebar-state';
@@ -22,12 +22,15 @@ import { ThemeService } from '../../core/services/theme';
 import { PinService, Pin } from '../../core/services/pin';
 import { UserService, UserSearchResult } from '../../core/services/user';
 import { MembershipService } from '../../core/services/membership';
+import { NotificationService } from '../../core/services/notification';
+import { MessagingService } from '../../core/services/messaging';
 import type { MembershipPlan } from '../../core/models/membership-plan';
 import { SearchHistoryService } from '../../core/services/search-history';
 import { Sidebar } from '../sidebar/sidebar';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
 import { ImageSearchModal } from '../image-search-modal/image-search-modal';
 import { ThemeToggle } from '../../shared/theme-toggle/theme-toggle';
+import { BadgeBumpDirective } from '../../shared/badge-bump.directive';
 
 type SuggestionItem =
   | { kind: 'recent'; term: string }
@@ -38,7 +41,7 @@ type SuggestionItem =
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, FormsModule, Sidebar, UserAvatar, ImageSearchModal, ThemeToggle],
+  imports: [CommonModule, FormsModule, Sidebar, UserAvatar, ImageSearchModal, ThemeToggle, BadgeBumpDirective],
   templateUrl: './navbar.html',
   styleUrl: './navbar.css'
 })
@@ -52,6 +55,15 @@ export class Navbar implements OnInit, OnDestroy {
   private userService = inject(UserService);
   private searchHistory = inject(SearchHistoryService);
   private membership = inject(MembershipService);
+  private notificationService = inject(NotificationService);
+  private messagingService = inject(MessagingService);
+
+  /** Total unread (notifications + messages) — badged on the hamburger so
+   * it's visible even while the sidebar/notification drawer is collapsed. */
+  public totalUnread$: Observable<number> = combineLatest([
+    this.notificationService.unreadCount$,
+    this.messagingService.unreadCount$,
+  ]).pipe(map(([notifications, messages]) => notifications + messages));
 
   @Output() loginClick = new EventEmitter<void>();
   /** Emits the trimmed query on Enter / clear. Pages that care (e.g. /feed)

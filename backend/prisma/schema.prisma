@@ -54,16 +54,24 @@ model User {
   sentNotifications Notification[] @relation("UserSentNotifications")
 }
 
+enum FollowStatus {
+  PENDING
+  ACCEPTED
+}
+
 model Follow {
   followerId  String
   followingId String
+  status      FollowStatus @default(PENDING)
   createdAt   DateTime @default(now())
+  respondedAt DateTime?
 
   follower    User     @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
   following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@id([followerId, followingId])
   @@index([followingId])
+  @@index([followingId, status])
 }
 
 model Pin {

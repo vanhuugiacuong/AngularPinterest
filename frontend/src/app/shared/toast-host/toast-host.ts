@@ -1,4 +1,4 @@
-import { Component, OnDestroy, effect, inject } from '@angular/core';
+import { Component, OnDestroy, computed, effect, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Toast, ToastService } from '../../core/services/toast';
 
@@ -22,6 +22,9 @@ interface TimerEntry {
 export class ToastHost implements OnDestroy {
   toastService = inject(ToastService);
   private timers = new Map<number, TimerEntry>();
+
+  topRightToasts = computed(() => this.toastService.toasts().filter((t) => t.corner !== 'bottom-left'));
+  bottomLeftToasts = computed(() => this.toastService.toasts().filter((t) => t.corner === 'bottom-left'));
 
   constructor() {
     effect(() => {

@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { UsersService } from './users.service';
 
@@ -45,30 +45,19 @@ describe('UsersService.toggleFollow', () => {
     expect(prisma.follow.create).not.toHaveBeenCalled();
   });
 
-  it('creates a follow, returns both counts, and sends exactly one FOLLOW notification', async () => {
-    prisma.user.findUnique.mockResolvedValue({
-      id: 'user-2',
-      username: 'target',
-    });
-    prisma.follow.findUnique.mockResolvedValue(null); // not already following
-    prisma.follow.create.mockResolvedValue({
-      followerId: 'user-1',
-      followingId: 'user-2',
-    });
+  it('creates a pending follow request, returns both counts, and sends exactly one FOLLOW_REQUEST notification', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: 'user-2', username: 'target' });
+    prisma.follow.findUnique.mockResolvedValue(null); // no existing relationship
+    prisma.follow.create.mockResolvedValue({ followerId: 'user-1', followingId: 'user-2', status: 'PENDING' });
     prisma.follow.count.mockResolvedValueOnce(5).mockResolvedValueOnce(2); // followerCount, followingCount
 
     const result = await service.toggleFollow('user-1', 'user-2');
 
-    expect(result).toEqual({
-      followed: true,
-      requested: false,
-      followerCount: 5,
-      followingCount: 2,
-    });
+    expect(result).toEqual({ followRequestStatus: 'PENDING_OUTGOING', followerCount: 5, followingCount: 2 });
     expect(notificationsService.createNotification).toHaveBeenCalledTimes(1);
     expect(notificationsService.createNotification).toHaveBeenCalledWith(
       'user-2',
-      'FOLLOW',
+      'FOLLOW_REQUEST',
       expect.any(String),
       'user-1',
     );
@@ -92,18 +81,15 @@ describe('UsersService.toggleFollow', () => {
     expect(content).not.toContain('user-1');
   });
 
-  it('unfollows (deletes) without sending a notification when already following', async () => {
-    prisma.user.findUnique.mockResolvedValue({
-      id: 'user-2',
-      username: 'target',
-    });
-    prisma.follow.findUnique.mockResolvedValue({ followerId: 'user-1' }); // already following
+  it('withdraws/unfollows (deletes) without sending a notification when a relationship already exists', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: 'user-2', username: 'target' });
+    prisma.follow.findUnique.mockResolvedValue({ status: 'ACCEPTED' }); // already following
     prisma.follow.deleteMany.mockResolvedValue({ count: 1 });
     prisma.follow.count.mockResolvedValueOnce(4).mockResolvedValueOnce(1);
 
     const result = await service.toggleFollow('user-1', 'user-2');
 
-    expect(result.followed).toBe(false);
+    expect(result.followRequestStatus).toBe('NONE');
     expect(notificationsService.createNotification).not.toHaveBeenCalled();
   });
 
@@ -124,164 +110,60 @@ describe('UsersService.toggleFollow', () => {
 
     const result = await service.toggleFollow('user-1', 'user-2');
 
-    // The loser of the race still reports success (the follow exists either
-    // way) but must not fire a second notification for the same event.
-    expect(result.followed).toBe(true);
+    // The loser of the race still reports the request as pending (the row
+    // exists either way) but must not fire a second notification for it.
+    expect(result.followRequestStatus).toBe('PENDING_OUTGOING');
   });
 });
 
-describe('UsersService.toggleFollow — private accounts (follow requests)', () => {
+describe('UsersService follow-request responses', () => {
   const prisma = {
     user: { findUnique: jest.fn() },
-    follow: {
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      deleteMany: jest.fn(),
-      count: jest.fn(),
-    },
-    followRequest: {
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-      updateMany: jest.fn(),
-      findUniqueOrThrow: jest.fn(),
-    },
-    $transaction: jest.fn(),
+    follow: { updateMany: jest.fn(), deleteMany: jest.fn() },
   };
   const blocksService = { isBlocked: jest.fn(), isBlockedEitherWay: jest.fn() };
   const notificationsService = { createNotification: jest.fn() };
-  const service = new UsersService(
-    prisma as never,
-    blocksService as never,
-    notificationsService as never,
-    {} as never,
-  );
+  const service = new UsersService(prisma as never, blocksService as never, notificationsService as never);
 
   beforeEach(() => {
     jest.clearAllMocks();
-    blocksService.isBlockedEitherWay.mockResolvedValue(false);
-    prisma.follow.count.mockResolvedValue(0);
   });
 
-  it('sends a FOLLOW_REQUEST (not an immediate Follow) when the target account is private', async () => {
-    prisma.user.findUnique
-      .mockResolvedValueOnce({
-        id: 'user-2',
-        username: 'target',
-        isPrivate: true,
-      }) // target lookup
-      .mockResolvedValueOnce({ username: 'nova_artist' }); // sender lookup for notification text
-    prisma.follow.findUnique.mockResolvedValue(null); // not already following
-    prisma.followRequest.findUnique.mockResolvedValue(null); // no existing request
+  it('accepts only the matching pending request and notifies its requester', async () => {
+    prisma.follow.updateMany.mockResolvedValue({ count: 1 });
+    prisma.user.findUnique.mockResolvedValue({ username: 'nova_owner' });
 
-    const result = await service.toggleFollow('user-1', 'user-2');
-
-    expect(result.followed).toBe(false);
-    expect(result.requested).toBe(true);
-    expect(prisma.follow.create).not.toHaveBeenCalled();
-    expect(prisma.followRequest.create).toHaveBeenCalledWith({
-      data: { senderId: 'user-1', receiverId: 'user-2' },
-    });
+    await expect(service.acceptFollowRequest('owner-1', 'requester-1')).resolves.toEqual({ accepted: true });
+    expect(prisma.follow.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { followerId: 'requester-1', followingId: 'owner-1', status: 'PENDING' },
+      data: expect.objectContaining({ status: 'ACCEPTED' }),
+    }));
     expect(notificationsService.createNotification).toHaveBeenCalledWith(
-      'user-2',
-      'FOLLOW_REQUEST',
-      expect.any(String),
-      'user-1',
+      'requester-1',
+      'FOLLOW',
+      expect.stringContaining('nova_owner'),
+      'owner-1',
     );
   });
 
-  it('withdraws a pending request when the sender toggles again', async () => {
-    prisma.user.findUnique.mockResolvedValue({
-      id: 'user-2',
-      username: 'target',
-      isPrivate: true,
-    });
-    prisma.follow.findUnique.mockResolvedValue(null);
-    prisma.followRequest.findUnique.mockResolvedValue({
-      id: 'req-1',
-      status: 'PENDING',
-    });
+  it('rejects by deleting only the matching pending request', async () => {
+    prisma.follow.deleteMany.mockResolvedValue({ count: 1 });
 
-    const result = await service.toggleFollow('user-1', 'user-2');
+    await expect(service.rejectFollowRequest('owner-1', 'requester-1')).resolves.toEqual({ rejected: true });
+    expect(prisma.follow.deleteMany).toHaveBeenCalledWith({
+      where: { followerId: 'requester-1', followingId: 'owner-1', status: 'PENDING' },
+    });
+  });
 
-    expect(result).toEqual({
-      followed: false,
-      requested: false,
-      followerCount: 0,
-      followingCount: 0,
-    });
-    expect(prisma.followRequest.delete).toHaveBeenCalledWith({
-      where: { id: 'req-1' },
-    });
+  it('reports a stale or already-handled request instead of changing another relationship', async () => {
+    prisma.follow.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(service.acceptFollowRequest('owner-1', 'missing-requester')).rejects.toThrow(NotFoundException);
     expect(notificationsService.createNotification).not.toHaveBeenCalled();
   });
-
-  it('acceptFollowRequest creates the real Follow row and rejects double-processing', async () => {
-    prisma.$transaction.mockImplementation(
-      (fn: (tx: typeof prisma) => unknown) => fn(prisma),
-    );
-    prisma.followRequest.findUnique.mockResolvedValue({
-      id: 'req-1',
-      senderId: 'user-1',
-      receiverId: 'user-2',
-      status: 'PENDING',
-    });
-    prisma.followRequest.updateMany.mockResolvedValue({ count: 1 });
-    prisma.followRequest.findUniqueOrThrow.mockResolvedValue({
-      id: 'req-1',
-      status: 'ACCEPTED',
-    });
-    prisma.user.findUnique.mockResolvedValue({ username: 'target' });
-
-    const result = await service.acceptFollowRequest('user-2', 'user-1');
-
-    expect(prisma.follow.create).toHaveBeenCalledWith({
-      data: { followerId: 'user-1', followingId: 'user-2' },
-    });
-    expect(result).toEqual({ id: 'req-1', status: 'ACCEPTED' });
-  });
-
-  it('acceptFollowRequest throws ConflictException when the request was already handled', async () => {
-    prisma.$transaction.mockImplementation(
-      (fn: (tx: typeof prisma) => unknown) => fn(prisma),
-    );
-    prisma.followRequest.findUnique.mockResolvedValue({
-      id: 'req-1',
-      senderId: 'user-1',
-      receiverId: 'user-2',
-      status: 'PENDING',
-    });
-    prisma.followRequest.updateMany.mockResolvedValue({ count: 0 });
-
-    await expect(
-      service.acceptFollowRequest('user-2', 'user-1'),
-    ).rejects.toThrow('Yêu cầu này đã được xử lý.');
-    expect(prisma.follow.create).not.toHaveBeenCalled();
-  });
-
-  it('rejectFollowRequest marks the request REJECTED without creating a Follow', async () => {
-    prisma.followRequest.updateMany.mockResolvedValue({ count: 1 });
-    prisma.followRequest.findUniqueOrThrow.mockResolvedValue({
-      id: 'req-1',
-      status: 'REJECTED',
-    });
-
-    await service.rejectFollowRequest('user-2', 'user-1');
-
-    const [args] = prisma.followRequest.updateMany.mock.calls[0] as [
-      { where: unknown; data: { status: string; respondedAt: Date } },
-    ];
-    expect(args.where).toEqual({
-      senderId: 'user-1',
-      receiverId: 'user-2',
-      status: 'PENDING',
-    });
-    expect(args.data.status).toBe('REJECTED');
-    expect(args.data.respondedAt).toBeInstanceOf(Date);
-    expect(prisma.follow.create).not.toHaveBeenCalled();
-  });
 });
+
+
 
 describe('UsersService.getFollowers / getFollowing', () => {
   const prisma = {

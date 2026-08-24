@@ -4,7 +4,7 @@ describe('PinsService privacy', () => {
   const prisma = {
     pin: { findFirst: jest.fn() },
   };
-  const service = new PinsService(prisma as never, {} as never, {} as never);
+  const service = new PinsService(prisma as never, {} as never, {} as never, {} as never, {} as never);
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -79,5 +79,92 @@ describe('PinsService privacy', () => {
         { user: { followers: { some: { followerId: 'viewer-1' } } } },
       ],
     });
+  });
+});
+
+describe('PinsService notifications', () => {
+  const prisma = {
+    pin: { findUnique: jest.fn() },
+    like: { findUnique: jest.fn(), delete: jest.fn(), create: jest.fn(), count: jest.fn() },
+    comment: { create: jest.fn() },
+    user: { findUnique: jest.fn() },
+  };
+  const notificationsService = { createNotification: jest.fn() };
+  const service = new PinsService(
+    prisma as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    notificationsService as never,
+  );
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('notifies the pin owner on a fresh like, never on unlike', async () => {
+    prisma.pin.findUnique.mockResolvedValue({ id: 'pin-1', userId: 'owner-1' });
+    prisma.like.findUnique.mockResolvedValue(null);
+    prisma.like.count.mockResolvedValue(3);
+    prisma.user.findUnique.mockResolvedValue({ username: 'fan' });
+
+    await service.toggleLike('pin-1', 'liker-1');
+
+    expect(notificationsService.createNotification).toHaveBeenCalledTimes(1);
+    expect(notificationsService.createNotification).toHaveBeenCalledWith(
+      'owner-1',
+      'LIKE',
+      expect.any(String),
+      'liker-1',
+      'pin-1',
+    );
+
+    jest.clearAllMocks();
+    prisma.pin.findUnique.mockResolvedValue({ id: 'pin-1', userId: 'owner-1' });
+    prisma.like.findUnique.mockResolvedValue({ userId: 'liker-1', pinId: 'pin-1' });
+    prisma.like.count.mockResolvedValue(2);
+
+    await service.toggleLike('pin-1', 'liker-1');
+
+    expect(notificationsService.createNotification).not.toHaveBeenCalled();
+  });
+
+  it('never notifies when liking your own pin', async () => {
+    prisma.pin.findUnique.mockResolvedValue({ id: 'pin-1', userId: 'owner-1' });
+    prisma.like.findUnique.mockResolvedValue(null);
+    prisma.like.count.mockResolvedValue(1);
+
+    await service.toggleLike('pin-1', 'owner-1');
+
+    expect(notificationsService.createNotification).not.toHaveBeenCalled();
+  });
+
+  it('notifies the pin owner on a new comment, never for their own comment', async () => {
+    prisma.pin.findUnique.mockResolvedValue({ id: 'pin-1', userId: 'owner-1' });
+    prisma.comment.create.mockResolvedValue({
+      id: 'c1',
+      content: 'nice!',
+      user: { id: 'commenter-1', username: 'fan', avatarUrl: null, plan: 'FREE' },
+    });
+
+    await service.addComment('pin-1', 'commenter-1', 'nice!');
+
+    expect(notificationsService.createNotification).toHaveBeenCalledWith(
+      'owner-1',
+      'COMMENT',
+      expect.any(String),
+      'commenter-1',
+      'pin-1',
+    );
+
+    jest.clearAllMocks();
+    prisma.pin.findUnique.mockResolvedValue({ id: 'pin-1', userId: 'owner-1' });
+    prisma.comment.create.mockResolvedValue({
+      id: 'c2',
+      content: 'self note',
+      user: { id: 'owner-1', username: 'owner', avatarUrl: null, plan: 'FREE' },
+    });
+
+    await service.addComment('pin-1', 'owner-1', 'self note');
+
+    expect(notificationsService.createNotification).not.toHaveBeenCalled();
   });
 });
