@@ -1,11 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-// GIPHY's own published public beta test key — meant to be free for anyone
-// to try without signing up. As of this writing GIPHY has revoked it
-// (returns "BANNED"), so this only works once a real GIPHY_API_KEY is set
-// in the environment. Kept as the documented fallback rather than silently
-// failing with no key at all.
-const PUBLIC_FALLBACK_KEY = 'dc6zaTOxFJmzC';
+// Shared team GIPHY key, used whenever a machine's own .env doesn't set
+// GIPHY_API_KEY — keeps GIF search working for every teammate out of the
+// box without each of them needing to register their own key. Anyone can
+// still override it locally via GIPHY_API_KEY in their own .env.
+const PUBLIC_FALLBACK_KEY = 'C87B2xSCwDjfSdMFMdWixf7M4aKpafcr';
 
 export interface GifResult {
   id: string;
