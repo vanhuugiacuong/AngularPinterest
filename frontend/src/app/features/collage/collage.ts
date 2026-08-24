@@ -889,12 +889,36 @@ export class Collage implements OnInit, AfterViewInit {
     this.nextZIndex = Math.max(0, ...draft.layers.map((l) => l.zIndex)) + 1;
   }
 
-  deleteDraft(id: string, event: Event) {
+  // Per-draft "Xóa bản nháp" (from the drafts list menu) — asks for confirmation first,
+  // same as the toolbar one below.
+  public pendingDraftDeletion = signal<{ id: string | null; isCurrent: boolean } | null>(null);
+
+  requestDeleteDraft(id: string, event: Event) {
     event.stopPropagation();
     this.openDraftMenuId.set(null);
-    this.persistDrafts(this.drafts().filter((d) => d.id !== id));
-    if (this.currentDraftId === id) {
-      this.currentDraftId = null;
+    this.pendingDraftDeletion.set({ id, isCurrent: false });
+  }
+
+  cancelDraftDeletion() {
+    this.pendingDraftDeletion.set(null);
+  }
+
+  confirmDraftDeletion() {
+    const pending = this.pendingDraftDeletion();
+    this.pendingDraftDeletion.set(null);
+    if (!pending) return;
+    if (pending.isCurrent) {
+      if (pending.id) {
+        this.persistDrafts(this.drafts().filter((d) => d.id !== pending.id));
+      }
+      this.resetCanvasToBlank();
+      this.toastService.success('Bản nháp của bạn đã bị xóa!');
+    } else if (pending.id) {
+      this.persistDrafts(this.drafts().filter((d) => d.id !== pending.id));
+      if (this.currentDraftId === pending.id) {
+        this.currentDraftId = null;
+      }
+      this.toastService.success('Bản nháp của bạn đã bị xóa!');
     }
   }
 
@@ -948,15 +972,12 @@ export class Collage implements OnInit, AfterViewInit {
     this.nextZIndex = 1;
   }
 
-  // "Xóa bản nháp": throws away the draft you're currently editing (if it was ever
-  // saved) and starts fresh — nothing gets preserved.
-  deleteCurrentDraftAndStartNew() {
+  // "Xóa bản nháp" (top toolbar): throws away the draft you're currently editing (if it
+  // was ever saved) and starts fresh — nothing gets preserved. Asks for confirmation
+  // first via pendingDraftDeletion/confirmDraftDeletion above.
+  requestDeleteCurrentDraft() {
     this.showMoreMenu.set(false);
-    if (this.currentDraftId) {
-      this.persistDrafts(this.drafts().filter((d) => d.id !== this.currentDraftId));
-    }
-    this.resetCanvasToBlank();
-    this.toastService.success('Đã xóa bản nháp và bắt đầu ảnh ghép mới.');
+    this.pendingDraftDeletion.set({ id: this.currentDraftId, isCurrent: true });
   }
 
   // "Bắt đầu ảnh ghép mới": opposite of the above — keeps the in-progress work by

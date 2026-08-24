@@ -1,19 +1,19 @@
-<div class="h-screen overflow-hidden bg-white text-black flex flex-col font-sans relative" style="height: 100dvh;">
+<div class="h-screen overflow-hidden bg-white dark:bg-[#121212] text-black dark:text-white flex flex-col font-sans relative transition-colors" style="height: 100dvh;">
   <app-navbar></app-navbar>
 
   <div class="flex-1 min-h-0 pt-16 pb-16 flex flex-col min-w-0">
     <main class="flex-1 min-h-0 w-full mx-auto px-3 py-4 flex flex-col max-w-[1800px]">
       <div
-        class="flex-1 flex min-h-0 border border-[#dadad3] rounded-[24px] overflow-hidden bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+        class="flex-1 flex min-h-0 border border-[#dadad3] dark:border-[#333] rounded-[24px] overflow-hidden bg-white dark:bg-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
       >
         <!-- Left panel: conversation list -->
         <aside
-          class="w-full sm:w-[320px] sm:flex shrink-0 border-r border-[#dadad3] flex-col min-h-0"
+          class="w-full sm:w-[320px] sm:flex shrink-0 border-r border-[#dadad3] dark:border-[#333] flex-col min-h-0"
           [class.hidden]="selectedConversationId()"
           [class.flex]="!selectedConversationId()"
         >
-          <div class="flex items-center justify-between gap-2 p-4 border-b border-[#dadad3] shrink-0">
-            <h1 class="text-lg font-bold text-black">Tin nhắn</h1>
+          <div class="flex items-center justify-between gap-2 p-4 border-b border-[#dadad3] dark:border-[#333] shrink-0">
+            <h1 class="text-lg font-bold text-black dark:text-white">Tin nhắn</h1>
             <div class="relative">
               <button
                 type="button"
@@ -27,7 +27,7 @@
               @if (isComposeOpen()) {
                 <div class="fixed inset-0 z-40" (click)="toggleCompose()"></div>
                 <div
-                  class="absolute right-0 top-11 w-72 bg-white rounded-[20px] shadow-[0_16px_48px_rgba(0,0,0,0.12)] border border-[#dadad3] p-3 z-50 flex flex-col gap-2"
+                  class="absolute right-0 top-11 w-72 bg-white dark:bg-[#1e1e1e] rounded-[20px] shadow-[0_16px_48px_rgba(0,0,0,0.12)] border border-[#dadad3] dark:border-[#333] p-3 z-50 flex flex-col gap-2"
                   (click)="$event.stopPropagation()"
                 >
                   <input
@@ -36,24 +36,24 @@
                     (ngModelChange)="onComposeQueryInput($event)"
                     name="composeQuery"
                     placeholder="Tìm người dùng theo tên..."
-                    class="h-10 px-3 rounded-full bg-[#e9e9e9] border-none outline-none text-sm text-black placeholder-[#91918c]"
+                    class="h-10 px-3 rounded-full bg-[#e9e9e9] dark:bg-[#2a2a2a] border-none outline-none text-sm text-black dark:text-white placeholder-[#91918c] dark:placeholder-[#777]"
                   />
                   <div class="max-h-56 overflow-y-auto">
                     @if (composeLoading()) {
                       <div class="flex items-center justify-center py-6">
-                        <span class="material-symbols-outlined animate-spin text-lg text-[#91918c]">progress_activity</span>
+                        <span class="material-symbols-outlined animate-spin text-lg text-[#91918c] dark:text-[#999]">progress_activity</span>
                       </div>
                     } @else if (composeResults().length === 0) {
-                      <p class="text-xs text-[#91918c] px-1 py-3 text-center">Gõ tên để tìm người dùng.</p>
+                      <p class="text-xs text-[#91918c] dark:text-[#999] px-1 py-3 text-center">Gõ tên để tìm người dùng.</p>
                     } @else {
                       @for (user of composeResults(); track user.id) {
                         <button
                           type="button"
                           (click)="startConversationWith(user)"
-                          class="w-full flex items-center gap-2.5 px-2 py-2 text-left cursor-pointer hover:bg-[#f6f6f3] rounded-xl border-none bg-transparent outline-none"
+                          class="w-full flex items-center gap-2.5 px-2 py-2 text-left cursor-pointer hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] rounded-xl border-none bg-transparent outline-none"
                         >
-                          <img [src]="user.avatarUrl || ('https://api.dicebear.com/7.x/bottts/svg?seed=' + user.username)" alt="" class="w-8 h-8 rounded-full object-cover border border-[#dadad3]" />
-                          <span class="text-sm font-bold text-black truncate">{{ user.username }}</span>
+                          <img [src]="user.avatarUrl || ('https://api.dicebear.com/7.x/bottts/svg?seed=' + user.username)" alt="" class="w-8 h-8 rounded-full object-cover border border-[#dadad3] dark:border-[#333]" />
+                          <span class="text-sm font-bold text-black dark:text-white truncate">{{ user.username }}</span>
                         </button>
                       }
                     }
@@ -63,16 +63,16 @@
             </div>
           </div>
 
-          <div class="px-4 py-3 border-b border-[#dadad3] shrink-0">
-            <div class="flex items-center gap-2 px-3.5 h-10 bg-[#e9e9e9] rounded-full">
-              <span class="material-symbols-outlined text-lg text-[#62625b]">search</span>
+          <div class="px-4 py-3 border-b border-[#dadad3] dark:border-[#333] shrink-0">
+            <div class="flex items-center gap-2 px-3.5 h-10 bg-[#e9e9e9] dark:bg-[#2a2a2a] rounded-full">
+              <span class="material-symbols-outlined text-lg text-[#62625b] dark:text-[#999]">search</span>
               <input
                 type="text"
                 [ngModel]="conversationSearch()"
                 (ngModelChange)="conversationSearch.set($event)"
                 name="conversationSearch"
                 placeholder="Tìm kiếm cuộc trò chuyện..."
-                class="bg-transparent border-none outline-none w-full text-sm text-black placeholder-[#91918c]"
+                class="bg-transparent border-none outline-none w-full text-sm text-black dark:text-white placeholder-[#91918c] dark:placeholder-[#777]"
               />
             </div>
           </div>
@@ -82,47 +82,48 @@
               <div class="flex flex-col gap-1 p-2">
                 @for (dummy of [1, 2, 3, 4, 5]; track dummy) {
                   <div class="flex items-center gap-3 p-2">
-                    <div class="w-11 h-11 rounded-full bg-[#e9e9e9] animate-pulse shrink-0"></div>
+                    <div class="w-11 h-11 rounded-full bg-[#e9e9e9] dark:bg-[#2a2a2a] animate-pulse shrink-0"></div>
                     <div class="flex-1 flex flex-col gap-1.5">
-                      <div class="h-3 w-1/2 bg-[#e9e9e9] rounded animate-pulse"></div>
-                      <div class="h-2.5 w-3/4 bg-[#e9e9e9] rounded animate-pulse"></div>
+                      <div class="h-3 w-1/2 bg-[#e9e9e9] dark:bg-[#2a2a2a] rounded animate-pulse"></div>
+                      <div class="h-2.5 w-3/4 bg-[#e9e9e9] dark:bg-[#2a2a2a] rounded animate-pulse"></div>
                     </div>
                   </div>
                 }
               </div>
             } @else if (conversationsError()) {
               <div class="flex flex-col items-center gap-3 py-10 px-4 text-center">
-                <span class="material-symbols-outlined text-2xl text-[#91918c]">cloud_off</span>
-                <p class="text-xs text-[#62625b]">{{ conversationsError() }}</p>
-                <button type="button" (click)="loadConversations()" class="h-9 px-4 rounded-full bg-[#f6f6f3] border border-[#dadad3] text-xs font-bold cursor-pointer outline-none">
+                <span class="material-symbols-outlined text-2xl text-[#91918c] dark:text-[#999]">cloud_off</span>
+                <p class="text-xs text-[#62625b] dark:text-[#999]">{{ conversationsError() }}</p>
+                <button type="button" (click)="loadConversations()" class="h-9 px-4 rounded-full bg-[#f6f6f3] dark:bg-[#2a2a2a] border border-[#dadad3] dark:border-[#333] text-xs font-bold text-black dark:text-white cursor-pointer outline-none">
                   Thử lại
                 </button>
               </div>
             } @else if (filteredConversations().length === 0) {
               <div class="flex flex-col items-center gap-2 py-14 px-4 text-center">
-                <span class="material-symbols-outlined text-2xl text-[#91918c]">forum</span>
-                <p class="text-xs text-[#62625b]">Chưa có cuộc trò chuyện nào. Bấm vào biểu tượng bút để bắt đầu.</p>
+                <span class="material-symbols-outlined text-2xl text-[#91918c] dark:text-[#999]">forum</span>
+                <p class="text-xs text-[#62625b] dark:text-[#999]">Chưa có cuộc trò chuyện nào. Bấm vào biểu tượng bút để bắt đầu.</p>
               </div>
             } @else {
               @for (conversation of filteredConversations(); track trackByConversationId($index, conversation)) {
                 <button
                   type="button"
                   (click)="selectConversation(conversation.id)"
-                  class="w-full flex items-center gap-3 p-3 text-left cursor-pointer transition-colors duration-150 hover:bg-[#f6f6f3] border-none outline-none"
+                  class="w-full flex items-center gap-3 p-3 text-left cursor-pointer transition-colors duration-150 hover:bg-[#f6f6f3] dark:hover:bg-[#242424] border-none outline-none"
                   [class.bg-[#f6f6f3]]="selectedConversationId() === conversation.id"
+                  [class.dark:bg-[#242424]]="selectedConversationId() === conversation.id"
                 >
                   <img
                     [src]="conversation.otherUser.avatarUrl || ('https://api.dicebear.com/7.x/bottts/svg?seed=' + conversation.otherUser.username)"
                     alt=""
-                    class="w-11 h-11 rounded-full object-cover border border-[#dadad3] shrink-0"
+                    class="w-11 h-11 rounded-full object-cover border border-[#dadad3] dark:border-[#333] shrink-0"
                   />
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center justify-between gap-2">
-                      <span class="text-sm font-bold text-black truncate">{{ conversation.otherUser.username }}</span>
-                      <span class="text-[10px] text-[#91918c] shrink-0">{{ formatConversationTime(conversation.updatedAt) }}</span>
+                      <span class="text-sm font-bold text-black dark:text-white truncate">{{ conversation.otherUser.username }}</span>
+                      <span class="text-[10px] text-[#91918c] dark:text-[#777] shrink-0">{{ formatConversationTime(conversation.updatedAt) }}</span>
                     </div>
                     <div class="flex items-center justify-between gap-2 mt-0.5">
-                      <span class="text-xs text-[#62625b] truncate">{{ lastMessagePreview(conversation) }}</span>
+                      <span class="text-xs text-[#62625b] dark:text-[#999] truncate">{{ lastMessagePreview(conversation) }}</span>
                       @if (conversation.unreadCount > 0) {
                         <span class="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-[#B15CAA] text-white text-[10px] font-bold flex items-center justify-center">
                           {{ conversation.unreadCount }}
@@ -144,16 +145,16 @@
         >
           @if (!selectedConversationId()) {
             <div class="hidden sm:flex flex-1 flex-col items-center justify-center gap-3 text-center px-6">
-              <span class="material-symbols-outlined text-4xl text-[#91918c]">chat_bubble</span>
-              <p class="text-sm text-[#62625b]">Chọn một cuộc trò chuyện để bắt đầu nhắn tin.</p>
+              <span class="material-symbols-outlined text-4xl text-[#91918c] dark:text-[#999]">chat_bubble</span>
+              <p class="text-sm text-[#62625b] dark:text-[#999]">Chọn một cuộc trò chuyện để bắt đầu nhắn tin.</p>
             </div>
           } @else {
             <!-- Thread header -->
-            <div class="flex items-center gap-2.5 p-3 border-b border-[#dadad3] shrink-0">
+            <div class="flex items-center gap-2.5 p-3 border-b border-[#dadad3] dark:border-[#333] shrink-0">
               <button
                 type="button"
                 (click)="backToList()"
-                class="sm:hidden w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#f6f6f3] cursor-pointer border-none bg-transparent outline-none"
+                class="sm:hidden w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] cursor-pointer border-none bg-transparent outline-none text-black dark:text-white"
                 aria-label="Quay lại danh sách"
               >
                 <span class="material-symbols-outlined">arrow_back</span>
@@ -167,12 +168,12 @@
                   <img
                     [src]="otherUser.avatarUrl || ('https://api.dicebear.com/7.x/bottts/svg?seed=' + otherUser.username)"
                     alt=""
-                    class="w-9 h-9 rounded-full object-cover border border-[#dadad3]"
+                    class="w-9 h-9 rounded-full object-cover border border-[#dadad3] dark:border-[#333]"
                   />
                   <span class="flex flex-col min-w-0">
-                    <span class="text-sm font-bold text-black truncate hover:underline">{{ otherUser.username }}</span>
-                    <span class="text-[10px] font-medium flex items-center gap-1" [class.text-[#22c55e]]="otherUserOnline()" [class.text-[#91918c]]="!otherUserOnline()">
-                      <i class="inline-block w-1.5 h-1.5 rounded-full" [class.bg-[#22c55e]]="otherUserOnline()" [class.bg-[#91918c]]="!otherUserOnline()"></i>
+                    <span class="text-sm font-bold text-black dark:text-white truncate hover:underline">{{ otherUser.username }}</span>
+                    <span class="text-[10px] font-medium flex items-center gap-1" [class.text-[#22c55e]]="otherUserOnline()" [class.text-[#91918c]]="!otherUserOnline()" [class.dark:text-[#999]]="!otherUserOnline()">
+                      <i class="inline-block w-1.5 h-1.5 rounded-full" [class.bg-[#22c55e]]="otherUserOnline()" [class.bg-[#91918c]]="!otherUserOnline()" [class.dark:bg-[#777]]="!otherUserOnline()"></i>
                       {{ otherUserOnline() ? 'Đang hoạt động' : 'Ngoại tuyến' }}
                     </span>
                   </span>
@@ -184,33 +185,33 @@
               <button
                 type="button"
                 (click)="scrollToMessage(pinned.id)"
-                class="flex items-center gap-2 px-4 py-2 border-b border-[#dadad3] bg-[#faf5f9] hover:bg-[#f6eef4] text-left cursor-pointer border-none w-full shrink-0 outline-none"
+                class="flex items-center gap-2 px-4 py-2 border-b border-[#dadad3] dark:border-[#333] bg-[#faf5f9] dark:bg-[#241f27] hover:bg-[#f6eef4] dark:hover:bg-[#2c2530] text-left cursor-pointer border-none w-full shrink-0 outline-none"
               >
                 <span class="material-symbols-outlined text-base text-[#B15CAA] shrink-0">push_pin</span>
-                <span class="flex-1 min-w-0 text-xs text-[#62625b] truncate">
-                  <span class="font-bold text-black">Đã ghim: </span>{{ replyPreviewLabel(pinned) }}
+                <span class="flex-1 min-w-0 text-xs text-[#62625b] dark:text-[#999] truncate">
+                  <span class="font-bold text-black dark:text-white">Đã ghim: </span>{{ replyPreviewLabel(pinned) }}
                 </span>
                 <span
                   (click)="unpinBanner($event)"
                   title="Bỏ ghim"
-                  class="w-6 h-6 rounded-full hover:bg-[#e9e9e9] flex items-center justify-center shrink-0"
+                  class="w-6 h-6 rounded-full hover:bg-[#e9e9e9] dark:hover:bg-[#333] flex items-center justify-center shrink-0"
                 >
-                  <span class="material-symbols-outlined text-sm text-[#62625b] leading-none">close</span>
+                  <span class="material-symbols-outlined text-sm text-[#62625b] dark:text-[#999] leading-none">close</span>
                 </span>
               </button>
             }
 
             <!-- Messages -->
-            <div #messageList class="flex-1 overflow-y-auto min-h-0 p-4 flex flex-col gap-2 bg-[#fafaf8]">
+            <div #messageList class="flex-1 overflow-y-auto min-h-0 p-4 flex flex-col gap-2 bg-[#fafaf8] dark:bg-[#151515]">
               @if (messagesLoading()) {
                 <div class="flex-1 flex items-center justify-center">
                   <div class="w-8 h-8 border-4 border-[#B15CAA] border-t-transparent rounded-full animate-spin"></div>
                 </div>
               } @else if (messagesError()) {
                 <div class="flex-1 flex flex-col items-center justify-center gap-3 text-center">
-                  <span class="material-symbols-outlined text-2xl text-[#91918c]">cloud_off</span>
-                  <p class="text-xs text-[#62625b]">{{ messagesError() }}</p>
-                  <button type="button" (click)="loadMessages(selectedConversationId()!)" class="h-9 px-4 rounded-full bg-white border border-[#dadad3] text-xs font-bold cursor-pointer outline-none">
+                  <span class="material-symbols-outlined text-2xl text-[#91918c] dark:text-[#999]">cloud_off</span>
+                  <p class="text-xs text-[#62625b] dark:text-[#999]">{{ messagesError() }}</p>
+                  <button type="button" (click)="loadMessages(selectedConversationId()!)" class="h-9 px-4 rounded-full bg-white dark:bg-[#1e1e1e] border border-[#dadad3] dark:border-[#333] text-xs font-bold text-black dark:text-white cursor-pointer outline-none">
                     Thử lại
                   </button>
                 </div>
@@ -221,7 +222,7 @@
                       type="button"
                       [disabled]="messagesLoadingMore()"
                       (click)="loadMoreMessages()"
-                      class="h-8 px-3.5 rounded-full bg-white border border-[#dadad3] text-[11px] font-bold text-[#62625b] cursor-pointer disabled:opacity-50"
+                      class="h-8 px-3.5 rounded-full bg-white dark:bg-[#1e1e1e] border border-[#dadad3] dark:border-[#333] text-[11px] font-bold text-[#62625b] dark:text-[#999] cursor-pointer disabled:opacity-50"
                     >
                       {{ messagesLoadingMore() ? 'Đang tải...' : 'Xem tin nhắn cũ hơn' }}
                     </button>
@@ -230,8 +231,8 @@
 
                 @if (messages().length === 0) {
                   <div class="flex-1 flex flex-col items-center justify-center gap-2 text-center">
-                    <span class="material-symbols-outlined text-2xl text-[#91918c]">waving_hand</span>
-                    <p class="text-xs text-[#62625b]">Hãy gửi tin nhắn đầu tiên 👋</p>
+                    <span class="material-symbols-outlined text-2xl text-[#91918c] dark:text-[#999]">waving_hand</span>
+                    <p class="text-xs text-[#62625b] dark:text-[#999]">Hãy gửi tin nhắn đầu tiên 👋</p>
                   </div>
                 }
 
@@ -243,10 +244,10 @@
                         <button
                           type="button"
                           (click)="scrollToMessage(message.replyToId)"
-                          class="max-w-[75%] flex items-stretch gap-2 pl-0 pr-3 py-1.5 rounded-[14px] bg-[#efefec] hover:bg-[#e6e6e2] text-left cursor-pointer border border-[#dadad3] overflow-hidden outline-none"
+                          class="max-w-[75%] flex items-stretch gap-2 pl-0 pr-3 py-1.5 rounded-[14px] bg-[#efefec] dark:bg-[#242424] hover:bg-[#e6e6e2] dark:hover:bg-[#2a2a2a] text-left cursor-pointer border border-[#dadad3] dark:border-[#333] overflow-hidden outline-none"
                         >
                           <span class="w-[3px] shrink-0 bg-[#B15CAA] rounded-full"></span>
-                          <span class="text-[11px] text-[#62625b] font-medium truncate block py-0.5">{{ replyPreviewLabel(message.replyTo) }}</span>
+                          <span class="text-[11px] text-[#62625b] dark:text-[#999] font-medium truncate block py-0.5">{{ replyPreviewLabel(message.replyTo) }}</span>
                         </button>
                       </div>
                     }
@@ -267,38 +268,38 @@
                             type="button"
                             (click)="startReply(message, $event)"
                             title="Trả lời"
-                            class="w-7 h-7 rounded-full hover:bg-[#f6f6f3] flex items-center justify-center cursor-pointer border-none bg-transparent"
+                            class="w-7 h-7 rounded-full hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] flex items-center justify-center cursor-pointer border-none bg-transparent"
                           >
-                            <span class="material-symbols-outlined text-base text-[#62625b] leading-none">reply</span>
+                            <span class="material-symbols-outlined text-base text-[#62625b] dark:text-[#999] leading-none">reply</span>
                           </button>
                           <button
                             type="button"
                             (click)="toggleReactionPicker(message.id, $event)"
                             title="Bày tỏ cảm xúc"
-                            class="w-7 h-7 rounded-full hover:bg-[#f6f6f3] flex items-center justify-center cursor-pointer border-none bg-transparent"
+                            class="w-7 h-7 rounded-full hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] flex items-center justify-center cursor-pointer border-none bg-transparent"
                           >
-                            <span class="material-symbols-outlined text-base text-[#62625b] leading-none">add_reaction</span>
+                            <span class="material-symbols-outlined text-base text-[#62625b] dark:text-[#999] leading-none">add_reaction</span>
                           </button>
                           <button
                             type="button"
                             (click)="toggleMessageMenu(message.id, $event)"
                             title="Thêm"
-                            class="w-7 h-7 rounded-full hover:bg-[#f6f6f3] flex items-center justify-center cursor-pointer border-none bg-transparent"
+                            class="w-7 h-7 rounded-full hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] flex items-center justify-center cursor-pointer border-none bg-transparent"
                           >
-                            <span class="material-symbols-outlined text-base text-[#62625b] leading-none">more_vert</span>
+                            <span class="material-symbols-outlined text-base text-[#62625b] dark:text-[#999] leading-none">more_vert</span>
                           </button>
 
                           @if (openReactionPickerFor() === message.id) {
                             <div class="fixed inset-0 z-40" (click)="closeReactionPicker()"></div>
                             <div
-                              class="absolute bottom-9 left-0 flex items-center gap-0.5 p-1.5 bg-white rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.15)] border border-[#dadad3] z-50"
+                              class="absolute bottom-9 left-0 flex items-center gap-0.5 p-1.5 bg-white dark:bg-[#1e1e1e] rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.15)] border border-[#dadad3] dark:border-[#333] z-50"
                               (click)="$event.stopPropagation()"
                             >
                               @for (emoji of quickReactions; track emoji) {
                                 <button
                                   type="button"
                                   (click)="reactToMessage(message, emoji, $event)"
-                                  class="w-8 h-8 rounded-full hover:bg-[#f6f6f3] flex items-center justify-center text-lg cursor-pointer border-none bg-transparent outline-none"
+                                  class="w-8 h-8 rounded-full hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] flex items-center justify-center text-lg cursor-pointer border-none bg-transparent outline-none"
                                 >
                                   {{ emoji }}
                                 </button>
@@ -309,13 +310,13 @@
                           @if (openMessageMenuFor() === message.id) {
                             <div class="fixed inset-0 z-40" (click)="closeMessageMenu()"></div>
                             <div
-                              class="absolute bottom-9 left-0 w-36 bg-white rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.15)] border border-[#dadad3] py-1.5 z-50 text-left"
+                              class="absolute bottom-9 left-0 w-36 bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.15)] border border-[#dadad3] dark:border-[#333] py-1.5 z-50 text-left"
                               (click)="$event.stopPropagation()"
                             >
                               <button
                                 type="button"
                                 (click)="togglePinMessage(message, $event)"
-                                class="w-full text-left px-3.5 py-2 text-xs font-bold text-black hover:bg-[#f6f6f3] cursor-pointer border-none bg-transparent outline-none"
+                                class="w-full text-left px-3.5 py-2 text-xs font-bold text-black dark:text-white hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] cursor-pointer border-none bg-transparent outline-none"
                               >
                                 {{ message.pinnedAt ? 'Bỏ ghim' : 'Ghim' }}
                               </button>
@@ -323,7 +324,7 @@
                                 <button
                                   type="button"
                                   (click)="unsendMessage(message, $event)"
-                                  class="w-full text-left px-3.5 py-2 text-xs font-bold text-red-500 hover:bg-[#f6f6f3] cursor-pointer border-none bg-transparent outline-none"
+                                  class="w-full text-left px-3.5 py-2 text-xs font-bold text-red-500 hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] cursor-pointer border-none bg-transparent outline-none"
                                 >
                                   Gỡ
                                 </button>
@@ -341,7 +342,7 @@
                         [class.order-1]="message.senderId !== currentUserId"
                       >
                         @if (message.deletedAt) {
-                          <div class="px-3.5 py-2 rounded-[18px] text-xs italic text-[#91918c] bg-[#f6f6f3] flex items-center gap-1.5">
+                          <div class="px-3.5 py-2 rounded-[18px] text-xs italic text-[#91918c] dark:text-[#999] bg-[#f6f6f3] dark:bg-[#242424] flex items-center gap-1.5">
                             <span class="material-symbols-outlined text-sm leading-none">block</span>
                             {{ message.senderId === currentUserId ? 'Bạn đã thu hồi một tin nhắn' : 'Tin nhắn đã bị thu hồi' }}
                           </div>
@@ -363,16 +364,16 @@
                               <button
                                 type="button"
                                 (click)="navigateToPin(message.pinId)"
-                                class="w-52 flex flex-col gap-0 rounded-[18px] overflow-hidden border border-[#dadad3] bg-white cursor-pointer text-left p-0 outline-none"
+                                class="w-52 flex flex-col gap-0 rounded-[18px] overflow-hidden border border-[#dadad3] dark:border-[#333] bg-white dark:bg-[#1e1e1e] cursor-pointer text-left p-0 outline-none"
                               >
                                 @if (message.pin) {
                                   <img [src]="message.pin.imageUrl" [alt]="message.pin.title" loading="lazy" class="w-full h-32 object-cover" />
                                   <div class="p-2.5 flex flex-col gap-0.5">
-                                    <span class="text-xs font-bold text-black truncate">{{ message.pin.title }}</span>
-                                    <span class="text-[10px] text-[#91918c] truncate" *ngIf="message.pin.user">bởi {{ message.pin.user.username }}</span>
+                                    <span class="text-xs font-bold text-black dark:text-white truncate">{{ message.pin.title }}</span>
+                                    <span class="text-[10px] text-[#91918c] dark:text-[#777] truncate" *ngIf="message.pin.user">bởi {{ message.pin.user.username }}</span>
                                   </div>
                                 } @else {
-                                  <div class="p-3 text-xs text-[#91918c]">Pin không còn tồn tại</div>
+                                  <div class="p-3 text-xs text-[#91918c] dark:text-[#999]">Pin không còn tồn tại</div>
                                 }
                               </button>
                             }
@@ -380,8 +381,12 @@
                               <div
                                 class="px-3.5 py-2 rounded-[18px] text-sm leading-relaxed break-words whitespace-pre-line"
                                 [class.bg-[#F7E4F5]]="message.senderId === currentUserId"
+                                [class.dark:bg-[#4a2f47]]="message.senderId === currentUserId"
                                 [class.text-black]="message.senderId === currentUserId"
+                                [class.dark:text-white]="message.senderId === currentUserId"
                                 [class.bg-[#f6f6f3]]="message.senderId !== currentUserId"
+                                [class.dark:bg-[#242424]]="message.senderId !== currentUserId"
+                                [class.dark:text-white]="message.senderId !== currentUserId"
                                 [class.text-3xl]="isEmojiOnly(message.content)"
                               >
                                 {{ message.content }}
@@ -391,7 +396,7 @@
                         }
 
                         <!-- Shared timestamp/status footer — outside the bubble for every message type -->
-                        <div class="text-[10px] text-[#91918c] px-1">
+                        <div class="text-[10px] text-[#91918c] dark:text-[#777] px-1">
                           {{ formatMessageTime(message.createdAt) }}<span *ngIf="message.senderId === currentUserId && !message.deletedAt"> · {{ message.readAt ? 'Đã xem' : 'Đã gửi' }}</span>
                         </div>
                       </div>
@@ -407,14 +412,17 @@
                           <button
                             type="button"
                             (click)="reactToMessage(message, group.emoji, $event)"
-                            class="h-6 px-1.5 rounded-full border text-[11px] flex items-center gap-1 cursor-pointer outline-none"
+                            class="h-6 px-1.5 rounded-full border text-[11px] flex items-center gap-1 cursor-pointer outline-none text-black dark:text-white"
                             [class.border-[#B15CAA]]="group.reactedByMe"
                             [class.bg-[#F7E4F5]]="group.reactedByMe"
+                            [class.dark:bg-[#4a2f47]]="group.reactedByMe"
                             [class.border-[#dadad3]]="!group.reactedByMe"
+                            [class.dark:border-[#333]]="!group.reactedByMe"
                             [class.bg-white]="!group.reactedByMe"
+                            [class.dark:bg-[#1e1e1e]]="!group.reactedByMe"
                           >
                             <span>{{ group.emoji }}</span>
-                            <span *ngIf="group.count > 1" class="text-[#62625b] font-bold">{{ group.count }}</span>
+                            <span *ngIf="group.count > 1" class="text-[#62625b] dark:text-[#999] font-bold">{{ group.count }}</span>
                           </button>
                         }
                       </div>
@@ -422,7 +430,7 @@
                   </div>
                 }
                 @if (otherUserTyping()) {
-                  <div class="flex items-center gap-2 text-xs text-[#62625b] py-1">
+                  <div class="flex items-center gap-2 text-xs text-[#62625b] dark:text-[#999] py-1">
                     <span class="typing-dots"><i></i><i></i><i></i></span> Đang nhập…
                   </div>
                 }
@@ -430,25 +438,25 @@
             </div>
 
             @if (replyingTo(); as reply) {
-              <div class="flex items-center gap-2 px-4 pt-2.5 border-t border-[#dadad3] shrink-0">
+              <div class="flex items-center gap-2 px-4 pt-2.5 border-t border-[#dadad3] dark:border-[#333] shrink-0">
                 <span class="material-symbols-outlined text-base text-[#B15CAA]">reply</span>
-                <span class="flex-1 min-w-0 text-xs text-[#62625b] truncate">
-                  Đang trả lời: <span class="font-bold text-black">{{ replyPreviewLabel(reply) }}</span>
+                <span class="flex-1 min-w-0 text-xs text-[#62625b] dark:text-[#999] truncate">
+                  Đang trả lời: <span class="font-bold text-black dark:text-white">{{ replyPreviewLabel(reply) }}</span>
                 </span>
                 <button
                   type="button"
                   (click)="cancelReply()"
-                  class="w-6 h-6 rounded-full hover:bg-[#f6f6f3] flex items-center justify-center cursor-pointer border-none bg-transparent outline-none"
+                  class="w-6 h-6 rounded-full hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] flex items-center justify-center cursor-pointer border-none bg-transparent outline-none"
                 >
-                  <span class="material-symbols-outlined text-base text-[#62625b] leading-none">close</span>
+                  <span class="material-symbols-outlined text-base text-[#62625b] dark:text-[#999] leading-none">close</span>
                 </button>
               </div>
             }
 
             @if (imagePreviewUrl()) {
-              <div class="flex items-center gap-2 px-4 pt-2 border-t border-[#dadad3] shrink-0">
+              <div class="flex items-center gap-2 px-4 pt-2 border-t border-[#dadad3] dark:border-[#333] shrink-0">
                 <img [src]="imagePreviewUrl()" alt="Xem trước" class="w-12 h-12 rounded-xl object-cover" />
-                <span class="text-xs text-[#62625b]">{{ imageSending() ? 'Đang gửi ảnh...' : '' }}</span>
+                <span class="text-xs text-[#62625b] dark:text-[#999]">{{ imageSending() ? 'Đang gửi ảnh...' : '' }}</span>
               </div>
             }
             @if (imageError()) {
@@ -456,7 +464,7 @@
             }
 
             <!-- Composer -->
-            <form (ngSubmit)="sendMessage()" class="relative flex items-end gap-2 p-3 border-t border-[#dadad3] shrink-0">
+            <form (ngSubmit)="sendMessage()" class="relative flex items-end gap-2 p-3 border-t border-[#dadad3] dark:border-[#333] shrink-0">
               <input
                 #imageInput
                 type="file"
@@ -469,7 +477,7 @@
                 (click)="triggerImagePicker(imageInput)"
                 [disabled]="imageSending() || sendPending()"
                 title="Gửi ảnh"
-                class="w-10 h-10 shrink-0 rounded-full bg-[#f6f6f3] hover:bg-[#e9e9e9] flex items-center justify-center cursor-pointer border-none outline-none text-black disabled:opacity-40"
+                class="w-10 h-10 shrink-0 rounded-full bg-[#f6f6f3] dark:bg-[#2a2a2a] hover:bg-[#e9e9e9] dark:hover:bg-[#333] flex items-center justify-center cursor-pointer border-none outline-none text-black dark:text-white disabled:opacity-40"
               >
                 <span class="material-symbols-outlined text-xl leading-none">image</span>
               </button>
@@ -479,7 +487,7 @@
                 (click)="toggleGifPicker()"
                 [disabled]="sendPending()"
                 title="Gửi GIF"
-                class="h-10 px-2.5 shrink-0 rounded-full bg-[#f6f6f3] hover:bg-[#e9e9e9] flex items-center justify-center cursor-pointer border-none outline-none text-black text-[11px] font-bold disabled:opacity-40"
+                class="h-10 px-2.5 shrink-0 rounded-full bg-[#f6f6f3] dark:bg-[#2a2a2a] hover:bg-[#e9e9e9] dark:hover:bg-[#333] flex items-center justify-center cursor-pointer border-none outline-none text-black dark:text-white text-[11px] font-bold disabled:opacity-40"
               >
                 GIF
               </button>
@@ -487,7 +495,7 @@
               @if (isGifPickerOpen()) {
                 <div class="fixed inset-0 z-40" (click)="closeGifPicker()"></div>
                 <div
-                  class="absolute bottom-14 left-3 w-80 max-h-96 bg-white rounded-[20px] shadow-[0_16px_48px_rgba(0,0,0,0.12)] border border-[#dadad3] p-3 z-50 flex flex-col gap-2"
+                  class="absolute bottom-14 left-3 w-80 max-h-96 bg-white dark:bg-[#1e1e1e] rounded-[20px] shadow-[0_16px_48px_rgba(0,0,0,0.12)] border border-[#dadad3] dark:border-[#333] p-3 z-50 flex flex-col gap-2"
                   (click)="$event.stopPropagation()"
                 >
                   <input
@@ -496,21 +504,21 @@
                     (ngModelChange)="onGifQueryInput($event)"
                     name="gifQuery"
                     placeholder="Tìm GIF..."
-                    class="h-9 px-3 rounded-full bg-[#e9e9e9] border-none outline-none text-sm text-black placeholder-[#91918c]"
+                    class="h-9 px-3 rounded-full bg-[#e9e9e9] dark:bg-[#2a2a2a] border-none outline-none text-sm text-black dark:text-white placeholder-[#91918c] dark:placeholder-[#777]"
                   />
                   <div class="flex-1 overflow-y-auto min-h-0">
                     @if (gifLoading()) {
                       <div class="flex items-center justify-center py-8">
-                        <span class="material-symbols-outlined animate-spin text-xl text-[#91918c]">progress_activity</span>
+                        <span class="material-symbols-outlined animate-spin text-xl text-[#91918c] dark:text-[#999]">progress_activity</span>
                       </div>
                     } @else if (gifError()) {
                       <p class="text-xs text-red-500 px-1 py-2">{{ gifError() }}</p>
                     } @else if (gifResults().length === 0) {
-                      <p class="text-xs text-[#91918c] px-1 py-2">Không tìm thấy GIF nào.</p>
+                      <p class="text-xs text-[#91918c] dark:text-[#999] px-1 py-2">Không tìm thấy GIF nào.</p>
                     } @else {
                       <div class="grid grid-cols-2 gap-1.5">
                         @for (gif of gifResults(); track gif.id) {
-                          <button type="button" (click)="selectGif(gif)" class="rounded-xl overflow-hidden border-none p-0 cursor-pointer bg-[#f6f6f3] outline-none">
+                          <button type="button" (click)="selectGif(gif)" class="rounded-xl overflow-hidden border-none p-0 cursor-pointer bg-[#f6f6f3] dark:bg-[#2a2a2a] outline-none">
                             <img [src]="gif.previewUrl" [alt]="gif.title" loading="lazy" class="w-full h-20 object-cover block" />
                           </button>
                         }
@@ -525,7 +533,7 @@
                 (click)="toggleEmojiPicker()"
                 [disabled]="sendPending()"
                 title="Chèn emoji"
-                class="w-10 h-10 shrink-0 rounded-full bg-[#f6f6f3] hover:bg-[#e9e9e9] flex items-center justify-center cursor-pointer border-none outline-none text-lg disabled:opacity-40"
+                class="w-10 h-10 shrink-0 rounded-full bg-[#f6f6f3] dark:bg-[#2a2a2a] hover:bg-[#e9e9e9] dark:hover:bg-[#333] flex items-center justify-center cursor-pointer border-none outline-none text-lg disabled:opacity-40"
               >
                 😊
               </button>
@@ -547,7 +555,7 @@
                 rows="1"
                 placeholder="Nhập tin nhắn..."
                 (keydown.enter)="$event.preventDefault(); sendMessage()"
-                class="flex-1 resize-none bg-[#f6f6f3] border-none outline-none rounded-[18px] px-3.5 py-2.5 text-sm text-black placeholder-[#91918c] max-h-32"
+                class="flex-1 resize-none bg-[#f6f6f3] dark:bg-[#2a2a2a] border-none outline-none rounded-[18px] px-3.5 py-2.5 text-sm text-black dark:text-white placeholder-[#91918c] dark:placeholder-[#777] max-h-32"
               ></textarea>
               <button
                 type="submit"
