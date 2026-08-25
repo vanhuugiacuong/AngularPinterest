@@ -37,4 +37,10 @@ describe('PlansGuard', () => {
     prisma.user.findUnique.mockResolvedValue({ plan: 'PRO' });
     await expect(guard.canActivate(contextWithUser('user-1', 'canSell'))).resolves.toBe(true);
   });
+
+  it('allows a PLUS user through a canSell-gated route', async () => {
+    reflector.get.mockReturnValue('canSell');
+    prisma.user.findUnique.mockResolvedValue({ plan: 'PLUS' });
+    await expect(guard.canActivate(contextWithUser('user-1', 'canSell'))).resolves.toBe(true);
+  });
 });

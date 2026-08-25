@@ -539,14 +539,14 @@ export class PinsService {
     const auction = auctionMap.get(pin.id);
     const isOwner = viewerId === pin.userId;
 
-    // Tác phẩm đang bán/đấu giá: chỉ chủ sở hữu hoặc người dùng Plus/Pro còn
-    // hiệu lực mới được xem chi tiết. Dùng MembershipsService.status() (tự
+    // Chỉ tác phẩm đấu giá mới giới hạn phần chi tiết cho thành viên Pro.
+    // Ảnh bán giá cố định vẫn công khai cho mọi gói. Dùng status() (tự
     // áp dụng lazy-expiry) thay vì đọc User.plan thô để gói đã hết hạn không
     // còn được ưu tiên. Đây là lớp chặn thật ở backend — frontend chỉ là UX.
-    if ((pin.isForSale || auction) && !isOwner) {
+    if (auction && !isOwner) {
       const viewerPlan = viewerId ? (await this.membershipsService.status(viewerId)).plan : 'FREE';
-      if (viewerPlan !== 'PLUS' && viewerPlan !== 'PRO') {
-        throw new ForbiddenException('Nâng cấp gói để xem chi tiết và trao đổi với chủ sở hữu.');
+      if (viewerPlan !== 'PRO') {
+        throw new ForbiddenException('Chỉ thành viên Pro mới có thể xem chi tiết tác phẩm đấu giá.');
       }
     }
 
@@ -574,8 +574,8 @@ export class PinsService {
     let salePrice: number | undefined;
     if (price) {
       const ownerStatus = await this.membershipsService.status(userId);
-      if (ownerStatus.plan !== 'PRO') {
-        throw new ForbiddenException('Chỉ thành viên Pro mới có thể bán ảnh.');
+      if (!ownerStatus.canSell) {
+        throw new ForbiddenException('Chỉ thành viên Plus hoặc Pro mới có thể bán ảnh giá cố định.');
       }
       const owner = await this.prisma.user.findUnique({
         where: { id: userId },

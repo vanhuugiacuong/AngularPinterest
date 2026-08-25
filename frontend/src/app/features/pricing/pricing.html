@@ -11,8 +11,9 @@
     <article
       *ngFor="let plan of plans; let i = index"
       class="plan-card"
-      [class.is-featured]="plan.id === 'PLUS'"
+      [class.is-featured]="membership.status()?.plan === plan.id"
       [class.is-current]="membership.status()?.plan === plan.id"
+      [attr.aria-current]="membership.status()?.plan === plan.id ? 'true' : null"
     >
       <div class="card-top">
         <span class="index">0{{ i + 1 }}</span
@@ -29,15 +30,14 @@
       </ul>
       <button
         *ngIf="plan.id === 'FREE'"
-        (click)="chooseFree()"
-        [disabled]="membershipLoading() || membership.status()?.plan === 'FREE'"
+        disabled
       >
         {{
           membershipLoading()
             ? 'Đang kiểm tra gói…'
             : membership.status()?.plan === 'FREE'
               ? 'Gói hiện tại'
-              : 'Chọn Free'
+              : 'Tự động về Free khi hết hạn'
         }}</button
       ><button
         *ngIf="plan.id !== 'FREE'"

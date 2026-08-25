@@ -14,9 +14,9 @@ export class Pricing implements OnInit {
   cardNumber = ''; cardName = ''; expiry = ''; cvv = '';
   private checkoutReturnFocus: HTMLElement | null = null;
   readonly plans = [
-    { id: 'FREE' as const, name: 'Free', price: 0, kicker: 'Khởi đầu', description: 'Dành cho những ý tưởng đầu tiên.', features: ['3 lượt tạo AI mỗi ngày', 'Đăng, lưu và khám phá tác phẩm', 'Tải ảnh tiêu chuẩn'] },
-    { id: 'PLUS' as const, name: 'Plus', price: 99000, kicker: 'Được yêu thích', description: 'Không gian rộng hơn cho người sáng tạo.', features: ['10 lượt tạo AI mỗi ngày', 'Tải ảnh nguyên bản, không watermark', 'Không chèn tên hoặc ID tác giả'] },
-    { id: 'PRO' as const, name: 'Pro', price: 199000, kicker: 'Studio chuyên nghiệp', description: 'Biến tác phẩm thành một cửa hàng.', features: ['20 lượt tạo AI mỗi ngày', 'Toàn bộ quyền lợi Plus', 'Đặt giá và bán ảnh của bạn', 'Theo dõi giao dịch mua tác phẩm'] }
+    { id: 'FREE' as const, name: 'Free', price: 0, kicker: 'Khởi đầu cảm hứng', description: 'Nơi mọi ý tưởng đầu tiên được tự do cất cánh.', features: ['3 lượt sáng tạo với AI mỗi ngày', 'Đăng tải, lưu giữ và khám phá tác phẩm', 'Tải ảnh chất lượng tiêu chuẩn'] },
+    { id: 'PLUS' as const, name: 'Plus', price: 99000, kicker: 'Sáng tạo & Kinh doanh', description: 'Mở rộng sức sáng tạo và biến tác phẩm thành cơ hội.', features: ['10 lượt sáng tạo với AI mỗi ngày', 'Tải ảnh nguyên bản chất lượng cao, không watermark', 'Mở bán tác phẩm với mức giá cố định', 'Quản lý doanh thu và theo dõi mọi giao dịch'] },
+    { id: 'PRO' as const, name: 'Pro', price: 199000, kicker: 'Đặc quyền nghệ sĩ', description: 'Không giới hạn sáng tạo, nâng tầm giá trị từng tác phẩm.', features: ['Sáng tạo hình ảnh AI không giới hạn', 'Trọn bộ đặc quyền của gói Plus', 'Độc quyền mở, khám phá và tham gia đấu giá tác phẩm'] }
   ];
   async ngOnInit() { try { await this.membership.load(); } finally { this.membershipLoading.set(false); } }
   async openCheckout(plan: PaidPlan) {
@@ -83,10 +83,9 @@ export class Pricing implements OnInit {
     }
   }
   priceOf(plan: PaidPlan | null) { return plan === 'PRO' ? 199000 : 99000; }
-  chooseFree() { void this.activate('FREE'); }
   ownsPlan(plan: PaidPlan) { return this.membership.status()?.ownedPlans?.includes(plan) === true; }
   choosePaid(plan: PaidPlan) { if (this.ownsPlan(plan)) void this.activate(plan); else void this.openCheckout(plan); }
-  paidButtonText(plan: PaidPlan, name: string) { if (this.membershipLoading()) return 'Đang kiểm tra gói…'; if (this.membership.status()?.plan === plan) return 'Gói hiện tại'; return this.ownsPlan(plan) ? `Dùng lại ${name}` : `Chọn ${name}`; }
+  paidButtonText(plan: PaidPlan, name: string) { if (this.membershipLoading()) return 'Đang kiểm tra gói…'; if (this.membership.status()?.plan === plan) return 'Gói hiện tại'; return this.ownsPlan(plan) ? `Kích hoạt lại ${name}` : `Chọn ${name}`; }
   selectMethod(method: PaymentMethod) { this.method.set(method); this.message.set(''); }
   clearError(field: string) { const next = { ...this.fieldErrors() }; delete next[field]; this.fieldErrors.set(next); this.message.set(''); }
   hasErrors() { return Object.keys(this.fieldErrors()).length > 0; }

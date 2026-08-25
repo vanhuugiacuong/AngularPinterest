@@ -382,7 +382,7 @@
                         <p class="text-xs text-text-muted">Bạn là người bán — không thể tự đặt giá cho tác phẩm của mình.</p>
                       } @else if (a.status === 'ACTIVE') {
                         <p class="text-xs text-text-muted">
-                          Chỉ thành viên Plus hoặc Pro mới có thể đặt giá.
+                          Chỉ thành viên Pro mới có thể đặt giá.
                           <button type="button" (click)="goToPricing()" class="text-accent hover:underline bg-transparent border-none p-0 cursor-pointer font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control">Nâng cấp ngay</button>
                         </p>
                       }
@@ -543,7 +543,7 @@
                              exactly like every other pin card in the app. -->
                         <div class="group cursor-pointer flex flex-col mb-1">
                           <div
-                            (click)="navigateToPin(rel.id)"
+                            (click)="navigateToPin(rel)"
                             class="relative overflow-hidden bg-surface shadow-card glow-hover rounded-frame"
                             [style.aspect-ratio]="rel.aspectRatio || '0.75'"
                           >
@@ -552,11 +552,29 @@
                               [alt]="rel.title"
                               loading="lazy"
                               fetchpriority="low"
-                              class="w-full h-full object-cover block transition-transform duration-500 ease-spring group-hover:scale-[1.04]"
+                              class="w-full h-full object-cover block transition-all duration-500 ease-spring group-hover:scale-[1.04]"
+                              [class.blur-xl]="isAuctionRestricted(rel)"
+                              [class.scale-110]="isAuctionRestricted(rel)"
                             />
 
+                            @if (rel.listingType === 'AUCTION') {
+                              <span class="absolute top-2.5 left-2.5 z-20 w-8 h-8 rounded-full bg-surface-high/95 border border-border-strong text-accent flex items-center justify-center shadow-card pointer-events-none" aria-label="Tác phẩm đấu giá">
+                                <span class="material-symbols-outlined text-[19px] leading-none">crown</span>
+                              </span>
+                            } @else if (rel.listingType === 'FIXED_PRICE') {
+                              <span class="absolute top-2.5 left-2.5 z-20 w-8 h-8 rounded-full bg-surface-high/95 border border-border-strong text-accent flex items-center justify-center shadow-card pointer-events-none" aria-label="Tác phẩm bán giá cố định">
+                                <span class="material-symbols-outlined text-[19px] leading-none">star</span>
+                              </span>
+                            }
+
+                            @if (isAuctionRestricted(rel)) {
+                              <div class="absolute inset-0 z-10 flex items-center justify-center bg-bg/20 pointer-events-none">
+                                <span class="px-3 py-2 rounded-control bg-surface-high/95 border border-border-strong text-text text-xs font-bold shadow-card">Chỉ dành cho Pro</span>
+                              </div>
+                            }
+
                             @if (rel.isAiGenerated) {
-                              <span class="mono-label absolute top-2.5 left-2.5 z-10 flex items-center gap-1 bg-surface-high/90 border border-border-strong text-accent text-xs font-bold uppercase px-2 py-1 rounded-control pointer-events-none">
+                              <span class="mono-label absolute top-12 left-2.5 z-20 flex items-center gap-1 bg-surface-high/90 border border-border-strong text-accent text-xs font-bold uppercase px-2 py-1 rounded-control pointer-events-none">
                                 <span class="material-symbols-outlined text-[12px] leading-none">auto_awesome</span>
                                 AI
                               </span>

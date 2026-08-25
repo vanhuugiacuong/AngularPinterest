@@ -110,17 +110,17 @@
       <section aria-labelledby="nf-payout-heading" class="bg-surface border border-border rounded-panel p-5 sm:p-6 mt-6">
         <h2 id="nf-payout-heading" class="text-lg font-bold text-text font-display">Thông tin nhận thanh toán</h2>
         <p class="text-sm text-text-muted mt-1 mb-5">
-          Người mua ảnh và người thắng đấu giá sẽ chuyển khoản thẳng vào tài khoản này — chỉ dành cho gói Pro.
+          Thiết lập tài khoản để nhận trực tiếp doanh thu từ mỗi tác phẩm được bán hoặc đấu giá thành công.
         </p>
 
-        <!-- Chưa phải Pro: locked state -->
+        <!-- FREE: locked state -->
         <div *ngIf="!membershipLoading() && !canSell()" class="rounded-frame border border-border bg-canvas-neutral p-6 flex flex-col items-center text-center gap-3">
           <span class="material-symbols-outlined text-3xl text-text-muted" aria-hidden="true">lock</span>
           <p class="text-sm text-text-muted max-w-sm">
-            Chỉ thành viên Pro mới có thể bán ảnh/đấu giá và cần cấu hình tài khoản nhận tiền.
+            Nâng cấp Plus để mở bán tác phẩm, hoặc chọn Pro để trải nghiệm thêm đặc quyền đấu giá.
           </p>
           <a routerLink="/pricing" class="h-10 px-5 rounded-control bg-gradient-brand text-text-on-accent font-bold text-xs flex items-center justify-center cursor-pointer">
-            Nâng cấp lên Pro
+            Khám phá gói Plus
           </a>
         </div>
 

@@ -177,7 +177,7 @@ describe('AuctionsService.placeBid', () => {
   });
 
   it('accepts a valid first bid at exactly the starting price and updates currentPrice atomically', async () => {
-    memberships.status.mockResolvedValue({ plan: 'PLUS' });
+    memberships.status.mockResolvedValue({ plan: 'PRO' });
     prisma.auction.updateMany.mockResolvedValue({ count: 1 });
     prisma.auctionBid.create.mockResolvedValue({
       id: 'bid-1',
