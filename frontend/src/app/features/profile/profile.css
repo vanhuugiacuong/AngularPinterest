@@ -263,26 +263,20 @@ textarea:disabled {
    .following-action state override below still wins on specificity. */
 .primary-action {
   color: var(--color-text-on-accent);
-  background: linear-gradient(135deg, var(--color-nova-blue) 0%, var(--color-iris-violet) 100%);
+  background: var(--color-nova-blue);
   border-radius: var(--radius-cta);
-  box-shadow: 0 6px 20px -10px color-mix(in srgb, var(--color-iris-violet) 45%, transparent);
+  box-shadow: 0 6px 20px -10px color-mix(in srgb, var(--color-nova-blue) 45%, transparent);
   transition:
-    border-radius 0.35s var(--ease-spring),
-    transform 0.35s var(--ease-spring),
-    box-shadow 0.35s var(--ease-spring),
+    transform 0.2s var(--ease-trace),
     background 180ms ease;
 }
 
 .primary-action:not(:disabled):hover {
-  border-radius: 26px 10px 26px 14px;
-  transform: translateY(-2px) scale(1.02);
-  box-shadow:
-    0 12px 32px -8px color-mix(in srgb, var(--color-iris-violet) 50%, transparent),
-    0 0 24px color-mix(in srgb, var(--color-studio-aqua) 26%, transparent);
+  transform: translateY(-2px);
 }
 
 .primary-action:not(:disabled):active {
-  transform: translateY(0) scale(0.97);
+  transform: translateY(0);
 }
 
 .primary-action.following-action {
