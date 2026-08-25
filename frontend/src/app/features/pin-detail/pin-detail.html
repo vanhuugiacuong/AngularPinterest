@@ -397,8 +397,8 @@
                             @for (bid of a.bids; track bid.id) {
                               <div class="flex items-center gap-2">
                                 <app-user-avatar [src]="bid.bidder.avatarUrl" [name]="bid.bidder.username" [size]="24" [plan]="bid.bidder.plan"></app-user-avatar>
-                                <span class="text-xs font-bold text-text">{{ bid.bidder.username }}</span>
-                                <span class="text-xs text-text-muted mono-label ml-auto">{{ formatVnd(bid.amount) }}</span>
+                                <span class="text-xs font-bold text-text truncate min-w-0">{{ bid.bidder.username }}</span>
+                                <span class="text-xs text-text-muted mono-label ml-auto shrink-0">{{ formatVnd(bid.amount) }}</span>
                               </div>
                             }
                           </div>
