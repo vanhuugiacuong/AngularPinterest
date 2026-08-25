@@ -140,14 +140,14 @@ describe('Home — tác phẩm có giá trị (badge & gating trên feed)', () =
     expect(component.valueBadgeText(normalPin)).toBe('');
   });
 
-  it('shows the real formatted VND fixed price on the badge — never hard-coded', () => {
-    expect(component.valueBadgeText(fixedPin)).toContain('2.500.000');
+  it('shows the converted NovaToken fixed price on the badge', () => {
+    expect(component.valueBadgeText(fixedPin)).toContain('2.500 NT');
   });
 
   it('shows "Giá hiện tại · ..." with the real current price for an active auction', () => {
     const text = component.valueBadgeText(auctionPin);
     expect(text).toContain('Giá hiện tại');
-    expect(text).toContain('2.500.000');
+    expect(text).toContain('2.500 NT');
   });
 
   it('opens a normal pin directly regardless of plan — no gating for non-monetized pins', () => {
@@ -157,8 +157,15 @@ describe('Home — tác phẩm có giá trị (badge & gating trên feed)', () =
     expect(dialogService.confirm).not.toHaveBeenCalled();
   });
 
-  it('opens a fixed-price pin for a FREE viewer', () => {
+  it('blurs and blocks a fixed-price pin for a FREE viewer', () => {
     membershipStatus = { plan: 'FREE' };
+    component.navigateToPin(fixedPin);
+    expect(dialogService.confirm).toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
+
+  it('opens a fixed-price pin for a PLUS viewer', () => {
+    membershipStatus = { plan: 'PLUS' };
     component.navigateToPin(fixedPin);
     expect(router.navigate).toHaveBeenCalledWith(['/pin', 'p2']);
     expect(dialogService.confirm).not.toHaveBeenCalled();

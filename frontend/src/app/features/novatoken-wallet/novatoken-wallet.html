@@ -1,0 +1,79 @@
+<app-navbar></app-navbar>
+<main class="token-page">
+  <div class="token-aurora token-aurora-a"></div><div class="token-aurora token-aurora-b"></div>
+  <section class="wallet-hero">
+    <div class="coin-stage"><div class="coin-halo"></div><img src="/assets/novatoken/novatoken-coin.png" alt="Đồng NovaToken" /></div>
+    <div class="hero-copy">
+      <span class="eyebrow">NOVA ECONOMY · CREATIVE CURRENCY</span>
+      <h1>Nova<span>Token</span></h1>
+      <p>Giá trị lưu chuyển trong thế giới sáng tạo — sở hữu tác phẩm, tham gia đấu giá và tiếp sức cho nghệ sĩ bạn yêu thích.</p>
+      <div class="balance-card">
+        <span>SỐ DƯ KHẢ DỤNG</span>
+        <strong>{{ (tokens.wallet()?.balance || '0') | number:'1.0-0' }} <small>NT</small></strong>
+        <em>1 NovaToken = {{ (tokens.wallet()?.rateVnd || 1000) | number:'1.0-0' }}đ</em>
+      </div>
+    </div>
+  </section>
+
+  @if (error()) { <p class="wallet-error" role="alert">{{ error() }}</p> }
+  @if (loading()) { <div class="loading-state">Đang mở kho NovaToken…</div> }
+  @if (!loading() && tokens.wallet(); as wallet) {
+    <section class="token-section">
+      <div class="section-heading"><span>01</span><div><h2>Nạp NovaToken</h2><p>Chọn lượng token phù hợp với hành trình sưu tầm của bạn.</p></div></div>
+      <div class="package-grid">
+        @for (pack of wallet.packages; track pack.tokens) {
+          <button type="button" class="token-package" (click)="choosePackage(pack.tokens)">
+            <img src="/assets/novatoken/novatoken-coin.png" alt="" />
+            <strong>{{ pack.tokens | number }} NT</strong><span>{{ pack.vndAmount | number }}đ</span><em>Nạp ngay</em>
+          </button>
+        }
+      </div>
+    </section>
+    <section class="token-section ledger-section">
+      <div class="section-heading"><span>02</span><div><h2>Lịch sử giao dịch</h2><p>Theo dõi đầy đủ các khoản nạp, mua bán và đấu giá bằng NovaToken.</p></div></div>
+      <div class="ledger">
+        @for (entry of wallet.entries; track entry.id) {
+          <div class="ledger-row"><div class="ledger-icon"><img src="/assets/novatoken/novatoken-coin.png" alt="" /></div><div class="ledger-copy"><strong>{{ entry.description }}</strong><span>{{ entry.createdAt | date:'dd/MM/yyyy · HH:mm' }}</span></div><div class="ledger-amount" [class.positive]="+entry.amount > 0">{{ entrySign(entry.amount) }}{{ entry.amount | number }} NT<small>Số dư {{ entry.balanceAfter | number }} NT</small></div></div>
+        } @empty { <div class="empty-ledger">Giao dịch đầu tiên của bạn đang chờ được viết nên.</div> }
+      </div>
+    </section>
+  }
+</main>
+
+@if (selectedTopUp(); as topUp) {
+  <div class="topup-backdrop" (click)="closeTopUp()"><section class="topup-dialog" (click)="$event.stopPropagation()">
+    <div class="dialog-glow"></div>
+    <button class="dialog-close" type="button" (click)="closeTopUp()" aria-label="Đóng">×</button>
+    <header class="dialog-header">
+      <div class="dialog-coin-wrap"><img class="dialog-coin" src="/assets/novatoken/novatoken-coin.png" alt="NovaToken" /></div>
+      <div><span class="eyebrow">NẠP NOVATOKEN</span><h2>{{ topUp.tokenAmount | number }} <small>NT</small></h2><p>Hoàn tất chuyển khoản để mở khóa giá trị sáng tạo.</p></div>
+    </header>
+    @if (topUp.status === 'PAID') {
+      <div class="paid-state">
+        <div class="success-aura"><div class="success-mark"><span class="material-symbols-outlined">check</span></div></div>
+        <span class="success-eyebrow">GIAO DỊCH HOÀN TẤT</span>
+        <strong>Nạp NovaToken thành công</strong>
+        <p><b>+{{ topUp.tokenAmount | number }} NT</b> đã được cộng an toàn vào ví của bạn.</p>
+        <div class="success-receipt">
+          <div><span>Giá trị</span><strong>{{ topUp.vndAmount | number }}đ</strong></div>
+          <i></i>
+          <div><span>Trạng thái</span><strong>Đã xác nhận</strong></div>
+        </div>
+        <button type="button" class="success-done" (click)="closeTopUp()">Hoàn tất <span>→</span></button>
+      </div>
+    }
+    @else {
+      <div class="payment-body">
+        <div class="qr-shell"><span class="scan-label">QUÉT ĐỂ THANH TOÁN</span><img class="payment-qr" [src]="bankQr(topUp)" alt="QR nạp NovaToken" /><small>VietQR · MB Bank</small></div>
+        <div class="payment-details">
+          <div class="detail-heading"><span>CHI TIẾT THANH TOÁN</span><em>Đang chờ</em></div>
+          <div class="payment-fact"><span>Số tiền chuyển khoản</span><strong>{{ topUp.vndAmount | number }}đ</strong></div>
+          <div class="payment-fact reference"><span>Nội dung chuyển khoản</span><strong>{{ topUp.paymentReference }}</strong><small>Vui lòng giữ nguyên nội dung này</small></div>
+          <div class="payment-note"><span>i</span><p>NovaToken sẽ tự động được cộng vào ví sau khi ngân hàng xác nhận giao dịch.</p></div>
+        </div>
+      </div>
+      <button class="confirm-button" type="button" (click)="checkPayment()" [disabled]="checking()"><span>{{ checking() ? 'Đang kiểm tra giao dịch…' : 'Tôi đã chuyển khoản' }}</span><b>→</b></button>
+      <p class="secure-note">◆ Giao dịch được đối soát tự động và bảo mật</p>
+    }
+  </section></div>
+}

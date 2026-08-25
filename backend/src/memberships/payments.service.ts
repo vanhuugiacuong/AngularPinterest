@@ -13,6 +13,7 @@ import { PLAN_PRICE_VND, SUBSCRIPTION_DURATION_MS } from './entitlements';
 import { MembershipsService } from './memberships.service';
 import { writeAuditLog } from './audit.util';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NovaTokenService } from './novatoken.service';
 
 interface SepayWebhookPayload {
   id?: string | number;
@@ -32,6 +33,7 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly memberships: MembershipsService,
     private readonly notifications: NotificationsService,
+    private readonly novaTokens: NovaTokenService,
   ) {}
 
   private generatePaymentReference(): string {
@@ -62,9 +64,56 @@ export class PaymentsService {
   }
 
   async getPayment(userId: string, paymentId: string) {
-    const payment = await this.prisma.membershipPayment.findUnique({ where: { id: paymentId } });
+    let payment = await this.prisma.membershipPayment.findUnique({ where: { id: paymentId } });
     if (!payment || payment.userId !== userId) throw new NotFoundException('Không tìm thấy giao dịch.');
+    if (payment.status === 'PENDING') {
+      await this.reconcileMembershipPaymentWithSepay(payment);
+      payment = await this.prisma.membershipPayment.findUnique({ where: { id: paymentId } });
+      if (!payment) throw new NotFoundException('Không tìm thấy giao dịch.');
+    }
     return payment;
+  }
+
+  private async reconcileMembershipPaymentWithSepay(payment: {
+    id: string;
+    paymentReference: string;
+    amount: Prisma.Decimal;
+    createdAt: Date;
+  }): Promise<void> {
+    const apiToken = process.env.SEPAY_API_TOKEN;
+    if (!apiToken) return;
+    const amount = Number(payment.amount);
+    const params = new URLSearchParams({
+      q: payment.paymentReference,
+      transfer_type: 'in',
+      amount_in_min: String(amount),
+      amount_in_max: String(amount),
+      transaction_date_from: new Date(payment.createdAt.getTime() - 5 * 60_000).toISOString(),
+      per_page: '20',
+      timestamp_format: 'iso8601',
+    });
+    try {
+      const response = await fetch(`https://userapi.sepay.vn/v2/transactions?${params}`, {
+        headers: { Authorization: `Bearer ${apiToken}`, Accept: 'application/json' },
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (!response.ok) return;
+      const payload = await response.json() as { data?: Array<Record<string, unknown>> };
+      const reference = payment.paymentReference.toUpperCase();
+      const transaction = payload.data?.find((item) =>
+        item.transfer_type === 'in'
+        && Number(item.amount_in) === amount
+        && String(item.transaction_content ?? '').toUpperCase().includes(reference),
+      );
+      if (!transaction?.id) return;
+      await this.markPaidAndActivate(payment.id, {
+        providerTransactionId: String(transaction.id),
+        rawPayload: transaction,
+        verifiedBy: 'sepay-api',
+      });
+    } catch {
+      // Giữ PENDING khi SePay tạm thời không phản hồi; lần poll tiếp theo sẽ thử lại.
+    }
   }
 
   async listPayments(userId: string) {
@@ -196,7 +245,7 @@ export class PaymentsService {
   }
 
   private extractPaymentReference(content: string): string | null {
-    const match = content.toUpperCase().match(/(NOVA|BUY)[A-Z0-9]{6,}/);
+    const match = content.toUpperCase().match(/(TOKEN|NOVA|BUY)[A-Z0-9]{6,}/);
     return match ? match[0] : null;
   }
 
@@ -219,11 +268,12 @@ export class PaymentsService {
     const providerTransactionId = String(payload.id ?? payload.referenceCode ?? '');
     if (!providerTransactionId) throw new BadRequestException('Payload thiếu mã giao dịch.');
 
-    const [existingPayment, existingPurchase] = await Promise.all([
+    const [existingPayment, existingPurchase, existingTopUp] = await Promise.all([
       this.prisma.membershipPayment.findFirst({ where: { providerTransactionId } }),
       this.prisma.imagePurchase.findFirst({ where: { providerTransactionId } }),
+      this.prisma.novaTokenTopUp.findFirst({ where: { providerTransactionId } }),
     ]);
-    if (existingPayment || existingPurchase) return { ok: true, duplicate: true };
+    if (existingPayment || existingPurchase || existingTopUp) return { ok: true, duplicate: true };
 
     const transferType = String(payload.transferType ?? payload.type ?? '').toLowerCase();
     if (transferType && transferType !== 'in') return { ok: true, ignored: true };
@@ -235,6 +285,17 @@ export class PaymentsService {
 
     if (reference.startsWith('BUY')) {
       return this.confirmPinPurchase(reference, amount, providerTransactionId, payload);
+    }
+    if (reference.startsWith('TOKEN')) {
+      const topUp = await this.prisma.novaTokenTopUp.findUnique({ where: { paymentReference: reference } });
+      if (!topUp || topUp.status !== 'PENDING') return { ok: true, unmatched: true };
+      if (Number(topUp.vndAmount) !== amount) {
+        await writeAuditLog(this.prisma, topUp.userId, 'NOVATOKEN_TOPUP_AMOUNT_MISMATCH', {
+          topUpId: topUp.id, expected: topUp.vndAmount, received: amount,
+        });
+        return { ok: true, mismatch: true };
+      }
+      return this.novaTokens.confirmTopUp(topUp.id, { providerTransactionId, rawPayload: payload });
     }
 
     const payment = await this.prisma.membershipPayment.findUnique({ where: { paymentReference: reference } });

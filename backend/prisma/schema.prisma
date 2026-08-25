@@ -31,11 +31,15 @@ model User {
   payoutBankCode      String?
   payoutAccountNumber String?
   payoutAccountName   String?
+  novaTokenBalance    Decimal                  @default(0) @db.Decimal(18, 0)
   aiUsages            AiUsage[]
   purchases           ImagePurchase[]          @relation("BuyerPurchases")
   sales               ImagePurchase[]          @relation("SellerSales")
   payments            MembershipPayment[]
   subscriptions       MembershipSubscription[]
+  novaTokenTopUps     NovaTokenTopUp[]
+  novaTokenEntries    NovaTokenLedger[]
+  novaTokenHolds      AuctionTokenHold[]
   watermarkPresets    WatermarkPreset[]
 
   pins     Pin[]
@@ -153,6 +157,7 @@ model ImagePurchase {
 
 enum Currency {
   VND
+  NOVA_TOKEN
 }
 
 enum AuctionStatus {
@@ -186,6 +191,7 @@ model Auction {
   seller   User           @relation("AuctionsSelling", fields: [sellerId], references: [id], onDelete: Cascade)
   winner   User?          @relation("AuctionsWon", fields: [winnerId], references: [id], onDelete: SetNull)
   bids     AuctionBid[]
+  tokenHolds AuctionTokenHold[]
   purchase ImagePurchase?
 
   @@index([sellerId, status])
@@ -207,6 +213,74 @@ model AuctionBid {
   bidder  User    @relation(fields: [bidderId], references: [id], onDelete: Cascade)
 
   @@index([auctionId, createdAt])
+}
+
+enum NovaTokenTopUpStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+}
+
+enum NovaTokenEntryType {
+  TOP_UP
+  FIXED_PURCHASE
+  FIXED_SALE
+  BID_HOLD
+  BID_RELEASE
+  AUCTION_SALE
+  REFUND
+  ADMIN_ADJUSTMENT
+}
+
+model NovaTokenTopUp {
+  id                    String                   @id @default(uuid())
+  userId                String
+  tokenAmount           Decimal                  @db.Decimal(18, 0)
+  vndAmount             Decimal                  @db.Decimal(12, 2)
+  paymentReference      String                   @unique
+  status                NovaTokenTopUpStatus     @default(PENDING)
+  provider              String                   @default("sepay")
+  providerTransactionId String?                  @unique
+  rawPayload            Json?
+  verifiedAt            DateTime?
+  verifiedBy            String?
+  createdAt             DateTime                 @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, createdAt])
+}
+
+model NovaTokenLedger {
+  id           String             @id @default(uuid())
+  userId       String
+  type         NovaTokenEntryType
+  amount       Decimal            @db.Decimal(18, 0)
+  balanceAfter Decimal            @db.Decimal(18, 0)
+  referenceKey String             @unique
+  description  String
+  metadata     Json?
+  createdAt    DateTime           @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model AuctionTokenHold {
+  id        String   @id @default(uuid())
+  auctionId String
+  bidderId  String
+  amount    Decimal  @db.Decimal(18, 0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auction Auction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  bidder  User    @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+
+  @@unique([auctionId, bidderId])
+  @@index([bidderId])
 }
 
 enum WatermarkType {

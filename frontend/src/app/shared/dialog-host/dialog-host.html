@@ -8,6 +8,8 @@
     <section
       #panel
       class="nf-dialog-panel"
+      [class.nf-dialog-panel--large]="dialog.size === 'large'"
+      [class.nf-dialog-panel--warning]="dialog.variant === 'warning'"
       [class.nf-dialog-panel--destructive]="dialog.variant === 'destructive'"
       tabindex="-1"
       [attr.role]="roleFor(dialog.variant)"

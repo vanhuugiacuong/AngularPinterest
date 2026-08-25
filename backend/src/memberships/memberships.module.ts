@@ -9,11 +9,13 @@ import { PaymentsWebhookController } from './payments-webhook.controller';
 import { PaymentsService } from './payments.service';
 import { PlansGuard } from './plans.guard';
 import { AdminGuard } from './admin.guard';
+import { NovaTokenController } from './novatoken.controller';
+import { NovaTokenService } from './novatoken.service';
 
 @Module({
   imports: [DatabaseModule, SupabaseModule, NotificationsModule],
-  controllers: [MembershipsController, PaymentsController, PurchasesController, PaymentsWebhookController],
-  providers: [MembershipsService, PaymentsService, PlansGuard, AdminGuard],
-  exports: [MembershipsService, PaymentsService],
+  controllers: [MembershipsController, PaymentsController, PurchasesController, PaymentsWebhookController, NovaTokenController],
+  providers: [MembershipsService, PaymentsService, NovaTokenService, PlansGuard, AdminGuard],
+  exports: [MembershipsService, PaymentsService, NovaTokenService],
 })
 export class MembershipsModule {}

@@ -15,11 +15,12 @@ describe('AuctionsService.createAuction', () => {
   };
   const memberships = { status: jest.fn(), getPayoutAccount: jest.fn() };
   const notifications = { createNotification: jest.fn() };
+  const novaTokens = { reserveBid: jest.fn(), settleAuction: jest.fn() };
   let service: AuctionsService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new AuctionsService(prisma as never, memberships as never, notifications as never);
+    service = new AuctionsService(prisma as never, memberships as never, notifications as never, novaTokens as never);
     prisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(prisma));
     // Mặc định đã cấu hình tài khoản nhận tiền - test riêng cho case thiếu.
     memberships.getPayoutAccount.mockResolvedValue({
@@ -99,6 +100,7 @@ describe('AuctionsService.placeBid', () => {
   };
   const memberships = { status: jest.fn() };
   const notifications = { createNotification: jest.fn() };
+  const novaTokens = { reserveBid: jest.fn(), settleAuction: jest.fn() };
   let service: AuctionsService;
 
   const activeAuction = {
@@ -116,7 +118,7 @@ describe('AuctionsService.placeBid', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new AuctionsService(prisma as never, memberships as never, notifications as never);
+    service = new AuctionsService(prisma as never, memberships as never, notifications as never, novaTokens as never);
     prisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(prisma));
     prisma.auctionBid.findUnique.mockResolvedValue(null);
     prisma.auctionBid.findFirst.mockResolvedValue(null);
