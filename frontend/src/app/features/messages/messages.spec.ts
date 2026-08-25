@@ -19,7 +19,13 @@ function makeRequest(overrides: Partial<MessageRequestRecord> = {}): MessageRequ
 }
 
 describe('Messages', () => {
-  function setup(overrides: { messagingService?: object; paramMap?: Record<string, string> } = {}) {
+  function setup(
+    overrides: {
+      messagingService?: object;
+      paramMap?: Record<string, string>;
+      queryParams?: Record<string, string>;
+    } = {},
+  ) {
     const messagingService = {
       listConversations: vi.fn().mockResolvedValue([]),
       listIncomingRequests: vi.fn().mockResolvedValue([]),
@@ -39,7 +45,10 @@ describe('Messages', () => {
       providers: [
         {
           provide: ActivatedRoute,
-          useValue: { paramMap: of(convertToParamMap(overrides.paramMap || {})) },
+          useValue: {
+            paramMap: of(convertToParamMap(overrides.paramMap || {})),
+            snapshot: { queryParamMap: convertToParamMap(overrides.queryParams || {}) },
+          },
         },
         { provide: Router, useValue: router },
         { provide: MessagingService, useValue: messagingService },
@@ -75,6 +84,17 @@ describe('Messages', () => {
     expect(messagingService.listConversations).toHaveBeenCalled();
     expect(messagingService.listIncomingRequests).toHaveBeenCalled();
     expect(messages.activeSection()).toBe('chats');
+    messages.ngOnDestroy();
+  });
+
+  it('prefills the draft message from a ?prefill= query param (from "Trao đổi với chủ sở hữu") without sending it', async () => {
+    const prefillText = 'Chào bạn, mình quan tâm đến tác phẩm "Tranh sơn dầu".';
+    const { fixture, messagingService } = setup({ queryParams: { prefill: prefillText } });
+    const messages = fixture.componentInstance;
+    await messages.ngOnInit();
+
+    expect(messages.messageDraft).toBe(prefillText);
+    expect(messagingService.sendMessage).not.toHaveBeenCalled();
     messages.ngOnDestroy();
   });
 

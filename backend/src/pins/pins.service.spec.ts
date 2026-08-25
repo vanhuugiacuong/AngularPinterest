@@ -2,9 +2,11 @@ import { PinsService } from './pins.service';
 
 describe('PinsService privacy', () => {
   const prisma = {
-    pin: { findFirst: jest.fn() },
+    pin: { findFirst: jest.fn(), findUnique: jest.fn() },
+    auction: { findMany: jest.fn().mockResolvedValue([]) },
   };
-  const service = new PinsService(prisma as never, {} as never, {} as never, {} as never, {} as never);
+  const membershipsService = { status: jest.fn().mockResolvedValue({ plan: 'FREE' }) };
+  const service = new PinsService(prisma as never, {} as never, {} as never, membershipsService as never, {} as never);
 
   beforeEach(() => jest.clearAllMocks());
 

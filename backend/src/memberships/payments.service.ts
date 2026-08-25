@@ -12,6 +12,7 @@ import { PrismaService } from '../database/prisma.service';
 import { PLAN_PRICE_VND, SUBSCRIPTION_DURATION_MS } from './entitlements';
 import { MembershipsService } from './memberships.service';
 import { writeAuditLog } from './audit.util';
+import { NotificationsService } from '../notifications/notifications.service';
 
 interface SepayWebhookPayload {
   id?: string | number;
@@ -30,6 +31,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly memberships: MembershipsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private generatePaymentReference(): string {
@@ -107,6 +109,47 @@ export class PaymentsService {
 
   async adminConfirm(paymentId: string, adminId: string) {
     return this.markPaidAndActivate(paymentId, { verifiedBy: adminId });
+  }
+
+  /** Người bán tự xác nhận đã nhận được thanh toán chuyển thẳng vào tài
+   * khoản riêng của họ (không qua tài khoản platform nên không có webhook
+   * SePay nào xác nhận hộ). Chỉ chính người bán của giao dịch mới gọi được -
+   * updateMany với where.sellerId chặn xác nhận hộ giao dịch của người khác. */
+  async sellerConfirmPurchase(purchaseId: string, sellerId: string) {
+    const purchase = await this.prisma.imagePurchase.findUnique({ where: { id: purchaseId } });
+    if (!purchase) throw new NotFoundException('Không tìm thấy giao dịch.');
+    if (purchase.sellerId !== sellerId) throw new ForbiddenException('Bạn không phải người bán của giao dịch này.');
+
+    const updateResult = await this.prisma.imagePurchase.updateMany({
+      where: { id: purchaseId, sellerId, status: 'PENDING' },
+      data: { status: 'PAID', verifiedAt: new Date() },
+    });
+    if (updateResult.count === 0) return { ok: true, duplicate: true };
+
+    await writeAuditLog(this.prisma, sellerId, 'PIN_PURCHASE_CONFIRMED_BY_SELLER', {
+      purchaseId,
+      pinId: purchase.pinId,
+      buyerId: purchase.buyerId,
+    });
+
+    // Báo cho NGƯỜI MUA — ngược hướng với AUCTION_SALE_PAID (dùng cho nhánh
+    // webhook/admin, nơi báo cho seller rằng nền tảng đã ghi nhận thanh
+    // toán). Ở đây chính seller là người xác nhận nên buyer mới cần biết.
+    try {
+      const pin = await this.prisma.pin.findUnique({ where: { id: purchase.pinId }, select: { title: true } });
+      const seller = await this.prisma.user.findUnique({ where: { id: sellerId }, select: { username: true } });
+      await this.notifications.createNotification(
+        purchase.buyerId,
+        'PURCHASE_CONFIRMED_BY_SELLER',
+        `${seller?.username ?? 'Người bán'} đã xác nhận nhận được thanh toán cho tác phẩm "${pin?.title ?? ''}". Bạn có thể tải bản gốc ngay.`,
+        sellerId,
+        purchase.pinId,
+      );
+    } catch (err) {
+      console.error('[PaymentsService] Không gửi được thông báo PURCHASE_CONFIRMED_BY_SELLER', err);
+    }
+
+    return { ok: true };
   }
 
   async adminConfirmPurchase(purchaseId: string, adminId: string) {
@@ -242,6 +285,27 @@ export class PaymentsService {
       pinId: purchase.pinId,
       sellerId: purchase.sellerId,
     });
+
+    // Giao dịch thanh toán của người thắng đấu giá — báo cho seller. Lỗi
+    // notification không được làm rollback việc xác nhận thanh toán đã commit.
+    if (purchase.auctionId) {
+      try {
+        const [buyer, pin] = await Promise.all([
+          this.prisma.user.findUnique({ where: { id: purchase.buyerId }, select: { username: true } }),
+          this.prisma.pin.findUnique({ where: { id: purchase.pinId }, select: { title: true } }),
+        ]);
+        await this.notifications.createNotification(
+          purchase.sellerId,
+          'AUCTION_SALE_PAID',
+          `${buyer?.username ?? 'Người thắng đấu giá'} đã thanh toán thành công cho tác phẩm "${pin?.title ?? ''}" bạn đã đấu giá.`,
+          purchase.buyerId,
+          purchase.pinId,
+        );
+      } catch (err) {
+        console.error('[PaymentsService] Không gửi được thông báo AUCTION_SALE_PAID', err);
+      }
+    }
+
     return { ok: true };
   }
 }

@@ -14,6 +14,7 @@ import {
   WatermarkService,
   WatermarkType,
 } from '../../core/services/watermark';
+import { SUPPORTED_BANKS } from '../../core/utils/vietqr';
 
 interface ThemeOption {
   value: ThemePreference;
@@ -48,9 +49,19 @@ export class Settings implements OnInit {
   ];
 
   protected readonly positions = POSITIONS;
+  protected readonly supportedBanks = SUPPORTED_BANKS;
   protected membershipLoading = signal(true);
   protected privacyPending = signal(false);
   protected privacyError = signal('');
+
+  // --- Thông tin nhận thanh toán (người bán) ---
+  protected payoutBankCode = '';
+  protected payoutAccountNumber = '';
+  protected payoutAccountName = '';
+  protected payoutLoading = signal(false);
+  protected payoutSaving = signal(false);
+  protected payoutError = signal('');
+  protected payoutSaved = signal(false);
   protected previewPinId = signal<string | null>(null);
   protected previewUrl = signal<string | null>(null);
   protected previewLoading = signal(false);
@@ -79,6 +90,9 @@ export class Settings implements OnInit {
     } finally {
       this.membershipLoading.set(false);
     }
+    if (this.canSell()) {
+      void this.loadPayoutAccount();
+    }
     if (!this.canUseWatermark()) return;
     try {
       await this.watermark.list();
@@ -90,6 +104,57 @@ export class Settings implements OnInit {
 
   canUseWatermark(): boolean {
     return this.membership.status()?.customWatermark === true;
+  }
+
+  canSell(): boolean {
+    return this.membership.status()?.canSell === true;
+  }
+
+  private async loadPayoutAccount(): Promise<void> {
+    this.payoutLoading.set(true);
+    try {
+      const account = await this.membership.getPayoutAccount();
+      if (account) {
+        this.payoutBankCode = account.bankCode;
+        this.payoutAccountNumber = account.accountNumber;
+        this.payoutAccountName = account.accountName;
+      }
+    } catch {
+      // Không chặn phần còn lại của trang nếu tải thất bại — form vẫn trống, người dùng nhập lại được.
+    } finally {
+      this.payoutLoading.set(false);
+    }
+  }
+
+  async savePayoutAccount(): Promise<void> {
+    this.payoutSaved.set(false);
+    if (!this.payoutBankCode) {
+      this.payoutError.set('Vui lòng chọn ngân hàng.');
+      return;
+    }
+    if (!/^\d{6,19}$/.test(this.payoutAccountNumber.trim())) {
+      this.payoutError.set('Số tài khoản không hợp lệ (chỉ chữ số, 6-19 ký tự).');
+      return;
+    }
+    if (!this.payoutAccountName.trim()) {
+      this.payoutError.set('Vui lòng nhập tên chủ tài khoản.');
+      return;
+    }
+
+    this.payoutError.set('');
+    this.payoutSaving.set(true);
+    try {
+      await this.membership.updatePayoutAccount({
+        bankCode: this.payoutBankCode,
+        accountNumber: this.payoutAccountNumber.trim(),
+        accountName: this.payoutAccountName.trim(),
+      });
+      this.payoutSaved.set(true);
+    } catch (e) {
+      this.payoutError.set(e instanceof Error ? e.message : 'Không thể lưu thông tin nhận thanh toán.');
+    } finally {
+      this.payoutSaving.set(false);
+    }
   }
 
   canUseAdvanced(): boolean {

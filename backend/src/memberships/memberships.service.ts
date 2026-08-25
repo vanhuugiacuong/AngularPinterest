@@ -8,6 +8,7 @@ import { MembershipPlan } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { PLAN_ENTITLEMENTS } from './entitlements';
 import { writeAuditLog } from './audit.util';
+import { isSupportedBankCode } from './vietqr-banks';
 import { randomUUID } from 'node:crypto';
 
 // Việt Nam / Asia-Bangkok đều UTC+7 quanh năm, không có DST - offset cố định
@@ -55,6 +56,19 @@ export class MembershipsService {
       });
       await writeAuditLog(this.prisma, userId, 'PLAN_EXPIRED', { previousPlan: user.plan });
     }
+  }
+
+  /** Resolve only the currently active plan for authorization checks that do
+   * not need AI-usage counters. Keeping this separate from status() avoids
+   * unrelated reads while still applying the exact same lazy expiry rule. */
+  private async activePlan(userId: string): Promise<MembershipPlan> {
+    await this.applyExpiry(userId);
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { plan: true },
+    });
+    if (!user) throw new NotFoundException('Không tìm thấy người dùng.');
+    return user.plan;
   }
 
   async status(userId: string) {
@@ -181,19 +195,91 @@ export class MembershipsService {
     if (pin.userId === userId) throw new BadRequestException('Bạn không thể mua ảnh của chính mình.');
     if (!pin.isForSale || !pin.price) throw new BadRequestException('Ảnh này hiện không được rao bán.');
 
-    const seller = await this.prisma.user.findUnique({ where: { id: pin.userId }, select: { plan: true } });
-    if (seller?.plan !== 'PRO') {
+    const buyerPlan = await this.activePlan(userId);
+    if (buyerPlan !== 'PLUS' && buyerPlan !== 'PRO') {
+      throw new ForbiddenException('Nâng cấp gói để mua và trao đổi tác phẩm có giá trị.');
+    }
+
+    const sellerPlan = await this.activePlan(pin.userId);
+    if (sellerPlan !== 'PRO') {
       throw new ForbiddenException('Người bán không còn ở gói Pro, sản phẩm này đang tạm dừng bán.');
     }
+
+    const seller = await this.prisma.user.findUnique({
+      where: { id: pin.userId },
+      select: { payoutBankCode: true, payoutAccountNumber: true, payoutAccountName: true },
+    });
+    if (!seller?.payoutBankCode || !seller.payoutAccountNumber || !seller.payoutAccountName) {
+      throw new BadRequestException('Người bán chưa cấu hình thông tin nhận thanh toán.');
+    }
+    // Người mua chuyển thẳng vào tài khoản người bán - trả kèm thông tin này
+    // để frontend tạo QR đúng, không còn dùng tài khoản chung của platform.
+    const sellerPayout = {
+      bankCode: seller.payoutBankCode,
+      accountNumber: seller.payoutAccountNumber,
+      accountName: seller.payoutAccountName,
+    };
 
     const existing = await this.prisma.imagePurchase.findUnique({
       where: { pinId_buyerId: { pinId, buyerId: userId } },
     });
-    if (existing) return existing;
+    if (existing) return { ...existing, sellerPayout };
 
     const paymentReference = `BUY${Date.now().toString(36).toUpperCase()}${randomUUID().replace(/-/g, '').slice(0, 6).toUpperCase()}`;
-    return this.prisma.imagePurchase.create({
+    const created = await this.prisma.imagePurchase.create({
       data: { pinId, buyerId: userId, sellerId: pin.userId, amount: pin.price, status: 'PENDING', paymentReference },
+    });
+    return { ...created, sellerPayout };
+  }
+
+  /** Tài khoản nhận tiền của chính user (null nếu chưa cấu hình đủ 3 trường). */
+  async getPayoutAccount(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { payoutBankCode: true, payoutAccountNumber: true, payoutAccountName: true },
+    });
+    if (!user) throw new NotFoundException('Không tìm thấy người dùng.');
+    if (!user.payoutBankCode || !user.payoutAccountNumber || !user.payoutAccountName) return null;
+    return {
+      bankCode: user.payoutBankCode,
+      accountNumber: user.payoutAccountNumber,
+      accountName: user.payoutAccountName,
+    };
+  }
+
+  async updatePayoutAccount(userId: string, body: Record<string, unknown>) {
+    const plan = await this.activePlan(userId);
+    if (plan !== 'PRO') {
+      throw new ForbiddenException('Chỉ thành viên Pro mới có thể cấu hình tài khoản nhận thanh toán.');
+    }
+
+    const bankCode = typeof body.bankCode === 'string' ? body.bankCode.trim().toUpperCase() : '';
+    const accountNumber = typeof body.accountNumber === 'string' ? body.accountNumber.trim() : '';
+    const accountName = typeof body.accountName === 'string' ? body.accountName.trim() : '';
+
+    if (!isSupportedBankCode(bankCode)) {
+      throw new BadRequestException('Ngân hàng không được hỗ trợ.');
+    }
+    if (!/^\d{6,19}$/.test(accountNumber)) {
+      throw new BadRequestException('Số tài khoản không hợp lệ (chỉ chữ số, 6-19 ký tự).');
+    }
+    if (!accountName || accountName.length > 100) {
+      throw new BadRequestException('Vui lòng nhập tên chủ tài khoản hợp lệ.');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { payoutBankCode: bankCode, payoutAccountNumber: accountNumber, payoutAccountName: accountName },
+    });
+    await writeAuditLog(this.prisma, userId, 'PAYOUT_ACCOUNT_UPDATED', { bankCode });
+    return this.getPayoutAccount(userId);
+  }
+
+  async listPendingSales(userId: string) {
+    return this.prisma.imagePurchase.findMany({
+      where: { sellerId: userId, status: 'PENDING' },
+      include: { pin: { select: { id: true, title: true, imageUrl: true } }, buyer: { select: { username: true } } },
+      orderBy: { createdAt: 'desc' },
     });
   }
 

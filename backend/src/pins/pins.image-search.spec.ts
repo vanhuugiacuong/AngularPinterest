@@ -39,13 +39,13 @@ function makeFile(overrides: Partial<Express.Multer.File> = {}): Express.Multer.
 
 describe('PinsService.searchPinsByImage', () => {
   let queryRawUnsafe: jest.Mock;
-  let prisma: { $queryRawUnsafe: jest.Mock };
+  let prisma: { $queryRawUnsafe: jest.Mock; auction: { findMany: jest.Mock } };
   let service: PinsService;
   let fetchMock: jest.Mock;
 
   beforeEach(() => {
     queryRawUnsafe = jest.fn();
-    prisma = { $queryRawUnsafe: queryRawUnsafe };
+    prisma = { $queryRawUnsafe: queryRawUnsafe, auction: { findMany: jest.fn().mockResolvedValue([]) } };
     service = new PinsService(prisma as never, {} as never, {} as never, {} as never, {} as never);
     fetchMock = jest.fn();
     global.fetch = fetchMock as never;

@@ -16,7 +16,13 @@ export type NotificationType =
   | 'POST_SUCCESS'
   | 'POST_AI_SUCCESS'
   | 'FOLLOW'
-  | 'FOLLOW_REQUEST';
+  | 'FOLLOW_REQUEST'
+  | 'AUCTION_NEW_BID'
+  | 'AUCTION_OUTBID'
+  | 'AUCTION_WON'
+  | 'AUCTION_ENDED_NO_BIDS'
+  | 'AUCTION_SALE_PAID'
+  | 'PURCHASE_CONFIRMED_BY_SELLER';
 
 @Injectable()
 export class NotificationsService {

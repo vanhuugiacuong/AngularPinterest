@@ -10,6 +10,9 @@ import { UserService, ProfilePin } from '../../core/services/user';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
 import { ImageSearchStore } from '../../core/services/image-search-store';
 import { ToastService } from '../../core/services/toast';
+import { MembershipService } from '../../core/services/membership';
+import { DialogService } from '../../core/services/dialog';
+import { formatVnd } from '../../core/utils/currency';
 
 /** Vietnamese labels for the category codes the backend's auto-classifier
  * assigns (see PinsService.classifyCategory) — chips are only ever built
@@ -41,6 +44,8 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private imageSearchStore = inject(ImageSearchStore);
+  public membership = inject(MembershipService);
+  private dialogService = inject(DialogService);
 
   @ViewChild('scrollSentinel') scrollSentinel!: ElementRef;
 
@@ -457,13 +462,71 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
         likes,
         isAiGenerated: p.isAiGenerated,
         category: p.category,
-        aspectRatio
+        aspectRatio,
+        ownerId: p.userId,
+        price: p.price ?? null,
+        currency: p.currency ?? null,
+        listingType: p.listingType ?? 'NONE',
+        auction: p.auction ?? null,
       };
     });
   }
 
-  navigateToPin(pinId: string) {
-    this.router.navigate(['/pin', pinId]);
+  /** Text hiển thị trong badge vương miện — '' nếu pin không phải tác phẩm
+   * có giá trị (template ẩn badge hoàn toàn trong trường hợp đó). */
+  valueBadgeText(pin: any): string {
+    if (pin.listingType === 'FIXED_PRICE') return formatVnd(pin.price);
+    if (pin.listingType === 'AUCTION' && pin.auction) {
+      const a = pin.auction;
+      if (a.status === 'SCHEDULED') return 'Sắp diễn ra';
+      if (a.status === 'ENDED' || a.status === 'CANCELLED') return 'Đã kết thúc';
+      return `Giá hiện tại · ${formatVnd(a.currentPrice)}`;
+    }
+    return '';
+  }
+
+  valueBadgeAriaLabel(pin: any): string {
+    if (pin.listingType === 'FIXED_PRICE') return `Tác phẩm bán giá cố định, giá ${formatVnd(pin.price)}`;
+    if (pin.listingType === 'AUCTION' && pin.auction) {
+      const a = pin.auction;
+      if (a.status === 'SCHEDULED') return 'Tác phẩm đấu giá, phiên sắp diễn ra';
+      if (a.status === 'ENDED' || a.status === 'CANCELLED') return 'Tác phẩm đấu giá, phiên đã kết thúc';
+      return `Tác phẩm đấu giá, giá hiện tại ${formatVnd(a.currentPrice)}`;
+    }
+    return '';
+  }
+
+  /** true khi cần chặn mở chi tiết và hiện dialog nâng cấp thay vì điều
+   * hướng — chủ sở hữu luôn được mở, Plus/Pro còn hiệu lực luôn được mở.
+   * Đây chỉ là lớp UX; backend (GET /api/pins/:id) là lớp chặn thật. */
+  private requiresUpgradeToOpen(pin: any): boolean {
+    if (!pin.listingType || pin.listingType === 'NONE') return false;
+    const currentUserId = this.supabaseService.user()?.id;
+    if (currentUserId && pin.ownerId && currentUserId === pin.ownerId) return false;
+    // Navbar loads MembershipService asynchronously. During that short gap,
+    // use the already-synced database user plan so a paid member is not shown
+    // a false upgrade dialog just because they clicked quickly after routing.
+    const plan = this.membership.status()?.plan ?? this.supabaseService.dbUser()?.plan;
+    return plan !== 'PLUS' && plan !== 'PRO';
+  }
+
+  private async showUpgradeDialog(): Promise<void> {
+    const goToPricing = await this.dialogService.confirm({
+      variant: 'information',
+      title: 'Nâng cấp gói để xem chi tiết',
+      description: 'Nâng cấp gói để xem chi tiết và trao đổi với chủ sở hữu.',
+      confirmLabel: 'Xem các gói',
+      cancelLabel: 'Để sau',
+    });
+    if (goToPricing) this.router.navigate(['/pricing']);
+  }
+
+  navigateToPin(pin: any) {
+    if (this.requiresUpgradeToOpen(pin)) {
+      void this.showUpgradeDialog();
+      return;
+    }
+    this.router.navigate(['/pin', pin.id]);
   }
 
   navigateToProfile(username: string | undefined | null, event: MouseEvent) {
