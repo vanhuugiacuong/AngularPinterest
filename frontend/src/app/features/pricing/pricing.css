@@ -20,7 +20,7 @@
 .aurora-a {
   width: 650px;
   height: 650px;
-  background: var(--color-secondary);
+  background: var(--color-nova-blue);
   top: -330px;
   left: 35%;
 }
@@ -43,7 +43,7 @@
   gap: 10px;
   font: 700 11px var(--font-sans);
   letter-spacing: 0.14em;
-  color: var(--color-secondary);
+  color: var(--color-accent);
 }
 .hero h1 {
   margin: 22px 0 18px;
@@ -54,12 +54,7 @@
 }
 .hero h1 em {
   font-style: normal;
-  background: linear-gradient(
-    90deg,
-    var(--color-secondary),
-    var(--color-primary),
-    var(--color-accent)
-  );
+  background: linear-gradient(90deg, var(--color-nova-blue) 0%, var(--color-iris-violet) 100%);
   color: transparent;
   -webkit-background-clip: text;
   background-clip: text;
@@ -98,11 +93,11 @@
 .plan-card.is-featured {
   background: linear-gradient(
     155deg,
-    color-mix(in srgb, var(--color-secondary) 20%, var(--color-surface-elevated)),
+    color-mix(in srgb, var(--color-accent) 20%, var(--color-surface-elevated)),
     var(--color-surface)
   );
-  border-color: var(--color-secondary);
-  box-shadow: 0 30px 90px color-mix(in srgb, var(--color-secondary) 18%, transparent);
+  border-color: var(--color-accent);
+  box-shadow: 0 30px 90px color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 .plan-card.is-featured:before {
   content: 'auto_awesome';
@@ -116,9 +111,9 @@
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: var(--color-secondary);
+  background: var(--color-accent);
   color: var(--color-text-on-accent);
-  box-shadow: 0 8px 25px color-mix(in srgb, var(--color-secondary) 40%, transparent);
+  box-shadow: 0 8px 25px color-mix(in srgb, var(--color-accent) 40%, transparent);
 }
 .card-top {
   display: flex;
@@ -134,7 +129,7 @@
 .kicker {
   font: 700 10px var(--font-sans);
   letter-spacing: 0.1em;
-  color: var(--color-secondary);
+  color: var(--color-accent);
   text-transform: uppercase;
 }
 .plan-card h2 {
@@ -180,7 +175,7 @@
   margin: 14px 0;
 }
 .plan-card li span {
-  color: var(--color-secondary);
+  color: var(--color-accent);
 }
 /* Same signature asymmetric CTA shape as .cta-shape elsewhere (navbar
    login, Home's Lưu button, Pin Detail's actions) — the two primary
@@ -225,7 +220,7 @@
   margin: 34px 0 0;
 }
 .secure-note span {
-  color: var(--color-secondary);
+  color: var(--color-accent);
 }
 .checkout-backdrop {
   position: fixed;
@@ -275,7 +270,7 @@
 .checkout-head > span {
   font: 700 11px var(--font-sans);
   letter-spacing: 0.14em;
-  color: var(--color-secondary);
+  color: var(--color-accent);
 }
 .checkout-head h2 {
   font-size: 36px;
@@ -319,7 +314,7 @@
 .method-tabs button.active {
   background: var(--color-surface-high);
   color: var(--color-text);
-  box-shadow: inset 0 0 0 1px var(--color-secondary);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
 }
 .method-tabs .momo {
   display: inline-grid;
