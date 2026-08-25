@@ -105,9 +105,10 @@
   display: block;
   overflow: hidden;
   height: 1.15em;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.14em;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -257,9 +258,10 @@
   padding: 14px 16px;
   border-radius: 12px;
   color: inherit;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.14em;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 

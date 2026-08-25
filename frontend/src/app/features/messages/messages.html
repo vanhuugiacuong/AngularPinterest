@@ -91,12 +91,12 @@
                     ></app-user-avatar>
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center justify-between gap-2">
-                        <span class="text-sm font-bold text-text truncate">{{ conversation.otherUser.username }}</span>
+                        <span class="text-sm font-bold text-text truncate min-w-0">{{ conversation.otherUser.username }}</span>
                         <span class="mono-label text-xs text-text-muted shrink-0">{{ formatConversationTime(conversation.updatedAt) }}</span>
                       </div>
                       <div class="flex items-center justify-between gap-2 mt-0.5">
                         <span
-                          class="text-xs truncate"
+                          class="text-xs truncate min-w-0"
                           [class.text-text-muted]="conversation.unreadCount === 0"
                           [class.text-text]="conversation.unreadCount > 0"
                           [class.font-semibold]="conversation.unreadCount > 0"

@@ -235,9 +235,10 @@
 }
 
 .nf-auth__eyebrow {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
+  font-weight: 700;
   font-size: 12px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--nf-electric);
   margin-bottom: 10px;
