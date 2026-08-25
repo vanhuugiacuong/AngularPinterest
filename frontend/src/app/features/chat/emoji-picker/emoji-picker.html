@@ -1,22 +1,23 @@
-<div class="w-80 h-96 bg-white rounded-[20px] shadow-[0_16px_48px_rgba(0,0,0,0.12)] border border-[#dadad3] flex flex-col overflow-hidden">
-  <div class="flex items-center gap-2 p-2.5 border-b border-[#dadad3] shrink-0">
-    <span class="material-symbols-outlined text-lg text-[#91918c] pl-1">search</span>
+<div class="w-80 h-96 bg-white dark:bg-[#1e1e1e] rounded-[20px] shadow-[0_16px_48px_rgba(0,0,0,0.12)] border border-[#dadad3] dark:border-[#333] flex flex-col overflow-hidden">
+  <div class="flex items-center gap-2 p-2.5 border-b border-[#dadad3] dark:border-[#333] shrink-0">
+    <span class="material-symbols-outlined text-lg text-[#91918c] dark:text-[#999] pl-1">search</span>
     <input
       type="text"
       [ngModel]="query()"
       (ngModelChange)="query.set($event)"
       placeholder="Tìm emoji..."
-      class="flex-1 h-8 bg-transparent border-none outline-none text-sm text-black placeholder-[#91918c]"
+      class="flex-1 h-8 bg-transparent border-none outline-none text-sm text-black dark:text-white placeholder-[#91918c] dark:placeholder-[#777]"
     />
   </div>
 
   @if (!query().trim()) {
-    <div class="flex items-center gap-0.5 px-2 py-1.5 border-b border-[#dadad3] shrink-0 overflow-x-auto">
+    <div class="flex items-center gap-0.5 px-2 py-1.5 border-b border-[#dadad3] dark:border-[#333] shrink-0 overflow-x-auto">
       @for (category of categories; track category.id) {
         <button
           type="button"
           (click)="selectCategory(category.id)"
           [class.bg-[#f6f6f3]]="activeCategoryId() === category.id"
+          [class.dark:bg-[#2a2a2a]]="activeCategoryId() === category.id"
           [title]="category.label"
           class="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-lg cursor-pointer border-none bg-transparent"
         >
@@ -28,14 +29,14 @@
 
   <div class="flex-1 overflow-y-auto p-2">
     @if (visibleEmojis().length === 0) {
-      <p class="text-xs text-[#91918c] text-center py-8">Không tìm thấy emoji nào.</p>
+      <p class="text-xs text-[#91918c] dark:text-[#999] text-center py-8">Không tìm thấy emoji nào.</p>
     } @else {
       <div class="grid grid-cols-7 gap-0.5">
         @for (emoji of visibleEmojis(); track trackByChar($index, emoji)) {
           <button
             type="button"
             (click)="pick(emoji, $event)"
-            class="w-9 h-9 flex items-center justify-center text-xl rounded-lg hover:bg-[#f6f6f3] cursor-pointer border-none bg-transparent"
+            class="w-9 h-9 flex items-center justify-center text-xl rounded-lg hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] cursor-pointer border-none bg-transparent"
           >
             {{ emoji.char }}
           </button>

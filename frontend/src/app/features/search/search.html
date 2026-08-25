@@ -1,7 +1,7 @@
 <div class="min-h-screen bg-white dark:bg-[#121212] text-black dark:text-white flex flex-col font-sans relative transition-colors">
   <app-navbar></app-navbar>
 
-  <div class="flex-1 pt-16 pb-24 flex flex-col min-w-0">
+  <div class="flex-1 pt-16 pl-28 pb-24 flex flex-col min-w-0">
     <main class="flex-1 w-full mx-auto px-6 py-6 flex flex-col max-w-none">
 
       <h1 class="text-sm font-bold text-[#62625b] dark:text-[#999] mb-6">
@@ -11,6 +11,68 @@
           Tất cả ảnh
         }
       </h1>
+
+      @if (refinementTags().length > 0) {
+        <div class="relative mb-6">
+          <div #pillsScroll class="flex gap-3 overflow-x-auto pb-1 scroll-smooth">
+            @for (tag of refinementTags(); track tag.label; let i = $index) {
+              <button
+                type="button"
+                (click)="applyRefinementTag(tag.label)"
+                class="shrink-0 flex items-center gap-2.5 pl-2 pr-6 py-2 rounded-full border-none cursor-pointer hover:brightness-95"
+                [ngClass]="pillColorClass(i)"
+              >
+                @if (tag.imageUrl) {
+                  <img [src]="tag.imageUrl" alt="" class="w-12 h-12 rounded-full object-cover shrink-0" />
+                } @else {
+                  <span class="w-12 h-12 rounded-full bg-white/50 shrink-0"></span>
+                }
+                <span class="text-base font-bold text-[#211922] dark:text-white whitespace-nowrap">{{ tag.label }}</span>
+              </button>
+            }
+          </div>
+          <button
+            type="button"
+            (click)="pillsScroll.scrollBy({ left: -320, behavior: 'smooth' })"
+            class="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white dark:bg-[#1e1e1e] shadow-[0_4px_14px_rgba(0,0,0,0.2)] items-center justify-center border-none cursor-pointer text-black dark:text-white"
+          >
+            <span class="material-symbols-outlined text-xl">chevron_left</span>
+          </button>
+          <button
+            type="button"
+            (click)="pillsScroll.scrollBy({ left: 320, behavior: 'smooth' })"
+            class="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white dark:bg-[#1e1e1e] shadow-[0_4px_14px_rgba(0,0,0,0.2)] items-center justify-center border-none cursor-pointer text-black dark:text-white"
+          >
+            <span class="material-symbols-outlined text-xl">chevron_right</span>
+          </button>
+        </div>
+      }
+
+      @if (userResults().length > 0) {
+        <div class="mb-6">
+          <h2 class="text-sm font-extrabold mb-3">Tài khoản</h2>
+          <div class="flex gap-3 overflow-x-auto pb-1">
+            @for (user of userResults(); track user.id) {
+              <div
+                (click)="navigateToUser(user.username)"
+                class="shrink-0 w-32 flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-[#f6f6f3] dark:hover:bg-[#1e1e1e] cursor-pointer text-center"
+              >
+                <img
+                  *ngIf="user.avatarUrl; else noAvatar"
+                  [src]="user.avatarUrl"
+                  class="w-16 h-16 rounded-full object-cover"
+                />
+                <ng-template #noAvatar>
+                  <span class="w-16 h-16 rounded-full bg-[#e9e9e5] dark:bg-[#2a2a2a] flex items-center justify-center">
+                    <span class="material-symbols-outlined text-2xl text-[#767672] dark:text-[#999]">person</span>
+                  </span>
+                </ng-template>
+                <span class="text-xs font-bold truncate w-full">{{ user.username }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      }
 
       @if (isLoading()) {
         <div class="flex-1 flex items-center justify-center py-20">

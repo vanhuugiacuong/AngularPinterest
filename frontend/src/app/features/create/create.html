@@ -3,7 +3,7 @@
   <app-navbar></app-navbar>
 
   <!-- Main Content Area: padded down to clear fixed header, padded up to clear floating bottom bar -->
-  <div class="flex-1 pt-16 pb-24 flex flex-col min-w-0 items-center justify-center">
+  <div class="flex-1 pt-16 pl-28 pb-24 flex flex-col min-w-0 items-center justify-center">
     <main class="w-full max-w-[940px] px-6 py-10 flex flex-col items-center">
 
       <!-- Create Box Card Container -->
@@ -32,6 +32,13 @@
               Tạo ảnh nghệ thuật AI
             </span>
             <div *ngIf="activeTab() === 'ai'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-[#B15CAA] rounded-full"></div>
+          </div>
+
+          <div (click)="goToCollage()" class="relative cursor-pointer transition-all pb-1.5 opacity-60 hover:opacity-100">
+            <span class="text-sm font-bold text-black dark:text-white flex items-center gap-1">
+              <span class="material-symbols-outlined text-sm leading-none text-[#B15CAA] font-bold">content_cut</span>
+              Ảnh ghép
+            </span>
           </div>
         </div>
 

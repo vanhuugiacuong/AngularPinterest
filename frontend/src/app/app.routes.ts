@@ -5,6 +5,7 @@ import { PinDetail } from './features/pin-detail/pin-detail';
 import { Profile } from './features/profile/profile';
 import { BoardDetail } from './features/board-detail/board-detail';
 import { Create } from './features/create/create';
+import { Collage } from './features/collage/collage';
 import { Search } from './features/search/search';
 import { Notifications } from './features/notifications/notifications';
 import { Settings } from './features/settings/settings';
@@ -20,6 +21,7 @@ export const routes: Routes = [
   { path: 'profile/:username', component: Profile },
   { path: 'board/:id', component: BoardDetail },
   { path: 'create', component: Create },
+  { path: 'collage', component: Collage },
   { path: 'search', component: Search },
   { path: 'notifications', component: Notifications },
   { path: 'settings', component: Settings },

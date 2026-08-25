@@ -16,3 +16,20 @@
     }
   }
 }
+
+/* Hide scrollbar chrome everywhere — some Windows/Chrome setups keep drawing
+   classic arrow-button scrollbars no matter how the thumb/track/button are
+   customized, so instead of fighting that rendering, remove the scrollbar
+   visuals entirely. Scrolling itself (wheel, trackpad, drag, keyboard) still
+   works fine — only the visible bar is gone. Both the standard property and
+   the legacy pseudo-elements are set so this holds regardless of which
+   scrollbar model a given browser/version decides to use. */
+* {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}

@@ -11,3 +11,14 @@ services:
     environment:
       - PORT=8001
     restart: unless-stopped
+
+  segmentation-service:
+    build:
+      context: ./backend/services/segmentation-service
+      dockerfile: Dockerfile
+    container_name: segmentation-service-container
+    ports:
+      - "8002:8002"
+    environment:
+      - PORT=8002
+    restart: unless-stopped
