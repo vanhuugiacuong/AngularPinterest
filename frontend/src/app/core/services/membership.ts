@@ -6,9 +6,9 @@ import type { MembershipPlan } from '../models/membership-plan';
 export type { MembershipPlan } from '../models/membership-plan';
 export interface MembershipStatus {
   plan: MembershipPlan; ownedPlans: MembershipPlan[]; planStartedAt: string | null; planExpiresAt: string | null;
-  aiUsed: number; aiLimit: number; aiRemaining: number; aiResetAt: string;
-  aiDailyLimit: number; cleanDownload: boolean; customWatermark: boolean; advancedWatermark: boolean; maxWatermarkPresets: number;
-  canDownloadClean: boolean; canSell: boolean;
+  aiUsed: number; aiLimit: number | null; aiRemaining: number | null; aiResetAt: string;
+  aiDailyLimit: number | null; cleanDownload: boolean; customWatermark: boolean; advancedWatermark: boolean; maxWatermarkPresets: number;
+  canDownloadClean: boolean; canSell: boolean; canAuction: boolean;
 }
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED' | 'REFUNDED';
 export interface MembershipPayment {
@@ -47,7 +47,7 @@ export class MembershipService {
   }
   async load() { const value = await this.request<MembershipStatus>('/me'); this.status.set(value); return value; }
   async subscribe(plan: MembershipPlan) { const value = await this.request<MembershipStatus>('/subscribe', 'POST', { plan }); this.status.set(value); return value; }
-  async consumeAi() { const value = await this.request<{ used: number; limit: number; remaining: number }>('/ai/consume', 'POST'); this.status.update(s => s ? { ...s, aiUsed: value.used, aiLimit: value.limit, aiRemaining: value.remaining } : s); return value; }
+  async consumeAi() { const value = await this.request<{ used: number; limit: number | null; remaining: number | null }>('/ai/consume', 'POST'); this.status.update(s => s ? { ...s, aiUsed: value.used, aiLimit: value.limit, aiRemaining: value.remaining } : s); return value; }
   purchase(pinId: string) {
     return this.request<{ id: string; status: PaymentStatus; paymentReference: string; amount: string; sellerPayout: PayoutAccount | null }>(
       `/pins/${pinId}/purchase`,

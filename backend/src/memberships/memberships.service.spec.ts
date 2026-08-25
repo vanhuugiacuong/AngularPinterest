@@ -29,16 +29,14 @@ describe('MembershipsService.consumeAi', () => {
     await expect(service.consumeAi('user-1')).rejects.toThrow(ForbiddenException);
   });
 
-  it('uses the plan-specific limit (PRO = 20)', async () => {
+  it('tracks usage without imposing a limit for PRO', async () => {
     prisma.user.findUnique.mockResolvedValue({ plan: 'PRO', planExpiresAt: null });
     prisma.$queryRaw.mockResolvedValue([{ count: 5 }]);
 
     const result = await service.consumeAi('user-2');
 
-    expect(result.limit).toBe(20);
-    // Call shape: [templateStrings, id, userId, usageDate, limit] - limit must be the plan's real limit.
-    const callArgs = prisma.$queryRaw.mock.calls[0];
-    expect(callArgs[callArgs.length - 1]).toBe(20);
+    expect(result).toEqual({ used: 5, limit: null, remaining: null, resetAt: expect.any(String) });
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -52,6 +50,17 @@ describe('MembershipsService.changePlan', () => {
   const service = new MembershipsService(prisma as never);
 
   beforeEach(() => jest.clearAllMocks());
+
+  it('does not allow manually downgrading an active paid plan to FREE', async () => {
+    prisma.user.findUnique
+      .mockResolvedValueOnce({ plan: 'PRO', planExpiresAt: new Date(Date.now() + 86_400_000) })
+      .mockResolvedValueOnce({ plan: 'PRO' });
+
+    await expect(service.changePlan('user-1', 'FREE')).rejects.toThrow(
+      'sẽ tự động chuyển về Free khi hết hạn',
+    );
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
 
   it('rejects switching to a plan the user never paid for', async () => {
     prisma.user.findUnique.mockResolvedValueOnce({ ownedPlans: ['FREE'] });

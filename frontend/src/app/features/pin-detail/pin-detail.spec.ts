@@ -267,7 +267,7 @@ describe('PinDetail — nâng cấp gói khi mở tác phẩm có giá trị', (
 
   it('shows the upgrade dialog — not a generic error — when the backend blocks a FREE/anonymous viewer (defense-in-depth for direct URL access)', async () => {
     pinService.getPinById.mockRejectedValue(
-      new Error('Nâng cấp gói để xem chi tiết và trao đổi với chủ sở hữu.'),
+      new Error('Chỉ thành viên Pro mới có thể xem chi tiết tác phẩm đấu giá.'),
     );
 
     await component.loadPinDetail('pin-1');
@@ -278,7 +278,7 @@ describe('PinDetail — nâng cấp gói khi mở tác phẩm có giá trị', (
 
   it('navigates to /pricing once the viewer confirms the upgrade dialog', async () => {
     pinService.getPinById.mockRejectedValue(
-      new Error('Nâng cấp gói để xem chi tiết và trao đổi với chủ sở hữu.'),
+      new Error('Chỉ thành viên Pro mới có thể xem chi tiết tác phẩm đấu giá.'),
     );
     dialogService.confirm.mockResolvedValue(true);
 

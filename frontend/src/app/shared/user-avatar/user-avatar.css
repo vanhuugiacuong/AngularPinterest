@@ -6,6 +6,7 @@
 .uav-outer {
   line-height: 1;
   isolation: isolate;
+  overflow: visible;
 }
 
 .uav-outer:focus-visible {

@@ -241,24 +241,31 @@ describe('Home — tác phẩm có giá trị (badge & gating trên feed)', () =
     expect(dialogService.confirm).not.toHaveBeenCalled();
   });
 
-  it('shows the upgrade dialog instead of navigating for a FREE viewer opening a valuable pin', () => {
+  it('opens a fixed-price pin for a FREE viewer', () => {
     membershipStatus = { plan: 'FREE' };
     component.navigateToPin(fixedPin);
-    expect(dialogService.confirm).toHaveBeenCalled();
-    expect(router.navigate).not.toHaveBeenCalled();
+    expect(router.navigate).toHaveBeenCalledWith(['/pin', 'p2']);
+    expect(dialogService.confirm).not.toHaveBeenCalled();
   });
 
-  it('navigates to /pricing once the viewer confirms the upgrade dialog', async () => {
-    membershipStatus = { plan: 'FREE' };
+  it('navigates to /pricing once a PLUS viewer confirms the auction upgrade dialog', async () => {
+    membershipStatus = { plan: 'PLUS' };
     dialogService.confirm.mockResolvedValue(true);
-    component.navigateToPin(fixedPin);
+    component.navigateToPin(auctionPin);
     await Promise.resolve();
     await Promise.resolve();
     expect(router.navigate).toHaveBeenCalledWith(['/pricing']);
   });
 
-  it('opens the pin directly for a PLUS/PRO viewer — no dialog', () => {
+  it('blocks an auction for a PLUS viewer', () => {
     membershipStatus = { plan: 'PLUS' };
+    component.navigateToPin(auctionPin);
+    expect(dialogService.confirm).toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
+
+  it('opens an auction directly for a PRO viewer', () => {
+    membershipStatus = { plan: 'PRO' };
     component.navigateToPin(auctionPin);
     expect(router.navigate).toHaveBeenCalledWith(['/pin', 'p3']);
     expect(dialogService.confirm).not.toHaveBeenCalled();

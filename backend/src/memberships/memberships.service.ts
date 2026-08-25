@@ -90,7 +90,7 @@ export class MembershipsService {
       ...entitlements,
       aiUsed: used,
       aiLimit: entitlements.aiDailyLimit,
-      aiRemaining: Math.max(0, entitlements.aiDailyLimit - used),
+      aiRemaining: entitlements.aiDailyLimit === null ? null : Math.max(0, entitlements.aiDailyLimit - used),
       aiResetAt: this.nextResetAt().toISOString(),
       // Giữ 2 field cũ để không phá tương thích với frontend hiện có.
       canDownloadClean: entitlements.cleanDownload,
@@ -104,11 +104,15 @@ export class MembershipsService {
     }
 
     if (plan === 'FREE') {
-      await this.prisma.user.update({
+      await this.applyExpiry(userId);
+      const current = await this.prisma.user.findUnique({
         where: { id: userId },
-        data: { plan: 'FREE', planStartedAt: new Date(), planExpiresAt: null },
+        select: { plan: true },
       });
-      await writeAuditLog(this.prisma, userId, 'PLAN_CHANGED', { plan: 'FREE' });
+      if (!current) throw new NotFoundException('Không tìm thấy người dùng.');
+      if (current.plan !== 'FREE') {
+        throw new ForbiddenException('Gói Plus hoặc Pro sẽ tự động chuyển về Free khi hết hạn.');
+      }
       return this.status(userId);
     }
 
@@ -166,6 +170,22 @@ export class MembershipsService {
     const usageDate = this.todayInTz();
     const id = randomUUID();
 
+    if (limit === null) {
+      const rows = await this.prisma.$queryRaw<{ count: number }[]>`
+        INSERT INTO "AiUsage" ("id", "userId", "usageDate", "count")
+        VALUES (${id}, ${userId}, ${usageDate}, 1)
+        ON CONFLICT ("userId", "usageDate")
+        DO UPDATE SET "count" = "AiUsage"."count" + 1
+        RETURNING "count";
+      `;
+      return {
+        used: rows[0].count,
+        limit: null,
+        remaining: null,
+        resetAt: this.nextResetAt().toISOString(),
+      };
+    }
+
     const rows = await this.prisma.$queryRaw<{ count: number }[]>`
       INSERT INTO "AiUsage" ("id", "userId", "usageDate", "count")
       VALUES (${id}, ${userId}, ${usageDate}, 1)
@@ -201,8 +221,8 @@ export class MembershipsService {
     }
 
     const sellerPlan = await this.activePlan(pin.userId);
-    if (sellerPlan !== 'PRO') {
-      throw new ForbiddenException('Người bán không còn ở gói Pro, sản phẩm này đang tạm dừng bán.');
+    if (sellerPlan !== 'PLUS' && sellerPlan !== 'PRO') {
+      throw new ForbiddenException('Người bán không còn gói Plus hoặc Pro, sản phẩm này đang tạm dừng bán.');
     }
 
     const seller = await this.prisma.user.findUnique({
@@ -249,8 +269,8 @@ export class MembershipsService {
 
   async updatePayoutAccount(userId: string, body: Record<string, unknown>) {
     const plan = await this.activePlan(userId);
-    if (plan !== 'PRO') {
-      throw new ForbiddenException('Chỉ thành viên Pro mới có thể cấu hình tài khoản nhận thanh toán.');
+    if (plan !== 'PLUS' && plan !== 'PRO') {
+      throw new ForbiddenException('Chỉ thành viên Plus hoặc Pro mới có thể cấu hình tài khoản nhận thanh toán.');
     }
 
     const bankCode = typeof body.bankCode === 'string' ? body.bankCode.trim().toUpperCase() : '';

@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Output, ViewChild, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, OnDestroy, Output, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ImageSearchStore } from '../../core/services/image-search-store';
 
@@ -19,7 +19,7 @@ const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB — matches the backend's searc
   templateUrl: './image-search-modal.html',
   styleUrl: './image-search-modal.css',
 })
-export class ImageSearchModal implements AfterViewInit {
+export class ImageSearchModal implements AfterViewInit, OnDestroy {
   public store = inject(ImageSearchStore);
 
   @Output() closed = new EventEmitter<void>();
@@ -43,6 +43,13 @@ export class ImageSearchModal implements AfterViewInit {
 
   ngAfterViewInit(): void {
     this.panel?.nativeElement.focus();
+  }
+
+  ngOnDestroy(): void {
+    this.revokeLocalPreview();
+    if (typeof document !== 'undefined') {
+      document.body.style.overflow = this.previousBodyOverflow;
+    }
   }
 
   @HostListener('document:keydown', ['$event'])

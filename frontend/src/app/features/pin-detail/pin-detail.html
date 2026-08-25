@@ -370,7 +370,7 @@
                         <p class="text-xs text-text-muted">Bạn là người bán — không thể tự đặt giá cho tác phẩm của mình.</p>
                       } @else if (a.status === 'ACTIVE') {
                         <p class="text-xs text-text-muted">
-                          Chỉ thành viên Plus hoặc Pro mới có thể đặt giá.
+                          Chỉ thành viên Pro mới có thể đặt giá.
                           <button type="button" (click)="goToPricing()" class="text-accent hover:underline bg-transparent border-none p-0 cursor-pointer font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control">Nâng cấp ngay</button>
                         </p>
                       }
@@ -410,11 +410,11 @@
                     }
 
                     @for (comment of p.comments; track comment.id) {
-                      <div class="flex gap-2.5 items-start">
+                      <div class="flex gap-3 items-start">
                         <button
                           type="button"
                           (click)="navigateToProfile(comment.user?.username)"
-                          class="bg-transparent border-none p-0 cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full"
+                          class="bg-transparent border-none p-0.5 cursor-pointer shrink-0 overflow-visible focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full flex items-center justify-center"
                           [attr.aria-label]="'Xem trang cá nhân của ' + comment.user?.username"
                         >
                           <app-user-avatar
@@ -425,7 +425,7 @@
                           ></app-user-avatar>
                         </button>
                         <div
-                          class="flex flex-col bg-surface-elevated rounded-control px-3 py-2 flex-1 min-w-0"
+                          class="flex flex-col bg-surface-elevated rounded-control px-3.5 py-2 flex-1 min-w-0"
                         >
                           <button
                             type="button"
@@ -446,7 +446,9 @@
 
                   <!-- Comment input form -->
                   <div class="pt-4 border-t border-border flex items-center gap-3">
-                    <app-user-avatar [src]="myAvatarUrl()" [name]="myDisplayName()" [size]="36" [plan]="myPlan()"></app-user-avatar>
+                    <div class="shrink-0 overflow-visible flex items-center justify-center p-0.5">
+                      <app-user-avatar [src]="myAvatarUrl()" [name]="myDisplayName()" [size]="32" [plan]="myPlan()"></app-user-avatar>
+                    </div>
 
                     <form
                       (submit)="submitComment(); $event.preventDefault()"
@@ -531,7 +533,7 @@
                              exactly like every other pin card in the app. -->
                         <div class="group cursor-pointer flex flex-col mb-1">
                           <div
-                            (click)="navigateToPin(rel.id)"
+                            (click)="navigateToPin(rel)"
                             class="relative overflow-hidden bg-surface shadow-card glow-hover rounded-frame"
                             [style.aspect-ratio]="rel.aspectRatio || '0.75'"
                           >
@@ -540,11 +542,29 @@
                               [alt]="rel.title"
                               loading="lazy"
                               fetchpriority="low"
-                              class="w-full h-full object-cover block transition-transform duration-500 ease-spring group-hover:scale-[1.04]"
+                              class="w-full h-full object-cover block transition-all duration-500 ease-spring group-hover:scale-[1.04]"
+                              [class.blur-xl]="isAuctionRestricted(rel)"
+                              [class.scale-110]="isAuctionRestricted(rel)"
                             />
 
+                            @if (rel.listingType === 'AUCTION') {
+                              <span class="absolute top-2.5 left-2.5 z-20 w-8 h-8 rounded-full bg-surface-high/95 border border-border-strong text-accent flex items-center justify-center shadow-card pointer-events-none" aria-label="Tác phẩm đấu giá">
+                                <span class="material-symbols-outlined text-[19px] leading-none">crown</span>
+                              </span>
+                            } @else if (rel.listingType === 'FIXED_PRICE') {
+                              <span class="absolute top-2.5 left-2.5 z-20 w-8 h-8 rounded-full bg-surface-high/95 border border-border-strong text-accent flex items-center justify-center shadow-card pointer-events-none" aria-label="Tác phẩm bán giá cố định">
+                                <span class="material-symbols-outlined text-[19px] leading-none">star</span>
+                              </span>
+                            }
+
+                            @if (isAuctionRestricted(rel)) {
+                              <div class="absolute inset-0 z-10 flex items-center justify-center bg-bg/20 pointer-events-none">
+                                <span class="px-3 py-2 rounded-control bg-surface-high/95 border border-border-strong text-text text-xs font-bold shadow-card">Chỉ dành cho Pro</span>
+                              </div>
+                            }
+
                             @if (rel.isAiGenerated) {
-                              <span class="mono-label absolute top-2.5 left-2.5 z-10 flex items-center gap-1 bg-surface-high/90 border border-border-strong text-accent text-xs font-bold uppercase px-2 py-1 rounded-control pointer-events-none">
+                              <span class="mono-label absolute top-12 left-2.5 z-20 flex items-center gap-1 bg-surface-high/90 border border-border-strong text-accent text-xs font-bold uppercase px-2 py-1 rounded-control pointer-events-none">
                                 <span class="material-symbols-outlined text-[12px] leading-none">auto_awesome</span>
                                 AI
                               </span>
@@ -554,18 +574,18 @@
                               (click)="$event.stopPropagation()"
                               class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 focus-within:translate-y-0 [@media(hover:none)]:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 flex items-center justify-between gap-2 z-10"
                             >
-                              <div class="relative shrink-0 min-w-0">
+                              <div class="relative min-w-0 flex-1">
                                 <button
                                   type="button"
                                   (click)="toggleRelatedBoardDropdown(rel.id, $event)"
-                                  class="flex items-center gap-1 bg-surface-high/95 border border-border-strong text-text px-2.5 py-1.5 rounded-control text-xs font-bold cursor-pointer min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                  class="flex items-center gap-1 w-full bg-surface-high/95 border border-border-strong text-text px-2.5 py-1.5 rounded-control text-xs font-bold cursor-pointer min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                   [attr.aria-label]="'Lưu ' + rel.title + ' vào bộ sưu tập'"
                                   aria-haspopup="listbox"
                                   [attr.aria-expanded]="relatedActiveDropdownPinId() === rel.id"
                                 >
-                                  <span class="material-symbols-outlined text-[14px] leading-none">bookmark_add</span>
-                                  <span class="truncate max-w-[55px]">{{ getRelatedSelectedBoardName(rel.id) }}</span>
-                                  <span class="material-symbols-outlined text-[12px] leading-none">keyboard_arrow_down</span>
+                                  <span class="material-symbols-outlined text-[14px] leading-none shrink-0">bookmark_add</span>
+                                  <span class="truncate min-w-0">{{ getRelatedSelectedBoardName(rel.id) }}</span>
+                                  <span class="material-symbols-outlined text-[12px] leading-none shrink-0">keyboard_arrow_down</span>
                                 </button>
 
                                 @if (relatedActiveDropdownPinId() === rel.id) {
@@ -618,7 +638,10 @@
                               <div class="mono-label flex items-center gap-2 shrink-0 text-xs text-text-muted">
                                 @if (rel.likes) {
                                   <span class="flex items-center gap-0.5">
-                                    <span class="material-symbols-outlined text-[12px] leading-none text-accent">favorite</span>
+                                    <span class="relative inline-flex items-center justify-center text-accent">
+                                      <span class="material-symbols-outlined text-[12px] leading-none">favorite</span>
+                                      <span class="material-symbols-outlined icon-fill text-[12px] leading-none absolute inset-0 flex items-center justify-center" [style.opacity]="rel.isLiked ? 1 : 0">favorite</span>
+                                    </span>
                                     {{ rel.likes }}
                                   </span>
                                 }
