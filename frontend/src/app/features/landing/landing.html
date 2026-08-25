@@ -57,26 +57,12 @@
         <p class="nf-hero__lede">
           Khám phá, lưu trữ và tạo ra hình ảnh của riêng bạn — bằng ảnh thật hoặc bằng AI.
         </p>
-        <div class="nf-hero__actions">
-          <button
-            type="button"
-            class="nf-btn nf-btn--solid"
-            (click)="openLoginModal()"
-            (mousemove)="onMagneticMove($event)"
-            (mouseleave)="onMagneticLeave($event)"
-          >
-            Bắt đầu khám phá
-          </button>
-          <button type="button" class="nf-btn nf-btn--ghost" (click)="scrollToId('nf-explore')">
-            Xem tác phẩm
-            <span class="material-symbols-outlined">arrow_downward</span>
-          </button>
-        </div>
+        <div class="nf-hero__actions" aria-hidden="true"></div>
       </div>
 
       <span class="nf-hero__cue" aria-hidden="true">
-        <span class="nf-hero__cue-label">Cuộn</span>
-        <span class="nf-hero__cue-line"></span>
+        <span class="nf-hero__cue-label">Cuộn để khám phá</span>
+        <span class="nf-hero__cue-arrow material-symbols-outlined">arrow_downward</span>
       </span>
     </div>
   </section>
@@ -224,18 +210,7 @@
         Đăng nhập bằng Google và bước vào không gian sáng tạo của riêng bạn trên NovaFrame.
       </p>
       <div class="nf-cta__actions">
-        <button
-          type="button"
-          class="nf-btn nf-btn--solid"
-          (click)="openLoginModal()"
-          (mousemove)="onMagneticMove($event)"
-          (mouseleave)="onMagneticLeave($event)"
-        >
-          Bắt đầu khám phá
-        </button>
-        <button type="button" class="nf-btn nf-btn--outline" (click)="openLoginModal()">
-          Đăng nhập
-        </button>
+        <app-landing-cta-button (activated)="openLoginModal()"></app-landing-cta-button>
       </div>
     </div>
   </section>

@@ -1,0 +1,439 @@
+:host {
+  display: inline-block;
+  line-height: 1;
+}
+
+.button {
+  --white: var(--color-text-on-accent);
+  --purple-100: color-mix(in srgb, var(--color-nova-blue) 28%, var(--color-surface));
+  --purple-200: color-mix(in srgb, var(--color-nova-blue) 58%, var(--color-iris-violet));
+  --purple-300: color-mix(in srgb, var(--color-nova-blue) 72%, var(--color-iris-violet));
+  --purple-400: color-mix(in srgb, var(--color-iris-violet) 72%, var(--color-nova-blue));
+  --purple-500: color-mix(in srgb, var(--color-iris-violet) 72%, var(--color-ink));
+  --button-shadow: color-mix(in srgb, var(--color-iris-violet) 48%, transparent);
+  --radius: 18px;
+
+  position: relative;
+  width: 278px;
+  height: 76px;
+  border: 0;
+  border-radius: var(--radius);
+  outline: none;
+  background: transparent;
+  color: var(--white);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  transform: rotate(353deg) skewX(4deg);
+  isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bg {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  filter: blur(1px);
+}
+
+.bg::before,
+.bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: calc(var(--radius) * 1.1);
+  background: var(--purple-500);
+}
+
+.bg::before {
+  filter: blur(5px);
+  transition: filter 0.3s ease, opacity 0.3s ease, box-shadow 0.3s ease;
+  box-shadow:
+    -7px 6px 0 0 color-mix(in srgb, var(--button-shadow) 82%, transparent),
+    -14px 12px 0 0 color-mix(in srgb, var(--button-shadow) 64%, transparent),
+    -21px 18px 4px 0 color-mix(in srgb, var(--button-shadow) 52%, transparent),
+    -28px 24px 8px 0 color-mix(in srgb, var(--button-shadow) 36%, transparent),
+    -35px 30px 12px 0 color-mix(in srgb, var(--button-shadow) 28%, transparent),
+    -42px 36px 16px 0 color-mix(in srgb, var(--button-shadow) 18%, transparent),
+    -56px 42px 20px 0 color-mix(in srgb, var(--button-shadow) 10%, transparent);
+}
+
+.wrap {
+  position: relative;
+  display: block;
+  height: 100%;
+  padding: 3px;
+  overflow: hidden;
+  border-radius: inherit;
+  background: linear-gradient(to bottom, var(--purple-100), var(--purple-400));
+  transform: translate(6px, -6px);
+  transition: transform 0.3s ease;
+}
+
+.outline {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.outline::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  width: 120px;
+  height: 300px;
+  margin: auto;
+  background: linear-gradient(to right, transparent, var(--white), transparent);
+  animation: nf-launch-spin 3s linear infinite paused;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  height: 100%;
+  overflow: hidden;
+  border-radius: calc(var(--radius) * 0.85);
+  background: linear-gradient(to bottom, var(--purple-300), var(--purple-400));
+  box-shadow:
+    inset -2px 12px 11px -5px var(--purple-200),
+    inset 1px -3px 11px 0 rgb(0 0 0 / 35%);
+  pointer-events: none;
+  transition: box-shadow 0.3s ease;
+}
+
+.content::before {
+  content: "";
+  position: absolute;
+  z-index: 10;
+  inset: 45% 10% 35%;
+  opacity: 0.7;
+  background: linear-gradient(to bottom, transparent, var(--purple-400));
+  filter: brightness(1.3) blur(5px);
+}
+
+.char {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  transition: all 0.3s ease;
+}
+
+.char > span {
+  position: relative;
+  display: block;
+  color: transparent;
+}
+
+.char > .is-space {
+  width: 0.34em;
+}
+
+.state-1 > span {
+  animation: nf-launch-char-appear 1.2s ease backwards calc(var(--i) * 0.03s);
+}
+
+.state-1 > span::before,
+.char > span::after {
+  content: attr(data-label);
+  position: absolute;
+  left: 0;
+  color: var(--white);
+  text-shadow: -1px 1px 2px var(--purple-500);
+}
+
+.char > span::before {
+  opacity: 0;
+  transform: translateY(-100%);
+}
+
+.state-2 {
+  position: absolute;
+  inset: 0;
+}
+
+.state-2 > span::after {
+  opacity: 1;
+}
+
+.icon {
+  z-index: 10;
+  display: block;
+  animation: nf-launch-reset-arrow 0.8s cubic-bezier(0.7, -0.5, 0.3, 1.2) forwards;
+}
+
+.icon > span,
+.icon > span::before,
+.icon > span::after {
+  height: 3px;
+  border-radius: 1px;
+  background-color: var(--white);
+}
+
+.icon > span::before,
+.icon > span::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  width: 14px;
+  border-radius: 15px;
+  transform-origin: center right;
+  transition: all 0.3s ease;
+}
+
+.icon > span {
+  position: relative;
+  display: block;
+  width: 24px;
+  background: linear-gradient(to bottom, var(--white), var(--purple-100));
+  box-shadow: -2px 2px 5px var(--purple-400);
+  transform: scale(0.9);
+  animation: nf-launch-swing-arrow 1s ease-in-out infinite paused;
+}
+
+.icon > span::before {
+  top: 1px;
+  transform: rotate(44deg);
+  box-shadow: 1px -2px 3px -1px var(--purple-400);
+  animation: nf-launch-rotate-arrow-up 1s linear infinite paused;
+}
+
+.icon > span::after {
+  bottom: 1px;
+  transform: rotate(316deg);
+  background: linear-gradient(200deg, var(--white), var(--purple-100));
+  box-shadow: -2px 2px 3px 0 var(--purple-400);
+  animation: nf-launch-rotate-arrow-down 1s linear infinite paused;
+}
+
+.path {
+  position: absolute;
+  z-index: 12;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  stroke: var(--white);
+  stroke-dasharray: 150 480;
+  stroke-dashoffset: 150;
+  pointer-events: none;
+}
+
+.splash {
+  position: absolute;
+  z-index: 12;
+  top: 0;
+  left: 0;
+  width: calc(100% + 64px);
+  height: 178px;
+  overflow: visible;
+  stroke: var(--purple-300);
+  stroke-dasharray: 60 60;
+  stroke-dashoffset: 60;
+  pointer-events: none;
+  transform: translate(-12%, -29%);
+}
+
+.button:hover .state-1 > span::before {
+  animation: nf-launch-char-appear 0.7s ease calc(var(--i) * 0.03s);
+}
+
+.button:hover .state-1 > span::after {
+  opacity: 1;
+  animation: nf-launch-char-disappear 0.7s ease calc(var(--i) * 0.03s);
+}
+
+.button:hover .wrap {
+  transform: translate(8px, -8px);
+}
+
+.button:hover .outline {
+  opacity: 1;
+}
+
+.button:hover .outline::before,
+.button:hover .icon > span,
+.button:hover .icon > span::before,
+.button:hover .icon > span::after {
+  animation-play-state: running;
+}
+
+.button:active .bg::before {
+  opacity: 0.7;
+  filter: blur(5px);
+  box-shadow:
+    -7px 6px 0 0 color-mix(in srgb, var(--button-shadow) 82%, transparent),
+    -14px 12px 0 0 color-mix(in srgb, var(--button-shadow) 52%, transparent),
+    -21px 18px 4px 0 color-mix(in srgb, var(--button-shadow) 32%, transparent);
+}
+
+.button:active .content {
+  box-shadow:
+    inset -1px 12px 8px -5px color-mix(in srgb, var(--purple-500) 52%, transparent),
+    inset 0 -3px 8px 0 var(--purple-200);
+}
+
+.button:active .outline {
+  opacity: 0;
+}
+
+.button:active .wrap {
+  transform: translate(3px, -3px);
+}
+
+.button:active .splash {
+  animation: nf-launch-splash 0.8s cubic-bezier(0.3, 0, 0, 1) forwards 0.05s;
+}
+
+.button:focus .path {
+  animation: nf-launch-path 1.6s ease forwards 0.2s;
+}
+
+.button:focus .icon {
+  animation: nf-launch-arrow 1s cubic-bezier(0.7, -0.5, 0.3, 1.5) forwards;
+}
+
+.state-2 > span::after,
+.button:focus .state-1 > span {
+  animation: nf-launch-char-disappear 0.5s ease forwards calc(var(--i) * 0.03s);
+}
+
+.button:focus .state-2 > span::after {
+  animation: nf-launch-char-appear 1s ease backwards calc(var(--i) * 0.03s);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--color-studio-aqua);
+  outline-offset: 8px;
+}
+
+@keyframes nf-launch-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes nf-launch-char-appear {
+  0% {
+    opacity: 0;
+    filter: blur(20px);
+    transform: translateY(50%);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(70%);
+  }
+  50% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(-15%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes nf-launch-char-disappear {
+  to {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translateY(-70%);
+  }
+}
+
+@keyframes nf-launch-arrow {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+    transform: translateX(60px);
+  }
+  51% {
+    opacity: 0;
+    transform: translateX(-200px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-128px);
+  }
+}
+
+@keyframes nf-launch-swing-arrow {
+  50% {
+    transform: translateX(5px) scale(0.9);
+  }
+}
+
+@keyframes nf-launch-rotate-arrow-up {
+  50% {
+    transform: rotate(30deg);
+  }
+  80% {
+    transform: rotate(55deg);
+  }
+}
+
+@keyframes nf-launch-rotate-arrow-down {
+  50% {
+    transform: rotate(330deg);
+  }
+  80% {
+    transform: rotate(300deg);
+  }
+}
+
+@keyframes nf-launch-reset-arrow {
+  from {
+    transform: translateX(-128px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes nf-launch-path {
+  from {
+    stroke: var(--white);
+  }
+  to {
+    stroke: var(--purple-100);
+    stroke-dashoffset: -480;
+  }
+}
+
+@keyframes nf-launch-splash {
+  to {
+    stroke-dasharray: 2 60;
+    stroke-dashoffset: -60;
+  }
+}
+
+@media (max-width: 480px) {
+  .button {
+    width: min(248px, calc(100vw - 48px));
+    height: 70px;
+    font-size: 16px;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button,
+  .button *,
+  .button *::before,
+  .button *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

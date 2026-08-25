@@ -66,6 +66,7 @@ export class AuthModal implements OnChanges, OnDestroy {
   private exitTimer = 0;
   private previouslyFocused: HTMLElement | null = null;
   private previousBodyOverflow: string | null = null;
+  private ownsBodyScrollLock = false;
 
   ngOnChanges(changes: SimpleChanges) {
     if (!changes['open']) return;
@@ -77,8 +78,7 @@ export class AuthModal implements OnChanges, OnDestroy {
       this.visible.set(true);
       if (!wasVisible) {
         this.previouslyFocused = (document.activeElement as HTMLElement) || null;
-        this.previousBodyOverflow = document.body.style.overflow;
-        document.body.style.overflow = 'hidden';
+        this.lockBodyScroll();
         // Panel isn't in the DOM until this change detection cycle commits.
         setTimeout(() => this.panel?.nativeElement.focus());
       }
@@ -89,7 +89,7 @@ export class AuthModal implements OnChanges, OnDestroy {
         () => {
           this.visible.set(false);
           this.leaving.set(false);
-          document.body.style.overflow = this.previousBodyOverflow ?? '';
+          this.releaseBodyScroll();
         },
         this.reducedMotion ? 0 : EXIT_MS
       );
@@ -99,7 +99,7 @@ export class AuthModal implements OnChanges, OnDestroy {
   ngOnDestroy() {
     clearTimeout(this.exitTimer);
     if (this.parallaxFrame) cancelAnimationFrame(this.parallaxFrame);
-    if (this.visible()) document.body.style.overflow = this.previousBodyOverflow ?? '';
+    this.releaseBodyScroll();
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -107,7 +107,7 @@ export class AuthModal implements OnChanges, OnDestroy {
     if (!this.open) return;
 
     if (event.key === 'Escape') {
-      this.closeModal.emit();
+      this.requestClose();
       return;
     }
 
@@ -134,7 +134,30 @@ export class AuthModal implements OnChanges, OnDestroy {
     // Ignore clicks landing during the exit animation — the dialog is already
     // on its way out and a second emit would re-run the caller's close flow.
     if (this.leaving()) return;
+    this.requestClose();
+  }
+
+  /** Release this modal's scroll lock before notifying Landing. The landing
+   * loader immediately takes its own lock for the return-to-hero animation;
+   * ownership prevents the modal's delayed exit cleanup from overwriting it. */
+  requestClose() {
+    if (!this.open || this.leaving()) return;
+    this.releaseBodyScroll();
     this.closeModal.emit();
+  }
+
+  private lockBodyScroll() {
+    if (this.ownsBodyScrollLock) return;
+    this.previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    this.ownsBodyScrollLock = true;
+  }
+
+  private releaseBodyScroll() {
+    if (!this.ownsBodyScrollLock) return;
+    document.body.style.overflow = this.previousBodyOverflow ?? '';
+    this.previousBodyOverflow = null;
+    this.ownsBodyScrollLock = false;
   }
 
   /** Very light pointer parallax on the objects drifting behind the glass. */
