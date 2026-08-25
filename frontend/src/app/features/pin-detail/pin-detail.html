@@ -422,11 +422,11 @@
                     }
 
                     @for (comment of p.comments; track comment.id) {
-                      <div class="flex gap-2.5 items-start">
+                      <div class="flex gap-3 items-start">
                         <button
                           type="button"
                           (click)="navigateToProfile(comment.user?.username)"
-                          class="bg-transparent border-none p-0 cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full"
+                          class="bg-transparent border-none p-0.5 cursor-pointer shrink-0 overflow-visible focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full flex items-center justify-center"
                           [attr.aria-label]="'Xem trang cá nhân của ' + comment.user?.username"
                         >
                           <app-user-avatar
@@ -437,7 +437,7 @@
                           ></app-user-avatar>
                         </button>
                         <div
-                          class="flex flex-col bg-surface-elevated rounded-control px-3 py-2 flex-1 min-w-0"
+                          class="flex flex-col bg-surface-elevated rounded-control px-3.5 py-2 flex-1 min-w-0"
                         >
                           <button
                             type="button"
@@ -458,7 +458,9 @@
 
                   <!-- Comment input form -->
                   <div class="pt-4 border-t border-border flex items-center gap-3">
-                    <app-user-avatar [src]="myAvatarUrl()" [name]="myDisplayName()" [size]="36" [plan]="myPlan()"></app-user-avatar>
+                    <div class="shrink-0 overflow-visible flex items-center justify-center p-0.5">
+                      <app-user-avatar [src]="myAvatarUrl()" [name]="myDisplayName()" [size]="32" [plan]="myPlan()"></app-user-avatar>
+                    </div>
 
                     <form
                       (submit)="submitComment(); $event.preventDefault()"
