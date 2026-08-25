@@ -334,7 +334,10 @@
                           [attr.aria-pressed]="!!pin.isLiked"
                           [attr.aria-label]="(pin.isLiked ? 'Bỏ thích ' : 'Thích ') + pin.title"
                         >
-                          <span class="material-symbols-outlined text-[16px] leading-none" [class.icon-fill]="pin.isLiked">favorite</span>
+                          <span class="relative inline-flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[16px] leading-none">favorite</span>
+                            <span class="material-symbols-outlined icon-fill text-[16px] leading-none absolute inset-0 flex items-center justify-center" [style.opacity]="pin.isLiked ? 1 : 0">favorite</span>
+                          </span>
                         </button>
                         <button
                           (click)="savePinToBoard(pin.id, $event)"
@@ -362,7 +365,10 @@
                       <div class="mono-label flex items-center gap-2 shrink-0 text-xs text-text-muted">
                         @if (pin.likes) {
                           <span class="flex items-center gap-0.5">
-                            <span class="material-symbols-outlined text-[12px] leading-none text-accent">favorite</span>
+                            <span class="relative inline-flex items-center justify-center text-accent">
+                              <span class="material-symbols-outlined text-[12px] leading-none">favorite</span>
+                              <span class="material-symbols-outlined icon-fill text-[12px] leading-none absolute inset-0 flex items-center justify-center" [style.opacity]="pin.isLiked ? 1 : 0">favorite</span>
+                            </span>
                             {{ pin.likes }}
                           </span>
                         }

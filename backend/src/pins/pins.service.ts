@@ -823,19 +823,16 @@ export class PinsService {
   }
 
   async toggleLike(pinId: string, userId: string) {
-    const pin = await this.prisma.pin.findUnique({
-      where: { id: pinId },
-      select: { id: true, userId: true },
-    });
+    // Hai lookup độc lập (pin, like hiện có) chạy song song thay vì tuần tự -
+    // mỗi round-trip tới Supabase pooler có thể mất hàng trăm ms, gộp lại là
+    // nguyên nhân chính khiến nút tim bấm vào cảm giác chậm.
+    const [pin, existingLike] = await Promise.all([
+      this.prisma.pin.findUnique({ where: { id: pinId }, select: { id: true, userId: true } }),
+      this.prisma.like.findUnique({ where: { userId_pinId: { userId, pinId } } }),
+    ]);
     if (!pin) {
       throw new NotFoundException('Pin not found');
     }
-
-    const existingLike = await this.prisma.like.findUnique({
-      where: {
-        userId_pinId: { userId, pinId },
-      },
-    });
 
     if (existingLike) {
       await this.prisma.like.delete({
@@ -854,16 +851,21 @@ export class PinsService {
       });
       const likeCount = await this.prisma.like.count({ where: { pinId } });
       // Unliking never notifies (nothing new happened for the owner to see);
-      // only a fresh like does, and never for liking your own pin.
+      // only a fresh like does, and never for liking your own pin. Gửi
+      // notification không chặn response - client không cần đợi bước này.
       if (pin.userId !== userId) {
-        const liker = await this.prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
-        await this.notificationsService.createNotification(
-          pin.userId,
-          'LIKE',
-          `${liker?.username ?? 'Một người dùng'} đã thích ảnh của bạn.`,
-          userId,
-          pinId,
-        );
+        void this.prisma.user
+          .findUnique({ where: { id: userId }, select: { username: true } })
+          .then((liker) =>
+            this.notificationsService.createNotification(
+              pin.userId,
+              'LIKE',
+              `${liker?.username ?? 'Một người dùng'} đã thích ảnh của bạn.`,
+              userId,
+              pinId,
+            ),
+          )
+          .catch((err) => console.error('Failed to send like notification:', err));
       }
       return { liked: true, likeCount };
     }
