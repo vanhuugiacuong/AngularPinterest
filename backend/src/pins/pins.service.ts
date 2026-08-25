@@ -344,16 +344,36 @@ export class PinsService {
     return { listingType: 'NONE', auction: null };
   }
 
-  /** Gắn listingType/auction vào danh sách pin đã fetch qua ORM (include),
-   * đồng thời bỏ originalStoragePath khỏi response — bản gốc chỉ backend
-   * được đọc trực tiếp qua endpoint tải ảnh có kiểm tra quyền riêng. */
+  /** Id của những pin trong danh sách mà viewerId đã thích - dùng để gắn cờ
+   * isLiked hàng loạt (1 query) thay vì N+1 theo từng pin. */
+  private async fetchLikedPinIds(pinIds: string[], viewerId?: string): Promise<Set<string>> {
+    if (!viewerId || pinIds.length === 0) return new Set();
+    const rows = await this.prisma.like.findMany({
+      where: { userId: viewerId, pinId: { in: pinIds } },
+      select: { pinId: true },
+    });
+    return new Set(rows.map((r) => r.pinId));
+  }
+
+  /** Gắn listingType/auction + isLiked (nếu có viewerId) vào danh sách pin đã
+   * fetch qua ORM (include), đồng thời bỏ originalStoragePath khỏi response -
+   * bản gốc chỉ backend được đọc trực tiếp qua endpoint tải ảnh có kiểm tra
+   * quyền riêng. */
   private async attachMarketInfoToList<T extends { id: string; isForSale: boolean; originalStoragePath?: string | null }>(
     pins: T[],
+    viewerId?: string,
   ): Promise<Omit<T, 'originalStoragePath'>[]> {
-    const auctionMap = await this.fetchLatestAuctionsByPinIds(pins.map((p) => p.id));
+    const [auctionMap, likedIds] = await Promise.all([
+      this.fetchLatestAuctionsByPinIds(pins.map((p) => p.id)),
+      this.fetchLikedPinIds(pins.map((p) => p.id), viewerId),
+    ]);
     return pins.map((p) => {
       const { originalStoragePath, ...rest } = p;
-      return { ...rest, ...this.marketFieldsFor(p.isForSale, auctionMap.get(p.id)) };
+      return {
+        ...rest,
+        ...this.marketFieldsFor(p.isForSale, auctionMap.get(p.id)),
+        isLiked: likedIds.has(p.id),
+      };
     });
   }
 
@@ -444,7 +464,7 @@ export class PinsService {
     const sortedPins = pinsWithScores.map((item) => item.pin);
 
     // 4. Return paginated slice
-    return this.attachMarketInfoToList(sortedPins.slice(skip, skip + limit));
+    return this.attachMarketInfoToList(sortedPins.slice(skip, skip + limit), userId);
   }
 
   async getRelatedPins(
@@ -474,7 +494,7 @@ export class PinsService {
         _count: { select: { likes: true } },
       },
     });
-    return this.attachMarketInfoToList(related);
+    return this.attachMarketInfoToList(related, viewerId);
   }
 
   /** Prisma `where` fragment that hides pins whose author has a private
@@ -803,19 +823,16 @@ export class PinsService {
   }
 
   async toggleLike(pinId: string, userId: string) {
-    const pin = await this.prisma.pin.findUnique({
-      where: { id: pinId },
-      select: { id: true, userId: true },
-    });
+    // Hai lookup độc lập (pin, like hiện có) chạy song song thay vì tuần tự -
+    // mỗi round-trip tới Supabase pooler có thể mất hàng trăm ms, gộp lại là
+    // nguyên nhân chính khiến nút tim bấm vào cảm giác chậm.
+    const [pin, existingLike] = await Promise.all([
+      this.prisma.pin.findUnique({ where: { id: pinId }, select: { id: true, userId: true } }),
+      this.prisma.like.findUnique({ where: { userId_pinId: { userId, pinId } } }),
+    ]);
     if (!pin) {
       throw new NotFoundException('Pin not found');
     }
-
-    const existingLike = await this.prisma.like.findUnique({
-      where: {
-        userId_pinId: { userId, pinId },
-      },
-    });
 
     if (existingLike) {
       await this.prisma.like.delete({
@@ -834,16 +851,21 @@ export class PinsService {
       });
       const likeCount = await this.prisma.like.count({ where: { pinId } });
       // Unliking never notifies (nothing new happened for the owner to see);
-      // only a fresh like does, and never for liking your own pin.
+      // only a fresh like does, and never for liking your own pin. Gửi
+      // notification không chặn response - client không cần đợi bước này.
       if (pin.userId !== userId) {
-        const liker = await this.prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
-        await this.notificationsService.createNotification(
-          pin.userId,
-          'LIKE',
-          `${liker?.username ?? 'Một người dùng'} đã thích ảnh của bạn.`,
-          userId,
-          pinId,
-        );
+        void this.prisma.user
+          .findUnique({ where: { id: userId }, select: { username: true } })
+          .then((liker) =>
+            this.notificationsService.createNotification(
+              pin.userId,
+              'LIKE',
+              `${liker?.username ?? 'Một người dùng'} đã thích ảnh của bạn.`,
+              userId,
+              pinId,
+            ),
+          )
+          .catch((err) => console.error('Failed to send like notification:', err));
       }
       return { liked: true, likeCount };
     }
@@ -1100,7 +1122,7 @@ export class PinsService {
           _count: { select: { likes: true } },
         },
       });
-      return this.attachMarketInfoToList(keywordPins);
+      return this.attachMarketInfoToList(keywordPins, viewerId);
     }
 
     // 2. Query pgvector for cosine similarity against the search text's embedding

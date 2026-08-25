@@ -423,19 +423,41 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     const currentUser = this.supabaseService.user();
     if (!currentPin || !currentUser) return;
 
+    const previousLiked = (currentPin as any).isLiked === true;
+    const previousCount = currentPin.likeCount ?? currentPin._count?.likes ?? 0;
+    const optimisticLiked = !previousLiked;
+    const optimisticCount = optimisticLiked ? previousCount + 1 : Math.max(0, previousCount - 1);
+
+    // Optimistic update - phản hồi ngay trên UI, gọi API ở nền, hoàn tác nếu lỗi.
+    this.pin.set({
+      ...currentPin,
+      isLiked: optimisticLiked,
+      likeCount: optimisticCount,
+      _count: { ...currentPin._count, likes: optimisticCount },
+    });
+
     try {
       const token = await this.supabaseService.getSessionToken();
-      if (token) {
-        const result = await this.pinService.toggleLike(currentPin.id, token);
-        this.pin.set({
-          ...currentPin,
-          isLiked: result.liked,
-          likeCount: result.likeCount,
-          _count: { ...currentPin._count, likes: result.likeCount },
-        });
-      }
+      if (!token) throw new Error('no session token');
+      const result = await this.pinService.toggleLike(currentPin.id, token);
+      const latest = this.pin();
+      if (!latest || latest.id !== currentPin.id) return;
+      this.pin.set({
+        ...latest,
+        isLiked: result.liked,
+        likeCount: result.likeCount,
+        _count: { ...latest._count, likes: result.likeCount },
+      });
     } catch (error) {
       console.error('Error toggling like:', error);
+      const latest = this.pin();
+      if (!latest || latest.id !== currentPin.id) return;
+      this.pin.set({
+        ...latest,
+        isLiked: previousLiked,
+        likeCount: previousCount,
+        _count: { ...latest._count, likes: previousCount },
+      });
     }
   }
 
@@ -536,19 +558,29 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   public relatedActiveDropdownPinId = signal<string | null>(null);
   public relatedSelectedBoardMap = signal<Record<string, Board>>({});
 
-  async toggleRelatedLike(rel: { id: string; likes: number }, event: MouseEvent) {
+  async toggleRelatedLike(rel: { id: string; likes: number; isLiked?: boolean }, event: MouseEvent) {
     event.stopPropagation();
     const currentUser = this.supabaseService.user();
     if (!currentUser) return;
 
+    const previousLiked = !!rel.isLiked;
+    const previousLikes = rel.likes ?? 0;
+    rel.isLiked = !previousLiked;
+    rel.likes = rel.isLiked ? previousLikes + 1 : Math.max(0, previousLikes - 1);
+    this.relatedPins.update((current) => [...current]);
+
     try {
       const token = await this.supabaseService.getSessionToken();
-      if (!token) return;
+      if (!token) throw new Error('no session token');
       const result = await this.pinService.toggleLike(rel.id, token);
-      rel.likes = result.liked ? (rel.likes || 0) + 1 : Math.max(0, (rel.likes || 0) - 1);
+      rel.isLiked = result.liked;
+      rel.likes = result.likeCount;
       this.relatedPins.update((current) => [...current]);
     } catch (error) {
       console.error('Error toggling like:', error);
+      rel.isLiked = previousLiked;
+      rel.likes = previousLikes;
+      this.relatedPins.update((current) => [...current]);
     }
   }
 
@@ -642,6 +674,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
         authorAvatarUrl: p.user?.avatarUrl || null,
         authorPlan: p.user?.plan || 'FREE',
         likes: p._count?.likes ?? 0,
+        isLiked: (p as any).isLiked ?? false,
         isAiGenerated: p.isAiGenerated,
         aspectRatio,
         listingType: p.listingType ?? 'NONE',
