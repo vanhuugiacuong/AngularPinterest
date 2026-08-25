@@ -3,7 +3,7 @@
   <app-navbar></app-navbar>
 
   <!-- Main Content Area: padded down to clear fixed header, padded up to clear floating bottom bar -->
-  <div class="flex-1 pt-16 pb-24 flex flex-col min-w-0">
+  <div class="flex-1 pt-16 pl-28 pb-24 flex flex-col min-w-0">
     <main class="flex-1 w-full mx-auto px-4 py-6 flex flex-col max-w-none">
 
       <!-- "For You" Interest Strip: horizontal scroll of recommended images below the search bar.
@@ -12,7 +12,12 @@
       @if (!isLoading() && interestPins().length > 0) {
         <div class="bg-white dark:bg-[#121212] mb-2">
           <h2 class="text-base font-bold text-black dark:text-white mb-2">Xu hướng nổi bật</h2>
-          <div class="interest-marquee-viewport overflow-hidden">
+          <div
+            class="interest-marquee-viewport overflow-x-auto"
+            [class.marquee-paused]="isInterestMarqueePaused()"
+            (pointerdown)="pauseInterestMarquee()"
+            (wheel)="pauseInterestMarquee()"
+          >
             <div class="interest-marquee-track flex gap-3 w-max">
               <!-- Pins rendered twice back-to-back so the marquee loops seamlessly -->
               @for (pin of interestPins(); track pin.id + '-a') {

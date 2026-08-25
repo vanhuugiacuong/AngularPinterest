@@ -10,6 +10,7 @@ import { BoardsModule } from './boards/boards.module';
 import { UsersModule } from './users/users.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MessagingModule } from './messaging/messaging.module';
+import { CollageModule } from './collage/collage.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { MessagingModule } from './messaging/messaging.module';
     UsersModule,
     NotificationsModule,
     MessagingModule,
+    CollageModule,
   ],
   controllers: [AppController],
   providers: [AppService],

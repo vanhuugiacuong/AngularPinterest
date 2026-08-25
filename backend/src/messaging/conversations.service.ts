@@ -8,6 +8,18 @@ const ALLOWED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'imag
 const MAX_IMAGE_SIZE_BYTES = 8 * 1024 * 1024;
 
 const PUBLIC_USER_SELECT = { id: true, username: true, avatarUrl: true } as const;
+
+// Postgres's `contains` compares raw bytes — it won't match "cuong" against a username
+// like "Cường Văn". Strips Vietnamese diacritics (NFD decomposition, plus đ/Đ which don't
+// decompose that way) so search tolerates missing accents, same as the frontend's search.
+function normalizeForSearch(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase();
+}
 const PIN_PREVIEW_SELECT = {
   id: true,
   title: true,
@@ -120,14 +132,16 @@ export class ConversationsService {
   async searchUsers(query: string, excludeUserId: string, limit = 10) {
     const trimmed = (query || '').trim();
     if (!trimmed) return [];
-    return this.prisma.user.findMany({
-      where: {
-        username: { contains: trimmed, mode: 'insensitive' },
-        id: { not: excludeUserId },
-      },
+    const needle = normalizeForSearch(trimmed);
+    // The user table is small, so filtering in-memory after normalizing accents is
+    // simpler and cheaper than reaching for a Postgres unaccent extension for this.
+    const allUsers = await this.prisma.user.findMany({
+      where: { id: { not: excludeUserId } },
       select: PUBLIC_USER_SELECT,
-      take: Math.min(limit, 20),
     });
+    return allUsers
+      .filter((u) => normalizeForSearch(u.username).includes(needle))
+      .slice(0, Math.min(limit, 20));
   }
 
   async getMessages(conversationId: string, userId: string, rawPage?: string, rawLimit?: string) {

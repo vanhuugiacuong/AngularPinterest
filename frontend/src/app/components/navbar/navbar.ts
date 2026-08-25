@@ -1,11 +1,25 @@
-import { Component, inject, signal, ElementRef, HostListener, Output, EventEmitter, ViewChild, effect } from '@angular/core';
+import { Component, inject, signal, ElementRef, HostListener, Output, EventEmitter, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, NavigationEnd } from '@angular/router';
 import { SupabaseService } from '../../core/services/supabase';
 import { ThemeService } from '../../core/services/theme';
 import { NotificationService, AppNotification } from '../../core/services/notification';
 import { NotificationSocketService } from '../../core/services/notification-socket';
 import { NotificationItem } from '../notification-item/notification-item';
+import { PinService, Pin } from '../../core/services/pin';
+import { ChatService, PublicUserSummary } from '../../core/services/chat';
+
+// Lowercases and strips Vietnamese diacritics so "meo" matches "mèo" — same normalizer
+// used by the /search results page, kept in sync so typing and submitting agree.
+function normalizeForSearch(value: string | null | undefined): string {
+  if (!value) return '';
+  return value
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase();
+}
 
 @Component({
   selector: 'app-navbar',
@@ -21,12 +35,17 @@ export class Navbar {
   private notificationSocket = inject(NotificationSocketService);
   private router = inject(Router);
   private elementRef = inject(ElementRef);
+  private pinService = inject(PinService);
+  private chatService = inject(ChatService);
 
   @Output() loginClick = new EventEmitter<void>();
-  @ViewChild('bottomNavEl') bottomNavEl?: ElementRef;
 
   public showProfilePopup = signal(false);
-  public isNavExpanded = signal(false);
+
+  // Left rail's expand/collapse state — remembered across visits. Wrapped in try/catch
+  // since localStorage can throw (private browsing, storage disabled, quota).
+  private navMenuKey = 'pinhub_nav_menu_open';
+  public showNavMenu = signal(this.readNavMenuPref());
 
   public showNotifPopup = signal(false);
   public notifications = signal<AppNotification[]>([]);
@@ -37,9 +56,6 @@ export class Navbar {
   private toastSeq = 0;
   private toastTimers = new Map<number, any>();
 
-  private collapseTimer: any = null;
-  private longPressTimer: any = null;
-  private longPressTriggered = false;
   private unreadPollTimer: any = null;
 
   constructor() {
@@ -68,6 +84,24 @@ export class Navbar {
         }
       }
     });
+
+    // Keeps the search box showing the active query (e.g. "chó cute") whenever it's the
+    // one driving /search — covers typing+submitting here, but also refinement tags on
+    // the results page itself, which navigate straight to /search?q=... without going
+    // through this component at all.
+    this.syncSearchQueryFromUrl(this.router.url);
+    this.router.events.subscribe((event) => {
+      if (event instanceof NavigationEnd) {
+        this.syncSearchQueryFromUrl(event.urlAfterRedirects);
+      }
+    });
+  }
+
+  private syncSearchQueryFromUrl(url: string) {
+    const [path, queryString] = url.split('?');
+    if (!path.startsWith('/search')) return;
+    const params = new URLSearchParams(queryString || '');
+    this.searchQuery.set(params.get('q') || '');
   }
 
   private async refreshUnreadCount() {
@@ -139,59 +173,50 @@ export class Navbar {
     this.showProfilePopup.update(val => !val);
   }
 
+  toggleNavMenu(event: MouseEvent) {
+    event.stopPropagation();
+    this.setNavMenu(!this.showNavMenu());
+  }
+
+  closeNavMenu() {
+    this.setNavMenu(false);
+  }
+
+  private setNavMenu(open: boolean) {
+    this.showNavMenu.set(open);
+    try {
+      localStorage.setItem(this.navMenuKey, open ? '1' : '0');
+    } catch {
+      // Storage unavailable (private browsing, disabled, quota) — state just won't persist.
+    }
+  }
+
+  private readNavMenuPref(): boolean {
+    try {
+      return localStorage.getItem(this.navMenuKey) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey() {
+    if (this.showNavMenu()) {
+      this.closeNavMenu();
+    }
+  }
+
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent) {
     const target = event.target as HTMLElement;
     if (!this.elementRef.nativeElement.contains(target)) {
       this.showProfilePopup.set(false);
       this.showNotifPopup.set(false);
+      this.showSearchDropdown.set(false);
+      if (this.showNavMenu()) {
+        this.closeNavMenu();
+      }
     }
-    if (this.bottomNavEl && !this.bottomNavEl.nativeElement.contains(target)) {
-      this.isNavExpanded.set(false);
-    }
-  }
-
-  // Desktop: hover over the bottom nav fans the icons out
-  onNavMouseEnter() {
-    if (this.collapseTimer) {
-      clearTimeout(this.collapseTimer);
-      this.collapseTimer = null;
-    }
-    this.isNavExpanded.set(true);
-  }
-
-  onNavMouseLeave() {
-    this.collapseTimer = setTimeout(() => this.isNavExpanded.set(false), 200);
-  }
-
-  // Mobile: press and hold the Home button to fan the icons out
-  onHomeTouchStart() {
-    this.longPressTriggered = false;
-    this.longPressTimer = setTimeout(() => {
-      this.longPressTriggered = true;
-      this.isNavExpanded.set(true);
-    }, 350);
-  }
-
-  onHomeTouchEnd() {
-    if (this.longPressTimer) {
-      clearTimeout(this.longPressTimer);
-      this.longPressTimer = null;
-    }
-  }
-
-  onHomeClick() {
-    // Swallow the click that follows a long-press touch (it already opened the fan)
-    if (this.longPressTriggered) {
-      this.longPressTriggered = false;
-      return;
-    }
-    this.onLogoClick();
-    this.isNavExpanded.set(false);
-  }
-
-  collapseNav() {
-    this.isNavExpanded.set(false);
   }
 
   onLoginClick() {
@@ -208,7 +233,6 @@ export class Navbar {
 
   async navigateToMyProfile() {
     this.showProfilePopup.set(false);
-    this.collapseNav();
 
     const dbUser = await this.supabaseService.ensureDbUser();
     if (dbUser?.username) {
@@ -228,17 +252,14 @@ export class Navbar {
 
   navigateToCreate() {
     this.router.navigate(['/create']);
-    this.collapseNav();
   }
 
   navigateToExplore() {
     this.router.navigate(['/feed'], { queryParams: { sort: 'trending' } });
-    this.collapseNav();
   }
 
   navigateToChat() {
     this.router.navigate(['/chat']);
-    this.collapseNav();
   }
 
   isChatPage(): boolean {
@@ -250,10 +271,132 @@ export class Navbar {
     this.router.navigate(['/settings']);
   }
 
+  // Search suggestions dropdown — recent searches (real, stored locally), plus "for
+  // you" and "popular" sections that both reuse the general pin pool (there's no real
+  // personalization or search-analytics trending data to draw from), split into two
+  // different slices so the two sections aren't just showing the same pins twice.
+  public showSearchDropdown = signal(false);
+  public recentSearches = signal<{ query: string; thumbnail: string | null }[]>([]);
+  public ideaPins = signal<Pin[]>([]);
+  public popularPins = signal<Pin[]>([]);
+  // Live "as you type" suggestions, drawn from this same pool — Pinterest's real
+  // autocomplete is backed by search-query analytics we don't have, so this
+  // approximates it from what pin titles/usernames actually exist.
+  public searchQuery = signal('');
+  private suggestionPool = signal<Pin[]>([]);
+  private readonly recentSearchesKey = 'pinhub_recent_searches';
+
+  get titleSuggestions(): string[] {
+    const q = normalizeForSearch(this.searchQuery().trim());
+    if (!q) return [];
+    const seen = new Set<string>();
+    const results: string[] = [];
+    for (const pin of this.suggestionPool()) {
+      const title = pin.title?.trim();
+      const normalizedTitle = normalizeForSearch(title);
+      if (title && normalizedTitle.includes(q) && !seen.has(normalizedTitle)) {
+        seen.add(normalizedTitle);
+        results.push(title);
+        if (results.length >= 8) break;
+      }
+    }
+    return results;
+  }
+
+  // Backed by the real users/search API (searches every account, not just whoever
+  // happens to have authored one of the sampled pins above) — debounced since it fires
+  // on every keystroke. Same endpoint the "new message" compose search already uses.
+  public userSuggestions = signal<PublicUserSummary[]>([]);
+  private userSuggestionDebounce: ReturnType<typeof setTimeout> | null = null;
+
+  private fetchUserSuggestions(q: string) {
+    if (this.userSuggestionDebounce) clearTimeout(this.userSuggestionDebounce);
+    if (!q) {
+      this.userSuggestions.set([]);
+      return;
+    }
+    this.userSuggestionDebounce = setTimeout(async () => {
+      try {
+        const token = await this.supabaseService.getSessionToken();
+        if (!token) return;
+        const users = await this.chatService.searchUsers(q, token);
+        // The query may have changed while this was in flight — don't clobber newer results.
+        if (this.searchQuery().trim() === q) {
+          this.userSuggestions.set(users.slice(0, 4));
+        }
+      } catch (error) {
+        console.error('Error fetching user suggestions:', error);
+      }
+    }, 250);
+  }
+
+  private loadRecentSearches() {
+    try {
+      const raw = localStorage.getItem(this.recentSearchesKey);
+      this.recentSearches.set(raw ? JSON.parse(raw) : []);
+    } catch {
+      this.recentSearches.set([]);
+    }
+  }
+
+  private saveRecentSearch(query: string) {
+    if (!query) return;
+    const thumbnail =
+      [...this.ideaPins(), ...this.popularPins()].find((p) => p.title?.toLowerCase().includes(query.toLowerCase()))
+        ?.imageUrl ?? null;
+    const existing = this.recentSearches().filter((s) => s.query.toLowerCase() !== query.toLowerCase());
+    const updated = [{ query, thumbnail }, ...existing].slice(0, 8);
+    this.recentSearches.set(updated);
+    localStorage.setItem(this.recentSearchesKey, JSON.stringify(updated));
+  }
+
+  removeRecentSearch(query: string, event: Event) {
+    event.stopPropagation();
+    const updated = this.recentSearches().filter((s) => s.query !== query);
+    this.recentSearches.set(updated);
+    localStorage.setItem(this.recentSearchesKey, JSON.stringify(updated));
+  }
+
+  async onSearchFocus() {
+    this.showSearchDropdown.set(true);
+    this.loadRecentSearches();
+    if (this.suggestionPool().length === 0) {
+      try {
+        const pins = await this.pinService.getPins(1, 100);
+        this.suggestionPool.set(pins);
+        const half = Math.ceil(Math.min(pins.length, 16) / 2);
+        this.ideaPins.set(pins.slice(0, half));
+        this.popularPins.set(pins.slice(half, half * 2));
+      } catch (error) {
+        console.error('Error fetching pins for search dropdown:', error);
+      }
+    }
+  }
+
+  onSearchInput(event: Event) {
+    const input = event.target as HTMLInputElement;
+    this.searchQuery.set(input.value);
+    this.fetchUserSuggestions(input.value.trim());
+  }
+
+  goToSearch(query: string) {
+    this.showSearchDropdown.set(false);
+    this.searchQuery.set(query);
+    this.userSuggestions.set([]);
+    this.saveRecentSearch(query);
+    this.router.navigate(['/search'], { queryParams: query ? { q: query } : {} });
+  }
+
+  goToUserProfile(username: string) {
+    this.showSearchDropdown.set(false);
+    this.searchQuery.set('');
+    this.userSuggestions.set([]);
+    this.router.navigate(['/profile', username]);
+  }
+
   onSearchSubmit(event: Event) {
     const input = event.target as HTMLInputElement;
-    const q = input.value.trim();
-    this.router.navigate(['/search'], { queryParams: q ? { q } : {} });
+    this.goToSearch(input.value.trim());
   }
 
   async signOut() {
@@ -279,5 +422,9 @@ export class Navbar {
 
   isNotificationsPage(): boolean {
     return this.router.url.startsWith('/notifications');
+  }
+
+  isCollagePage(): boolean {
+    return this.router.url.startsWith('/collage');
   }
 }

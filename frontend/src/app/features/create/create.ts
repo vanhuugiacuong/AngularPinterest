@@ -67,6 +67,10 @@ export class Create implements OnInit {
     }
   }
 
+  goToCollage() {
+    this.router.navigate(['/collage']);
+  }
+
   setTab(tab: 'upload' | 'ai') {
     this.activeTab.set(tab);
     // Clear preview images
