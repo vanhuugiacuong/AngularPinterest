@@ -41,8 +41,8 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font: 700 11px monospace;
-  letter-spacing: 0.22em;
+  font: 700 11px var(--font-sans);
+  letter-spacing: 0.14em;
   color: var(--color-secondary);
 }
 .hero h1 {
@@ -61,6 +61,7 @@
     var(--color-accent)
   );
   color: transparent;
+  -webkit-background-clip: text;
   background-clip: text;
 }
 .hero p {
@@ -84,7 +85,7 @@
   min-height: 510px;
   padding: 28px;
   border: 1px solid var(--color-border);
-  border-radius: 28px;
+  border-radius: var(--radius-panel);
   background: linear-gradient(155deg, var(--color-surface-elevated), var(--color-surface));
   transition:
     0.3s transform,
@@ -104,7 +105,9 @@
   box-shadow: 0 30px 90px color-mix(in srgb, var(--color-secondary) 18%, transparent);
 }
 .plan-card.is-featured:before {
-  content: '✦';
+  content: 'auto_awesome';
+  font-family: 'Material Symbols Outlined';
+  font-size: 20px;
   position: absolute;
   right: 24px;
   top: -14px;
@@ -121,13 +124,16 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font: 700 10px monospace;
-  letter-spacing: 0.13em;
 }
 .index {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
   color: var(--color-text-muted);
 }
 .kicker {
+  font: 700 10px var(--font-sans);
+  letter-spacing: 0.1em;
   color: var(--color-secondary);
   text-transform: uppercase;
 }
