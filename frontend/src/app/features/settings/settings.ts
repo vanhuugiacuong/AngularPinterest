@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
+import { Switch } from '../../shared/switch/switch';
 import { ThemeService, ThemePreference } from '../../core/services/theme';
 import { MembershipService } from '../../core/services/membership';
 import { SupabaseService } from '../../core/services/supabase';
@@ -31,7 +32,7 @@ const POSITIONS: { value: WatermarkPosition; label: string }[] = [
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, Navbar],
+  imports: [CommonModule, FormsModule, RouterLink, Navbar, Switch],
   templateUrl: './settings.html',
   styleUrl: './settings.css',
 })

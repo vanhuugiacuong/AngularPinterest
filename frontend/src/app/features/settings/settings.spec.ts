@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Settings } from './settings';
 import { ThemeService } from '../../core/services/theme';
 import { SupabaseService } from '../../core/services/supabase';
+import { Switch } from '../../shared/switch/switch';
 
 /** Shallow-render Navbar away — this spec is about the theme picker, not the
  * navbar's own search/auth wiring (already covered elsewhere). */
@@ -31,7 +32,7 @@ describe('Settings', () => {
         { provide: ThemeService, useValue: themeService },
         { provide: SupabaseService, useValue: { user: () => null, dbUser: () => null, loading: () => false } },
       ],
-    }).overrideComponent(Settings, { set: { imports: [CommonModule, NavbarStub] } });
+    }).overrideComponent(Settings, { set: { imports: [CommonModule, NavbarStub, Switch] } });
 
     const fixture = TestBed.createComponent(Settings);
     fixture.detectChanges();
