@@ -179,17 +179,9 @@
                       <option *ngFor="let preset of watermarkService.presets()" [ngValue]="preset.id">Watermark: {{ preset.name }}</option>
                     </select>
                     <button type="button" (click)="downloadPin()" [disabled]="downloading()" class="h-10 px-4 rounded-control bg-gradient-brand text-text-on-accent font-bold text-xs border-none cursor-pointer disabled:opacity-50">
-                      {{ p.isForSale && p.user?.id !== supabaseService.user()?.id ? ('Mua & tải · ' + (p.price | number) + 'đ') : 'Tải ảnh' }}
+                      {{ p.isForSale && p.user?.id !== supabaseService.user()?.id ? ('Mua & tải · ' + formatNovaToken(vndToNovaToken(p.price))) : 'Tải ảnh' }}
                     </button>
                     <span *ngIf="downloadMessage()" class="text-[10px] text-text-muted">{{ downloadMessage() }}</span>
-                    <div *ngIf="pendingPurchase() as pay" class="flex flex-col items-start gap-1 mt-1">
-                      @if (bankQrFor(pay); as qrUrl) {
-                        <img [src]="qrUrl" alt="QR chuyển khoản mua ảnh" class="w-32 h-32 rounded-control border border-border object-contain bg-surface" />
-                        <span class="text-[10px] text-text-muted">Nội dung: <strong>{{ pay.paymentReference }}</strong></span>
-                      } @else {
-                        <p class="text-[10px] text-error">Người bán chưa cấu hình thông tin nhận thanh toán. Vui lòng liên hệ người bán.</p>
-                      }
-                    </div>
 
                     <!-- Trao đổi với chủ sở hữu — chỉ hiện với tác phẩm có
                          giá trị và không phải chính chủ; tái sử dụng luồng
@@ -287,15 +279,15 @@
                       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-control bg-surface-elevated border border-border">
                         <div class="flex flex-col gap-0.5">
                           <span class="text-[10px] uppercase font-bold text-text-muted">Giá khởi điểm</span>
-                          <span class="text-sm font-bold text-text mono-label">{{ formatVnd(a.startingPrice) }}</span>
+                          <span class="text-sm font-bold text-text mono-label">{{ formatNovaToken(vndToNovaToken(a.startingPrice)) }}</span>
                         </div>
                         <div class="flex flex-col gap-0.5">
                           <span class="text-[10px] uppercase font-bold text-text-muted">Giá hiện tại</span>
-                          <span class="text-sm font-bold text-accent mono-label">{{ formatVnd(a.currentPrice) }}</span>
+                          <span class="text-sm font-bold text-accent mono-label">{{ formatNovaToken(vndToNovaToken(a.currentPrice)) }}</span>
                         </div>
                         <div class="flex flex-col gap-0.5">
                           <span class="text-[10px] uppercase font-bold text-text-muted">Bước giá tối thiểu</span>
-                          <span class="text-sm font-bold text-text mono-label">{{ formatVnd(a.minimumIncrement) }}</span>
+                          <span class="text-sm font-bold text-text mono-label">{{ formatNovaToken(vndToNovaToken(a.minimumIncrement)) }}</span>
                         </div>
                         <div class="flex flex-col gap-0.5">
                           <span class="text-[10px] uppercase font-bold text-text-muted">Lượt đặt giá</span>
@@ -310,7 +302,7 @@
                       } @else if (a.status === 'ENDED') {
                         <p class="text-xs text-text-muted">
                           @if (a.winnerId) {
-                            Phiên đấu giá đã kết thúc. Người thắng cần hoàn tất thanh toán trước khi tải bản gốc.
+                            Phiên đấu giá đã kết thúc. NovaToken của người thắng được thanh toán tự động và an toàn.
                           } @else {
                             Phiên đấu giá đã kết thúc mà không có lượt đặt giá nào.
                           }
@@ -324,7 +316,7 @@
                         <div class="flex flex-col gap-2 p-4 rounded-control bg-surface-elevated border border-accent/40">
                           <span class="text-sm font-bold text-accent">Bạn đã thắng phiên đấu giá này!</span>
                           @if (mp.status === 'PAID') {
-                            <p class="text-xs text-text-muted">Người bán đã xác nhận nhận được thanh toán — bạn có thể tải bản gốc.</p>
+                            <p class="text-xs text-text-muted">NovaToken đã được chuyển tự động cho người bán — bạn có thể tải bản gốc ngay.</p>
                             <button
                               type="button"
                               (click)="downloadAuctionOriginal()"
@@ -333,16 +325,6 @@
                             >
                               {{ downloading() ? 'Đang tải...' : 'Tải bản gốc' }}
                             </button>
-                          } @else {
-                            <p class="text-xs text-text-muted">
-                              Vui lòng chuyển khoản {{ formatVnd(mp.amount) }} cho người bán, sau đó chờ người bán xác nhận. Bấm "Trao đổi với chủ sở hữu" ở trên để liên hệ trực tiếp.
-                            </p>
-                            @if (auctionPaymentQr(mp); as qrUrl) {
-                              <img [src]="qrUrl" alt="QR chuyển khoản cho người bán" class="w-32 h-32 rounded-control border border-border object-contain bg-surface" />
-                              <span class="text-[10px] text-text-muted">Nội dung: <strong>{{ mp.paymentReference }}</strong></span>
-                            } @else {
-                              <p class="text-[10px] text-error">Người bán chưa cấu hình thông tin nhận thanh toán. Vui lòng liên hệ người bán.</p>
-                            }
                           }
                           @if (downloadMessage()) {
                             <span class="text-[10px] text-text-muted">{{ downloadMessage() }}</span>
@@ -352,12 +334,12 @@
 
                       @if (canPlaceBid()) {
                         <form (submit)="submitBid(); $event.preventDefault()" class="flex flex-wrap items-center gap-2">
-                          <label class="sr-only" for="bidAmount">Giá đặt (VNĐ)</label>
+                          <label class="sr-only" for="bidAmount">Giá đặt (NovaToken)</label>
                           <input
                             id="bidAmount"
                             type="number"
-                            step="1000"
-                            [min]="minAcceptableBid()"
+                            step="1"
+                            [min]="vndToNovaToken(minAcceptableBid())"
                             [(ngModel)]="bidAmount"
                             name="bidAmount"
                             [placeholder]="'Tối thiểu ' + minAcceptableBidLabel()"
@@ -569,7 +551,9 @@
 
                             @if (isAuctionRestricted(rel)) {
                               <div class="absolute inset-0 z-10 flex items-center justify-center bg-bg/20 pointer-events-none">
-                                <span class="px-3 py-2 rounded-control bg-surface-high/95 border border-border-strong text-text text-xs font-bold shadow-card">Chỉ dành cho Pro</span>
+                                <span class="px-3 py-2 rounded-control bg-surface-high/95 border border-border-strong text-text text-xs font-bold shadow-card">
+                                  {{ rel.listingType === 'AUCTION' ? 'Chỉ dành cho Pro' : 'Dành cho Plus & Pro' }}
+                                </span>
                               </div>
                             }
 

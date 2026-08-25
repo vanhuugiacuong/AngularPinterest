@@ -31,6 +31,7 @@ import { UserAvatar } from '../../shared/user-avatar/user-avatar';
 import { ImageSearchModal } from '../image-search-modal/image-search-modal';
 import { ThemeToggle } from '../../shared/theme-toggle/theme-toggle';
 import { BadgeBumpDirective } from '../../shared/badge-bump.directive';
+import { NovaTokenService } from '../../core/services/novatoken';
 
 type SuggestionItem =
   | { kind: 'recent'; term: string }
@@ -57,6 +58,7 @@ export class Navbar implements OnInit, OnDestroy {
   private membership = inject(MembershipService);
   private notificationService = inject(NotificationService);
   private messagingService = inject(MessagingService);
+  public novaTokens = inject(NovaTokenService);
 
   /** Total unread (notifications + messages) — badged on the hamburger so
    * it's visible even while the sidebar/notification drawer is collapsed. */
@@ -128,6 +130,7 @@ export class Navbar implements OnInit, OnDestroy {
         // so a failed membership fetch never shows a wrong frame.
       });
     }
+    if (!this.novaTokens.wallet()) this.novaTokens.load().catch(() => undefined);
 
     this.searchSub = this.searchInput$
       .pipe(
@@ -376,6 +379,7 @@ export class Navbar implements OnInit, OnDestroy {
     this.router.navigate(['/create']);
   }
   navigateToPricing() { this.showProfilePopup.set(false); this.router.navigate(['/pricing']); }
+  navigateToNovaToken() { this.showProfilePopup.set(false); this.router.navigate(['/novatoken']); }
 
   navigateToSettings() {
     this.showProfilePopup.set(false);

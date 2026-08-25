@@ -464,6 +464,134 @@ select {
   animation: nf-panel-in 220ms var(--ease-spring);
 }
 
+.nf-dialog-panel--large {
+  max-width: 600px;
+  padding: 42px 46px;
+}
+
+.nf-dialog-panel--large .nf-dialog-icon {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 22px;
+}
+
+.nf-dialog-panel--large .nf-dialog-icon .material-symbols-outlined {
+  font-size: 36px;
+}
+
+.nf-dialog-panel--large .nf-dialog-title {
+  font-size: 1.55rem;
+}
+
+.nf-dialog-panel--large .nf-dialog-description {
+  font-size: 0.95rem;
+  margin: 12px auto 28px;
+  max-width: 440px;
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 48px 54px 44px;
+  border-color: color-mix(in srgb, var(--color-warning) 42%, var(--color-border-strong));
+  background:
+    radial-gradient(circle at 50% -15%, color-mix(in srgb, var(--color-warning) 18%, transparent), transparent 43%),
+    radial-gradient(circle at 105% 110%, color-mix(in srgb, var(--color-iris-violet) 13%, transparent), transparent 42%),
+    linear-gradient(145deg, color-mix(in srgb, var(--color-surface-elevated) 96%, #172136), var(--color-surface));
+  box-shadow:
+    0 38px 110px rgba(0, 0, 0, 0.62),
+    0 0 70px color-mix(in srgb, var(--color-warning) 8%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning::before {
+  content: 'NOVA SECURE  ·  PAYMENT STATUS';
+  display: block;
+  margin-bottom: 25px;
+  color: color-mix(in srgb, var(--color-warning) 82%, white);
+  font: 800 0.62rem var(--font-mono);
+  letter-spacing: 0.2em;
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 220px;
+  height: 220px;
+  left: 50%;
+  top: 72px;
+  translate: -50% 0;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 16%, transparent);
+  border-radius: 50%;
+  box-shadow: 0 0 55px color-mix(in srgb, var(--color-warning) 8%, transparent);
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning .nf-dialog-icon {
+  position: relative;
+  width: 82px;
+  height: 82px;
+  margin-bottom: 26px;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 42%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--color-warning) 22%, transparent), color-mix(in srgb, var(--color-warning) 7%, transparent));
+  box-shadow: 0 14px 40px color-mix(in srgb, var(--color-warning) 13%, transparent), inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning .nf-dialog-icon::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border: 1px dashed color-mix(in srgb, var(--color-warning) 30%, transparent);
+  border-radius: 50%;
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning .nf-dialog-icon .material-symbols-outlined {
+  font-size: 40px;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--color-warning) 45%, transparent));
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning .nf-dialog-title {
+  font-size: clamp(1.6rem, 3vw, 2rem);
+  letter-spacing: -0.035em;
+  margin-bottom: 14px;
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning .nf-dialog-description {
+  max-width: 470px;
+  font-size: 0.93rem;
+  line-height: 1.75;
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning .nf-dialog-btn--primary {
+  min-width: 210px;
+  min-height: 52px;
+  padding-inline: 28px;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 45%, transparent);
+  border-radius: 15px;
+  background: linear-gradient(115deg, color-mix(in srgb, var(--color-warning) 88%, #ff8a4b), var(--color-studio-aqua));
+  color: #091017;
+  box-shadow: 0 15px 35px color-mix(in srgb, var(--color-warning) 15%, transparent);
+  font-weight: 900;
+  transition: transform 180ms ease, filter 180ms ease, box-shadow 180ms ease;
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning .nf-dialog-btn--primary:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+  box-shadow: 0 19px 42px color-mix(in srgb, var(--color-warning) 22%, transparent);
+}
+
+@media (max-width: 640px) {
+  .nf-dialog-panel--large.nf-dialog-panel--warning {
+    padding: 36px 22px 30px;
+  }
+  .nf-dialog-panel--large.nf-dialog-panel--warning::before {
+    font-size: 0.52rem;
+    letter-spacing: 0.14em;
+  }
+}
+
 .nf-dialog-panel:focus-visible,
 .nf-dialog-panel:focus {
   outline: none;
@@ -668,5 +796,158 @@ select {
 @media (prefers-reduced-motion: reduce) {
   .nf-badge-bump {
     animation: none;
+  }
+}
+
+/* Calm, focused payment warning: intentionally quieter than destructive dialogs. */
+.nf-dialog-panel--large.nf-dialog-panel--warning {
+  max-width: 560px;
+  padding: 40px 44px 38px;
+  border-color: color-mix(in srgb, var(--color-warning) 24%, var(--color-border-strong));
+  background: linear-gradient(155deg, color-mix(in srgb, var(--color-surface-elevated) 97%, #172033), var(--color-surface));
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning::before,
+.nf-dialog-panel--large.nf-dialog-panel--warning::after,
+.nf-dialog-panel--large.nf-dialog-panel--warning .nf-dialog-icon::after {
+  content: none;
+  display: none;
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning .nf-dialog-icon {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 22px;
+  border: 0;
+  background: color-mix(in srgb, var(--color-warning) 14%, transparent);
+  box-shadow: none;
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning .nf-dialog-icon .material-symbols-outlined {
+  font-size: 32px;
+  filter: none;
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning .nf-dialog-title {
+  font-size: 1.65rem;
+  margin-bottom: 12px;
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning .nf-dialog-description {
+  max-width: 430px;
+  margin: 0 auto 28px;
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning .nf-dialog-btn--primary {
+  min-width: 190px;
+  min-height: 50px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(115deg, var(--color-nova-blue), var(--color-studio-aqua));
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-nova-blue) 18%, transparent);
+}
+
+@media (max-width: 640px) {
+  .nf-dialog-panel--large.nf-dialog-panel--warning {
+    padding: 32px 22px 28px;
+  }
+}
+
+/* Refined Nova payment warning: expressive, polished, and still easy to scan. */
+.nf-dialog-panel--large.nf-dialog-panel--warning {
+  max-width: 580px;
+  padding: 44px 48px 40px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(155deg, #151e2e 0%, #101725 55%, #0d1420 100%) padding-box,
+    linear-gradient(125deg, color-mix(in srgb, var(--color-warning) 62%, white), color-mix(in srgb, var(--color-studio-aqua) 48%, transparent), color-mix(in srgb, var(--color-iris-violet) 50%, transparent)) border-box;
+  box-shadow:
+    0 38px 100px rgba(0, 0, 0, 0.62),
+    0 0 60px color-mix(in srgb, var(--color-studio-aqua) 7%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.055);
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning::before {
+  content: '';
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 18%;
+  right: 18%;
+  height: 2px;
+  margin: 0;
+  background: linear-gradient(90deg, transparent, var(--color-warning), var(--color-studio-aqua), transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--color-studio-aqua) 42%, transparent);
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning::after {
+  content: '';
+  display: block;
+  position: absolute;
+  z-index: -1;
+  width: 330px;
+  height: 180px;
+  left: 50%;
+  top: -105px;
+  translate: -50% 0;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-warning) 16%, transparent);
+  filter: blur(75px);
+  box-shadow: none;
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning .nf-dialog-icon {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 24px;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 34%, rgba(255,255,255,.08));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--color-warning) 22%, transparent), rgba(255,255,255,.035));
+  box-shadow:
+    0 16px 38px color-mix(in srgb, var(--color-warning) 12%, transparent),
+    inset 0 1px 0 rgba(255,255,255,.1);
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning .nf-dialog-icon .material-symbols-outlined {
+  font-size: 35px;
+  filter: drop-shadow(0 3px 8px color-mix(in srgb, var(--color-warning) 28%, transparent));
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning .nf-dialog-title {
+  margin-bottom: 14px;
+  font-size: 1.78rem;
+  font-weight: 850;
+  letter-spacing: -0.035em;
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning .nf-dialog-description {
+  max-width: 450px;
+  margin-bottom: 30px;
+  color: color-mix(in srgb, var(--color-text-muted) 90%, white);
+  font-size: 0.92rem;
+  line-height: 1.72;
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning .nf-dialog-btn--primary {
+  position: relative;
+  min-width: 210px;
+  min-height: 52px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: linear-gradient(115deg, #6c82ff 0%, #4daee6 52%, #35d0c7 100%);
+  box-shadow: 0 14px 34px rgba(64, 174, 224, 0.2), inset 0 1px 0 rgba(255,255,255,.28);
+  color: #071018;
+}
+
+.nf-dialog-panel--large.nf-dialog-panel--warning .nf-dialog-btn--primary:hover {
+  transform: translateY(-2px) scale(1.015);
+  box-shadow: 0 18px 42px rgba(64, 174, 224, 0.3), inset 0 1px 0 rgba(255,255,255,.32);
+}
+
+@media (max-width: 640px) {
+  .nf-dialog-panel--large.nf-dialog-panel--warning {
+    padding: 36px 22px 30px;
   }
 }

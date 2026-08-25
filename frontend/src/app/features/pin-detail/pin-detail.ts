@@ -27,14 +27,15 @@ import { DialogService } from '../../core/services/dialog';
 import { AuctionService, AuctionDetail } from '../../core/services/auction';
 import { UserService, ProfileViewerState } from '../../core/services/user';
 import { MessagingService } from '../../core/services/messaging';
-import { PayoutAccount } from '../../core/services/membership';
 import { formatVnd } from '../../core/utils/currency';
-import { buildVietQrUrl } from '../../core/utils/vietqr';
+import { NovaTokenService } from '../../core/services/novatoken';
+import { formatNovaToken, vndToNovaToken } from '../../core/utils/novatoken';
 
 /** Phải khớp chính xác với thông báo ForbiddenException của
  * PinsService.getPinById ở backend — dùng để phân biệt "cần nâng cấp gói"
  * với các lỗi tải pin khác (404, mất mạng...). */
 const UPGRADE_REQUIRED_MESSAGE = 'Chỉ thành viên Pro mới có thể xem chi tiết tác phẩm đấu giá.';
+const FIXED_PRICE_REQUIRED_MESSAGE = 'Chỉ thành viên Plus hoặc Pro mới có thể xem chi tiết tác phẩm bán giá cố định.';
 
 @Component({
   selector: 'app-pin-detail',
@@ -52,8 +53,8 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   public supabaseService = inject(SupabaseService);
   public membership = inject(MembershipService);
   public downloadMessage = signal('');
-  public pendingPurchase = signal<{ paymentReference: string; amount: string; sellerPayout: PayoutAccount | null } | null>(null);
   public downloading = signal(false);
+  public novaTokens = inject(NovaTokenService);
   public watermarkService = inject(WatermarkService);
   public selectedWatermarkPresetId = signal<string | null>(null);
   private dialogService = inject(DialogService);
@@ -82,6 +83,8 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   /** Field tham chiếu hàm thuần để template gọi trực tiếp — tránh phải bọc
    * từng chỗ dùng bằng một method component riêng. */
   public formatVnd = formatVnd;
+  public formatNovaToken = formatNovaToken;
+  public vndToNovaToken = vndToNovaToken;
 
   goToPricing(): void {
     this.router.navigate(['/pricing']);
@@ -188,20 +191,6 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     await this.loadBoards();
   }
 
-  /** QR chuyển khoản thẳng vào tài khoản NGƯỜI BÁN — không còn dùng tài
-   * khoản chung của platform. Trả null nếu chưa có sellerPayout (dữ liệu cũ
-   * hiếm gặp trước khi tính năng này bắt buộc cấu hình tài khoản). */
-  bankQrFor(purchase: { paymentReference: string; amount: string; sellerPayout: PayoutAccount | null }): string | null {
-    if (!purchase.sellerPayout) return null;
-    return buildVietQrUrl(
-      purchase.sellerPayout.bankCode,
-      purchase.sellerPayout.accountNumber,
-      Number(purchase.amount),
-      purchase.paymentReference,
-      purchase.sellerPayout.accountName,
-    );
-  }
-
   async downloadPin() {
     const p = this.pin(); if (!p || this.downloading()) return;
     this.downloadMessage.set('Đang chuẩn bị ảnh...');
@@ -209,14 +198,8 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     try {
       const isOwner = p.user?.id === this.supabaseService.user()?.id;
       if (p.isForSale && !isOwner) {
-        const purchase = await this.membership.purchase(p.id);
-        if (purchase.status !== 'PAID') {
-          this.pendingPurchase.set(purchase);
-          this.downloadMessage.set('Cần thanh toán trước khi tải ảnh gốc — quét mã bên dưới rồi bấm lại "Mua & tải" để kiểm tra.');
-          return;
-        }
+        await this.novaTokens.purchase(p.id);
       }
-      this.pendingPurchase.set(null);
       await this.fetchAndSaveDownload(p.id, p.title);
       this.downloadMessage.set('Đã tải ảnh.');
     } catch (e) {
@@ -345,19 +328,23 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       // Free user gọi thẳng URL/bookmark tới tác phẩm có giá trị — backend
       // đã chặn (ForbiddenException), đây là lớp phòng thủ cuối cùng trên
       // frontend hiển thị đúng dialog thay vì lỗi tải chung chung.
-      if (error instanceof Error && error.message === UPGRADE_REQUIRED_MESSAGE) {
-        void this.handleUpgradeRequired();
+      if (
+        error instanceof Error &&
+        (error.message === UPGRADE_REQUIRED_MESSAGE || error.message === FIXED_PRICE_REQUIRED_MESSAGE)
+      ) {
+        void this.handleUpgradeRequired(error.message);
         return;
       }
       this.loadError.set('Không thể tải tác phẩm này. Có thể đường liên kết không còn tồn tại hoặc mạng đang gặp sự cố.');
     }
   }
 
-  private async handleUpgradeRequired(): Promise<void> {
+  private async handleUpgradeRequired(message = UPGRADE_REQUIRED_MESSAGE): Promise<void> {
+    const isAuction = message === UPGRADE_REQUIRED_MESSAGE;
     const goToPricing = await this.dialogService.confirm({
       variant: 'information',
-      title: 'Cần gói Pro để xem đấu giá',
-      description: UPGRADE_REQUIRED_MESSAGE,
+      title: isAuction ? 'Cần gói Pro để xem đấu giá' : 'Khám phá tác phẩm cùng Plus',
+      description: message,
       confirmLabel: 'Xem các gói',
       cancelLabel: 'Để sau',
     });
@@ -374,15 +361,19 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
   navigateToPin(pinOrId: string | { id: string; listingType?: string }) {
     const pin = typeof pinOrId === 'string' ? null : pinOrId;
-    if (pin?.listingType === 'AUCTION' && this.myPlan() !== 'PRO') {
-      void this.handleUpgradeRequired();
+    if (pin && this.isAuctionRestricted(pin)) {
+      const message = pin.listingType === 'AUCTION' ? UPGRADE_REQUIRED_MESSAGE : FIXED_PRICE_REQUIRED_MESSAGE;
+      void this.handleUpgradeRequired(message);
       return;
     }
     this.router.navigate(['/pin', typeof pinOrId === 'string' ? pinOrId : pinOrId.id]);
   }
 
   isAuctionRestricted(pin: { listingType?: string }): boolean {
-    return pin.listingType === 'AUCTION' && this.myPlan() !== 'PRO';
+    const plan = this.myPlan();
+    if (pin.listingType === 'AUCTION') return plan !== 'PRO';
+    if (pin.listingType === 'FIXED_PRICE') return plan !== 'PLUS' && plan !== 'PRO';
+    return false;
   }
 
   /** Receives real CLIP matches from the region selector and swaps only the
@@ -764,20 +755,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   }
 
   minAcceptableBidLabel(): string {
-    return formatVnd(this.minAcceptableBid());
-  }
-
-  /** QR chuyển khoản cho người bán khi đã thắng đấu giá — null nếu người
-   * bán chưa cấu hình tài khoản nhận tiền (hiếm, dữ liệu cũ). */
-  auctionPaymentQr(mp: NonNullable<AuctionDetail['myPurchase']>): string | null {
-    if (!mp.sellerPayout) return null;
-    return buildVietQrUrl(
-      mp.sellerPayout.bankCode,
-      mp.sellerPayout.accountNumber,
-      Number(mp.amount),
-      mp.paymentReference ?? '',
-      mp.sellerPayout.accountName,
-    );
+    return formatNovaToken(vndToNovaToken(this.minAcceptableBid()));
   }
 
   isAuctionOwner(): boolean {
@@ -801,20 +779,20 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     this.bidSuccessMessage.set(null);
 
     const amount = this.bidAmount;
-    const min = this.minAcceptableBid();
-    if (!amount || !Number.isInteger(amount) || amount < min) {
-      this.bidError.set(`Giá đặt phải là số nguyên VND, tối thiểu ${formatVnd(min)}.`);
+    const minTokens = vndToNovaToken(this.minAcceptableBid());
+    if (!amount || !Number.isInteger(amount) || amount < minTokens) {
+      this.bidError.set(`Giá đặt phải là số NovaToken nguyên, tối thiểu ${formatNovaToken(minTokens)}.`);
       return;
     }
 
     this.bidSubmitting.set(true);
     try {
       const requestKey = crypto.randomUUID();
-      const updated = await this.auctionService.placeBid(a.id, amount, requestKey);
+      const updated = await this.auctionService.placeBid(a.id, amount * 1000, requestKey);
       this.auction.set(updated);
       this.applyServerTimeOffset(updated.serverNow);
       this.bidAmount = null;
-      this.bidSuccessMessage.set('Đặt giá thành công.');
+      this.bidSuccessMessage.set(`${formatNovaToken(amount)} đã được giữ an toàn cho lượt đặt giá.`);
       this.scheduleAuctionPolling();
     } catch (e) {
       this.bidError.set(e instanceof Error ? e.message : 'Không thể đặt giá lúc này. Vui lòng thử lại.');

@@ -13,6 +13,7 @@ import { ToastService } from '../../core/services/toast';
 import { MembershipService } from '../../core/services/membership';
 import { DialogService } from '../../core/services/dialog';
 import { formatVnd } from '../../core/utils/currency';
+import { formatNovaToken, vndToNovaToken } from '../../core/utils/novatoken';
 
 /** Vietnamese labels for the category codes the backend's auto-classifier
  * assigns (see PinsService.classifyCategory) — chips are only ever built
@@ -475,50 +476,54 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   /** Text hiển thị trong badge vương miện — '' nếu pin không phải tác phẩm
    * có giá trị (template ẩn badge hoàn toàn trong trường hợp đó). */
   valueBadgeText(pin: any): string {
-    if (pin.listingType === 'FIXED_PRICE') return formatVnd(pin.price);
+    if (pin.listingType === 'FIXED_PRICE') return formatNovaToken(vndToNovaToken(pin.price));
     if (pin.listingType === 'AUCTION' && pin.auction) {
       const a = pin.auction;
       if (a.status === 'SCHEDULED') return 'Sắp diễn ra';
       if (a.status === 'ENDED' || a.status === 'CANCELLED') return 'Đã kết thúc';
-      return `Giá hiện tại · ${formatVnd(a.currentPrice)}`;
+      return `Giá hiện tại · ${formatNovaToken(vndToNovaToken(a.currentPrice))}`;
     }
     return '';
   }
 
   valueBadgeAriaLabel(pin: any): string {
-    if (pin.listingType === 'FIXED_PRICE') return `Tác phẩm bán giá cố định, giá ${formatVnd(pin.price)}`;
+    if (pin.listingType === 'FIXED_PRICE') return `Tác phẩm bán giá cố định, giá ${formatNovaToken(vndToNovaToken(pin.price))}`;
     if (pin.listingType === 'AUCTION' && pin.auction) {
       const a = pin.auction;
       if (a.status === 'SCHEDULED') return 'Tác phẩm đấu giá, phiên sắp diễn ra';
       if (a.status === 'ENDED' || a.status === 'CANCELLED') return 'Tác phẩm đấu giá, phiên đã kết thúc';
-      return `Tác phẩm đấu giá, giá hiện tại ${formatVnd(a.currentPrice)}`;
+      return `Tác phẩm đấu giá, giá hiện tại ${formatNovaToken(vndToNovaToken(a.currentPrice))}`;
     }
     return '';
   }
 
-  /** Chỉ khóa tác phẩm đấu giá cho người xem không có gói Pro. Ảnh bán giá
-   * cố định và ảnh thường luôn mở được với mọi gói.
+  /** Giá cố định yêu cầu Plus/Pro; đấu giá yêu cầu Pro.
    * Đây chỉ là lớp UX; backend (GET /api/pins/:id) là lớp chặn thật. */
   private requiresUpgradeToOpen(pin: any): boolean {
-    if (pin.listingType !== 'AUCTION') return false;
+    if (pin.listingType !== 'AUCTION' && pin.listingType !== 'FIXED_PRICE') return false;
     const currentUserId = this.supabaseService.user()?.id;
     if (currentUserId && pin.ownerId && currentUserId === pin.ownerId) return false;
     // Navbar loads MembershipService asynchronously. During that short gap,
     // use the already-synced database user plan so a paid member is not shown
     // a false upgrade dialog just because they clicked quickly after routing.
     const plan = this.membership.status()?.plan ?? this.supabaseService.dbUser()?.plan;
-    return plan !== 'PRO';
+    return pin.listingType === 'AUCTION'
+      ? plan !== 'PRO'
+      : plan !== 'PLUS' && plan !== 'PRO';
   }
 
   isAuctionRestricted(pin: any): boolean {
     return this.requiresUpgradeToOpen(pin);
   }
 
-  private async showUpgradeDialog(): Promise<void> {
+  private async showUpgradeDialog(pin: any): Promise<void> {
+    const isAuction = pin.listingType === 'AUCTION';
     const goToPricing = await this.dialogService.confirm({
       variant: 'information',
-      title: 'Cần gói Pro để xem đấu giá',
-      description: 'Ảnh và trang chi tiết của tác phẩm đấu giá chỉ dành cho thành viên Pro.',
+      title: isAuction ? 'Cần gói Pro để xem đấu giá' : 'Khám phá tác phẩm cùng Plus',
+      description: isAuction
+        ? 'Ảnh và trang chi tiết của tác phẩm đấu giá chỉ dành cho thành viên Pro.'
+        : 'Nâng cấp Plus hoặc Pro để xem rõ và mở chi tiết tác phẩm bán giá cố định.',
       confirmLabel: 'Xem các gói',
       cancelLabel: 'Để sau',
     });
@@ -527,7 +532,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
 
   navigateToPin(pin: any) {
     if (this.requiresUpgradeToOpen(pin)) {
-      void this.showUpgradeDialog();
+      void this.showUpgradeDialog(pin);
       return;
     }
     this.router.navigate(['/pin', pin.id]);

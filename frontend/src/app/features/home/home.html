@@ -273,7 +273,9 @@
 
                     @if (isAuctionRestricted(pin)) {
                       <div class="absolute inset-0 z-10 flex items-center justify-center bg-bg/20 pointer-events-none">
-                        <span class="px-3 py-2 rounded-control bg-surface-high/95 border border-border-strong text-text text-xs font-bold shadow-card">Chỉ dành cho Pro</span>
+                        <span class="px-3 py-2 rounded-control bg-surface-high/95 border border-border-strong text-text text-xs font-bold shadow-card">
+                          {{ pin.listingType === 'AUCTION' ? 'Chỉ dành cho Pro' : 'Dành cho Plus & Pro' }}
+                        </span>
                       </div>
                     }
 

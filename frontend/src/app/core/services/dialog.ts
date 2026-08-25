@@ -4,6 +4,7 @@ export type DialogVariant = 'confirm' | 'warning' | 'destructive' | 'information
 
 export interface DialogOptions {
   variant: DialogVariant;
+  size?: 'default' | 'large';
   title: string;
   description?: string;
   /** Nội dung nút chính phải là hành động rõ ràng, ví dụ "Xóa bộ sưu tập" —

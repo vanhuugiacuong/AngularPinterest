@@ -539,14 +539,17 @@ export class PinsService {
     const auction = auctionMap.get(pin.id);
     const isOwner = viewerId === pin.userId;
 
-    // Chỉ tác phẩm đấu giá mới giới hạn phần chi tiết cho thành viên Pro.
-    // Ảnh bán giá cố định vẫn công khai cho mọi gói. Dùng status() (tự
+    // Đấu giá chỉ dành cho Pro; ảnh giá cố định dành cho Plus/Pro. Dùng
+    // status() (tự
     // áp dụng lazy-expiry) thay vì đọc User.plan thô để gói đã hết hạn không
     // còn được ưu tiên. Đây là lớp chặn thật ở backend — frontend chỉ là UX.
-    if (auction && !isOwner) {
+    if ((auction || pin.isForSale) && !isOwner) {
       const viewerPlan = viewerId ? (await this.membershipsService.status(viewerId)).plan : 'FREE';
-      if (viewerPlan !== 'PRO') {
+      if (auction && viewerPlan !== 'PRO') {
         throw new ForbiddenException('Chỉ thành viên Pro mới có thể xem chi tiết tác phẩm đấu giá.');
+      }
+      if (!auction && viewerPlan !== 'PLUS' && viewerPlan !== 'PRO') {
+        throw new ForbiddenException('Chỉ thành viên Plus hoặc Pro mới có thể xem chi tiết tác phẩm bán giá cố định.');
       }
     }
 

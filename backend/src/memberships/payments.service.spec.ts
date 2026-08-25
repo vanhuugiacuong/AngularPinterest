@@ -5,7 +5,7 @@ describe('PaymentsService webhook signature', () => {
   const prisma = {};
   const memberships = {};
   const notifications = { createNotification: jest.fn() };
-  const service = new PaymentsService(prisma as never, memberships as never, notifications as never);
+  const service = new PaymentsService(prisma as never, memberships as never, notifications as never, {} as never);
   const originalEnv = process.env.SEPAY_WEBHOOK_API_KEY;
 
   afterEach(() => {
@@ -32,15 +32,17 @@ describe('PaymentsService.handleSepayWebhook', () => {
   const prisma = {
     membershipPayment: { findFirst: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn() },
     imagePurchase: { findFirst: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn() },
+    novaTokenTopUp: { findFirst: jest.fn() },
     auditLog: { create: jest.fn() },
   };
   const memberships = { activatePlan: jest.fn() };
   const notifications = { createNotification: jest.fn() };
-  const service = new PaymentsService(prisma as never, memberships as never, notifications as never);
+  const service = new PaymentsService(prisma as never, memberships as never, notifications as never, {} as never);
 
   beforeEach(() => {
     jest.clearAllMocks();
     prisma.imagePurchase.findFirst.mockResolvedValue(null);
+    prisma.novaTokenTopUp.findFirst.mockResolvedValue(null);
   });
 
   it('is idempotent: a webhook replay with the same providerTransactionId is skipped, not double-processed', async () => {

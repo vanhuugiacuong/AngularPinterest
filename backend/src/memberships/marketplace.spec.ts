@@ -30,9 +30,11 @@ describe('MembershipsService.purchase (marketplace gating)', () => {
     expect(prisma.imagePurchase.create).not.toHaveBeenCalled();
   });
 
-  it('rejects buying when the seller is no longer PRO (downgraded) - listing should be suspended', async () => {
+  it('rejects buying when the seller no longer has a selling plan', async () => {
     prisma.pin.findUnique.mockResolvedValue({ id: 'pin-1', userId: 'seller-1', isForSale: true, price: 50000 });
-    prisma.user.findUnique.mockResolvedValue({ plan: 'PLUS' }); // seller downgraded
+    prisma.user.findUnique
+      .mockResolvedValueOnce({ plan: 'PLUS', planExpiresAt: null })
+      .mockResolvedValueOnce({ plan: 'FREE', planExpiresAt: null });
     await expect(service.purchase('buyer-1', 'pin-1')).rejects.toThrow(ForbiddenException);
   });
 
@@ -91,15 +93,17 @@ describe('PaymentsService pin-purchase webhook confirmation', () => {
   const prisma = {
     membershipPayment: { findFirst: jest.fn() },
     imagePurchase: { findFirst: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn() },
+    novaTokenTopUp: { findFirst: jest.fn() },
     auditLog: { create: jest.fn() },
   };
   const memberships = { activatePlan: jest.fn() };
   const notifications = { createNotification: jest.fn() };
-  const service = new PaymentsService(prisma as never, memberships as never, notifications as never);
+  const service = new PaymentsService(prisma as never, memberships as never, notifications as never, {} as never);
 
   beforeEach(() => {
     jest.clearAllMocks();
     prisma.membershipPayment.findFirst.mockResolvedValue(null);
+    prisma.novaTokenTopUp.findFirst.mockResolvedValue(null);
   });
 
   it('confirms a pin purchase (BUY... reference) without touching membership plan activation', async () => {
@@ -150,7 +154,7 @@ describe('PaymentsService.sellerConfirmPurchase (thanh toán trực tiếp cho n
   };
   const memberships = { activatePlan: jest.fn() };
   const notifications = { createNotification: jest.fn() };
-  const service = new PaymentsService(prisma as never, memberships as never, notifications as never);
+  const service = new PaymentsService(prisma as never, memberships as never, notifications as never, {} as never);
 
   beforeEach(() => jest.clearAllMocks());
 

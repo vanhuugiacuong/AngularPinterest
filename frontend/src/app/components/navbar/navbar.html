@@ -251,6 +251,15 @@
   <div class="flex items-center gap-3 shrink-0">
     <button
       *ngIf="supabaseService.user()"
+      (click)="navigateToNovaToken()"
+      class="hidden sm:flex h-10 items-center gap-2 px-3 rounded-full border border-accent/35 bg-surface-elevated hover:bg-surface-high text-text font-bold text-xs cursor-pointer transition-all"
+      aria-label="Mở ví NovaToken"
+    >
+      <img src="/assets/novatoken/novatoken-coin.png" alt="" class="w-6 h-6 object-contain" />
+      <span>{{ (novaTokens.wallet()?.balance || '0') | number:'1.0-0' }} NT</span>
+    </button>
+    <button
+      *ngIf="supabaseService.user()"
       (click)="navigateToPricing()"
       class="hidden sm:flex h-10 items-center gap-2 px-4 rounded-full border border-accent/35 bg-accent/10 hover:bg-accent/20 text-accent font-bold text-xs cursor-pointer transition-all shadow-[0_0_24px_rgba(157,99,255,.12)]"
       aria-label="Xem các gói thành viên"
@@ -282,16 +291,16 @@
       <div
         *ngIf="showProfilePopup()"
         role="menu"
-        class="bg-surface-elevated border border-border absolute right-0 top-12 mt-2 w-80 max-w-[calc(100vw-24px)] rounded-panel shadow-card p-4 flex flex-col gap-3.5 z-50 animate-fade-in text-left"
+        class="account-menu absolute right-0 top-12 mt-2 z-50 animate-fade-in text-left"
       >
         <!-- Header: Đang đăng nhập -->
-        <span class="text-xs font-semibold text-text-muted px-2 select-none">
+        <span class="account-menu-eyebrow select-none">
           Đang đăng nhập
         </span>
 
         <!-- User Card -->
-        <div class="flex items-center gap-3.5 select-none">
-          <app-user-avatar [src]="avatarUrl()" [name]="displayName()" [size]="56" [plan]="myPlan()"></app-user-avatar>
+        <div class="account-menu-user select-none">
+          <app-user-avatar [src]="avatarUrl()" [name]="displayName()" [size]="50" [plan]="myPlan()"></app-user-avatar>
           <div class="flex-1 min-w-0 flex flex-col justify-center">
             <!-- Full Name -->
             <span class="text-[15px] font-extrabold text-text truncate leading-tight font-display">
@@ -305,7 +314,7 @@
         </div>
 
         <!-- Section: Tài khoản của bạn -->
-        <span class="text-xs font-semibold text-text-muted px-2 select-none">
+        <span class="account-menu-section select-none">
           Tài khoản của bạn
         </span>
 
@@ -314,9 +323,9 @@
           type="button"
           role="menuitem"
           (click)="navigateToMyProfile()"
-          class="w-full text-left font-bold text-base text-text hover:bg-surface-elevated px-4 py-2 rounded-control transition-colors duration-200 cursor-pointer border-none outline-none select-none focus-visible:ring-2 focus-visible:ring-accent"
+          class="account-menu-item"
         >
-          Trang cá nhân
+          <span class="material-symbols-outlined">person</span><span>Trang cá nhân</span><i class="material-symbols-outlined">chevron_right</i>
         </button>
 
         <!-- Settings Option -->
@@ -324,9 +333,9 @@
           type="button"
           role="menuitem"
           (click)="navigateToSettings()"
-          class="w-full text-left font-bold text-base text-text hover:bg-surface-elevated px-4 py-2 rounded-control transition-colors duration-200 cursor-pointer border-none outline-none select-none focus-visible:ring-2 focus-visible:ring-accent"
+          class="account-menu-item"
         >
-          Cài đặt
+          <span class="material-symbols-outlined">settings</span><span>Cài đặt</span><i class="material-symbols-outlined">chevron_right</i>
         </button>
 
         <!-- Quick theme switch — mobile only; sm: and up already has it in
@@ -343,18 +352,26 @@
         <button
           type="button"
           role="menuitem"
+          (click)="navigateToNovaToken()"
+          class="account-menu-item account-menu-wallet"
+        ><img src="/assets/novatoken/novatoken-coin.png" alt="" /><span><b>Ví NovaToken</b><small>{{ (novaTokens.wallet()?.balance || '0') | number:'1.0-0' }} NT khả dụng</small></span><i class="material-symbols-outlined">chevron_right</i></button>
+
+        <!-- Pricing Option -->
+        <button
+          type="button"
+          role="menuitem"
           (click)="navigateToPricing()"
-          class="w-full text-left font-bold text-base text-accent hover:bg-surface-elevated px-4 py-2 rounded-control transition-colors duration-200 cursor-pointer border-none outline-none select-none focus-visible:ring-2 focus-visible:ring-accent"
-        >Gói thành viên</button>
+          class="account-menu-item account-menu-membership"
+        ><span class="material-symbols-outlined">diamond</span><span>Gói thành viên</span><em>{{ myPlan() || 'FREE' }}</em><i class="material-symbols-outlined">chevron_right</i></button>
 
         <!-- Sign Out Option -->
         <button
           type="button"
           role="menuitem"
           (click)="signOut()"
-          class="w-full text-left font-bold text-base text-error hover:bg-surface-elevated px-4 py-2 rounded-control transition-colors duration-200 cursor-pointer border-none outline-none select-none focus-visible:ring-2 focus-visible:ring-accent"
+          class="account-menu-item account-menu-signout"
         >
-          Đăng xuất
+          <span class="material-symbols-outlined">logout</span><span>Đăng xuất</span>
         </button>
       </div>
     </div>

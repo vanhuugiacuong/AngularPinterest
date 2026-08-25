@@ -285,18 +285,18 @@ describe('PinDetail — form đặt giá đấu giá (validation, không optimis
   });
 
   it('rejects a bid below the starting price without calling the backend (client-side pre-validation)', async () => {
-    component.bidAmount = 500_000;
+    component.bidAmount = 500;
 
     await component.submitBid();
 
     expect(auctionService.placeBid).not.toHaveBeenCalled();
-    expect(component.bidError()).toContain('1.000.000');
+    expect(component.bidError()).toContain('1.000 NT');
   });
 
   it('disables further submits while a bid is in flight', async () => {
     let resolveBid: (value: any) => void = () => {};
     auctionService.placeBid.mockReturnValue(new Promise((resolve) => (resolveBid = resolve)));
-    component.bidAmount = 1_000_000;
+    component.bidAmount = 1_000;
 
     const submitPromise = component.submitBid();
     expect(component.bidSubmitting()).toBe(true);
@@ -308,7 +308,7 @@ describe('PinDetail — form đặt giá đấu giá (validation, không optimis
   });
 
   it('updates currentPrice only from the real backend response — never optimistically before the call resolves', async () => {
-    component.bidAmount = 1_000_000;
+    component.bidAmount = 1_000;
     auctionService.placeBid.mockResolvedValue({
       ...component.auction(),
       currentPrice: '1100000',
@@ -328,7 +328,7 @@ describe('PinDetail — form đặt giá đấu giá (validation, không optimis
   });
 
   it('shows a friendly error and does not crash when the backend rejects the bid (e.g. optimistic-lock conflict)', async () => {
-    component.bidAmount = 1_100_000;
+    component.bidAmount = 1_100;
     auctionService.placeBid.mockRejectedValue(new Error('Đã có người đặt giá khác, vui lòng thử lại.'));
 
     await component.submitBid();
