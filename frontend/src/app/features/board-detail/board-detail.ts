@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
+import { Switch } from '../../shared/switch/switch';
 import { Board, BoardService } from '../../core/services/board';
 import { SupabaseService } from '../../core/services/supabase';
 import { toUserMessage } from '../../core/utils/http-error';
@@ -19,7 +20,7 @@ type LoadErrorKind = 'not-found' | 'auth' | 'network' | null;
 @Component({
   selector: 'app-board-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, Navbar],
+  imports: [CommonModule, FormsModule, Navbar, Switch],
   templateUrl: './board-detail.html',
   styleUrl: './board-detail.css',
 })

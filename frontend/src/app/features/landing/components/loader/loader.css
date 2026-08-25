@@ -1,10 +1,10 @@
 :host {
   --nf-paper: var(--color-bg, #f7f7f2);
   --nf-ink: var(--color-text, #111111);
-  --nf-electric: var(--color-nova-blue, #1a2ef5);
-  --nf-blue: var(--color-nova-blue, #2454ff);
-  --nf-purple: var(--color-iris-violet, #7c3cff);
-  --nf-cyan: var(--color-studio-aqua, #00cfe8);
+  --nf-electric: var(--color-nova-blue, #6987ff);
+  --nf-blue: var(--color-nova-blue, #6987ff);
+  --nf-purple: var(--color-iris-violet, #9475ff);
+  --nf-cyan: var(--color-studio-aqua, #31c7c2);
   display: contents;
 }
 

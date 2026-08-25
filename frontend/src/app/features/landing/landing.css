@@ -446,9 +446,10 @@
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
+  font-weight: 700;
   font-size: 12px;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-faint);
   opacity: calc(1 - var(--p) * 3);
@@ -574,9 +575,10 @@
 }
 
 .nf-gallery__meta {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
+  font-weight: 700;
   font-size: 12px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-faint);
 }
@@ -735,9 +737,10 @@
   z-index: 4;
   padding: 7px 14px;
   border-radius: 999px;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
+  font-weight: 700;
   font-size: 12px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--ink);
   background: color-mix(in srgb, var(--paper-lift) 86%, transparent);
@@ -985,9 +988,10 @@
 
 .nf-foot__tag,
 .nf-foot__copy {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
+  font-weight: 600;
   font-size: 12px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--ink-faint);
 }

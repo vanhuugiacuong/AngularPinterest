@@ -1,1 +1,16 @@
-.card-form label.has-error{color:var(--color-error)}.card-form label.has-error input{border-color:var(--color-error);background:color-mix(in srgb,var(--color-error) 12%,var(--color-bg));box-shadow:0 0 0 3px color-mix(in srgb,var(--color-error) 15%,transparent)}.card-form label small{color:var(--color-error);font-size:10px;font-weight:600}.payment-message.is-error{color:var(--color-error)}
+.card-form label.has-error {
+  color: var(--color-error);
+}
+.card-form label.has-error input {
+  border-color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 12%, var(--color-bg));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-error) 15%, transparent);
+}
+.card-form label small {
+  color: var(--color-error);
+  font-size: 10px;
+  font-weight: 600;
+}
+.payment-message.is-error {
+  color: var(--color-error);
+}

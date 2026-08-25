@@ -63,23 +63,12 @@
               Hiển thị nút bật/tắt giao diện tối ngay trên thanh điều hướng, không cần vào Cài đặt.
             </span>
           </div>
-          <button
-            type="button"
-            role="switch"
-            data-testid="quick-toggle-switch"
-            aria-labelledby="nf-quick-toggle-label"
-            [attr.aria-checked]="theme.showQuickToggle()"
-            (click)="toggleQuickToggle()"
-            [class.bg-gradient-brand]="theme.showQuickToggle()"
-            [class.bg-surface-elevated]="!theme.showQuickToggle()"
-            class="w-11 h-6 rounded-full relative border border-border-strong cursor-pointer transition-colors duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          >
-            <span
-              class="absolute top-0.5 h-4 w-4 rounded-full bg-text transition-all duration-200"
-              [class.left-[22px]]="theme.showQuickToggle()"
-              [class.left-0.5]="!theme.showQuickToggle()"
-            ></span>
-          </button>
+          <app-switch
+            [checked]="theme.showQuickToggle()"
+            [ariaLabelledby]="'nf-quick-toggle-label'"
+            [testId]="'quick-toggle-switch'"
+            (toggled)="toggleQuickToggle()"
+          ></app-switch>
         </div>
       </section>
 
@@ -102,24 +91,13 @@
               }
             </span>
           </div>
-          <button
-            type="button"
-            role="switch"
-            data-testid="privacy-toggle-switch"
-            aria-labelledby="nf-privacy-toggle-label"
-            [attr.aria-checked]="isPrivateAccount()"
+          <app-switch
+            [checked]="isPrivateAccount()"
+            [ariaLabelledby]="'nf-privacy-toggle-label'"
+            [testId]="'privacy-toggle-switch'"
             [disabled]="privacyPending()"
-            (click)="togglePrivacy()"
-            [class.bg-gradient-brand]="isPrivateAccount()"
-            [class.bg-surface-elevated]="!isPrivateAccount()"
-            class="w-11 h-6 rounded-full relative border border-border-strong cursor-pointer transition-colors duration-200 shrink-0 disabled:opacity-60 disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          >
-            <span
-              class="absolute top-0.5 h-4 w-4 rounded-full bg-text transition-all duration-200"
-              [class.left-[22px]]="isPrivateAccount()"
-              [class.left-0.5]="!isPrivateAccount()"
-            ></span>
-          </button>
+            (toggled)="togglePrivacy()"
+          ></app-switch>
         </div>
 
         @if (privacyPending()) {
@@ -129,7 +107,6 @@
           <p class="text-xs text-error mt-4" role="alert">{{ privacyError() }}</p>
         }
       </section>
-
       <section aria-labelledby="nf-payout-heading" class="bg-surface border border-border rounded-panel p-5 sm:p-6 mt-6">
         <h2 id="nf-payout-heading" class="text-lg font-bold text-text font-display">Thông tin nhận thanh toán</h2>
         <p class="text-sm text-text-muted mt-1 mb-5">
@@ -207,6 +184,42 @@
             {{ payoutSaving() ? 'Đang lưu...' : 'Lưu thông tin nhận thanh toán' }}
           </button>
         </div>
+      </section>
+
+      <section aria-labelledby="nf-privacy-heading" class="bg-surface border border-border rounded-panel p-5 sm:p-6 mt-6">
+        <h2 id="nf-privacy-heading" class="text-lg font-bold text-text font-display">Quyền riêng tư tài khoản</h2>
+        <p class="text-sm text-text-muted mt-1 mb-5">
+          Tài khoản riêng tư chỉ hiển thị tác phẩm và bộ sưu tập công khai cho người bạn đã chấp nhận theo dõi.
+        </p>
+
+        <div class="flex items-center justify-between gap-4 pt-1">
+          <div class="flex flex-col gap-0.5">
+            <span id="nf-privacy-toggle-label" class="text-sm font-bold text-text">
+              {{ isPrivateAccount() ? 'Riêng tư' : 'Công khai' }}
+            </span>
+            <span class="text-xs text-text-muted leading-relaxed">
+              @if (isPrivateAccount()) {
+                Chỉ người theo dõi được bạn chấp nhận mới xem được tác phẩm của bạn.
+              } @else {
+                Bất kỳ ai trên NovaFrame đều có thể xem tác phẩm của bạn.
+              }
+            </span>
+          </div>
+          <app-switch
+            [checked]="isPrivateAccount()"
+            [disabled]="privacyPending()"
+            [ariaLabelledby]="'nf-privacy-toggle-label'"
+            [testId]="'privacy-toggle-switch'"
+            (toggled)="togglePrivacy()"
+          ></app-switch>
+        </div>
+
+        @if (privacyPending()) {
+          <p class="mono-label text-xs text-text-muted mt-4" aria-live="polite">Đang lưu...</p>
+        }
+        @if (privacyError()) {
+          <p class="text-xs text-error mt-4" role="alert">{{ privacyError() }}</p>
+        }
       </section>
 
       <section aria-labelledby="nf-watermark-heading" class="bg-surface border border-border rounded-panel p-5 sm:p-6 mt-6">

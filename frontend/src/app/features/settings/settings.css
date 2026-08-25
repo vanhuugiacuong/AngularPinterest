@@ -40,21 +40,21 @@
 }
 
 .nf-theme-preview--dark .nf-theme-preview__surface {
-  background: #090d18;
+  background: #070910;
 }
 .nf-theme-preview--dark .nf-theme-preview__accent {
-  background: #4f6ef7;
+  background: #6987ff;
 }
 .nf-theme-preview--dark .nf-theme-preview__text {
-  color: #f7f9fc;
+  color: #f3f6fb;
 }
 
 .nf-theme-preview--system .nf-theme-preview__surface {
-  background: linear-gradient(135deg, #f4f6fb 0%, #f4f6fb 48%, #090d18 52%, #090d18 100%);
+  background: linear-gradient(135deg, #f4f6fb 0%, #f4f6fb 48%, #070910 52%, #070910 100%);
 }
 .nf-theme-preview--system .nf-theme-preview__accent {
-  background: linear-gradient(135deg, #3659d9 0%, #4f6ef7 100%);
+  background: linear-gradient(135deg, #3659d9 0%, #6987ff 100%);
 }
 .nf-theme-preview--system .nf-theme-preview__text {
-  color: #f7f9fc;
+  color: #f3f6fb;
 }

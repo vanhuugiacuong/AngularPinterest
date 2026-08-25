@@ -92,11 +92,11 @@
             </label>
             <div class="flex items-center justify-between gap-3">
               <span class="text-xs font-bold text-text">Riêng tư (chỉ mình bạn)</span>
-              <button type="button" role="switch" [attr.aria-checked]="editIsSecret" (click)="editIsSecret = !editIsSecret"
-                [class.bg-gradient-brand]="editIsSecret" [class.bg-surface-elevated]="!editIsSecret"
-                class="w-11 h-6 rounded-full relative border border-border-strong cursor-pointer shrink-0">
-                <span class="absolute top-0.5 h-4 w-4 rounded-full bg-text transition-all duration-200" [class.left-[22px]]="editIsSecret" [class.left-0.5]="!editIsSecret"></span>
-              </button>
+              <app-switch
+                [checked]="editIsSecret"
+                [ariaLabel]="'Riêng tư (chỉ mình bạn)'"
+                (toggled)="editIsSecret = !editIsSecret"
+              ></app-switch>
             </div>
             <p *ngIf="editError()" class="text-xs text-error">{{ editError() }}</p>
             <div class="flex gap-2">

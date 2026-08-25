@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
+import { Switch } from '../../shared/switch/switch';
 import { ThemeService, ThemePreference } from '../../core/services/theme';
 import { MembershipService } from '../../core/services/membership';
 import { SupabaseService } from '../../core/services/supabase';
@@ -31,7 +32,7 @@ const POSITIONS: { value: WatermarkPosition; label: string }[] = [
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, Navbar],
+  imports: [CommonModule, FormsModule, RouterLink, Navbar, Switch],
   templateUrl: './settings.html',
   styleUrl: './settings.css',
 })
@@ -51,9 +52,6 @@ export class Settings implements OnInit {
   protected readonly positions = POSITIONS;
   protected readonly supportedBanks = SUPPORTED_BANKS;
   protected membershipLoading = signal(true);
-  protected privacyPending = signal(false);
-  protected privacyError = signal('');
-
   // --- Thông tin nhận thanh toán (người bán) ---
   protected payoutBankCode = '';
   protected payoutAccountNumber = '';
@@ -62,6 +60,9 @@ export class Settings implements OnInit {
   protected payoutSaving = signal(false);
   protected payoutError = signal('');
   protected payoutSaved = signal(false);
+
+  protected privacyPending = signal(false);
+  protected privacyError = signal('');
   protected previewPinId = signal<string | null>(null);
   protected previewUrl = signal<string | null>(null);
   protected previewLoading = signal(false);

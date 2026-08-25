@@ -5,7 +5,7 @@ import { Navbar } from '../../components/navbar/navbar';
 import { MembershipPlan, MembershipPayment, MembershipService } from '../../core/services/membership';
 import { DialogService } from '../../core/services/dialog';
 type PaidPlan = 'PLUS' | 'PRO'; type PaymentMethod = 'bank' | 'momo' | 'card';
-@Component({ selector: 'app-pricing', standalone: true, imports: [CommonModule, FormsModule, Navbar], templateUrl: './pricing.html', styleUrls: ['./pricing.css', './payment-feedback.css', './qr-fix.css'] })
+@Component({ selector: 'app-pricing', standalone: true, imports: [CommonModule, FormsModule, Navbar], templateUrl: './pricing.html', styleUrls: ['./pricing.css', './payment-feedback.css'] })
 export class Pricing implements OnInit {
   membership = inject(MembershipService); private dialogService = inject(DialogService); selectedPlan = signal<PaidPlan | null>(null); method = signal<PaymentMethod>('bank'); processing = signal(false); message = signal('');
   fieldErrors = signal<Record<string, string>>({});

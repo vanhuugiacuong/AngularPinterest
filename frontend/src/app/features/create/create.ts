@@ -11,9 +11,10 @@ import { PublishDialogStatus, PublishProgressDialog } from './publish-progress-d
 import { MembershipService } from '../../core/services/membership';
 import { CollageTransferService } from '../collage/services/collage-transfer.service';
 import { DialogService } from '../../core/services/dialog';
-import { toUserMessage } from '../../core/utils/http-error';
+
 import { AuctionService } from '../../core/services/auction';
 import { ToastService } from '../../core/services/toast';
+import { toUserMessage } from '../../core/utils/http-error';
 
 /** Hình thức bán chọn ở Create Studio — 'none' không gửi price/auction nào,
  * 'fixed' giữ nguyên luồng price hiện có, 'auction' tạo phiên đấu giá sau
