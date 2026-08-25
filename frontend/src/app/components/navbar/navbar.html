@@ -19,11 +19,11 @@
        (it already has its own "Tìm kiếm ý tưởng để ghép" search) -->
   <div *ngIf="supabaseService.user() && !isCollagePage()" class="relative flex-1 mx-4">
     <div
-      class="flex items-center gap-2 px-4 h-11 bg-[#e9e9e9] dark:bg-[#3a3a3a] rounded-full text-[#62625b] dark:text-[#a0a0a0] border border-transparent hover:border-[#dadad3] dark:hover:border-[#444] transition-colors"
-      [class.!rounded-b-none]="showSearchDropdown()"
+      class="relative z-50 flex items-center gap-2 px-4 h-11 bg-[#e9e9e9] dark:bg-[#3a3a3a] text-[#62625b] dark:text-[#a0a0a0] border border-transparent hover:border-[#dadad3] dark:hover:border-[#444] transition-colors"
     >
       <span class="material-symbols-outlined text-xl">search</span>
       <input
+        #searchInputEl
         type="text"
         [value]="searchQuery()"
         [placeholder]="isProfilePage() ? 'Tìm kiếm Ghim của bạn' : 'Tìm kiếm'"
@@ -33,6 +33,16 @@
         (input)="onSearchInput($event)"
         (keyup.enter)="onSearchSubmit($event)"
       />
+      <!-- Clear search -->
+      <button
+        *ngIf="searchQuery().trim()"
+        type="button"
+        (click)="clearSearchInput($event)"
+        title="Xóa"
+        class="shrink-0 w-6 h-6 flex items-center justify-center border-none bg-transparent outline-none cursor-pointer text-[#62625b] dark:text-[#a0a0a0] hover:text-black dark:hover:text-white"
+      >
+        <span class="material-symbols-outlined text-xl leading-none">close</span>
+      </button>
       <!-- Camera Search Icon -->
       <span
         class="material-symbols-outlined text-xl text-[#62625b] dark:text-[#a0a0a0] hover:text-black dark:hover:text-white cursor-pointer select-none"
@@ -41,6 +51,14 @@
         photo_camera
       </span>
     </div>
+
+    <!-- Dims the rest of the page while the suggestions are open, like Pinterest's own
+         search does — makes the dropdown read as "in focus" instead of just floating -->
+    <div
+      *ngIf="showSearchDropdown()"
+      class="fixed inset-0 bg-black/40 z-[45]"
+      (click)="closeSearchDropdown()"
+    ></div>
 
     <!-- Search suggestions dropdown -->
     <div
@@ -61,7 +79,7 @@
         <div
           *ngFor="let u of userSuggestions()"
           class="flex items-center gap-3 px-5 py-2.5 hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] cursor-pointer"
-          (click)="goToUserProfile(u.username)"
+          (click)="goToUserProfile(u)"
         >
           <img *ngIf="u.avatarUrl" [src]="u.avatarUrl" class="w-8 h-8 rounded-full object-cover shrink-0" />
           <span *ngIf="!u.avatarUrl" class="w-8 h-8 rounded-full bg-[#e9e9e5] dark:bg-[#333] flex items-center justify-center shrink-0">
@@ -82,20 +100,20 @@
         <div class="grid grid-cols-4 gap-2">
           <div
             *ngFor="let s of recentSearches()"
-            class="group relative flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] cursor-pointer"
+            class="group relative flex items-center gap-3 p-2 rounded-2xl hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] cursor-pointer"
             (click)="goToSearch(s.query)"
           >
-            <img *ngIf="s.thumbnail" [src]="s.thumbnail" class="w-9 h-9 rounded-full object-cover shrink-0" />
-            <span *ngIf="!s.thumbnail" class="w-9 h-9 rounded-full bg-[#e9e9e5] dark:bg-[#333] flex items-center justify-center shrink-0">
-              <span class="material-symbols-outlined text-[18px] text-[#767672] dark:text-[#999]">history</span>
+            <img *ngIf="s.thumbnail" [src]="s.thumbnail" class="w-16 h-16 rounded-2xl object-cover shrink-0" />
+            <span *ngIf="!s.thumbnail" class="w-16 h-16 rounded-2xl bg-[#e9e9e5] dark:bg-[#333] flex items-center justify-center shrink-0">
+              <span class="material-symbols-outlined text-2xl text-[#767672] dark:text-[#999]">history</span>
             </span>
-            <span class="text-xs font-bold text-black dark:text-white truncate">{{ s.query }}</span>
+            <span class="text-sm font-bold text-black dark:text-white truncate">{{ s.query }}</span>
             <button
-              class="absolute right-1 top-1 w-5 h-5 rounded-full bg-white dark:bg-[#1e1e1e] shadow flex items-center justify-center opacity-0 group-hover:opacity-100"
+              class="absolute right-1.5 top-1.5 w-6 h-6 rounded-full bg-white dark:bg-[#1e1e1e] shadow flex items-center justify-center opacity-0 group-hover:opacity-100"
               (click)="removeRecentSearch(s.query, $event)"
               title="Xóa"
             >
-              <span class="material-symbols-outlined text-[13px]">close</span>
+              <span class="material-symbols-outlined text-[15px]">close</span>
             </button>
           </div>
         </div>
@@ -106,25 +124,25 @@
         <div class="grid grid-cols-4 gap-2">
           <div
             *ngFor="let pin of ideaPins()"
-            class="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] cursor-pointer"
+            class="flex items-center gap-3 p-2 rounded-2xl hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] cursor-pointer"
             (click)="goToSearch(pin.title)"
           >
-            <img [src]="pin.imageUrl" class="w-9 h-9 rounded-full object-cover shrink-0" />
-            <span class="text-xs font-bold text-black dark:text-white truncate">{{ pin.title }}</span>
+            <img [src]="pin.imageUrl" class="w-16 h-16 rounded-2xl object-cover shrink-0" />
+            <span class="text-sm font-bold text-black dark:text-white truncate">{{ pin.title }}</span>
           </div>
         </div>
       </div>
 
       <div *ngIf="!searchQuery().trim() && popularPins().length > 0" class="px-5">
-        <h3 class="text-sm font-extrabold text-black dark:text-white mb-3">Phổ biến trên Pinterest</h3>
+        <h3 class="text-sm font-extrabold text-black dark:text-white mb-3">Phổ biến trên PinHub</h3>
         <div class="grid grid-cols-4 gap-2">
           <div
             *ngFor="let pin of popularPins()"
-            class="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] cursor-pointer"
+            class="flex items-center gap-3 p-2 rounded-2xl hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] cursor-pointer"
             (click)="goToSearch(pin.title)"
           >
-            <img [src]="pin.imageUrl" class="w-9 h-9 rounded-full object-cover shrink-0" />
-            <span class="text-xs font-bold text-black dark:text-white truncate">{{ pin.title }}</span>
+            <img [src]="pin.imageUrl" class="w-16 h-16 rounded-2xl object-cover shrink-0" />
+            <span class="text-sm font-bold text-black dark:text-white truncate">{{ pin.title }}</span>
           </div>
         </div>
       </div>
@@ -295,7 +313,9 @@
      the panel expands — no JS position math needed. -->
 <nav
   *ngIf="supabaseService.user()"
-  class="nav-capsule fixed left-6 top-[88px] z-40 flex flex-col items-center py-3 gap-1"
+  class="nav-capsule fixed left-6 top-[88px] flex flex-col items-center py-3 gap-1"
+  [class.z-40]="!showSearchDropdown()"
+  [class.z-30]="showSearchDropdown()"
 >
   <button
     type="button"
@@ -361,16 +381,17 @@
     </div>
   </div>
 
-  <!-- Toggle: bare chevron, no border/fill, sits below whatever's currently visible -->
+  <!-- Toggle: chevron with the same hover/focus affordance as the icon buttons above it -->
   <button
     type="button"
     (click)="toggleNavMenu($event)"
     [attr.aria-expanded]="showNavMenu()"
     aria-controls="nav-rail-panel"
-    [title]="showNavMenu() ? 'Thu gọn menu' : 'Mở rộng menu'"
-    class="nav-chevron-btn w-8 h-6 flex items-center justify-center border-none bg-transparent cursor-pointer shrink-0"
+    [title]="showNavMenu() ? 'Thu gọn menu' : 'Xem thêm menu'"
+    class="nav-chevron-btn group relative w-8 h-6 rounded-full flex items-center justify-center border-none bg-transparent cursor-pointer shrink-0"
   >
     <span class="material-symbols-outlined text-xl leading-none nav-chevron" [class.nav-chevron-open]="showNavMenu()">expand_more</span>
+    <span class="nav-tooltip">{{ showNavMenu() ? 'Thu gọn menu' : 'Xem thêm menu' }}</span>
   </button>
 </nav>
 

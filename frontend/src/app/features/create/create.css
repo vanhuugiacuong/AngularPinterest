@@ -7,3 +7,101 @@
   border-color: #8b8b83;
   background-color: #fcfcf9;
 }
+
+/* Column wrapper: bo góc nhẹ, viền mảnh, không đổ bóng nặng như thiết kế mobile cũ */
+.panel-box {
+  background: #fff;
+  border: 1px solid #dadad3;
+  border-radius: 14px;
+  padding: 20px;
+}
+:host-context(.dark) .panel-box {
+  background: #1a1a1a;
+  border-color: #333;
+}
+
+.panel-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #495057;
+  user-select: none;
+}
+:host-context(.dark) .panel-label {
+  color: #ccc;
+}
+
+.field-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #57575a;
+}
+:host-context(.dark) .field-label {
+  color: #aaa;
+}
+
+/* Shared input/select/dropdown-trigger look: 10px radius, thin border, compact padding,
+   ~13.5-14px text — desktop-appropriate instead of the oversized touch-friendly pills
+   used elsewhere on mobile. Keeps a 44px min-height on small screens so it stays tappable. */
+.field-input {
+  width: 100%;
+  background: #f6f6f3;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  color: inherit;
+  outline: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  min-height: 44px;
+}
+.field-input:focus,
+.field-input:focus-within {
+  border-color: #dadad3;
+  background: #fff;
+}
+:host-context(.dark) .field-input {
+  background: #232323;
+  color: #fff;
+}
+:host-context(.dark) .field-input:focus,
+:host-context(.dark) .field-input:focus-within {
+  border-color: #444;
+  background: #232323;
+}
+
+@media (min-width: 1024px) {
+  .field-input {
+    min-height: 38px;
+    padding: 9px 12px;
+  }
+}
+
+.segmented-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 14px;
+  min-height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #62625b;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+:host-context(.dark) .segmented-btn {
+  color: #999;
+}
+.segmented-btn-active {
+  background: #fff;
+  color: #B15CAA;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+:host-context(.dark) .segmented-btn-active {
+  background: #333;
+  color: #e6a8d4;
+}

@@ -458,6 +458,7 @@ export class Collage implements OnInit, AfterViewInit {
   }
 
   private async addImageLayer(url: string) {
+    this.exitDrawMode();
     this.pushHistory();
     const dimensions = await this.loadImageDimensions(url);
     const maxSize = 220;
@@ -495,6 +496,7 @@ export class Collage implements OnInit, AfterViewInit {
   public editingTextLayerId = signal<number | null>(null);
 
   addTextLayer() {
+    this.exitDrawMode();
     this.pushHistory();
     const layer: CollageLayer = {
       id: this.nextId++,
@@ -599,12 +601,65 @@ export class Collage implements OnInit, AfterViewInit {
     const rect = el.getBoundingClientRect();
     layer.width = Math.max(30, Math.round(rect.width));
     layer.height = Math.max(20, Math.round(rect.height));
-    this.editingTextLayerId.set(null);
+
+    // A newer edit session can already be underway on a different layer by the time this
+    // blur fires — e.g. clicking "Thêm chữ" again, or double-clicking straight into another
+    // text layer, while this one still had focus. startEditingText() sets editingTextLayerId
+    // to the new layer synchronously, but focusing that new layer's div happens a beat later
+    // (it polls for the contenteditable attribute to land), so THIS blur can still be in
+    // flight afterwards. Blindly clearing editingTextLayerId here would stomp the newer
+    // session's id back to null, leaving the layer you just switched to uneditable — anything
+    // typed next goes nowhere. Only clear it if it's still actually pointing at this layer.
+    if (this.editingTextLayerId() === layer.id) {
+      this.editingTextLayerId.set(null);
+    }
 
     if (!layer.text || !layer.text.trim()) {
       this.layers.update((list) => list.filter((l) => l.id !== layer.id));
-      this.selectedLayerId.set(null);
+      if (this.selectedLayerId() === layer.id) {
+        this.selectedLayerId.set(null);
+      }
     }
+  }
+
+  // startMove/startResize/startRotate all call event.preventDefault() on their pointerdown
+  // so dragging works smoothly — but that also suppresses the browser's native blur, so
+  // grabbing a different layer directly on the canvas (as opposed to clicking away on empty
+  // canvas, or via the layers list, neither of which preventDefault) never fires
+  // finishEditingText for whatever text layer was still being edited. It stays stuck
+  // "editing" with the format panel gone, editingTextLayerId now out of sync with
+  // selectedLayerId — do the same finalize-and-clear here explicitly before starting any
+  // drag, so grabbing another layer always properly ends the previous text edit first.
+  private endActiveTextEditing() {
+    const editingId = this.editingTextLayerId();
+    if (editingId === null) return;
+    const layer = this.layers().find((l) => l.id === editingId);
+    if (layer) {
+      const el = document.querySelector<HTMLElement>(`[data-text-layer-id="${editingId}"]`);
+      if (el) {
+        el.textContent = layer.text ?? '';
+        const rect = el.getBoundingClientRect();
+        layer.width = Math.max(30, Math.round(rect.width));
+        layer.height = Math.max(20, Math.round(rect.height));
+      }
+    }
+    this.editingTextLayerId.set(null);
+    if (layer && (!layer.text || !layer.text.trim())) {
+      this.layers.update((list) => list.filter((l) => l.id !== editingId));
+      if (this.selectedLayerId() === editingId) {
+        this.selectedLayerId.set(null);
+      }
+    }
+  }
+
+  // The format panel's own "X" sits inside .text-format-panel, so finishEditingText's blur
+  // guard treats it like any other panel control (font, size, align...) and deliberately does
+  // nothing — otherwise the panel would vanish the instant you touched those. But this button
+  // specifically means "I'm done", so it has to finalize the edit itself instead of just
+  // deselecting, or the layer's size/empty-cleanup never happens and it's left half-finished.
+  closeTextFormatPanel() {
+    this.endActiveTextEditing();
+    this.selectedLayerId.set(null);
   }
 
   // Takes the whole option (not just its family value) because two named styles can share
@@ -1062,12 +1117,22 @@ export class Collage implements OnInit, AfterViewInit {
 
   private pendingStrokes: { points: { x: number; y: number }[]; color: string; width: number; opacity: number; style: BrushStyle }[] = [];
 
-  toggleDrawMode() {
-    const wasOn = this.isDrawMode();
-    if (wasOn) {
+  // Also called before adding a text or image layer — while draw mode is on, the stage
+  // treats every pointerdown as a new stroke (see startMove's early return), so a freshly
+  // added layer would be impossible to click/type into until draw mode is turned off.
+  private exitDrawMode() {
+    if (this.isDrawMode()) {
       this.commitPendingStrokes();
+      this.isDrawMode.set(false);
     }
-    this.isDrawMode.set(!wasOn);
+  }
+
+  toggleDrawMode() {
+    if (this.isDrawMode()) {
+      this.exitDrawMode();
+    } else {
+      this.isDrawMode.set(true);
+    }
     this.selectedLayerId.set(null);
   }
 
@@ -1286,6 +1351,9 @@ export class Collage implements OnInit, AfterViewInit {
 
   startMove(layer: CollageLayer, event: PointerEvent) {
     if (this.isDrawMode()) return; // let the pointerdown bubble to the stage so drawing works over layers
+    if (layer.id !== this.editingTextLayerId()) {
+      this.endActiveTextEditing();
+    }
     event.stopPropagation();
     event.preventDefault();
     this.pushHistory();
@@ -1309,6 +1377,7 @@ export class Collage implements OnInit, AfterViewInit {
   // corner: which handle is being dragged, so growing "outward" from that corner
   // (away from center) always grows the box, regardless of which corner it is.
   startResize(layer: CollageLayer, corner: ResizeCorner, event: PointerEvent) {
+    this.endActiveTextEditing();
     event.stopPropagation();
     event.preventDefault();
     this.pushHistory();
@@ -1329,6 +1398,7 @@ export class Collage implements OnInit, AfterViewInit {
   }
 
   startRotate(layer: CollageLayer, event: PointerEvent) {
+    this.endActiveTextEditing();
     event.stopPropagation();
     event.preventDefault();
     this.pushHistory();

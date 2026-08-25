@@ -45,6 +45,16 @@ export class Create implements OnInit {
   // Submit status
   public isSubmitting = signal<boolean>(false);
 
+  // Visibility segmented control — UI-only for now, the create API doesn't accept it yet.
+  public visibility = signal<'public' | 'private'>('public');
+
+  // "+ Tạo bảng mới" row inside the board dropdown — swaps the list for a name input
+  // instead of opening a separate modal.
+  public showNewBoardInput = signal(false);
+  public newBoardName = '';
+  public newBoardError = signal<string | null>(null);
+  public isCreatingBoard = signal(false);
+
   async ngOnInit() {
     await this.loadBoards();
   }
@@ -71,6 +81,14 @@ export class Create implements OnInit {
     this.router.navigate(['/collage']);
   }
 
+  goToFeed() {
+    this.router.navigate(['/feed']);
+  }
+
+  onCancel() {
+    this.router.navigate(['/feed']);
+  }
+
   setTab(tab: 'upload' | 'ai') {
     this.activeTab.set(tab);
     // Clear preview images
@@ -82,15 +100,75 @@ export class Create implements OnInit {
     this.description = '';
   }
 
+  // Preview card on the right mirrors whichever tab is currently producing an image.
+  previewImage(): string | null {
+    return this.activeTab() === 'ai' ? this.aiImagePreviewUrl() : this.imagePreviewUrl();
+  }
+
+  setVisibility(value: 'public' | 'private') {
+    this.visibility.set(value);
+  }
+
   toggleBoardDropdown(event: MouseEvent) {
     event.stopPropagation();
-    this.showBoardDropdown.update(val => !val);
+    const opening = !this.showBoardDropdown();
+    this.showBoardDropdown.set(opening);
+    if (!opening) {
+      this.cancelNewBoard(event);
+    }
   }
 
   selectBoard(board: Board, event: MouseEvent) {
     event.stopPropagation();
     this.selectedBoard.set(board);
     this.showBoardDropdown.set(false);
+  }
+
+  openNewBoardInput(event: MouseEvent) {
+    event.stopPropagation();
+    this.showNewBoardInput.set(true);
+    this.newBoardName = '';
+    this.newBoardError.set(null);
+  }
+
+  cancelNewBoard(event: Event) {
+    event.stopPropagation();
+    this.showNewBoardInput.set(false);
+    this.newBoardName = '';
+    this.newBoardError.set(null);
+  }
+
+  async confirmNewBoard(event: Event) {
+    event.stopPropagation();
+    const name = this.newBoardName.trim();
+    if (!name) {
+      this.newBoardError.set('Vui lòng nhập tên bảng.');
+      return;
+    }
+    const duplicate = this.boards().some((b) => b.name.toLowerCase() === name.toLowerCase());
+    if (duplicate) {
+      this.newBoardError.set('Bạn đã có bảng trùng tên này rồi.');
+      return;
+    }
+
+    const token = await this.supabaseService.getSessionToken();
+    if (!token) return;
+
+    this.isCreatingBoard.set(true);
+    try {
+      const newBoard = await this.boardService.createBoard(name, '', false, token);
+      this.boards.update((list) => [...list, newBoard]);
+      this.selectedBoard.set(newBoard);
+      this.showNewBoardInput.set(false);
+      this.showBoardDropdown.set(false);
+      this.newBoardName = '';
+      this.newBoardError.set(null);
+    } catch (error) {
+      console.error('Error creating board from Create page:', error);
+      this.newBoardError.set('Không tạo được bảng. Vui lòng thử lại.');
+    } finally {
+      this.isCreatingBoard.set(false);
+    }
   }
 
   getSelectedBoardName(): string {
