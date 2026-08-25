@@ -178,13 +178,13 @@
                       <option [ngValue]="null">Tải ảnh sạch (không watermark)</option>
                       <option *ngFor="let preset of watermarkService.presets()" [ngValue]="preset.id">Watermark: {{ preset.name }}</option>
                     </select>
-                    <button type="button" (click)="downloadPin()" [disabled]="downloading()" class="h-10 px-4 rounded-control bg-accent text-white font-bold text-xs border-none cursor-pointer disabled:opacity-50">
+                    <button type="button" (click)="downloadPin()" [disabled]="downloading()" class="h-10 px-4 rounded-control bg-gradient-brand text-text-on-accent font-bold text-xs border-none cursor-pointer disabled:opacity-50">
                       {{ p.isForSale && p.user?.id !== supabaseService.user()?.id ? ('Mua & tải · ' + (p.price | number) + 'đ') : 'Tải ảnh' }}
                     </button>
                     <span *ngIf="downloadMessage()" class="text-[10px] text-text-muted">{{ downloadMessage() }}</span>
                     <div *ngIf="pendingPurchase() as pay" class="flex flex-col items-start gap-1 mt-1">
                       @if (bankQrFor(pay); as qrUrl) {
-                        <img [src]="qrUrl" alt="QR chuyển khoản mua ảnh" class="w-32 h-32 rounded-control border border-border" />
+                        <img [src]="qrUrl" alt="QR chuyển khoản mua ảnh" class="w-32 h-32 rounded-control border border-border object-contain bg-surface" />
                         <span class="text-[10px] text-text-muted">Nội dung: <strong>{{ pay.paymentReference }}</strong></span>
                       } @else {
                         <p class="text-[10px] text-error">Người bán chưa cấu hình thông tin nhận thanh toán. Vui lòng liên hệ người bán.</p>
@@ -329,7 +329,7 @@
                               type="button"
                               (click)="downloadAuctionOriginal()"
                               [disabled]="downloading()"
-                              class="h-10 px-4 rounded-control bg-accent text-white font-bold text-xs border-none cursor-pointer disabled:opacity-50 self-start"
+                              class="h-10 px-4 rounded-control bg-gradient-brand text-text-on-accent font-bold text-xs border-none cursor-pointer disabled:opacity-50 self-start"
                             >
                               {{ downloading() ? 'Đang tải...' : 'Tải bản gốc' }}
                             </button>
@@ -338,7 +338,7 @@
                               Vui lòng chuyển khoản {{ formatVnd(mp.amount) }} cho người bán, sau đó chờ người bán xác nhận. Bấm "Trao đổi với chủ sở hữu" ở trên để liên hệ trực tiếp.
                             </p>
                             @if (auctionPaymentQr(mp); as qrUrl) {
-                              <img [src]="qrUrl" alt="QR chuyển khoản cho người bán" class="w-32 h-32 rounded-control border border-border" />
+                              <img [src]="qrUrl" alt="QR chuyển khoản cho người bán" class="w-32 h-32 rounded-control border border-border object-contain bg-surface" />
                               <span class="text-[10px] text-text-muted">Nội dung: <strong>{{ mp.paymentReference }}</strong></span>
                             } @else {
                               <p class="text-[10px] text-error">Người bán chưa cấu hình thông tin nhận thanh toán. Vui lòng liên hệ người bán.</p>

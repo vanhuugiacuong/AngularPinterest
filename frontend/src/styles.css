@@ -10,22 +10,22 @@
    utility across the app keeps working — only the underlying values change.
    ========================================================================== */
 @theme {
-  /* ---- Brand hues ---- */
-  --color-nova-blue: #4f6ef7;
-  --color-iris-violet: #7c5cfc;
+  /* ---- Brand hues — "Light Rail": Nova Blue → Iris Violet ---- */
+  --color-nova-blue: #6987ff;
+  --color-iris-violet: #9475ff;
   --color-studio-aqua: #31c7c2;
 
   /* ---- Surfaces & text (Đêm Lam) ---- */
-  --color-bg: #090d18;
-  --color-bg-secondary: #0d1220;
-  --color-surface: #111827;
-  --color-surface-elevated: #182235;
-  --color-surface-high: #1f2a40;
-  --color-text: #f7f9fc;
-  --color-text-muted: #9aa8bd;
-  --color-text-on-accent: #0a0f1c;
-  --color-border: rgba(154, 168, 189, 0.16);
-  --color-border-strong: rgba(154, 168, 189, 0.3);
+  --color-bg: #070910;
+  --color-bg-secondary: #0b0e18;
+  --color-surface: #0d111c;
+  --color-surface-elevated: #151c2b;
+  --color-surface-high: #1c2438;
+  --color-text: #f3f6fb;
+  --color-text-muted: #909cb0;
+  --color-text-on-accent: #090b12;
+  --color-border: rgba(144, 156, 176, 0.16);
+  --color-border-strong: rgba(144, 156, 176, 0.3);
 
   /* Neutral, non-brand-tinted backdrop for the editor canvas / preview stage
      — deliberately excluded from the blue/violet surface tint so artwork can
@@ -62,13 +62,15 @@
     0 18px 34px -16px color-mix(in srgb, var(--color-nova-blue) 32%, transparent),
     0 0 30px -10px color-mix(in srgb, var(--color-iris-violet) 30%, transparent);
 
-  /* One typeface across the whole UI. The three tokens are kept so callers
-     keep expressing intent (display / body / metadata) — they just resolve to
-     the same family now. */
+  /* One typeface for heading/body/UI everywhere in the app — Manrope, full
+     Vietnamese diacritic coverage. --font-mono is reserved for genuine data
+     (price, timestamp, bid count, transaction id, image dimensions), never
+     generic UI labels — see .mono-label below. */
   --font-sans:
-    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: var(--font-sans);
-  --font-mono: var(--font-sans);
+  --font-mono:
+    "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
 
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-trace: cubic-bezier(0.4, 0, 0.2, 1);
@@ -214,22 +216,22 @@
 }
 
 :root[data-theme="dark"] {
-  --color-bg: #090d18;
-  --color-bg-secondary: #0d1220;
-  --color-surface: #111827;
-  --color-surface-elevated: #182235;
-  --color-surface-high: #1f2a40;
-  --color-text: #f7f9fc;
-  --color-text-muted: #9aa8bd;
-  --color-text-on-accent: #0a0f1c;
-  --color-border: rgba(154, 168, 189, 0.16);
-  --color-border-strong: rgba(154, 168, 189, 0.3);
+  --color-bg: #070910;
+  --color-bg-secondary: #0b0e18;
+  --color-surface: #0d111c;
+  --color-surface-elevated: #151c2b;
+  --color-surface-high: #1c2438;
+  --color-text: #f3f6fb;
+  --color-text-muted: #909cb0;
+  --color-text-on-accent: #090b12;
+  --color-border: rgba(144, 156, 176, 0.16);
+  --color-border-strong: rgba(144, 156, 176, 0.3);
 
   --color-canvas-neutral: #1a1d24;
   --color-ink: #05070e;
 
-  --color-nova-blue: #4f6ef7;
-  --color-iris-violet: #7c5cfc;
+  --color-nova-blue: #6987ff;
+  --color-iris-violet: #9475ff;
   --color-studio-aqua: #31c7c2;
 
   --color-success: #34d399;
