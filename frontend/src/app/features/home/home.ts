@@ -461,6 +461,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
         authorAvatarUrl: p.user?.avatarUrl || null,
         authorPlan: p.user?.plan || 'FREE',
         likes,
+        isLiked: p.isLiked ?? false,
         isAiGenerated: p.isAiGenerated,
         category: p.category,
         aspectRatio,
@@ -553,23 +554,27 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     const currentUser = this.supabaseService.user();
     if (!currentUser) return;
 
+    // Optimistic update - lật trạng thái ngay trên UI thay vì đợi round-trip
+    // API mới phản hồi (đây là phần khiến việc bấm tim cảm giác chậm), rồi
+    // hoàn tác nếu request thất bại.
+    const previousLiked = !!pin.isLiked;
+    const previousLikes = pin.likes ?? 0;
+    pin.isLiked = !previousLiked;
+    pin.likes = pin.isLiked ? previousLikes + 1 : Math.max(0, previousLikes - 1);
+    this.pins.update(current => [...current]);
+
     try {
       const token = await this.supabaseService.getSessionToken();
-      if (token) {
-        const result = await this.pinService.toggleLike(pin.id, token);
-        console.log('Toggle like result:', result);
-        if (result.liked) {
-          pin.likes = (pin.likes || 0) + 1;
-        } else {
-          if (pin.likes !== undefined) {
-            pin.likes = Math.max(0, pin.likes - 1);
-          }
-        }
-        // Force Signal updates on template
-        this.pins.update(current => [...current]);
-      }
+      if (!token) throw new Error('no session token');
+      const result = await this.pinService.toggleLike(pin.id, token);
+      pin.isLiked = result.liked;
+      pin.likes = result.likeCount;
+      this.pins.update(current => [...current]);
     } catch (error) {
       console.error('Error toggling like:', error);
+      pin.isLiked = previousLiked;
+      pin.likes = previousLikes;
+      this.pins.update(current => [...current]);
     }
   }
 

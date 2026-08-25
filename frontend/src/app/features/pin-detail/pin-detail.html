@@ -159,12 +159,20 @@
                       [attr.aria-label]="(isLikedByUser() ? 'Bỏ thích ' : 'Thích ') + p.title"
                       [attr.aria-pressed]="isLikedByUser()"
                     >
-                      <span
-                        class="material-symbols-outlined text-lg leading-none font-bold"
-                        [class.text-accent]="isLikedByUser()"
-                        [class.text-text-muted]="!isLikedByUser()"
-                      >
-                        favorite
+                      <span class="relative inline-flex items-center justify-center">
+                        <span
+                          class="material-symbols-outlined text-lg leading-none font-bold"
+                          [class.text-accent]="isLikedByUser()"
+                          [class.text-text-muted]="!isLikedByUser()"
+                        >
+                          favorite
+                        </span>
+                        <span
+                          class="material-symbols-outlined icon-fill text-accent text-lg leading-none font-bold absolute inset-0 flex items-center justify-center"
+                          [style.opacity]="isLikedByUser() ? 1 : 0"
+                        >
+                          favorite
+                        </span>
                       </span>
                       <span class="mono-label text-xs font-bold">{{
                         p.likeCount ?? p._count?.likes ?? 0
@@ -570,18 +578,18 @@
                               (click)="$event.stopPropagation()"
                               class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 focus-within:translate-y-0 [@media(hover:none)]:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 flex items-center justify-between gap-2 z-10"
                             >
-                              <div class="relative shrink-0 min-w-0">
+                              <div class="relative min-w-0 flex-1">
                                 <button
                                   type="button"
                                   (click)="toggleRelatedBoardDropdown(rel.id, $event)"
-                                  class="flex items-center gap-1 bg-surface-high/95 border border-border-strong text-text px-2.5 py-1.5 rounded-control text-xs font-bold cursor-pointer min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                  class="flex items-center gap-1 w-full bg-surface-high/95 border border-border-strong text-text px-2.5 py-1.5 rounded-control text-xs font-bold cursor-pointer min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                   [attr.aria-label]="'Lưu ' + rel.title + ' vào bộ sưu tập'"
                                   aria-haspopup="listbox"
                                   [attr.aria-expanded]="relatedActiveDropdownPinId() === rel.id"
                                 >
-                                  <span class="material-symbols-outlined text-[14px] leading-none">bookmark_add</span>
-                                  <span class="truncate max-w-[55px]">{{ getRelatedSelectedBoardName(rel.id) }}</span>
-                                  <span class="material-symbols-outlined text-[12px] leading-none">keyboard_arrow_down</span>
+                                  <span class="material-symbols-outlined text-[14px] leading-none shrink-0">bookmark_add</span>
+                                  <span class="truncate min-w-0">{{ getRelatedSelectedBoardName(rel.id) }}</span>
+                                  <span class="material-symbols-outlined text-[12px] leading-none shrink-0">keyboard_arrow_down</span>
                                 </button>
 
                                 @if (relatedActiveDropdownPinId() === rel.id) {
@@ -605,10 +613,16 @@
                               <div class="flex items-center gap-1.5 shrink-0">
                                 <button
                                   (click)="toggleRelatedLike(rel, $event)"
-                                  class="w-8 h-8 rounded-control bg-surface-high/95 border border-border-strong flex items-center justify-center text-text-muted hover:text-accent transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                                  [attr.aria-label]="'Thích ' + rel.title"
+                                  class="w-8 h-8 rounded-control bg-surface-high/95 border border-border-strong flex items-center justify-center hover:text-accent transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                  [class.text-accent]="rel.isLiked"
+                                  [class.text-text-muted]="!rel.isLiked"
+                                  [attr.aria-pressed]="!!rel.isLiked"
+                                  [attr.aria-label]="(rel.isLiked ? 'Bỏ thích ' : 'Thích ') + rel.title"
                                 >
-                                  <span class="material-symbols-outlined text-[16px] leading-none">favorite</span>
+                                  <span class="relative inline-flex items-center justify-center">
+                                    <span class="material-symbols-outlined text-[16px] leading-none">favorite</span>
+                                    <span class="material-symbols-outlined icon-fill text-[16px] leading-none absolute inset-0 flex items-center justify-center" [style.opacity]="rel.isLiked ? 1 : 0">favorite</span>
+                                  </span>
                                 </button>
                                 <button
                                   (click)="saveRelatedPinToBoard(rel.id, $event)"
@@ -635,7 +649,10 @@
                               <div class="mono-label flex items-center gap-2 shrink-0 text-xs text-text-muted">
                                 @if (rel.likes) {
                                   <span class="flex items-center gap-0.5">
-                                    <span class="material-symbols-outlined text-[12px] leading-none text-accent">favorite</span>
+                                    <span class="relative inline-flex items-center justify-center text-accent">
+                                      <span class="material-symbols-outlined text-[12px] leading-none">favorite</span>
+                                      <span class="material-symbols-outlined icon-fill text-[12px] leading-none absolute inset-0 flex items-center justify-center" [style.opacity]="rel.isLiked ? 1 : 0">favorite</span>
+                                    </span>
                                     {{ rel.likes }}
                                   </span>
                                 }

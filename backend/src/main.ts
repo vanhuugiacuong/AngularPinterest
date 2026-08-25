@@ -7,7 +7,8 @@ async function bootstrap() {
   app.enableCors();
   app.useGlobalFilters(new MulterExceptionFilter());
   const port = process.env.PORT ?? 3000;
-  await app.listen(port);
-  console.log(`[NestJS] Backend running on: http://localhost:${port}`);
+  // Bind 0.0.0.0 so the container is reachable on Railway's assigned interface.
+  await app.listen(port, '0.0.0.0');
+  console.log(`[NestJS] Backend running on port ${port}`);
 }
 void bootstrap();

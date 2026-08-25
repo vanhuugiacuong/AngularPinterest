@@ -1,0 +1,21 @@
+# Keep the build context small and secrets out of the image.
+**/node_modules
+**/dist
+**/.angular
+**/.venv
+**/venv
+**/__pycache__
+**/*.pyc
+.git
+logs
+images
+*.log
+
+# Secrets never belong in an image layer — set these as Railway variables.
+**/.env
+**/.env.*
+
+# Not part of the Railway service (deployed on other platforms).
+backend/services
+public
+server.js
