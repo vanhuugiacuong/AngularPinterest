@@ -22,8 +22,9 @@
             
             <!-- Detailed view card -->
             <div class="bg-white dark:bg-[#1a1a1a] rounded-[32px] border border-[#dadad3] dark:border-[#333] shadow-[0_4px_24px_rgba(0,0,0,0.03)] flex flex-col md:flex-row overflow-hidden w-full min-h-[500px]">
-              <!-- Left Side: Image Display -->
-              <div class="md:w-1/2 relative bg-white dark:bg-[#1a1a1a] p-5 flex items-center justify-center">
+              <!-- Left Side: Image Display — width follows the image's own shape (up to half
+                   the card) so landscape photos aren't squeezed into a portrait-sized column -->
+              <div class="md:max-w-[50%] relative bg-white dark:bg-[#1a1a1a] p-5 flex items-center justify-center">
                 <!-- Back button inside card -->
                 <button 
                   (click)="goBack()" 
@@ -54,7 +55,7 @@
               </div>
 
               <!-- Right Side: Details & Interaction -->
-              <div class="md:w-1/2 p-8 flex flex-col justify-between bg-white dark:bg-[#1a1a1a]">
+              <div class="md:flex-1 min-w-0 p-8 flex flex-col justify-between bg-white dark:bg-[#1a1a1a]">
                 
                 <!-- Top Row actions -->
                 <div class="flex items-center justify-between pb-6 border-b border-[#dadad3] dark:border-[#333]">
@@ -214,17 +215,21 @@
                 <div class="flex-1 py-6 flex flex-col gap-6 min-h-0 overflow-y-auto">
                   
                   <!-- Author profile info -->
-                  <div class="flex items-center gap-3">
-                    <img 
-                      [src]="p.user?.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'" 
-                      alt="Avatar" 
+                  <button
+                    type="button"
+                    (click)="navigateToAuthorProfile()"
+                    class="flex items-center gap-3 text-left cursor-pointer border-none bg-transparent p-0 outline-none"
+                  >
+                    <img
+                      [src]="p.user?.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'"
+                      alt="Avatar"
                       class="w-11 h-11 rounded-full border border-gray-200 object-cover"
                     />
                     <div class="flex flex-col text-left">
-                      <span class="text-sm font-bold text-black dark:text-white">{{ p.user?.username }}</span>
+                      <span class="text-sm font-bold text-black dark:text-white hover:underline">{{ p.user?.username }}</span>
                       <span class="text-[11px] text-[#62625b] dark:text-[#999] font-medium">Người đăng tải</span>
                     </div>
-                  </div>
+                  </button>
 
                   <!-- Title & Description -->
                   <div class="flex flex-col gap-1.5 text-left">
@@ -343,16 +348,15 @@
                           (click)="navigateToPin(rel.id)"
                           class="group cursor-pointer flex flex-col mb-1"
                         >
-                          <div 
+                          <div
                             class="relative overflow-hidden rounded-[24px] bg-[#f6f6f3] dark:bg-[#1e1e1e] shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-300"
-                            [style.aspect-ratio]="rel.aspectRatio || '0.75'"
                           >
-                            <img 
-                              [src]="rel.image" 
-                              [alt]="rel.title" 
+                            <img
+                              [src]="rel.image"
+                              [alt]="rel.title"
                               loading="lazy"
                               fetchpriority="low"
-                              class="w-full h-full object-cover rounded-[24px] block transition-transform duration-300 group-hover:scale-102"
+                              class="w-full h-auto rounded-[24px] block transition-transform duration-300 group-hover:scale-102"
                             />
                             <!-- Hover overlay -->
                             <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3.5 text-white z-10">
@@ -424,16 +428,15 @@
                         (click)="navigateToPin(rel.id)"
                         class="group cursor-pointer flex flex-col mb-1"
                       >
-                        <div 
+                        <div
                           class="relative overflow-hidden rounded-[24px] bg-[#f6f6f3] dark:bg-[#1e1e1e] shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-300"
-                          [style.aspect-ratio]="rel.aspectRatio || '0.75'"
                         >
-                          <img 
-                            [src]="rel.image" 
-                            [alt]="rel.title" 
+                          <img
+                            [src]="rel.image"
+                            [alt]="rel.title"
                             loading="lazy"
                             fetchpriority="low"
-                            class="w-full h-full object-cover rounded-[24px] block transition-transform duration-300 group-hover:scale-102"
+                            class="w-full h-auto rounded-[24px] block transition-transform duration-300 group-hover:scale-102"
                           />
                           <!-- Hover overlay -->
                           <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3.5 text-white z-10">

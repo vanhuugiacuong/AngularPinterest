@@ -3,6 +3,7 @@ import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { AiGeneratorService } from '../ai-generator/ai-generator.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ModerationService } from '../moderation/moderation.service';
 
 @Injectable()
 export class PinsService {
@@ -13,6 +14,7 @@ export class PinsService {
     private readonly supabaseService: SupabaseService,
     private readonly aiGeneratorService: AiGeneratorService,
     private readonly notificationsService: NotificationsService,
+    private readonly moderationService: ModerationService,
   ) {}
 
   private async getImageEmbedding(buffer: Buffer, filename: string, mimetype: string): Promise<number[] | null> {
@@ -63,19 +65,28 @@ export class PinsService {
   async getAllPins(page: number = 1, limit: number = 20, userId?: string, seed?: string) {
     const skip = (page - 1) * limit;
 
-    // 1. Fetch all pins with user and like counts
+    // Pins this user hid via "Ẩn bớt" never enter their feed again
+    let hiddenPinIds: string[] = [];
+    if (userId) {
+      const hidden = await this.prisma.hiddenPin.findMany({
+        where: { userId },
+        select: { pinId: true },
+      });
+      hiddenPinIds = hidden.map(h => h.pinId);
+    }
+
+    // 1. Fetch only the fields needed to rank pins (id/category/createdAt) —
+    // ranking has to see every pin to sort them, but loading the full
+    // user/likes relations for all of them (only ~`limit` are ever kept)
+    // makes every scroll page slower as the table grows. That heavier
+    // fetch happens below, scoped to just this page's pins.
     const pins = await this.prisma.pin.findMany({
-      include: {
-        user: {
-          select: { id: true, username: true, avatarUrl: true },
-        },
-        _count: {
-          select: { likes: true }
-        }
-      },
+      where: hiddenPinIds.length > 0 ? { id: { notIn: hiddenPinIds } } : undefined,
+      select: { id: true, category: true, createdAt: true },
     });
 
-    // 2. Fetch user's preferred categories based on likes & board saves
+    // 2. Fetch user's preferred categories based on likes, board saves, and
+    // explicit "Xem thêm" interest signals
     let preferredCategories: string[] = [];
     if (userId) {
       try {
@@ -87,9 +98,16 @@ export class PinsService {
           where: { board: { userId } },
           include: { pin: { select: { category: true } } }
         });
+        const interestSignals = await this.prisma.interestSignal.findMany({
+          where: { userId },
+          select: { category: true },
+        });
         const categories = [
           ...likes.map(l => l.pin?.category),
-          ...boardPins.map(b => b.pin?.category)
+          ...boardPins.map(b => b.pin?.category),
+          // Weighted higher: an explicit "more like this" click is a
+          // stronger signal than the side effect of liking/saving one pin
+          ...interestSignals.flatMap(s => [s.category, s.category, s.category]),
         ].filter(Boolean);
 
         const counts = categories.reduce((acc, cat) => {
@@ -134,10 +152,26 @@ export class PinsService {
     });
 
     pinsWithScores.sort((a, b) => b.score - a.score);
-    const sortedPins = pinsWithScores.map(item => item.pin);
+    const pageIds = pinsWithScores.slice(skip, skip + limit).map(item => item.pin.id);
+    if (pageIds.length === 0) return [];
 
-    // 4. Return paginated slice
-    return sortedPins.slice(skip, skip + limit);
+    // 4. Now fetch full details (user, like count) for just this page's pins
+    const fullPins = await this.prisma.pin.findMany({
+      where: { id: { in: pageIds } },
+      include: {
+        user: {
+          select: { id: true, username: true, avatarUrl: true },
+        },
+        _count: {
+          select: { likes: true }
+        }
+      },
+    });
+
+    // findMany({ where: { id: { in } } }) doesn't preserve the `in` array's
+    // order, so re-sort the fetched pins back into the ranked order above.
+    const pinsById = new Map(fullPins.map(p => [p.id, p]));
+    return pageIds.map(id => pinsById.get(id)).filter((p): p is NonNullable<typeof p> => !!p);
   }
 
 
@@ -192,6 +226,9 @@ export class PinsService {
     description?: string,
     boardId?: string,
   ) {
+    this.moderationService.checkTextIsSafe(title, description);
+    await this.moderationService.checkImageIsSafe(file.buffer, file.originalname, file.mimetype);
+
     const extension = file.originalname.split('.').pop() || 'png';
     const filename = `${userId}/pin_${Date.now()}_${Math.floor(Math.random() * 1000)}.${extension}`;
     const imageUrl = await this.supabaseService.uploadImage('pins', filename, file.buffer, file.mimetype);
@@ -258,12 +295,21 @@ export class PinsService {
     negativePrompt?: string,
     generationModel?: string,
   ) {
-    // 1. Download image from temporary url and upload to permanent pins bucket
+    // 1. Moderate the AI-generated image before it's persisted anywhere permanent
+    this.moderationService.checkTextIsSafe(title, description, promptUsed);
+    const previewResponse = await fetch(previewUrl);
+    if (previewResponse.ok) {
+      const previewBuffer = Buffer.from(await previewResponse.arrayBuffer());
+      const contentType = previewResponse.headers.get('Content-Type') || 'image/png';
+      await this.moderationService.checkImageIsSafe(previewBuffer, 'ai_pin.png', contentType);
+    }
+
+    // 2. Download image from temporary url and upload to permanent pins bucket
     const imageUrl = await this.aiGeneratorService.saveAiImageToStorage(previewUrl, userId);
 
     const category = this.classifyCategory(title, description);
 
-    // 2. Fetch embedding for AI generated image (gracefully handled)
+    // 3. Fetch embedding for AI generated image (gracefully handled)
     let embedding: number[] | null = null;
     try {
       const response = await fetch(imageUrl);
@@ -277,7 +323,7 @@ export class PinsService {
       console.error('Error fetching CLIP embedding for AI pin:', e);
     }
 
-    // 3. Save to database
+    // 4. Save to database
     const pin = await this.prisma.pin.create({
       data: {
         title,
@@ -292,7 +338,7 @@ export class PinsService {
       },
     });
 
-    // 4. If embedding exists, store it using Raw SQL
+    // 5. If embedding exists, store it using Raw SQL
     if (embedding) {
       try {
         await this.prisma.$executeRawUnsafe(
@@ -306,7 +352,7 @@ export class PinsService {
       }
     }
 
-    // 5. Connect to board if provided
+    // 6. Connect to board if provided
     if (boardId) {
       await this.prisma.boardPin.create({
         data: {
@@ -316,7 +362,7 @@ export class PinsService {
       });
     }
 
-    // 6. Notify followers of the new pin
+    // 7. Notify followers of the new pin
     try {
       await this.notificationsService.notifyFollowersOfNewPin(userId, pin.id);
     } catch (err) {
@@ -398,6 +444,47 @@ export class PinsService {
     );
 
     return comment;
+  }
+
+  /** "Ẩn bớt" — removes this pin from the user's own feed going forward. */
+  async hidePin(pinId: string, userId: string) {
+    const pin = await this.prisma.pin.findUnique({ where: { id: pinId } });
+    if (!pin) {
+      throw new NotFoundException('Pin not found');
+    }
+    await this.prisma.hiddenPin.upsert({
+      where: { userId_pinId: { userId, pinId } },
+      update: {},
+      create: { userId, pinId },
+    });
+    return { success: true };
+  }
+
+  /** "Báo cáo Ghim" — persisted for later review, no auto-moderation action. */
+  async reportPin(pinId: string, userId: string, reason?: string) {
+    const pin = await this.prisma.pin.findUnique({ where: { id: pinId } });
+    if (!pin) {
+      throw new NotFoundException('Pin not found');
+    }
+    await this.prisma.pinReport.create({
+      data: { pinId, userId, reason: reason?.trim().slice(0, 500) || null },
+    });
+    return { success: true };
+  }
+
+  /** "Xem thêm" — explicit "show more like this" signal, boosts this pin's
+   * category in future feed ranking for the user (see getAllPins). */
+  async markInterest(pinId: string, userId: string) {
+    const pin = await this.prisma.pin.findUnique({ where: { id: pinId } });
+    if (!pin) {
+      throw new NotFoundException('Pin not found');
+    }
+    await this.prisma.interestSignal.upsert({
+      where: { userId_pinId: { userId, pinId } },
+      update: { category: pin.category },
+      create: { userId, pinId, category: pin.category },
+    });
+    return { success: true };
   }
 
   private classifyCategory(title: string, description?: string): string {

@@ -127,6 +127,40 @@ export class PinService {
     }
   }
 
+  async hidePin(id: string, token: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/${id}/hide`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      throw new Error(await this.errorMessage(response, 'Không thể ẩn ảnh này.'));
+    }
+  }
+
+  async reportPin(id: string, token: string, reason?: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/${id}/report`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ reason }),
+    });
+    if (!response.ok) {
+      throw new Error(await this.errorMessage(response, 'Không thể gửi báo cáo.'));
+    }
+  }
+
+  async markInterest(id: string, token: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/${id}/interest`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      throw new Error(await this.errorMessage(response, 'Không thể ghi nhận yêu cầu.'));
+    }
+  }
+
   async createUploadPin(formData: FormData, token: string): Promise<any> {
     try {
       const response = await fetch(this.baseUrl, {
@@ -137,7 +171,7 @@ export class PinService {
         body: formData
       });
       if (!response.ok) {
-        throw new Error(`Failed to upload pin: ${response.statusText}`);
+        throw new Error(await this.errorMessage(response, `Failed to upload pin: ${response.statusText}`));
       }
       return await response.json();
     } catch (error) {
@@ -157,12 +191,21 @@ export class PinService {
         body: JSON.stringify(body)
       });
       if (!response.ok) {
-        throw new Error(`Failed to save AI pin: ${response.statusText}`);
+        throw new Error(await this.errorMessage(response, `Failed to save AI pin: ${response.statusText}`));
       }
       return await response.json();
     } catch (error) {
       console.error('Error saving AI pin in PinService:', error);
       throw error;
+    }
+  }
+
+  private async errorMessage(response: Response, fallback: string): Promise<string> {
+    try {
+      const body = await response.json();
+      return body.message || fallback;
+    } catch {
+      return fallback;
     }
   }
 }
