@@ -183,9 +183,27 @@
                     </button>
                     <span *ngIf="downloadMessage()" class="text-[10px] text-text-muted">{{ downloadMessage() }}</span>
                     <div *ngIf="pendingPurchase() as pay" class="flex flex-col items-start gap-1 mt-1">
-                      <img [src]="bankQrFor(pay)" alt="QR chuyển khoản mua ảnh" class="w-32 h-32 rounded-control border border-border" />
-                      <span class="text-[10px] text-text-muted">Nội dung: <strong>{{ pay.paymentReference }}</strong></span>
+                      @if (bankQrFor(pay); as qrUrl) {
+                        <img [src]="qrUrl" alt="QR chuyển khoản mua ảnh" class="w-32 h-32 rounded-control border border-border" />
+                        <span class="text-[10px] text-text-muted">Nội dung: <strong>{{ pay.paymentReference }}</strong></span>
+                      } @else {
+                        <p class="text-[10px] text-error">Người bán chưa cấu hình thông tin nhận thanh toán. Vui lòng liên hệ người bán.</p>
+                      }
                     </div>
+
+                    <!-- Trao đổi với chủ sở hữu — chỉ hiện với tác phẩm có
+                         giá trị và không phải chính chủ; tái sử dụng luồng
+                         message request/conversation hiện có. -->
+                    @if (showContactButton()) {
+                      <button
+                        type="button"
+                        (click)="onContactOwner()"
+                        [disabled]="contactButtonDisabled()"
+                        class="h-10 px-4 rounded-control bg-surface-elevated hover:bg-surface-high border border-border text-text font-bold text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      >
+                        {{ contactButtonLabel() }}
+                      </button>
+                    }
 
                     <!-- Share -->
                     <button
@@ -250,6 +268,145 @@
                     </button>
                   </div>
                 </div>
+
+                <!-- Đấu giá -->
+                @if (p.listingType === 'AUCTION') {
+                  <div class="flex flex-col gap-4 py-2" aria-live="polite">
+                    <div class="flex items-center gap-2">
+                      <svg viewBox="0 0 24 24" fill="none" class="w-4 h-4 text-accent shrink-0" aria-hidden="true">
+                        <path d="M4 8 L8 3 H16 L20 8 L12 21 Z" fill="currentColor" />
+                      </svg>
+                      <span class="text-sm font-bold text-text">Đấu giá tác phẩm</span>
+                    </div>
+
+                    @if (auctionLoading() && !auction()) {
+                      <p class="text-xs text-text-muted">Đang tải thông tin đấu giá...</p>
+                    } @else if (auctionError() && !auction()) {
+                      <p class="text-xs text-error" role="alert">{{ auctionError() }}</p>
+                    } @else if (auction(); as a) {
+                      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-control bg-surface-elevated border border-border">
+                        <div class="flex flex-col gap-0.5">
+                          <span class="text-[10px] uppercase font-bold text-text-muted">Giá khởi điểm</span>
+                          <span class="text-sm font-bold text-text mono-label">{{ formatVnd(a.startingPrice) }}</span>
+                        </div>
+                        <div class="flex flex-col gap-0.5">
+                          <span class="text-[10px] uppercase font-bold text-text-muted">Giá hiện tại</span>
+                          <span class="text-sm font-bold text-accent mono-label">{{ formatVnd(a.currentPrice) }}</span>
+                        </div>
+                        <div class="flex flex-col gap-0.5">
+                          <span class="text-[10px] uppercase font-bold text-text-muted">Bước giá tối thiểu</span>
+                          <span class="text-sm font-bold text-text mono-label">{{ formatVnd(a.minimumIncrement) }}</span>
+                        </div>
+                        <div class="flex flex-col gap-0.5">
+                          <span class="text-[10px] uppercase font-bold text-text-muted">Lượt đặt giá</span>
+                          <span class="text-sm font-bold text-text mono-label">{{ a.bidCount }}</span>
+                        </div>
+                      </div>
+
+                      @if (a.status === 'ACTIVE' || a.status === 'SCHEDULED') {
+                        <p class="text-xs text-text-muted">
+                          {{ a.status === 'SCHEDULED' ? 'Bắt đầu sau: ' : 'Còn lại: ' }}<span class="font-bold text-text">{{ countdownLabel() }}</span>
+                        </p>
+                      } @else if (a.status === 'ENDED') {
+                        <p class="text-xs text-text-muted">
+                          @if (a.winnerId) {
+                            Phiên đấu giá đã kết thúc. Người thắng cần hoàn tất thanh toán trước khi tải bản gốc.
+                          } @else {
+                            Phiên đấu giá đã kết thúc mà không có lượt đặt giá nào.
+                          }
+                        </p>
+                      } @else if (a.status === 'CANCELLED') {
+                        <p class="text-xs text-text-muted">Phiên đấu giá này đã bị người bán hủy.</p>
+                      }
+
+                      <!-- Thanh toán cho người bán — chỉ hiện với người thắng -->
+                      @if (a.status === 'ENDED' && a.winnerId === supabaseService.user()?.id && a.myPurchase; as mp) {
+                        <div class="flex flex-col gap-2 p-4 rounded-control bg-surface-elevated border border-accent/40">
+                          <span class="text-sm font-bold text-accent">Bạn đã thắng phiên đấu giá này!</span>
+                          @if (mp.status === 'PAID') {
+                            <p class="text-xs text-text-muted">Người bán đã xác nhận nhận được thanh toán — bạn có thể tải bản gốc.</p>
+                            <button
+                              type="button"
+                              (click)="downloadAuctionOriginal()"
+                              [disabled]="downloading()"
+                              class="h-10 px-4 rounded-control bg-accent text-white font-bold text-xs border-none cursor-pointer disabled:opacity-50 self-start"
+                            >
+                              {{ downloading() ? 'Đang tải...' : 'Tải bản gốc' }}
+                            </button>
+                          } @else {
+                            <p class="text-xs text-text-muted">
+                              Vui lòng chuyển khoản {{ formatVnd(mp.amount) }} cho người bán, sau đó chờ người bán xác nhận. Bấm "Trao đổi với chủ sở hữu" ở trên để liên hệ trực tiếp.
+                            </p>
+                            @if (auctionPaymentQr(mp); as qrUrl) {
+                              <img [src]="qrUrl" alt="QR chuyển khoản cho người bán" class="w-32 h-32 rounded-control border border-border" />
+                              <span class="text-[10px] text-text-muted">Nội dung: <strong>{{ mp.paymentReference }}</strong></span>
+                            } @else {
+                              <p class="text-[10px] text-error">Người bán chưa cấu hình thông tin nhận thanh toán. Vui lòng liên hệ người bán.</p>
+                            }
+                          }
+                          @if (downloadMessage()) {
+                            <span class="text-[10px] text-text-muted">{{ downloadMessage() }}</span>
+                          }
+                        </div>
+                      }
+
+                      @if (canPlaceBid()) {
+                        <form (submit)="submitBid(); $event.preventDefault()" class="flex flex-wrap items-center gap-2">
+                          <label class="sr-only" for="bidAmount">Giá đặt (VNĐ)</label>
+                          <input
+                            id="bidAmount"
+                            type="number"
+                            step="1000"
+                            [min]="minAcceptableBid()"
+                            [(ngModel)]="bidAmount"
+                            name="bidAmount"
+                            [placeholder]="'Tối thiểu ' + minAcceptableBidLabel()"
+                            class="w-44 bg-surface border border-border focus:border-accent outline-none rounded-control px-3 h-10 text-xs text-text placeholder-text-muted focus:ring-2 focus:ring-accent/40"
+                            [disabled]="bidSubmitting()"
+                          />
+                          <button
+                            type="submit"
+                            [disabled]="bidSubmitting()"
+                            class="h-10 px-4 bg-gradient-brand cta-shape text-text-on-accent text-xs font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                          >
+                            {{ bidSubmitting() ? 'Đang gửi...' : 'Đặt giá' }}
+                          </button>
+                        </form>
+                        @if (bidError()) {
+                          <p class="text-xs text-error" role="alert">{{ bidError() }}</p>
+                        }
+                        @if (bidSuccessMessage()) {
+                          <p class="text-xs text-success" role="status">{{ bidSuccessMessage() }}</p>
+                        }
+                      } @else if (isAuctionOwner()) {
+                        <p class="text-xs text-text-muted">Bạn là người bán — không thể tự đặt giá cho tác phẩm của mình.</p>
+                      } @else if (a.status === 'ACTIVE') {
+                        <p class="text-xs text-text-muted">
+                          Chỉ thành viên Plus hoặc Pro mới có thể đặt giá.
+                          <button type="button" (click)="goToPricing()" class="text-accent hover:underline bg-transparent border-none p-0 cursor-pointer font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control">Nâng cấp ngay</button>
+                        </p>
+                      }
+
+                      <!-- Danh sách bid — chỉ username/avatar công khai, không có email/dữ liệu thanh toán -->
+                      <div class="flex flex-col gap-2">
+                        <span class="text-xs font-bold text-text-muted">Lịch sử đặt giá</span>
+                        @if (a.bids.length === 0) {
+                          <p class="text-xs text-text-muted">Chưa có lượt đặt giá nào. Hãy là người đầu tiên!</p>
+                        } @else {
+                          <div class="flex flex-col gap-2 max-h-[180px] overflow-y-auto pr-1">
+                            @for (bid of a.bids; track bid.id) {
+                              <div class="flex items-center gap-2">
+                                <app-user-avatar [src]="bid.bidder.avatarUrl" [name]="bid.bidder.username" [size]="24" [plan]="bid.bidder.plan"></app-user-avatar>
+                                <span class="text-xs font-bold text-text">{{ bid.bidder.username }}</span>
+                                <span class="text-xs text-text-muted mono-label ml-auto">{{ formatVnd(bid.amount) }}</span>
+                              </div>
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
 
                 <!-- Discussion -->
                 <div class="flex flex-col gap-4">

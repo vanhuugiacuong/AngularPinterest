@@ -14,6 +14,7 @@ describe('PinDownloadService', () => {
     pin: { findUnique: jest.fn() },
     imagePurchase: { findUnique: jest.fn() },
     auditLog: { create: jest.fn() },
+    auction: { count: jest.fn().mockResolvedValue(0) },
   };
   const supabase = { downloadPrivate: jest.fn() };
   const memberships = { status: jest.fn() };

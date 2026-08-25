@@ -15,6 +15,25 @@ export interface MembershipPayment {
   id: string; userId: string; plan: MembershipPlan; amount: string; paymentReference: string;
   status: PaymentStatus; provider: string; createdAt: string; verifiedAt: string | null;
 }
+
+/** Tài khoản nhận tiền của người bán — người mua chuyển thẳng vào đây,
+ * không qua tài khoản chung của platform nữa. */
+export interface PayoutAccount {
+  bankCode: string;
+  accountNumber: string;
+  accountName: string;
+}
+
+export interface PendingSale {
+  id: string;
+  pinId: string;
+  amount: string;
+  status: PaymentStatus;
+  paymentReference: string | null;
+  createdAt: string;
+  pin: { id: string; title: string; imageUrl: string };
+  buyer?: { username: string };
+}
 @Injectable({ providedIn: 'root' })
 export class MembershipService {
   private auth = inject(SupabaseService);
@@ -30,7 +49,7 @@ export class MembershipService {
   async subscribe(plan: MembershipPlan) { const value = await this.request<MembershipStatus>('/subscribe', 'POST', { plan }); this.status.set(value); return value; }
   async consumeAi() { const value = await this.request<{ used: number; limit: number; remaining: number }>('/ai/consume', 'POST'); this.status.update(s => s ? { ...s, aiUsed: value.used, aiLimit: value.limit, aiRemaining: value.remaining } : s); return value; }
   purchase(pinId: string) {
-    return this.request<{ id: string; status: PaymentStatus; paymentReference: string; amount: string }>(
+    return this.request<{ id: string; status: PaymentStatus; paymentReference: string; amount: string; sellerPayout: PayoutAccount | null }>(
       `/pins/${pinId}/purchase`,
       'POST',
     );
@@ -42,6 +61,10 @@ export class MembershipService {
     return this.request<{ sales: MarketplaceSale[]; revenue: number }>('/marketplace/sales');
   }
   listPurchases() { return this.request<MarketplaceSale[]>('/marketplace/purchases'); }
+  listPendingSales() { return this.request<PendingSale[]>('/marketplace/pending-sales'); }
+  getPayoutAccount() { return this.request<PayoutAccount | null>('/me/payout-account'); }
+  updatePayoutAccount(body: PayoutAccount) { return this.request<PayoutAccount | null>('/me/payout-account', 'PUT', body); }
+  confirmReceived(purchaseId: string) { return this.request<{ ok: true }>(`/purchases/${purchaseId}/confirm-received`, 'POST'); }
 }
 
 export interface MarketplaceSale {

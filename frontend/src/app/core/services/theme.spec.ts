@@ -33,10 +33,17 @@ function colorSchemeOf(el: HTMLElement): string {
 
 describe('ThemeService', () => {
   let store: Record<string, string>;
-  // window.matchMedia is reassigned (not spied) below, so vi.restoreAllMocks()
-  // cannot undo it — without this, the mock leaks into every spec file that
-  // runs afterward in the same Vitest worker.
-  const originalMatchMedia = window.matchMedia;
+  const originalMatchMediaDescriptor = Object.getOwnPropertyDescriptor(window, 'matchMedia');
+
+  function installMatchMedia(mql: MediaQueryList): void {
+    // Another spec may define matchMedia as configurable but read-only.
+    // defineProperty is deterministic when Vitest reuses a jsdom worker.
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: vi.fn().mockReturnValue(mql),
+    });
+  }
 
   beforeEach(() => {
     store = {};
@@ -51,12 +58,16 @@ describe('ThemeService', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
-    window.matchMedia = originalMatchMedia;
+    if (originalMatchMediaDescriptor) {
+      Object.defineProperty(window, 'matchMedia', originalMatchMediaDescriptor);
+    } else {
+      delete (window as unknown as { matchMedia?: typeof window.matchMedia }).matchMedia;
+    }
   });
 
   it('defaults preference to system when nothing was previously saved', () => {
     const { mql } = mockMatchMedia(true);
-    window.matchMedia = vi.fn().mockReturnValue(mql);
+    installMatchMedia(mql);
 
     const service = TestBed.inject(ThemeService);
 
@@ -67,7 +78,7 @@ describe('ThemeService', () => {
   it('reads a previously saved preference from localStorage on init', () => {
     store['novaframe:theme'] = 'dark';
     const { mql } = mockMatchMedia(true); // system prefers light, saved choice should win
-    window.matchMedia = vi.fn().mockReturnValue(mql);
+    installMatchMedia(mql);
 
     const service = TestBed.inject(ThemeService);
 
@@ -77,7 +88,7 @@ describe('ThemeService', () => {
 
   it('switches between light, dark, and system, resolving each correctly', () => {
     const { mql } = mockMatchMedia(false); // system prefers dark
-    window.matchMedia = vi.fn().mockReturnValue(mql);
+    installMatchMedia(mql);
 
     const service = TestBed.inject(ThemeService);
 
@@ -96,7 +107,7 @@ describe('ThemeService', () => {
 
   it('tracks prefers-color-scheme changes only while preference is system', () => {
     const { mql, trigger, listenerCount } = mockMatchMedia(false);
-    window.matchMedia = vi.fn().mockReturnValue(mql);
+    installMatchMedia(mql);
 
     const service = TestBed.inject(ThemeService);
     expect(listenerCount()).toBe(1);
@@ -117,7 +128,7 @@ describe('ThemeService', () => {
 
   it('persists the chosen preference to localStorage', () => {
     const { mql } = mockMatchMedia(false);
-    window.matchMedia = vi.fn().mockReturnValue(mql);
+    installMatchMedia(mql);
 
     const service = TestBed.inject(ThemeService);
     service.setTheme('light');
@@ -128,7 +139,7 @@ describe('ThemeService', () => {
 
   it('applies data-theme and color-scheme to <html>', () => {
     const { mql } = mockMatchMedia(true);
-    window.matchMedia = vi.fn().mockReturnValue(mql);
+    installMatchMedia(mql);
 
     TestBed.inject(ThemeService);
     TestBed.tick();
@@ -139,7 +150,7 @@ describe('ThemeService', () => {
 
   it('defaults the quick-toggle visibility to true when nothing was saved', () => {
     const { mql } = mockMatchMedia(true);
-    window.matchMedia = vi.fn().mockReturnValue(mql);
+    installMatchMedia(mql);
 
     const service = TestBed.inject(ThemeService);
 
@@ -149,7 +160,7 @@ describe('ThemeService', () => {
   it('reads a previously saved quick-toggle preference from localStorage', () => {
     store['novaframe:quick-toggle'] = 'false';
     const { mql } = mockMatchMedia(true);
-    window.matchMedia = vi.fn().mockReturnValue(mql);
+    installMatchMedia(mql);
 
     const service = TestBed.inject(ThemeService);
 
@@ -158,7 +169,7 @@ describe('ThemeService', () => {
 
   it('persists a quick-toggle visibility change to localStorage', () => {
     const { mql } = mockMatchMedia(true);
-    window.matchMedia = vi.fn().mockReturnValue(mql);
+    installMatchMedia(mql);
 
     const service = TestBed.inject(ThemeService);
     service.setShowQuickToggle(false);

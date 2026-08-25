@@ -11,6 +11,14 @@ import { PublishDialogStatus, PublishProgressDialog } from './publish-progress-d
 import { MembershipService } from '../../core/services/membership';
 import { CollageTransferService } from '../collage/services/collage-transfer.service';
 import { DialogService } from '../../core/services/dialog';
+import { AuctionService } from '../../core/services/auction';
+import { ToastService } from '../../core/services/toast';
+
+/** Hình thức bán chọn ở Create Studio — 'none' không gửi price/auction nào,
+ * 'fixed' giữ nguyên luồng price hiện có, 'auction' tạo phiên đấu giá sau
+ * khi pin đã đăng thành công (2 bước, vì upload dùng multipart/FormData còn
+ * tạo phiên đấu giá là JSON thuần). */
+type ListingMode = 'none' | 'fixed' | 'auction';
 
 /** 'idle' — no file selected / check not run yet.
  * 'checking' — request in flight.
@@ -35,6 +43,8 @@ export class Create implements OnInit {
   public membership = inject(MembershipService);
   private collageTransfer = inject(CollageTransferService);
   private dialogService = inject(DialogService);
+  private auctionService = inject(AuctionService);
+  private toast = inject(ToastService);
 
   // Only ever mounted while activeTab() === 'upload' and an image is
   // selected — <app-image-editor> is not present anywhere in the AI tab.
@@ -44,6 +54,12 @@ export class Create implements OnInit {
   public title = '';
   public description = '';
   public price: number | null = null;
+  public listingMode: ListingMode = 'none';
+  public auctionStartingPrice: number | null = null;
+  public auctionMinimumIncrement: number | null = null;
+  /** Giá trị input datetime-local (chuỗi "YYYY-MM-DDTHH:mm", giờ máy client). */
+  public auctionStartsAt = '';
+  public auctionEndsAt = '';
   public activeTab = signal<'upload' | 'ai'>('upload');
 
   // Boards selector fields
@@ -333,11 +349,51 @@ export class Create implements OnInit {
     return boardId;
   }
 
+  /** Validate các field đấu giá phía client — lặp lại đúng quy tắc backend
+   * (AuctionsService.createAuction) để người dùng thấy lỗi ngay, backend vẫn
+   * tự kiểm tra lại toàn bộ, không tin dữ liệu client. */
+  private validateAuctionFields(): string | null {
+    const starting = this.auctionStartingPrice;
+    const increment = this.auctionMinimumIncrement;
+    if (!starting || !Number.isInteger(starting) || starting < 1000) {
+      return 'Giá khởi điểm phải là số nguyên VNĐ, tối thiểu 1.000đ.';
+    }
+    if (!increment || !Number.isInteger(increment) || increment < 1000) {
+      return 'Bước giá tối thiểu phải là số nguyên VNĐ, tối thiểu 1.000đ.';
+    }
+    if (!this.auctionStartsAt || !this.auctionEndsAt) {
+      return 'Vui lòng chọn thời gian bắt đầu và kết thúc phiên đấu giá.';
+    }
+    const startsAt = new Date(this.auctionStartsAt);
+    const endsAt = new Date(this.auctionEndsAt);
+    if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
+      return 'Thời gian đấu giá không hợp lệ.';
+    }
+    if (endsAt.getTime() <= startsAt.getTime()) {
+      return 'Thời gian kết thúc phải sau thời gian bắt đầu.';
+    }
+    const durationMs = endsAt.getTime() - startsAt.getTime();
+    const ONE_HOUR_MS = 60 * 60 * 1000;
+    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+    if (durationMs < ONE_HOUR_MS || durationMs > THIRTY_DAYS_MS) {
+      return 'Thời lượng phiên đấu giá phải từ 1 giờ đến 30 ngày.';
+    }
+    return null;
+  }
+
   private async submitUpload(): Promise<void> {
     const token = await this.supabaseService.getSessionToken();
     if (!token || !this.selectedFile) {
       this.formError.set('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
       return;
+    }
+
+    if (this.listingMode === 'auction' && this.membership.status()?.canSell) {
+      const auctionValidationError = this.validateAuctionFields();
+      if (auctionValidationError) {
+        this.formError.set(auctionValidationError);
+        return;
+      }
     }
 
     const isDirty = !!this.editorRef?.isDirty();
@@ -371,10 +427,33 @@ export class Create implements OnInit {
       if (boardId) {
         formData.append('boardId', boardId);
       }
-      if (this.membership.status()?.canSell && this.price) formData.append('price', String(this.price));
+      if (this.listingMode === 'fixed' && this.membership.status()?.canSell && this.price) {
+        formData.append('price', String(this.price));
+      }
       // Regular uploads never carry AI metadata, regardless of tab history.
 
-      await this.pinService.createUploadPin(formData, token);
+      const createdPin = await this.pinService.createUploadPin(formData, token);
+
+      // Tạo phiên đấu giá là bước JSON riêng sau khi pin (multipart) đã đăng
+      // thành công — nếu bước này lỗi, pin vẫn tồn tại, chỉ báo rõ cho người
+      // dùng thay vì âm thầm bỏ qua hoặc làm mất ảnh đã đăng.
+      if (this.listingMode === 'auction' && this.membership.status()?.canSell) {
+        try {
+          await this.auctionService.create({
+            pinId: createdPin.id,
+            startingPrice: this.auctionStartingPrice!,
+            minimumIncrement: this.auctionMinimumIncrement!,
+            startsAt: new Date(this.auctionStartsAt).toISOString(),
+            endsAt: new Date(this.auctionEndsAt).toISOString(),
+          });
+        } catch (auctionError) {
+          console.error('Error creating auction after pin upload:', auctionError);
+          this.toast.error(
+            'Đã đăng ảnh nhưng không thể tạo phiên đấu giá. Bạn có thể tạo lại từ trang cá nhân.',
+          );
+        }
+      }
+
       await this.handlePublishSuccess();
     } catch (error) {
       console.error('Error uploading pin:', error);

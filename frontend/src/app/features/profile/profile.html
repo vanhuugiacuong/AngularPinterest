@@ -162,7 +162,7 @@
         </div>
       </section>
 
-      @if (p.viewer.isOwnProfile && (marketplaceSales().length > 0 || marketplacePurchases().length > 0 || marketplaceLoading())) {
+      @if (p.viewer.isOwnProfile && (marketplaceSales().length > 0 || marketplacePurchases().length > 0 || marketplacePendingSales().length > 0 || marketplaceLoading())) {
         <section class="bg-surface border border-border rounded-panel p-5 sm:p-6 mb-6" aria-labelledby="nf-marketplace-heading">
           <h2 id="nf-marketplace-heading" class="text-lg font-bold text-text font-display">Marketplace của bạn</h2>
           <p class="text-sm text-text-muted mt-1 mb-4">Doanh thu và lịch sử giao dịch ảnh của bạn.</p>
@@ -175,7 +175,32 @@
           }
 
           @if (!marketplaceLoading()) {
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div>
+                <span class="text-xs font-bold text-text-muted uppercase tracking-wide">Đang chờ xác nhận ({{ marketplacePendingSales().length }})</span>
+                <ul class="flex flex-col gap-3 mt-3">
+                  @for (pending of marketplacePendingSales(); track pending.id) {
+                    <li class="flex flex-col gap-1.5 text-xs border-b border-border pb-2 last:border-none last:pb-0">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-text truncate">{{ pending.pin.title }}</span>
+                        <span class="text-text-muted shrink-0">{{ pending.amount | number }}đ</span>
+                      </div>
+                      <span class="text-text-muted">Người mua: {{ pending.buyer?.username }}</span>
+                      <button
+                        type="button"
+                        (click)="confirmReceived(pending.id)"
+                        [disabled]="confirmReceivedPendingId() === pending.id"
+                        class="self-start h-8 px-3 rounded-control bg-accent text-white text-[11px] font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      >
+                        {{ confirmReceivedPendingId() === pending.id ? 'Đang xác nhận...' : 'Xác nhận đã nhận thanh toán' }}
+                      </button>
+                    </li>
+                  }
+                  @if (marketplacePendingSales().length === 0) {
+                    <li class="text-xs text-text-muted">Không có giao dịch nào đang chờ.</li>
+                  }
+                </ul>
+              </div>
               <div>
                 <span class="text-xs font-bold text-text-muted uppercase tracking-wide">Doanh thu ({{ marketplaceSales().length }} giao dịch)</span>
                 <p class="text-2xl font-extrabold text-text font-display mt-1">{{ marketplaceRevenue() | number }}đ</p>
@@ -205,6 +230,74 @@
                   }
                   @if (marketplacePurchases().length === 0) {
                     <li class="text-xs text-text-muted">Bạn chưa mua ảnh nào.</li>
+                  }
+                </ul>
+              </div>
+            </div>
+          }
+        </section>
+      }
+
+      @if (p.viewer.isOwnProfile && (auctionsSelling().length > 0 || auctionsBidding().length > 0 || auctionsLoading())) {
+        <section class="bg-surface border border-border rounded-panel p-5 sm:p-6 mb-6" aria-labelledby="nf-auctions-heading">
+          <h2 id="nf-auctions-heading" class="text-lg font-bold text-text font-display">Đấu giá của bạn</h2>
+          <p class="text-sm text-text-muted mt-1 mb-4">Các phiên bạn đang bán và các phiên bạn đã đặt giá.</p>
+
+          @if (auctionsLoading()) {
+            <p class="text-xs text-text-muted">Đang tải...</p>
+          }
+          @if (auctionsError()) {
+            <p class="text-xs text-error">{{ auctionsError() }}</p>
+          }
+
+          @if (!auctionsLoading()) {
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <span class="text-xs font-bold text-text-muted uppercase tracking-wide">Phiên đang bán ({{ auctionsSelling().length }})</span>
+                <ul class="flex flex-col gap-3 mt-3">
+                  @for (a of auctionsSelling(); track a.id) {
+                    <li class="flex flex-col gap-1 text-xs border-b border-border pb-2 last:border-none last:pb-0">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-text font-bold truncate">{{ a.pin.title }}</span>
+                        <span class="text-text-muted shrink-0">{{ auctionStatusLabel(a.status) }}</span>
+                      </div>
+                      <span class="text-text-muted">Giá hiện tại: {{ a.currentPrice | number }}đ · {{ a.bidCount }} lượt đặt giá</span>
+                      @if (a.winner) {
+                        <span class="text-text-muted">Người thắng: {{ a.winner.username }} · {{ purchaseStatusLabel(a.purchaseStatus) }}</span>
+                      }
+                      @if (canCancelAuction(a)) {
+                        <button
+                          type="button"
+                          (click)="cancelAuction(a.id)"
+                          [disabled]="auctionCancelPendingId() === a.id"
+                          class="self-start mt-1 h-8 px-3 rounded-control border border-border text-text-muted hover:text-error hover:border-error/40 text-[11px] font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        >
+                          {{ auctionCancelPendingId() === a.id ? 'Đang hủy...' : 'Hủy phiên' }}
+                        </button>
+                      }
+                    </li>
+                  }
+                  @if (auctionsSelling().length === 0) {
+                    <li class="text-xs text-text-muted">Bạn chưa có phiên đấu giá nào.</li>
+                  }
+                </ul>
+              </div>
+              <div>
+                <span class="text-xs font-bold text-text-muted uppercase tracking-wide">Phiên tôi đã đặt giá ({{ auctionsBidding().length }})</span>
+                <ul class="flex flex-col gap-2 mt-3">
+                  @for (b of auctionsBidding(); track b.auctionId) {
+                    <li class="flex items-center justify-between gap-2 text-xs">
+                      <span class="text-text truncate">{{ b.pin.title }}</span>
+                      <span class="text-text-muted shrink-0">
+                        {{ auctionStatusLabel(b.status) }} · Giá của tôi: {{ b.myLastBid | number }}đ
+                        @if (b.isWinning) {
+                          · <span class="text-accent font-bold">Đang dẫn đầu</span>
+                        }
+                      </span>
+                    </li>
+                  }
+                  @if (auctionsBidding().length === 0) {
+                    <li class="text-xs text-text-muted">Bạn chưa đặt giá phiên nào.</li>
                   }
                 </ul>
               </div>

@@ -4,7 +4,8 @@ import { PaymentsService } from './payments.service';
 describe('PaymentsService webhook signature', () => {
   const prisma = {};
   const memberships = {};
-  const service = new PaymentsService(prisma as never, memberships as never);
+  const notifications = { createNotification: jest.fn() };
+  const service = new PaymentsService(prisma as never, memberships as never, notifications as never);
   const originalEnv = process.env.SEPAY_WEBHOOK_API_KEY;
 
   afterEach(() => {
@@ -34,7 +35,8 @@ describe('PaymentsService.handleSepayWebhook', () => {
     auditLog: { create: jest.fn() },
   };
   const memberships = { activatePlan: jest.fn() };
-  const service = new PaymentsService(prisma as never, memberships as never);
+  const notifications = { createNotification: jest.fn() };
+  const service = new PaymentsService(prisma as never, memberships as never, notifications as never);
 
   beforeEach(() => {
     jest.clearAllMocks();

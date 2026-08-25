@@ -4,7 +4,20 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { NotificationTemplateHelper, NotificationData, NOTIFICATION_TEMPLATES, NotificationTemplate } from '../templates/notification.templates';
 import { PUBLIC_USER_SELECT } from '../common/relationship.util';
 
-export type NotificationType = 'LIKE' | 'COMMENT' | 'SAVE' | 'POST_SUCCESS' | 'POST_AI_SUCCESS' | 'FOLLOW' | 'FOLLOW_REQUEST';
+export type NotificationType =
+  | 'LIKE'
+  | 'COMMENT'
+  | 'SAVE'
+  | 'POST_SUCCESS'
+  | 'POST_AI_SUCCESS'
+  | 'FOLLOW'
+  | 'FOLLOW_REQUEST'
+  | 'AUCTION_NEW_BID'
+  | 'AUCTION_OUTBID'
+  | 'AUCTION_WON'
+  | 'AUCTION_ENDED_NO_BIDS'
+  | 'AUCTION_SALE_PAID'
+  | 'PURCHASE_CONFIRMED_BY_SELLER';
 
 @Injectable()
 export class NotificationsService {

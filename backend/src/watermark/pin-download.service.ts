@@ -31,12 +31,19 @@ export class PinDownloadService {
     });
     if (!pin) throw new NotFoundException('Không tìm thấy ảnh.');
 
-    if (pin.userId !== userId && pin.isForSale) {
-      const purchase = await this.prisma.imagePurchase.findUnique({
-        where: { pinId_buyerId: { pinId, buyerId: userId } },
-      });
-      if (!purchase || purchase.status !== 'PAID') {
-        throw new ForbiddenException('Bạn cần mua ảnh này trước khi tải bản đầy đủ.');
+    if (pin.userId !== userId) {
+      // "Đang rao bán" theo nghĩa rộng: giá cố định HOẶC từng/đang có phiên
+      // đấu giá chưa bị hủy. Không chỉ dựa vào isForSale — nếu chỉ tạo
+      // Auction mà không set isForSale, thiếu điều kiện này sẽ cho phép tải
+      // bản gốc miễn phí trong lúc đấu giá đang diễn ra.
+      const hasAuction = (await this.prisma.auction.count({ where: { pinId, status: { not: 'CANCELLED' } } })) > 0;
+      if (pin.isForSale || hasAuction) {
+        const purchase = await this.prisma.imagePurchase.findUnique({
+          where: { pinId_buyerId: { pinId, buyerId: userId } },
+        });
+        if (!purchase || purchase.status !== 'PAID') {
+          throw new ForbiddenException('Bạn cần mua ảnh này trước khi tải bản đầy đủ.');
+        }
       }
     }
 

@@ -19,7 +19,8 @@ import { SupabaseService } from '../../core/services/supabase';
 import { ProfileAlbum, ProfilePin, ProfileSummary, UserService } from '../../core/services/user';
 import { MessagingService, ReportReason } from '../../core/services/messaging';
 import { SafetyService } from '../../core/services/safety';
-import { MarketplaceSale, MembershipService } from '../../core/services/membership';
+import { MarketplaceSale, MembershipService, PendingSale } from '../../core/services/membership';
+import { AuctionBiddingSummary, AuctionSellingSummary, AuctionService } from '../../core/services/auction';
 import { toUserMessage } from '../../core/utils/http-error';
 import { FollowListDialog } from './follow-list-dialog/follow-list-dialog';
 import { DialogService } from '../../core/services/dialog';
@@ -53,13 +54,22 @@ export class Profile implements OnInit, OnDestroy {
   private readonly messagingService = inject(MessagingService);
   private readonly safetyService = inject(SafetyService);
   private readonly membershipService = inject(MembershipService);
+  private readonly auctionService = inject(AuctionService);
   private readonly dialogService = inject(DialogService);
 
   readonly marketplaceSales = signal<MarketplaceSale[]>([]);
   readonly marketplaceRevenue = signal(0);
   readonly marketplacePurchases = signal<MarketplaceSale[]>([]);
+  readonly marketplacePendingSales = signal<PendingSale[]>([]);
   readonly marketplaceLoading = signal(false);
   readonly marketplaceError = signal<string | null>(null);
+  readonly confirmReceivedPendingId = signal<string | null>(null);
+
+  readonly auctionsSelling = signal<AuctionSellingSummary[]>([]);
+  readonly auctionsBidding = signal<AuctionBiddingSummary[]>([]);
+  readonly auctionsLoading = signal(false);
+  readonly auctionsError = signal<string | null>(null);
+  readonly auctionCancelPendingId = signal<string | null>(null);
 
   readonly profile = signal<ProfileSummary | null>(null);
   readonly profileLoading = signal(true);
@@ -152,7 +162,10 @@ export class Profile implements OnInit, OnDestroy {
 
       this.profile.set(summary);
       this.activateRequestedTab(requestedTab || 'posts');
-      if (summary.viewer.isOwnProfile) void this.loadMarketplace();
+      if (summary.viewer.isOwnProfile) {
+        void this.loadMarketplace();
+        void this.loadAuctions();
+      }
     } catch (error) {
       if (version !== this.requestVersion) return;
       this.profileError.set(this.errorMessage(error, 'Không thể tải hồ sơ này.'));
@@ -167,17 +180,95 @@ export class Profile implements OnInit, OnDestroy {
     this.marketplaceLoading.set(true);
     this.marketplaceError.set(null);
     try {
-      const [salesResult, purchases] = await Promise.all([
+      const [salesResult, purchases, pendingSales] = await Promise.all([
         this.membershipService.listSales(),
         this.membershipService.listPurchases(),
+        this.membershipService.listPendingSales(),
       ]);
       this.marketplaceSales.set(salesResult.sales);
       this.marketplaceRevenue.set(salesResult.revenue);
       this.marketplacePurchases.set(purchases);
+      this.marketplacePendingSales.set(pendingSales);
     } catch (error) {
       this.marketplaceError.set(this.errorMessage(error, 'Không thể tải dữ liệu marketplace.'));
     } finally {
       this.marketplaceLoading.set(false);
+    }
+  }
+
+  /** Người bán tự xác nhận đã nhận được thanh toán chuyển thẳng vào tài
+   * khoản riêng — tiền không qua platform nên không có webhook nào xác
+   * nhận hộ. Backend vẫn tự kiểm tra sellerId trước khi cho phép. */
+  async confirmReceived(purchaseId: string): Promise<void> {
+    if (this.confirmReceivedPendingId()) return;
+    this.confirmReceivedPendingId.set(purchaseId);
+    try {
+      await this.membershipService.confirmReceived(purchaseId);
+      await this.loadMarketplace();
+      this.announce('Đã xác nhận nhận được thanh toán.');
+    } catch (error) {
+      this.announce(this.errorMessage(error, 'Không thể xác nhận thanh toán.'));
+    } finally {
+      this.confirmReceivedPendingId.set(null);
+    }
+  }
+
+  private async loadAuctions(): Promise<void> {
+    this.auctionsLoading.set(true);
+    this.auctionsError.set(null);
+    try {
+      const [selling, bidding] = await Promise.all([
+        this.auctionService.listSelling(),
+        this.auctionService.listBidding(),
+      ]);
+      this.auctionsSelling.set(selling);
+      this.auctionsBidding.set(bidding);
+    } catch (error) {
+      this.auctionsError.set(this.errorMessage(error, 'Không thể tải dữ liệu đấu giá.'));
+    } finally {
+      this.auctionsLoading.set(false);
+    }
+  }
+
+  auctionStatusLabel(status: string): string {
+    switch (status) {
+      case 'DRAFT':
+        return 'Nháp';
+      case 'SCHEDULED':
+        return 'Sắp diễn ra';
+      case 'ACTIVE':
+        return 'Đang diễn ra';
+      case 'ENDED':
+        return 'Đã kết thúc';
+      case 'CANCELLED':
+        return 'Đã hủy';
+      default:
+        return status;
+    }
+  }
+
+  purchaseStatusLabel(status: string | null): string {
+    if (!status) return 'Chưa có người thắng';
+    if (status === 'PAID') return 'Đã thanh toán';
+    if (status === 'PENDING') return 'Chờ thanh toán';
+    return 'Thất bại';
+  }
+
+  canCancelAuction(a: AuctionSellingSummary): boolean {
+    return a.bidCount === 0 && (a.status === 'SCHEDULED' || a.status === 'ACTIVE');
+  }
+
+  async cancelAuction(id: string): Promise<void> {
+    if (this.auctionCancelPendingId()) return;
+    this.auctionCancelPendingId.set(id);
+    try {
+      await this.auctionService.cancel(id);
+      await this.loadAuctions();
+      this.announce('Đã hủy phiên đấu giá.');
+    } catch (error) {
+      this.announce(this.errorMessage(error, 'Không thể hủy phiên đấu giá.'));
+    } finally {
+      this.auctionCancelPendingId.set(null);
     }
   }
 

@@ -43,6 +43,14 @@ export class PaymentsController {
 export class PurchasesController {
   constructor(private readonly payments: PaymentsService) {}
 
+  // Không cần AdminGuard - chính service kiểm tra người gọi là seller của
+  // giao dịch. Đây là đường xác nhận chính khi tiền chuyển thẳng vào tài
+  // khoản người bán (không qua webhook nền tảng).
+  @Post(':id/confirm-received')
+  confirmReceived(@CurrentUser() user: UserPayload, @Param('id') id: string) {
+    return this.payments.sellerConfirmPurchase(id, user.id);
+  }
+
   @UseGuards(AdminGuard)
   @Post(':id/confirm')
   confirm(@CurrentUser() admin: UserPayload, @Param('id') id: string) {

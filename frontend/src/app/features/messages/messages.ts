@@ -103,6 +103,14 @@ export class Messages implements OnInit, OnDestroy {
   }
 
   async ngOnInit() {
+    // Ngữ cảnh pin mang sang từ nút "Trao đổi với chủ sở hữu" (PinDetail) —
+    // chỉ điền sẵn ô soạn tin, không tự động gửi, và chỉ áp dụng một lần lúc
+    // vào trang (không ghi đè nếu người dùng đã gõ gì đó).
+    const prefill = this.route.snapshot.queryParamMap.get('prefill');
+    if (prefill && !this.messageDraft) {
+      this.messageDraft = prefill;
+    }
+
     this.routeSubscription = this.route.paramMap.subscribe((params) => {
       const conversationId = params.get('conversationId');
       if (conversationId !== this.selectedConversationId()) {

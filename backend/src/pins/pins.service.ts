@@ -5,7 +5,7 @@ import {
   BadRequestException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { MembershipPlan } from '@prisma/client';
+import { MembershipPlan, AuctionStatus, Currency, Prisma } from '@prisma/client';
 import sharp from 'sharp';
 import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
@@ -27,11 +27,44 @@ interface SimilarPinRow {
   createdAt: Date;
   isAiGenerated: boolean;
   category: string;
+  price: string | null;
+  isForSale: boolean;
+  currency: Currency;
   authorUsername: string | null;
   authorAvatarUrl: string | null;
   authorPlan: MembershipPlan | null;
   likesCount: number;
   similarity: number;
+}
+
+/** 'NONE' | 'FIXED_PRICE' | 'AUCTION' — suy ra từ Pin.isForSale + phiên đấu
+ * giá (chưa CANCELLED) mới nhất của pin, không bao giờ đọc trực tiếp từ
+ * client. Một pin không bao giờ vừa FIXED_PRICE vừa AUCTION cùng lúc. */
+export type PinListingType = 'NONE' | 'FIXED_PRICE' | 'AUCTION';
+
+export interface PinAuctionSummary {
+  id: string;
+  status: AuctionStatus;
+  startingPrice: string;
+  currentPrice: string;
+  minimumIncrement: string;
+  currency: Currency;
+  startsAt: string;
+  endsAt: string;
+  bidCount: number;
+}
+
+interface AuctionLike {
+  id: string;
+  pinId: string;
+  status: AuctionStatus;
+  startingPrice: Prisma.Decimal;
+  currentPrice: Prisma.Decimal;
+  minimumIncrement: Prisma.Decimal;
+  currency: Currency;
+  startsAt: Date;
+  endsAt: Date;
+  bidCount: number;
 }
 
 interface PinEmbeddingRow {
@@ -233,6 +266,59 @@ export class PinsService {
     }
   }
 
+  /** Phiên đấu giá chưa CANCELLED mới nhất cho mỗi pinId (không bao giờ hơn 1
+   * phiên chưa kết thúc/pin nhờ partial unique index ở DB, nhưng vẫn có thể
+   * có nhiều phiên ENDED lịch sử — lấy bản mới nhất theo createdAt). */
+  private async fetchLatestAuctionsByPinIds(pinIds: string[]): Promise<Map<string, AuctionLike>> {
+    const uniqueIds = [...new Set(pinIds)];
+    if (uniqueIds.length === 0) return new Map();
+    const rows = await this.prisma.auction.findMany({
+      where: { pinId: { in: uniqueIds }, status: { not: 'CANCELLED' } },
+      orderBy: { createdAt: 'desc' },
+    });
+    const map = new Map<string, AuctionLike>();
+    for (const row of rows) {
+      if (!map.has(row.pinId)) map.set(row.pinId, row);
+    }
+    return map;
+  }
+
+  private toAuctionSummary(a: AuctionLike): PinAuctionSummary {
+    return {
+      id: a.id,
+      status: a.status,
+      startingPrice: a.startingPrice.toString(),
+      currentPrice: a.currentPrice.toString(),
+      minimumIncrement: a.minimumIncrement.toString(),
+      currency: a.currency,
+      startsAt: a.startsAt.toISOString(),
+      endsAt: a.endsAt.toISOString(),
+      bidCount: a.bidCount,
+    };
+  }
+
+  private marketFieldsFor(
+    isForSale: boolean,
+    auction?: AuctionLike,
+  ): { listingType: PinListingType; auction: PinAuctionSummary | null } {
+    if (auction) return { listingType: 'AUCTION', auction: this.toAuctionSummary(auction) };
+    if (isForSale) return { listingType: 'FIXED_PRICE', auction: null };
+    return { listingType: 'NONE', auction: null };
+  }
+
+  /** Gắn listingType/auction vào danh sách pin đã fetch qua ORM (include),
+   * đồng thời bỏ originalStoragePath khỏi response — bản gốc chỉ backend
+   * được đọc trực tiếp qua endpoint tải ảnh có kiểm tra quyền riêng. */
+  private async attachMarketInfoToList<T extends { id: string; isForSale: boolean; originalStoragePath?: string | null }>(
+    pins: T[],
+  ): Promise<Omit<T, 'originalStoragePath'>[]> {
+    const auctionMap = await this.fetchLatestAuctionsByPinIds(pins.map((p) => p.id));
+    return pins.map((p) => {
+      const { originalStoragePath, ...rest } = p;
+      return { ...rest, ...this.marketFieldsFor(p.isForSale, auctionMap.get(p.id)) };
+    });
+  }
+
   async getAllPins(
     page: number = 1,
     limit: number = 20,
@@ -319,7 +405,7 @@ export class PinsService {
     const sortedPins = pinsWithScores.map((item) => item.pin);
 
     // 4. Return paginated slice
-    return sortedPins.slice(skip, skip + limit);
+    return this.attachMarketInfoToList(sortedPins.slice(skip, skip + limit));
   }
 
   async getRelatedPins(id: string, page: number = 1, limit: number = 20) {
@@ -328,7 +414,7 @@ export class PinsService {
       throw new NotFoundException('Pin not found');
     }
     const skip = (page - 1) * limit;
-    return this.prisma.pin.findMany({
+    const related = await this.prisma.pin.findMany({
       where: {
         category: pin.category,
         id: { not: id },
@@ -341,6 +427,7 @@ export class PinsService {
         _count: { select: { likes: true } },
       },
     });
+    return this.attachMarketInfoToList(related);
   }
 
   async getPinById(id: string, viewerId?: string) {
@@ -367,12 +454,29 @@ export class PinsService {
     if (!pin) {
       throw new NotFoundException('Pin not found');
     }
-    const { likes, _count, ...safePin } = pin;
+
+    const auctionMap = await this.fetchLatestAuctionsByPinIds([pin.id]);
+    const auction = auctionMap.get(pin.id);
+    const isOwner = viewerId === pin.userId;
+
+    // Tác phẩm đang bán/đấu giá: chỉ chủ sở hữu hoặc người dùng Plus/Pro còn
+    // hiệu lực mới được xem chi tiết. Dùng MembershipsService.status() (tự
+    // áp dụng lazy-expiry) thay vì đọc User.plan thô để gói đã hết hạn không
+    // còn được ưu tiên. Đây là lớp chặn thật ở backend — frontend chỉ là UX.
+    if ((pin.isForSale || auction) && !isOwner) {
+      const viewerPlan = viewerId ? (await this.membershipsService.status(viewerId)).plan : 'FREE';
+      if (viewerPlan !== 'PLUS' && viewerPlan !== 'PRO') {
+        throw new ForbiddenException('Nâng cấp gói để xem chi tiết và trao đổi với chủ sở hữu.');
+      }
+    }
+
+    const { likes, _count, originalStoragePath, ...safePin } = pin;
     return {
       ...safePin,
       _count,
       likeCount: _count.likes,
       isLiked: likes.length > 0,
+      ...this.marketFieldsFor(pin.isForSale, auction),
     };
   }
 
@@ -389,10 +493,21 @@ export class PinsService {
     }
     let salePrice: number | undefined;
     if (price) {
-      const owner = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
-      if (owner?.plan !== 'PRO') throw new ForbiddenException('Chỉ thành viên Pro mới có thể bán ảnh.');
+      const ownerStatus = await this.membershipsService.status(userId);
+      if (ownerStatus.plan !== 'PRO') {
+        throw new ForbiddenException('Chỉ thành viên Pro mới có thể bán ảnh.');
+      }
+      const owner = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { payoutBankCode: true, payoutAccountNumber: true, payoutAccountName: true },
+      });
+      if (!owner?.payoutBankCode || !owner.payoutAccountNumber || !owner.payoutAccountName) {
+        throw new BadRequestException('Vui lòng cấu hình thông tin nhận thanh toán trong Cài đặt trước khi bán ảnh.');
+      }
       salePrice = Number(price);
-      if (!Number.isFinite(salePrice) || salePrice < 1000) throw new BadRequestException('Giá ảnh phải từ 1.000đ.');
+      if (!Number.isFinite(salePrice) || !Number.isInteger(salePrice) || salePrice < 1000) {
+        throw new BadRequestException('Giá ảnh phải là số nguyên VND từ 1.000đ.');
+      }
     }
 
     // Server-side moderation gate — never trust a client-side "safe" check.
@@ -825,7 +940,7 @@ export class PinsService {
     const embedding = await this.getTextEmbedding(query);
     if (!embedding) {
       // Fallback: simple text keyword contains query
-      return this.prisma.pin.findMany({
+      const keywordPins = await this.prisma.pin.findMany({
         where: {
           OR: [
             { title: { contains: query, mode: 'insensitive' } },
@@ -840,6 +955,7 @@ export class PinsService {
           _count: { select: { likes: true } },
         },
       });
+      return this.attachMarketInfoToList(keywordPins);
     }
 
     // 2. Query pgvector for cosine similarity against the search text's embedding
@@ -946,6 +1062,7 @@ export class PinsService {
       ? await this.prisma.$queryRawUnsafe(`
         SELECT
           p.id, p.title, p.description, p."imageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
+          p.price, p."isForSale", p.currency,
           u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl", u.plan AS "authorPlan",
           COUNT(l."pinId")::int AS "likesCount",
           1 - (p.embedding <=> $1::vector) AS similarity
@@ -960,6 +1077,7 @@ export class PinsService {
       : await this.prisma.$queryRawUnsafe(`
         SELECT
           p.id, p.title, p.description, p."imageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
+          p.price, p."isForSale", p.currency,
           u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl", u.plan AS "authorPlan",
           COUNT(l."pinId")::int AS "likesCount",
           1 - (p.embedding <=> $1::vector) AS similarity
@@ -991,7 +1109,10 @@ export class PinsService {
       ? this.filterBySimilarityThreshold(uniquePins)
       : uniquePins;
 
-    return filteredPins.slice(0, limit).map((p) => ({
+    const page = filteredPins.slice(0, limit);
+    const auctionMap = await this.fetchLatestAuctionsByPinIds(page.map((p) => p.id));
+
+    return page.map((p) => ({
       id: p.id,
       title: p.title,
       description: p.description,
@@ -1001,6 +1122,10 @@ export class PinsService {
       createdAt: p.createdAt,
       isAiGenerated: p.isAiGenerated,
       category: p.category,
+      price: p.price,
+      isForSale: p.isForSale,
+      currency: p.currency,
+      ...this.marketFieldsFor(p.isForSale, auctionMap.get(p.id)),
       user: {
         id: p.userId,
         username: p.authorUsername || 'Pinterest AI',

@@ -17,6 +17,22 @@ export interface PinComment {
   user: PinAuthor;
 }
 
+/** Loại niêm yết của pin — suy ra ở backend từ isForSale + phiên đấu giá
+ * chưa hủy, không bao giờ do client tự quyết định. */
+export type PinListingType = 'NONE' | 'FIXED_PRICE' | 'AUCTION';
+
+export interface PinAuctionSummary {
+  id: string;
+  status: 'DRAFT' | 'SCHEDULED' | 'ACTIVE' | 'ENDED' | 'CANCELLED';
+  startingPrice: string;
+  currentPrice: string;
+  minimumIncrement: string;
+  currency: 'VND';
+  startsAt: string;
+  endsAt: string;
+  bidCount: number;
+}
+
 export interface Pin {
   id: string;
   title: string;
@@ -31,6 +47,12 @@ export interface Pin {
   _count?: { likes: number; comments?: number };
   comments?: PinComment[];
   user: PinAuthor;
+  /** Giá bán cố định — Decimal của backend được serialize thành chuỗi qua JSON. */
+  price?: string | number | null;
+  isForSale?: boolean;
+  currency?: 'VND';
+  listingType?: PinListingType;
+  auction?: PinAuctionSummary | null;
 }
 
 @Injectable({
