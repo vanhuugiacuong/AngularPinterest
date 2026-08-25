@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { ModerationService } from '../moderation/moderation.service';
 
 const MAX_MESSAGE_LENGTH = 4000;
 const ALLOWED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -46,6 +47,7 @@ export class ConversationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly supabaseService: SupabaseService,
+    private readonly moderationService: ModerationService,
   ) {}
 
   async listConversations(userId: string) {
@@ -332,6 +334,7 @@ export class ConversationsService {
     if (file.size > MAX_IMAGE_SIZE_BYTES) {
       throw new BadRequestException('Kích thước ảnh không được vượt quá 8MB');
     }
+    await this.moderationService.checkImageIsSafe(file.buffer, file.originalname, file.mimetype);
 
     const extension = file.originalname.split('.').pop() || 'png';
     const path = `chat/${userId}/msg_${Date.now()}_${Math.floor(Math.random() * 1000)}.${extension}`;

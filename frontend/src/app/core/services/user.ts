@@ -8,7 +8,7 @@ export class UserService {
 
   async getUserProfile(username: string): Promise<any> {
     try {
-      const response = await fetch(`${this.baseUrl}/${encodeURIComponent(username)}`);
+      const response = await fetch(`${this.baseUrl}/${encodeURIComponent(username)}`, { cache: 'no-store' });
       if (!response.ok) {
         throw new Error(`Failed to fetch user profile: ${response.statusText}`);
       }

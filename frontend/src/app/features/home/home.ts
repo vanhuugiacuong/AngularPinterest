@@ -29,14 +29,11 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   public pins = signal<any[]>([]);
   public boards = signal<Board[]>([]);
   public activeDropdownPinId = signal<string | null>(null);
+  public activeOptionsMenuPinId = signal<string | null>(null);
   public selectedBoardMap = signal<Record<string, Board>>({});
   public isLoading = signal<boolean>(true);
   public isScrollingLoad = signal<boolean>(false);
   public numColumns = signal<number>(4);
-
-  // Whether the "for you" horizontal strip is scrolled to the top (visible)
-  public isInterestBarVisible = signal<boolean>(true);
-  private lastScrollY = 0;
 
   // Pins the user likely has an interest in, derived from the (personalized) feed order
   public interestPins = computed(() => this.pins().slice(0, 15));
@@ -128,20 +125,6 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     this.updateNumColumns();
   }
 
-  @HostListener('window:scroll')
-  onWindowScroll() {
-    const currentScrollY = window.scrollY;
-
-    if (currentScrollY <= 8) {
-      // Back at the top: slide the interest bar back down
-      this.isInterestBarVisible.set(true);
-    } else if (currentScrollY > this.lastScrollY) {
-      // Scrolling down to browse other images: slide the bar up out of view
-      this.isInterestBarVisible.set(false);
-    }
-
-    this.lastScrollY = currentScrollY;
-  }
 
   updateNumColumns() {
     const width = window.innerWidth;
@@ -284,9 +267,6 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       }
       const hasBottomBar = (idHash % 10) < 6;
 
-      const ratios = [0.65, 0.7, 0.75, 0.8, 1.0, 1.2];
-      const aspectRatio = ratios[idHash % ratios.length];
-
       return {
         id: p.id,
         title: p.title,
@@ -294,8 +274,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
         hasBottomBar,
         author,
         likes,
-        isAiGenerated: p.isAiGenerated,
-        aspectRatio
+        isAiGenerated: p.isAiGenerated
       };
     });
   }
@@ -326,6 +305,54 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       }
     } catch (error) {
       console.error('Error toggling like:', error);
+    }
+  }
+
+  toggleOptionsMenu(pinId: string, event: MouseEvent) {
+    event.stopPropagation();
+    this.activeOptionsMenuPinId.set(this.activeOptionsMenuPinId() === pinId ? null : pinId);
+  }
+
+  async markInterest(pinId: string, event: MouseEvent) {
+    event.stopPropagation();
+    this.activeOptionsMenuPinId.set(null);
+    const token = await this.supabaseService.getSessionToken();
+    if (!token) return;
+    try {
+      await this.pinService.markInterest(pinId, token);
+      this.toastService.success('Sẽ hiện nhiều ảnh như thế này hơn cho bạn!');
+    } catch (error) {
+      console.error('Error marking interest:', error);
+      this.toastService.error('Không thể ghi nhận yêu cầu.');
+    }
+  }
+
+  async hidePin(pinId: string, event: MouseEvent) {
+    event.stopPropagation();
+    this.activeOptionsMenuPinId.set(null);
+    const token = await this.supabaseService.getSessionToken();
+    if (!token) return;
+    try {
+      await this.pinService.hidePin(pinId, token);
+      this.pins.update(current => current.filter(p => p.id !== pinId));
+      this.toastService.success('Đã ẩn ảnh này khỏi bảng tin của bạn.');
+    } catch (error) {
+      console.error('Error hiding pin:', error);
+      this.toastService.error('Không thể ẩn ảnh này.');
+    }
+  }
+
+  async reportPin(pinId: string, event: MouseEvent) {
+    event.stopPropagation();
+    this.activeOptionsMenuPinId.set(null);
+    const token = await this.supabaseService.getSessionToken();
+    if (!token) return;
+    try {
+      await this.pinService.reportPin(pinId, token);
+      this.toastService.success('Đã gửi báo cáo, cảm ơn bạn!');
+    } catch (error) {
+      console.error('Error reporting pin:', error);
+      this.toastService.error('Không thể gửi báo cáo.');
     }
   }
 

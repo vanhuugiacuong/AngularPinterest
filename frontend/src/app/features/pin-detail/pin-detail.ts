@@ -149,22 +149,13 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       // 2. Fetch related feed by category (excluding this one)
       try {
         const related = await this.pinService.getRelatedPins(id, 1, 30);
-        const mappedRelated = related.map(p => {
-          let idHash = 0;
-          for (let i = 0; i < p.id.length; i++) {
-            idHash += p.id.charCodeAt(i);
-          }
-          const ratios = [0.65, 0.7, 0.75, 0.8, 1.0, 1.2];
-          const aspectRatio = ratios[idHash % ratios.length];
-          return {
-            id: p.id,
-            title: p.title,
-            image: p.imageUrl,
-            author: p.user?.username || 'Pinterest AI',
-            likes: (p as any)._count?.likes ?? 0,
-            aspectRatio
-          };
-        });
+        const mappedRelated = related.map(p => ({
+          id: p.id,
+          title: p.title,
+          image: p.imageUrl,
+          author: p.user?.username || 'Pinterest AI',
+          likes: (p as any)._count?.likes ?? 0,
+        }));
         this.relatedPins.set(mappedRelated);
       } catch (relErr) {
         console.error('Error loading related pins:', relErr);
@@ -251,6 +242,11 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     const currentPin = this.pin();
     const currentUser = this.supabaseService.user();
     return !!currentPin && !!currentUser && currentPin.userId === currentUser.id;
+  }
+
+  navigateToAuthorProfile() {
+    const username = this.pin()?.user?.username;
+    if (username) this.router.navigate(['/profile', username]);
   }
 
   async deleteCurrentPin() {
@@ -457,22 +453,13 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     try {
       const related = await this.pinService.getRelatedPins(currentPin.id, this.currentPage, this.limit);
       if (related && related.length > 0) {
-        const mappedRelated = related.map(p => {
-          let idHash = 0;
-          for (let i = 0; i < p.id.length; i++) {
-            idHash += p.id.charCodeAt(i);
-          }
-          const ratios = [0.65, 0.7, 0.75, 0.8, 1.0, 1.2];
-          const aspectRatio = ratios[idHash % ratios.length];
-          return {
-            id: p.id,
-            title: p.title,
-            image: p.imageUrl,
-            author: p.user?.username || 'Pinterest AI',
-            likes: (p as any)._count?.likes ?? 0,
-            aspectRatio
-          };
-        });
+        const mappedRelated = related.map(p => ({
+          id: p.id,
+          title: p.title,
+          image: p.imageUrl,
+          author: p.user?.username || 'Pinterest AI',
+          likes: (p as any)._count?.likes ?? 0,
+        }));
         this.relatedPins.update(current => [...current, ...mappedRelated]);
         if (related.length < this.limit) {
           this.hasMore = false;

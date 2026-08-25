@@ -36,6 +36,10 @@ model User {
   conversationsAsUserTwo Conversation[]    @relation("ConversationsAsUserTwo")
   sentMessages           Message[]         @relation("MessageSender")
   messageReactions       MessageReaction[]
+
+  hiddenPins       HiddenPin[]
+  pinReports       PinReport[]
+  interestSignals  InterestSignal[]
 }
 
 model Follow {
@@ -71,6 +75,51 @@ model Pin {
   comments        Comment[]
   notifications   Notification[]
   sharedInMessages Message[]
+  hiddenBy        HiddenPin[]
+  reports         PinReport[]
+  interestSignals InterestSignal[]
+}
+
+// A user hid this pin from their own feed ("Ẩn bớt") — excluded from
+// getAllPins() for that user going forward.
+model HiddenPin {
+  userId    String
+  pinId     String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pin  Pin  @relation(fields: [pinId], references: [id], onDelete: Cascade)
+
+  @@id([userId, pinId])
+}
+
+// A user reported this pin ("Báo cáo Ghim") — no moderation queue UI yet,
+// just persisted so reports aren't lost and can be reviewed later.
+model PinReport {
+  id        String   @id @default(uuid())
+  userId    String
+  pinId     String
+  reason    String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pin  Pin  @relation(fields: [pinId], references: [id], onDelete: Cascade)
+
+  @@index([pinId])
+}
+
+// A user asked for "Xem thêm" (more like this) on a pin — folded into
+// getAllPins()'s preferredCategories scoring alongside likes/board saves.
+model InterestSignal {
+  userId    String
+  pinId     String
+  category  String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pin  Pin  @relation(fields: [pinId], references: [id], onDelete: Cascade)
+
+  @@id([userId, pinId])
 }
 
 model Board {

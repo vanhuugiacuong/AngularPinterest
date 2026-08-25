@@ -7,13 +7,10 @@
     <main class="flex-1 w-full mx-auto px-4 py-6 flex flex-col max-w-none">
 
       <!-- "For You" Interest Strip: horizontal scroll of recommended images below the search bar.
-           Slides up when the user scrolls down through the feed, slides back down at the top. -->
+           Scrolls away with the page normally (not pinned/sticky) — stays visible while the
+           user is still scrolling through it, gone once they've scrolled past it. -->
       @if (!isLoading() && interestPins().length > 0) {
-        <div
-          class="sticky top-16 z-30 bg-white dark:bg-[#121212] -mx-4 px-4 pt-2 pb-3 mb-2 transition-transform duration-300 ease-in-out"
-          [class.-translate-y-full]="!isInterestBarVisible()"
-          [class.opacity-0]="!isInterestBarVisible()"
-        >
+        <div class="bg-white dark:bg-[#121212] mb-2">
           <h2 class="text-base font-bold text-black dark:text-white mb-2">Xu hướng nổi bật</h2>
           <div class="interest-marquee-viewport overflow-hidden">
             <div class="interest-marquee-track flex gap-3 w-max">
@@ -91,17 +88,16 @@
               @for (pin of getPinsForColumn(colIndex); track pin.id) {
                 <div class="group cursor-pointer flex flex-col mb-1">
                   <!-- Image Container with Hover Overlay -->
-                  <div 
+                  <div
                     (click)="navigateToPin(pin.id)"
                     class="relative overflow-hidden rounded-[24px] bg-[#f6f6f3] dark:bg-[#1e1e1e] shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-300"
-                    [style.aspect-ratio]="pin.aspectRatio || '0.75'"
                   >
                     <img
                       [src]="pin.image"
                       [alt]="pin.title"
                       loading="lazy"
                       fetchpriority="low"
-                      class="w-full h-full object-cover rounded-[24px] block transition-transform duration-300 group-hover:scale-102"
+                      class="w-full h-auto rounded-[24px] block transition-transform duration-300 group-hover:scale-102"
                     />
                     
                     <!-- Hover Overlay -->
@@ -150,7 +146,29 @@
                           </span>
                         }
                         <!-- Three-dots action (Show on hover) -->
-                        <span class="material-symbols-outlined text-sm text-[#62625b] dark:text-[#999] hover:text-black dark:hover:text-white cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-200">more_horiz</span>
+                        <div class="relative">
+                          <span
+                            (click)="toggleOptionsMenu(pin.id, $event)"
+                            class="material-symbols-outlined text-sm text-[#62625b] dark:text-[#999] hover:text-black dark:hover:text-white cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                          >more_horiz</span>
+
+                          @if (activeOptionsMenuPinId() === pin.id) {
+                            <div class="absolute right-0 top-6 w-44 bg-white dark:bg-[#242424] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-[100] text-left" (click)="$event.stopPropagation()">
+                              <button type="button" (click)="markInterest(pin.id, $event)" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333] border-none bg-transparent text-xs font-bold text-black dark:text-white">
+                                <span class="material-symbols-outlined text-base leading-none">favorite</span>
+                                Xem thêm
+                              </button>
+                              <button type="button" (click)="hidePin(pin.id, $event)" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333] border-none bg-transparent text-xs font-bold text-black dark:text-white">
+                                <span class="material-symbols-outlined text-base leading-none">visibility_off</span>
+                                Ẩn bớt
+                              </button>
+                              <button type="button" (click)="reportPin(pin.id, $event)" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333] border-none bg-transparent text-xs font-bold text-red-500">
+                                <span class="material-symbols-outlined text-base leading-none">flag</span>
+                                Báo cáo Ghim
+                              </button>
+                            </div>
+                          }
+                        </div>
                       </div>
                     </div>
                   }
@@ -158,7 +176,29 @@
                   <!-- Generic simple dots bar for cards without descriptive bottom bar -->
                   @if (!pin.hasBottomBar) {
                     <div class="mt-1 px-1 flex justify-end">
-                      <span class="material-symbols-outlined text-sm text-[#62625b] dark:text-[#999] hover:text-black dark:hover:text-white cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-200">more_horiz</span>
+                      <div class="relative">
+                        <span
+                          (click)="toggleOptionsMenu(pin.id, $event)"
+                          class="material-symbols-outlined text-sm text-[#62625b] dark:text-[#999] hover:text-black dark:hover:text-white cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                        >more_horiz</span>
+
+                        @if (activeOptionsMenuPinId() === pin.id) {
+                          <div class="absolute right-0 top-6 w-44 bg-white dark:bg-[#242424] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-[100] text-left" (click)="$event.stopPropagation()">
+                            <button type="button" (click)="markInterest(pin.id, $event)" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333] border-none bg-transparent text-xs font-bold text-black dark:text-white">
+                              <span class="material-symbols-outlined text-base leading-none">favorite</span>
+                              Xem thêm
+                            </button>
+                            <button type="button" (click)="hidePin(pin.id, $event)" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333] border-none bg-transparent text-xs font-bold text-black dark:text-white">
+                              <span class="material-symbols-outlined text-base leading-none">visibility_off</span>
+                              Ẩn bớt
+                            </button>
+                            <button type="button" (click)="reportPin(pin.id, $event)" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333] border-none bg-transparent text-xs font-bold text-red-500">
+                              <span class="material-symbols-outlined text-base leading-none">flag</span>
+                              Báo cáo Ghim
+                            </button>
+                          </div>
+                        }
+                      </div>
                     </div>
                   }
                 </div>

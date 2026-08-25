@@ -160,4 +160,32 @@ export class PinsController {
   ) {
     return this.pinsService.addComment(id, user.id, content);
   }
+
+  @Post(':id/hide')
+  @UseGuards(SupabaseAuthGuard)
+  async hidePin(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+  ) {
+    return this.pinsService.hidePin(id, user.id);
+  }
+
+  @Post(':id/report')
+  @UseGuards(SupabaseAuthGuard)
+  async reportPin(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+    @Body('reason') reason?: string,
+  ) {
+    return this.pinsService.reportPin(id, user.id, reason);
+  }
+
+  @Post(':id/interest')
+  @UseGuards(SupabaseAuthGuard)
+  async markInterest(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+  ) {
+    return this.pinsService.markInterest(id, user.id);
+  }
 }

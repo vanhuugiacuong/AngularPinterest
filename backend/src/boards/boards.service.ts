@@ -13,6 +13,16 @@ export class BoardsService {
     return this.prisma.board.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
+      include: {
+        boardPins: {
+          orderBy: { addedAt: 'desc' },
+          include: {
+            pin: {
+              select: { imageUrl: true },
+            },
+          },
+        },
+      },
     });
   }
 

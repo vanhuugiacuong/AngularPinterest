@@ -3,3 +3,11 @@ node_modules
 .env
 
 /generated/prisma
+
+# clip-service: Python virtual env, cache, and the local ngrok binary/tunnel
+# tool — none of these belong in git (venv alone is 100s of MB of torch libs)
+services/clip-service/venv/
+services/clip-service/ngrok/
+services/clip-service/__pycache__/
+**/__pycache__/
+*.pyc

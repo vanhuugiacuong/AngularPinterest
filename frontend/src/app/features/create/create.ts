@@ -188,7 +188,7 @@ export class Create implements OnInit {
         this.router.navigate(['/feed']);
       } catch (error) {
         console.error('Error uploading pin:', error);
-        this.toastService.error('Lỗi khi tải ghim lên.');
+        this.toastService.error(error instanceof Error ? error.message : 'Lỗi khi tải ghim lên.');
       } finally {
         this.isSubmitting.set(false);
       }
@@ -219,7 +219,7 @@ export class Create implements OnInit {
         this.router.navigate(['/feed']);
       } catch (error) {
         console.error('Error saving AI pin:', error);
-        this.toastService.error('Lỗi khi lưu ghim AI.');
+        this.toastService.error(error instanceof Error ? error.message : 'Lỗi khi lưu ghim AI.');
       } finally {
         this.isSubmitting.set(false);
       }
