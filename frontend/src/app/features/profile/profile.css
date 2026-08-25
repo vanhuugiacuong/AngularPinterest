@@ -108,25 +108,12 @@ textarea:disabled {
   gap: 22px;
 }
 
-.avatar-ring {
-  display: grid;
-  width: 108px;
-  height: 108px;
+/* Sizing slot for the shared <app-user-avatar> profile hero avatar — the
+   membership frame ring itself lives entirely inside that component now
+   (see shared/user-avatar), this class only sets the flex-layout footprint
+   and its responsive overrides below. */
+.profile-avatar-slot {
   flex: 0 0 108px;
-  place-items: center;
-  padding: 3px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-secondary), var(--color-primary));
-  box-shadow: 0 8px 24px -10px color-mix(in srgb, var(--color-primary) 45%, transparent);
-}
-
-.profile-avatar {
-  width: 100%;
-  height: 100%;
-  border: 3px solid var(--color-surface);
-  border-radius: 50%;
-  background: var(--color-surface-elevated);
-  object-fit: cover;
 }
 
 .identity-copy {
@@ -165,6 +152,13 @@ textarea:disabled {
   white-space: nowrap;
 }
 
+.profile-handle {
+  margin: 2px 0 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .profile-bio {
   display: -webkit-box;
   max-width: 460px;
@@ -200,6 +194,21 @@ textarea:disabled {
 
 .stat-readout + .stat-readout {
   border-left: 1px solid var(--color-border);
+}
+
+.stat-readout-button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--radius-control, 10px);
+  min-height: 44px;
+}
+.stat-readout-button:hover {
+  background: var(--color-surface-elevated);
+}
+.stat-readout-button:focus-visible {
+  outline: 2px solid var(--color-nova-blue);
+  outline-offset: -2px;
 }
 
 .stat-readout dt {
@@ -248,15 +257,26 @@ textarea:disabled {
     box-shadow 180ms ease;
 }
 
+/* Same signature asymmetric CTA shape as .cta-shape elsewhere in the app
+   (navbar login, Home's Lưu button, Pin Detail's actions) — kept as its
+   own rule instead of applying that utility directly so the
+   .following-action state override below still wins on specificity. */
 .primary-action {
-  color: var(--color-text);
-  background: linear-gradient(135deg, var(--color-secondary), var(--color-primary) 85%);
-  box-shadow: 0 8px 20px -12px color-mix(in srgb, var(--color-primary) 70%, transparent);
+  color: var(--color-text-on-accent);
+  background: var(--color-nova-blue);
+  border-radius: var(--radius-cta);
+  box-shadow: 0 6px 20px -10px color-mix(in srgb, var(--color-nova-blue) 45%, transparent);
+  transition:
+    transform 0.2s var(--ease-trace),
+    background 180ms ease;
 }
 
 .primary-action:not(:disabled):hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 24px -12px color-mix(in srgb, var(--color-primary) 55%, transparent);
+  transform: translateY(-2px);
+}
+
+.primary-action:not(:disabled):active {
+  transform: translateY(0);
 }
 
 .primary-action.following-action {
@@ -341,7 +361,7 @@ textarea:disabled {
 }
 
 .danger-action {
-  color: var(--color-text);
+  color: var(--color-text-on-accent);
   background: var(--color-error);
 }
 
@@ -522,11 +542,16 @@ textarea:disabled {
 }
 
 /* ---------- Post / favorite grid ---------- */
+/* Instagram-style square collection wall: uniform 1:1 tiles packed tight
+   (small gap, no per-tile asymmetric NovaFrame radius) instead of a varied
+   masonry — this grid reads as "your collection", not a discovery feed, so
+   it stays deliberately plain and dense rather than matching the home
+   feed's card treatment. */
 
 .pin-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 20px;
+  gap: 4px;
 }
 
 .pin-card {
@@ -537,26 +562,17 @@ textarea:disabled {
   position: relative;
   display: block;
   width: 100%;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 1 / 1;
   padding: 0;
   overflow: hidden;
-  border: 1px solid var(--color-border);
-  /* NovaFrame signature — asymmetric radius applied via [class.rounded-frame]/
-     [class.rounded-frame-alt] in profile.html, alternating per card index. */
+  border-radius: var(--radius-sm);
   background: var(--color-surface);
-  box-shadow: var(--shadow-card);
   cursor: pointer;
-  transition:
-    transform 260ms var(--ease-spring),
-    box-shadow 260ms ease,
-    border-color 260ms ease;
 }
 
-.pin-media:hover,
 .pin-media:focus-visible {
-  border-color: var(--color-border-strong);
-  box-shadow: var(--shadow-glow-soft);
-  transform: translateY(-3px);
+  outline: 2px solid var(--color-nova-blue);
+  outline-offset: 2px;
 }
 
 .pin-media img {
@@ -925,54 +941,16 @@ textarea:disabled {
   font-weight: 700;
 }
 
-/* ---------- Dialogs ---------- */
-
-.dialog-backdrop {
-  position: fixed;
-  z-index: 100;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: color-mix(in srgb, var(--color-ink) 72%, transparent);
-  backdrop-filter: blur(12px);
-  animation: backdrop-enter 180ms ease;
-}
-
-@keyframes backdrop-enter {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
+/* ---------- Dialogs ----------
+   Backdrop/panel chrome (blur, border, shadow, open animation) comes from
+   the shared .nf-dialog-backdrop / .nf-dialog-panel primitives in styles.css.
+   Only the form-specific layout deltas live here: wider panel, left-aligned
+   text instead of the centered confirm-dialog style, and the heading row
+   with an inline close button. */
 
 .profile-dialog {
   width: min(100%, 520px);
-  max-height: calc(100vh - 40px);
-  padding: 28px;
-  overflow-y: auto;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-lg);
-  /* Same neutral glass surface as the login modal / board-select dropdown
-     (.glass-elevated in styles.css) instead of a bespoke gradient panel. */
-  background-color: color-mix(in srgb, var(--color-surface-elevated) 75%, transparent);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.5);
-  animation: dialog-enter 220ms var(--ease-spring);
-}
-
-@keyframes dialog-enter {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  text-align: left;
 }
 
 .dialog-heading {
@@ -983,8 +961,7 @@ textarea:disabled {
   margin-bottom: 24px;
 }
 
-.dialog-heading h2,
-.confirm-dialog h2 {
+.dialog-heading h2 {
   margin: 6px 0 0;
   font-size: 22px;
   font-weight: 700;
@@ -1126,67 +1103,93 @@ textarea:disabled {
   line-height: 1.5;
 }
 
-.confirm-dialog {
-  width: min(100%, 430px);
-  text-align: center;
-}
-
-.confirm-dialog > p:not(.form-error) {
-  margin: 10px auto 0;
+.dialog-field-hint {
+  margin: -4px 0 4px;
   color: var(--color-text-muted);
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 11px;
+  line-height: 1.5;
 }
 
-.confirm-dialog .dialog-actions {
+/* ---------- Edit profile — avatar picker ---------- */
+.avatar-edit-field {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.avatar-edit-preview {
+  position: relative;
+  flex: 0 0 auto;
+  width: 72px;
+  height: 72px;
+}
+
+.avatar-edit-preview img {
+  display: block;
+  width: 72px;
+  height: 72px;
+  border-radius: 9999px;
+  object-fit: cover;
+}
+
+.avatar-edit-badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: flex;
+  align-items: center;
   justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  background: var(--color-primary);
+  color: var(--color-text-on-accent);
+  box-shadow: 0 0 0 3px var(--color-surface);
+  cursor: pointer;
 }
 
-.danger-icon {
-  display: grid;
-  width: 58px;
-  height: 58px;
-  place-items: center;
-  margin: 0 auto 14px;
-  border: 1px solid color-mix(in srgb, var(--color-error) 28%, transparent);
-  border-radius: 50%;
-  color: color-mix(in srgb, var(--color-error) 72%, white);
-  background: color-mix(in srgb, var(--color-error) 8%, transparent);
+.avatar-edit-badge:focus-visible {
+  outline: 2px solid var(--color-nova-blue);
+  outline-offset: 2px;
 }
 
-.danger-icon .material-symbols-outlined {
-  font-size: 27px;
+.avatar-edit-badge .material-symbols-outlined {
+  font-size: 15px;
+}
+
+.avatar-edit-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.avatar-edit-copy strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.avatar-edit-copy small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.avatar-edit-field input[type='file'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ---------- Skeletons ---------- */
 
+/* Static — see the shared .skeleton utility in styles.css for why the
+   shimmer was removed (this page can show 9+ skeleton tiles at once while
+   loading, and each one animating background-position every frame was a
+   real, broadly-felt source of jank). */
 .skeleton {
-  position: relative;
-  overflow: hidden;
   background: var(--color-surface-elevated);
-}
-
-.skeleton::after {
-  position: absolute;
-  inset: 0;
-  content: '';
-  background: linear-gradient(
-    100deg,
-    transparent 30%,
-    color-mix(in srgb, var(--color-accent) 8%, transparent) 50%,
-    transparent 70%
-  );
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.7s ease-in-out infinite;
-}
-
-@keyframes skeleton-shimmer {
-  from {
-    background-position: -200% 0;
-  }
-  to {
-    background-position: 200% 0;
-  }
 }
 
 .identity-skeleton {
@@ -1224,13 +1227,14 @@ textarea:disabled {
 .content-skeleton-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 20px;
+  gap: 4px;
   margin-top: 78px;
 }
 
 .pin-skeleton {
   width: 100%;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-sm);
 }
 
 .album-skeleton {
@@ -1303,9 +1307,7 @@ textarea:disabled {
     align-items: flex-start;
   }
 
-  .avatar-ring {
-    width: 80px;
-    height: 80px;
+  .profile-avatar-slot {
     flex-basis: 80px;
   }
 
@@ -1345,6 +1347,10 @@ textarea:disabled {
 
   .profile-tabs button {
     flex: 1;
+    /* Overrides the base rule's min-width: max-content — without this, a
+       full-width flex row of 3 tabs (icon + label + count) can't actually
+       shrink to fit a 360-390px viewport and silently overflows. */
+    min-width: 0;
     justify-content: center;
     padding-inline: 10px;
   }
@@ -1364,8 +1370,8 @@ textarea:disabled {
 
   .pin-grid,
   .content-skeleton-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 3px;
   }
 
   .pin-meta {
@@ -1395,15 +1401,18 @@ textarea:disabled {
     gap: 14px;
   }
 
-  .avatar-ring {
-    width: 72px;
-    height: 72px;
+  .profile-avatar-slot {
     flex-basis: 72px;
   }
 
   .pin-grid,
   .content-skeleton-grid {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3px;
+  }
+
+  .pin-meta {
+    padding-inline: 1px;
   }
 
   .profile-dialog {
@@ -1413,8 +1422,6 @@ textarea:disabled {
 
 @media (prefers-reduced-motion: reduce) {
   .tab-panel,
-  .dialog-backdrop,
-  .profile-dialog,
   .button-spinner,
   .skeleton::after {
     animation: none;

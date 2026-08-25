@@ -60,13 +60,14 @@
         <div class="flex gap-3">
           <!-- Avatar -->
           <div class="flex-shrink-0">
-            <img
-              *ngIf="notif.sender?.avatarUrl"
-              [src]="notif.sender!.avatarUrl"
-              [alt]="notif.sender!.username"
-              class="w-10 h-10 rounded-full object-cover"
-            />
-            <div *ngIf="!notif.sender?.avatarUrl" class="w-10 h-10 rounded-full bg-surface-elevated flex items-center justify-center flex-shrink-0">
+            <app-user-avatar
+              *ngIf="notif.sender"
+              [src]="notif.sender.avatarUrl"
+              [name]="notif.sender.username"
+              [size]="40"
+              [plan]="notif.sender.plan"
+            ></app-user-avatar>
+            <div *ngIf="!notif.sender" class="w-10 h-10 rounded-full bg-surface-elevated flex items-center justify-center flex-shrink-0">
               <span class="material-symbols-outlined text-accent text-lg">notifications</span>
             </div>
           </div>

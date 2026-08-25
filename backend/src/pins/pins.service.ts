@@ -3,23 +3,175 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  InternalServerErrorException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { MembershipPlan, AuctionStatus, Currency, Prisma } from '@prisma/client';
+import sharp from 'sharp';
 import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { AiGeneratorService } from '../ai-generator/ai-generator.service';
+import { MembershipsService } from '../memberships/memberships.service';
+import { NotificationsService } from '../notifications/notifications.service';
+
+interface EmbeddingResponse {
+  embedding: number[];
+}
+
+interface SimilarPinRow {
+  id: string;
+  title: string;
+  description: string | null;
+  imageUrl: string;
+  sourceUrl: string | null;
+  userId: string;
+  createdAt: Date;
+  isAiGenerated: boolean;
+  category: string;
+  price: string | null;
+  isForSale: boolean;
+  currency: Currency;
+  authorUsername: string | null;
+  authorAvatarUrl: string | null;
+  authorPlan: MembershipPlan | null;
+  likesCount: number;
+  similarity: number;
+}
+
+/** 'NONE' | 'FIXED_PRICE' | 'AUCTION' — suy ra từ Pin.isForSale + phiên đấu
+ * giá (chưa CANCELLED) mới nhất của pin, không bao giờ đọc trực tiếp từ
+ * client. Một pin không bao giờ vừa FIXED_PRICE vừa AUCTION cùng lúc. */
+export type PinListingType = 'NONE' | 'FIXED_PRICE' | 'AUCTION';
+
+export interface PinAuctionSummary {
+  id: string;
+  status: AuctionStatus;
+  startingPrice: string;
+  currentPrice: string;
+  minimumIncrement: string;
+  currency: Currency;
+  startsAt: string;
+  endsAt: string;
+  bidCount: number;
+}
+
+interface AuctionLike {
+  id: string;
+  pinId: string;
+  status: AuctionStatus;
+  startingPrice: Prisma.Decimal;
+  currentPrice: Prisma.Decimal;
+  minimumIncrement: Prisma.Decimal;
+  currency: Currency;
+  startsAt: Date;
+  endsAt: Date;
+  bidCount: number;
+}
+
+interface PinEmbeddingRow {
+  embedding: string | null;
+}
 
 @Injectable()
 export class PinsService {
-  private readonly clipServiceUrl = process.env.CLIP_SERVICE_URL || 'http://localhost:8001';
+  private readonly clipServiceUrl =
+    process.env.CLIP_SERVICE_URL || 'http://localhost:8001';
+
+  /** Minimum absolute cosine similarity (0-1) a reverse-image-search result
+   * must clear to be considered a real match at all. Configurable via env
+   * since the right cutoff depends on the CLIP model and the catalog's
+   * actual embedding distribution — tune with real data, don't guess. */
+  private readonly imageSearchMinSimilarity = PinsService.parseThreshold(
+    process.env.IMAGE_SEARCH_MIN_SIMILARITY,
+    0.75,
+  );
+  /** Maximum allowed drop in similarity relative to the best result in the
+   * batch — keeps a long tail of "technically above the floor but clearly
+   * worse than the top hits" pins out of the results. */
+  private readonly imageSearchMaxSimilarityGap = PinsService.parseThreshold(
+    process.env.IMAGE_SEARCH_MAX_SIMILARITY_GAP,
+    0.12,
+  );
+
+  private static parseThreshold(
+    raw: string | undefined,
+    fallback: number,
+  ): number {
+    const parsed = raw !== undefined ? Number(raw) : NaN;
+    return Number.isFinite(parsed) && parsed >= 0 && parsed <= 1
+      ? parsed
+      : fallback;
+  }
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly supabaseService: SupabaseService,
     private readonly aiGeneratorService: AiGeneratorService,
+    private readonly membershipsService: MembershipsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
-  private async getImageEmbedding(buffer: Buffer, filename: string, mimetype: string): Promise<number[] | null> {
+  // Lưu bản gốc vào bucket private "pins-original" (chỉ backend đọc được) và
+  // sinh 1 bản preview đã tối ưu kích thước cho bucket public "pins". Pin.imageUrl
+  // luôn trỏ tới preview, không bao giờ là bản gốc từ giờ trở đi.
+  private async storeOriginalAndPreview(
+    buffer: Buffer,
+    contentType: string,
+    userId: string,
+    prefix: 'pin' | 'ai',
+  ): Promise<{
+    imageUrl: string;
+    originalStoragePath: string;
+    previewStoragePath: string;
+  }> {
+    const ext = contentType.includes('png')
+      ? 'png'
+      : contentType.includes('webp')
+        ? 'webp'
+        : 'jpg';
+    const stamp = `${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+    const originalStoragePath = `${userId}/${prefix}_${stamp}_original.${ext}`;
+    await this.supabaseService.uploadPrivate(
+      'pins-original',
+      originalStoragePath,
+      buffer,
+      contentType,
+    );
+
+    const previewStoragePath = `${userId}/${prefix}_${stamp}_preview.${ext}`;
+    const previewBuffer = await sharp(buffer, { limitInputPixels: 60_000_000 })
+      .resize({ width: 1600, withoutEnlargement: true })
+      .toBuffer();
+    const imageUrl = await this.supabaseService.uploadImage(
+      'pins',
+      previewStoragePath,
+      previewBuffer,
+      contentType,
+    );
+
+    return { imageUrl, originalStoragePath, previewStoragePath };
+  }
+
+  /** Best-effort cleanup of the just-uploaded preview + original when a Pin
+   * insert fails right after — otherwise a transient DB error (or a unique-
+   * constraint race, or a connection blip) leaves the files sitting in
+   * storage forever with nothing in the database pointing at them. */
+  private async rollbackUploadedImage(
+    originalStoragePath: string,
+    previewStoragePath: string,
+  ): Promise<void> {
+    await Promise.all([
+      this.supabaseService.deleteObject('pins-original', originalStoragePath),
+      this.supabaseService.deleteObject('pins', previewStoragePath),
+    ]);
+  }
+
+  private async getImageEmbedding(
+    buffer: Buffer,
+    filename: string,
+    mimetype: string,
+  ): Promise<number[] | null> {
     try {
       const formData = new FormData();
       const blob = new Blob([new Uint8Array(buffer)], { type: mimetype });
@@ -32,12 +184,14 @@ export class PinsService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`CLIP image embedding failed: ${response.statusText} - ${errorText}`);
+        console.error(
+          `CLIP image embedding failed: ${response.statusText} - ${errorText}`,
+        );
         return null;
       }
 
-      const result = await response.json();
-      return result.embedding;
+      const result: unknown = await response.json();
+      return this.readEmbedding(result);
     } catch (error) {
       console.error('CLIP image embedding network error:', error);
       return null;
@@ -113,7 +267,11 @@ export class PinsService {
     if (!file) {
       throw new BadRequestException('Vui lòng chọn ảnh để kiểm tra.');
     }
-    const moderation = await this.moderateImage(file.buffer, file.originalname, file.mimetype);
+    const moderation = await this.moderateImage(
+      file.buffer,
+      file.originalname,
+      file.mimetype,
+    );
     if (moderation.nsfw) {
       return {
         safe: false,
@@ -127,21 +285,76 @@ export class PinsService {
   private async getTextEmbedding(query: string): Promise<number[] | null> {
     try {
       const response = await fetch(
-        `${this.clipServiceUrl}/embed/text?query=${encodeURIComponent(query)}`
+        `${this.clipServiceUrl}/embed/text?query=${encodeURIComponent(query)}`,
       );
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`CLIP text embedding failed: ${response.statusText} - ${errorText}`);
+        console.error(
+          `CLIP text embedding failed: ${response.statusText} - ${errorText}`,
+        );
         return null;
       }
 
-      const result = await response.json();
-      return result.embedding;
+      const result: unknown = await response.json();
+      return this.readEmbedding(result);
     } catch (error) {
       console.error('CLIP text embedding network error:', error);
       return null;
     }
+  }
+
+  /** Phiên đấu giá chưa CANCELLED mới nhất cho mỗi pinId (không bao giờ hơn 1
+   * phiên chưa kết thúc/pin nhờ partial unique index ở DB, nhưng vẫn có thể
+   * có nhiều phiên ENDED lịch sử — lấy bản mới nhất theo createdAt). */
+  private async fetchLatestAuctionsByPinIds(pinIds: string[]): Promise<Map<string, AuctionLike>> {
+    const uniqueIds = [...new Set(pinIds)];
+    if (uniqueIds.length === 0) return new Map();
+    const rows = await this.prisma.auction.findMany({
+      where: { pinId: { in: uniqueIds }, status: { not: 'CANCELLED' } },
+      orderBy: { createdAt: 'desc' },
+    });
+    const map = new Map<string, AuctionLike>();
+    for (const row of rows) {
+      if (!map.has(row.pinId)) map.set(row.pinId, row);
+    }
+    return map;
+  }
+
+  private toAuctionSummary(a: AuctionLike): PinAuctionSummary {
+    return {
+      id: a.id,
+      status: a.status,
+      startingPrice: a.startingPrice.toString(),
+      currentPrice: a.currentPrice.toString(),
+      minimumIncrement: a.minimumIncrement.toString(),
+      currency: a.currency,
+      startsAt: a.startsAt.toISOString(),
+      endsAt: a.endsAt.toISOString(),
+      bidCount: a.bidCount,
+    };
+  }
+
+  private marketFieldsFor(
+    isForSale: boolean,
+    auction?: AuctionLike,
+  ): { listingType: PinListingType; auction: PinAuctionSummary | null } {
+    if (auction) return { listingType: 'AUCTION', auction: this.toAuctionSummary(auction) };
+    if (isForSale) return { listingType: 'FIXED_PRICE', auction: null };
+    return { listingType: 'NONE', auction: null };
+  }
+
+  /** Gắn listingType/auction vào danh sách pin đã fetch qua ORM (include),
+   * đồng thời bỏ originalStoragePath khỏi response — bản gốc chỉ backend
+   * được đọc trực tiếp qua endpoint tải ảnh có kiểm tra quyền riêng. */
+  private async attachMarketInfoToList<T extends { id: string; isForSale: boolean; originalStoragePath?: string | null }>(
+    pins: T[],
+  ): Promise<Omit<T, 'originalStoragePath'>[]> {
+    const auctionMap = await this.fetchLatestAuctionsByPinIds(pins.map((p) => p.id));
+    return pins.map((p) => {
+      const { originalStoragePath, ...rest } = p;
+      return { ...rest, ...this.marketFieldsFor(p.isForSale, auctionMap.get(p.id)) };
+    });
   }
 
   async getAllPins(
@@ -154,9 +367,10 @@ export class PinsService {
 
     // 1. Fetch all pins with user and like counts
     const pins = await this.prisma.pin.findMany({
+      where: this.visibilityFilter(userId),
       include: {
         user: {
-          select: { id: true, username: true, avatarUrl: true },
+          select: { id: true, username: true, avatarUrl: true, plan: true },
         },
         _count: {
           select: { likes: true },
@@ -230,36 +444,70 @@ export class PinsService {
     const sortedPins = pinsWithScores.map((item) => item.pin);
 
     // 4. Return paginated slice
-    return sortedPins.slice(skip, skip + limit);
+    return this.attachMarketInfoToList(sortedPins.slice(skip, skip + limit));
   }
 
-  async getRelatedPins(id: string, page: number = 1, limit: number = 20) {
+  async getRelatedPins(
+    id: string,
+    page: number = 1,
+    limit: number = 20,
+    viewerId?: string,
+  ) {
     const pin = await this.prisma.pin.findUnique({ where: { id } });
     if (!pin) {
       throw new NotFoundException('Pin not found');
     }
     const skip = (page - 1) * limit;
-    return this.prisma.pin.findMany({
+    const related = await this.prisma.pin.findMany({
       where: {
         category: pin.category,
         id: { not: id },
+        ...this.visibilityFilter(viewerId),
       },
       skip,
       take: limit,
       orderBy: { createdAt: 'desc' },
       include: {
-        user: { select: { id: true, username: true, avatarUrl: true } },
+        user: {
+          select: { id: true, username: true, avatarUrl: true, plan: true },
+        },
         _count: { select: { likes: true } },
       },
     });
+    return this.attachMarketInfoToList(related);
+  }
+
+  /** Prisma `where` fragment that hides pins whose author has a private
+   * account from everyone except the author themself and people they've
+   * accepted as a follower. Reused by every pin-listing query (feed, search,
+   * related) so a private account's pins never surface outside its own
+   * profile to non-followers - enforced server-side, not just hidden by CSS. */
+  private visibilityFilter(viewerId?: string) {
+    return {
+      OR: [
+        { user: { isPrivate: false } },
+        ...(viewerId
+          ? [
+              { userId: viewerId },
+              { user: { followers: { some: { followerId: viewerId } } } },
+            ]
+          : []),
+      ],
+    };
   }
 
   async getPinById(id: string, viewerId?: string) {
-    const pin = await this.prisma.pin.findUnique({
-      where: { id },
+    const pin = await this.prisma.pin.findFirst({
+      where: { id, ...this.visibilityFilter(viewerId) },
       include: {
         user: {
-          select: { id: true, username: true, avatarUrl: true, bio: true },
+          select: {
+            id: true,
+            username: true,
+            avatarUrl: true,
+            bio: true,
+            plan: true,
+          },
         },
         likes: {
           where: { userId: viewerId || '__anonymous__' },
@@ -269,7 +517,15 @@ export class PinsService {
         _count: { select: { likes: true, comments: true } },
         comments: {
           include: {
-            user: { select: { id: true, username: true, avatarUrl: true } },
+            user: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+                plan: true,
+              },
+            },
           },
           orderBy: { createdAt: 'asc' },
         },
@@ -278,12 +534,29 @@ export class PinsService {
     if (!pin) {
       throw new NotFoundException('Pin not found');
     }
-    const { likes, _count, ...safePin } = pin;
+
+    const auctionMap = await this.fetchLatestAuctionsByPinIds([pin.id]);
+    const auction = auctionMap.get(pin.id);
+    const isOwner = viewerId === pin.userId;
+
+    // Tác phẩm đang bán/đấu giá: chỉ chủ sở hữu hoặc người dùng Plus/Pro còn
+    // hiệu lực mới được xem chi tiết. Dùng MembershipsService.status() (tự
+    // áp dụng lazy-expiry) thay vì đọc User.plan thô để gói đã hết hạn không
+    // còn được ưu tiên. Đây là lớp chặn thật ở backend — frontend chỉ là UX.
+    if ((pin.isForSale || auction) && !isOwner) {
+      const viewerPlan = viewerId ? (await this.membershipsService.status(viewerId)).plan : 'FREE';
+      if (viewerPlan !== 'PLUS' && viewerPlan !== 'PRO') {
+        throw new ForbiddenException('Nâng cấp gói để xem chi tiết và trao đổi với chủ sở hữu.');
+      }
+    }
+
+    const { likes, _count, originalStoragePath, ...safePin } = pin;
     return {
       ...safePin,
       _count,
       likeCount: _count.likes,
       isLiked: likes.length > 0,
+      ...this.marketFieldsFor(pin.isForSale, auction),
     };
   }
 
@@ -300,10 +573,21 @@ export class PinsService {
     }
     let salePrice: number | undefined;
     if (price) {
-      const owner = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
-      if (owner?.plan !== 'PRO') throw new ForbiddenException('Chỉ thành viên Pro mới có thể bán ảnh.');
+      const ownerStatus = await this.membershipsService.status(userId);
+      if (ownerStatus.plan !== 'PRO') {
+        throw new ForbiddenException('Chỉ thành viên Pro mới có thể bán ảnh.');
+      }
+      const owner = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { payoutBankCode: true, payoutAccountNumber: true, payoutAccountName: true },
+      });
+      if (!owner?.payoutBankCode || !owner.payoutAccountNumber || !owner.payoutAccountName) {
+        throw new BadRequestException('Vui lòng cấu hình thông tin nhận thanh toán trong Cài đặt trước khi bán ảnh.');
+      }
       salePrice = Number(price);
-      if (!Number.isFinite(salePrice) || salePrice < 1000) throw new BadRequestException('Giá ảnh phải từ 1.000đ.');
+      if (!Number.isFinite(salePrice) || !Number.isInteger(salePrice) || salePrice < 1000) {
+        throw new BadRequestException('Giá ảnh phải là số nguyên VND từ 1.000đ.');
+      }
     }
 
     // Server-side moderation gate — never trust a client-side "safe" check.
@@ -313,41 +597,61 @@ export class PinsService {
       throw new BadRequestException(moderation.message);
     }
 
-    const extension = file.originalname.split('.').pop() || 'png';
-    const filename = `${userId}/pin_${Date.now()}_${Math.floor(Math.random() * 1000)}.${extension}`;
-    const imageUrl = await this.supabaseService.uploadImage(
-      'pins',
-      filename,
-      file.buffer,
-      file.mimetype,
-    );
+    const { imageUrl, originalStoragePath, previewStoragePath } =
+      await this.storeOriginalAndPreview(
+        file.buffer,
+        file.mimetype,
+        userId,
+        'pin',
+      );
 
     const category = this.classifyCategory(title, description);
 
     // 1. Fetch CLIP embedding (gracefully handled)
     let embedding: number[] | null = null;
     try {
-      embedding = await this.getImageEmbedding(file.buffer, file.originalname, file.mimetype);
+      embedding = await this.getImageEmbedding(
+        file.buffer,
+        file.originalname,
+        file.mimetype,
+      );
     } catch (e) {
       console.error('Error fetching CLIP embedding for uploaded pin:', e);
     }
 
-    const pin = await this.prisma.pin.create({
-      data: {
-        title,
-        description,
-        imageUrl,
-        userId,
-        category,
-        price: salePrice,
-        isForSale: salePrice !== undefined,
-        boardPins: boardId
-          ? {
-              create: { boardId },
-            }
-          : undefined,
-      },
-    });
+    const pin = await (async () => {
+      try {
+        return await this.prisma.pin.create({
+          data: {
+            title,
+            description,
+            imageUrl,
+            originalStoragePath,
+            userId,
+            category,
+            price: salePrice,
+            isForSale: salePrice !== undefined,
+            boardPins: boardId
+              ? {
+                  create: { boardId },
+                }
+              : undefined,
+          },
+        });
+      } catch (error) {
+        console.error(
+          '[PinsService.createUploadPin] Lưu Pin thất bại sau khi đã upload ảnh, đang dọn file mồ côi:',
+          error,
+        );
+        await this.rollbackUploadedImage(
+          originalStoragePath,
+          previewStoragePath,
+        );
+        throw new InternalServerErrorException(
+          'Không thể lưu tác phẩm lúc này. Vui lòng thử lại.',
+        );
+      }
+    })();
 
     // 2. If embedding exists, store it using Raw SQL
     if (embedding) {
@@ -355,11 +659,14 @@ export class PinsService {
         await this.prisma.$executeRawUnsafe(
           'UPDATE "Pin" SET "embedding" = $1::vector WHERE "id" = $2',
           JSON.stringify(embedding),
-          pin.id
+          pin.id,
         );
         console.log(`Successfully stored vector embedding for Pin: ${pin.id}`);
       } catch (err) {
-        console.error(`Failed to store vector embedding for Pin: ${pin.id}`, err);
+        console.error(
+          `Failed to store vector embedding for Pin: ${pin.id}`,
+          err,
+        );
       }
     }
 
@@ -380,47 +687,83 @@ export class PinsService {
       await this.assertOwnedBoard(boardId, userId);
     }
 
-    // 1. Download image from temporary url and upload to permanent pins bucket
-    const imageUrl = await this.aiGeneratorService.saveAiImageToStorage(
-      previewUrl,
-      userId,
+    // Trừ quota AI nguyên tử ngay tại thời điểm lưu thật - đây là điểm gác cổng
+    // duy nhất đáng tin cậy phía backend. Không thể bị bỏ qua bằng cách gọi
+    // Pollinations trực tiếp từ trình duyệt rồi chỉ POST endpoint này.
+    await this.membershipsService.consumeAi(userId);
+
+    // 1. Download image from temporary url
+    const { buffer, contentType } =
+      await this.aiGeneratorService.downloadGeneratedImage(previewUrl);
+
+    // Kiểm duyệt NSFW cho ảnh AI giống hệt luồng upload thủ công - trước đây
+    // bị bỏ sót, cho phép ảnh AI 18+ lọt qua không qua kiểm duyệt.
+    const moderation = await this.moderateImage(
+      buffer,
+      'ai_pin.png',
+      contentType,
     );
+    if (moderation.nsfw) {
+      throw new BadRequestException(
+        'Ảnh AI có thể chứa nội dung không phù hợp hoặc nội dung 18+. Vui lòng thử prompt khác.',
+      );
+    }
+
+    // 2. Store original (private) + preview (public)
+    const { imageUrl, originalStoragePath, previewStoragePath } =
+      await this.storeOriginalAndPreview(buffer, contentType, userId, 'ai');
 
     const category = this.classifyCategory(title, description);
 
-    // 2. Fetch embedding for AI generated image (gracefully handled)
+    // 3. Fetch embedding for AI generated image (gracefully handled) - reuse
+    // the buffer already downloaded above instead of re-fetching the preview URL.
     let embedding: number[] | null = null;
     try {
-      const response = await fetch(imageUrl);
-      if (response.ok) {
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        const contentType = response.headers.get('Content-Type') || 'image/png';
-        embedding = await this.getImageEmbedding(buffer, 'ai_pin.png', contentType);
-      }
+      embedding = await this.getImageEmbedding(
+        buffer,
+        'ai_pin.png',
+        contentType,
+      );
     } catch (e) {
       console.error('Error fetching CLIP embedding for AI pin:', e);
     }
 
-    // 3. Save to database
-    const pin = await this.prisma.pin.create({
-      data: {
-        title,
-        description,
-        imageUrl,
-        userId,
-        isAiGenerated: true,
-        promptUsed,
-        negativePrompt,
-        generationModel,
-        category,
-        boardPins: boardId
-          ? {
-              create: { boardId },
-            }
-          : undefined,
-      },
-    });
+    // 4. Save to database
+    const pin = await (async () => {
+      try {
+        return await this.prisma.pin.create({
+          data: {
+            title,
+            description,
+            imageUrl,
+            originalStoragePath,
+            userId,
+            isAiGenerated: true,
+            promptUsed,
+            negativePrompt,
+            generationModel,
+            category,
+            boardPins: boardId
+              ? {
+                  create: { boardId },
+                }
+              : undefined,
+          },
+        });
+      } catch (error) {
+        console.error(
+          '[PinsService.saveAiPin] Lưu Pin thất bại sau khi đã upload ảnh, đang dọn file mồ côi:',
+          error,
+        );
+        await this.rollbackUploadedImage(
+          originalStoragePath,
+          previewStoragePath,
+        );
+        throw new InternalServerErrorException(
+          'Không thể lưu tác phẩm lúc này. Vui lòng thử lại.',
+        );
+      }
+    })();
 
     // 4. If embedding exists, store it using Raw SQL
     if (embedding) {
@@ -428,11 +771,16 @@ export class PinsService {
         await this.prisma.$executeRawUnsafe(
           'UPDATE "Pin" SET "embedding" = $1::vector WHERE "id" = $2',
           JSON.stringify(embedding),
-          pin.id
+          pin.id,
         );
-        console.log(`Successfully stored vector embedding for AI Pin: ${pin.id}`);
+        console.log(
+          `Successfully stored vector embedding for AI Pin: ${pin.id}`,
+        );
       } catch (err) {
-        console.error(`Failed to store vector embedding for AI Pin: ${pin.id}`, err);
+        console.error(
+          `Failed to store vector embedding for AI Pin: ${pin.id}`,
+          err,
+        );
       }
     }
 
@@ -457,7 +805,7 @@ export class PinsService {
   async toggleLike(pinId: string, userId: string) {
     const pin = await this.prisma.pin.findUnique({
       where: { id: pinId },
-      select: { id: true },
+      select: { id: true, userId: true },
     });
     if (!pin) {
       throw new NotFoundException('Pin not found');
@@ -485,6 +833,18 @@ export class PinsService {
         },
       });
       const likeCount = await this.prisma.like.count({ where: { pinId } });
+      // Unliking never notifies (nothing new happened for the owner to see);
+      // only a fresh like does, and never for liking your own pin.
+      if (pin.userId !== userId) {
+        const liker = await this.prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
+        await this.notificationsService.createNotification(
+          pin.userId,
+          'LIKE',
+          `${liker?.username ?? 'Một người dùng'} đã thích ảnh của bạn.`,
+          userId,
+          pinId,
+        );
+      }
       return { liked: true, likeCount };
     }
   }
@@ -497,16 +857,36 @@ export class PinsService {
     if (!content || content.trim().length === 0) {
       throw new BadRequestException('Comment content cannot be empty');
     }
-    return this.prisma.comment.create({
+    const comment = await this.prisma.comment.create({
       data: {
         content,
         pinId,
         userId,
       },
       include: {
-        user: { select: { id: true, username: true, avatarUrl: true } },
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+            plan: true,
+          },
+        },
       },
     });
+
+    if (pin.userId !== userId) {
+      await this.notificationsService.createNotification(
+        pin.userId,
+        'COMMENT',
+        `${comment.user.username} đã bình luận về ảnh của bạn.`,
+        userId,
+        pinId,
+      );
+    }
+
+    return comment;
   }
 
   private classifyCategory(title: string, description?: string): string {
@@ -686,35 +1066,61 @@ export class PinsService {
     return Math.abs(hash % 1000) / 1000;
   }
 
-  async searchPins(query: string, page: number = 1, limit: number = 20) {
+  async searchPins(
+    query: string,
+    page: number = 1,
+    limit: number = 20,
+    viewerId?: string,
+  ) {
     const skip = (page - 1) * limit;
 
     // 1. Get text embedding from CLIP service
     const embedding = await this.getTextEmbedding(query);
     if (!embedding) {
       // Fallback: simple text keyword contains query
-      return this.prisma.pin.findMany({
+      const keywordPins = await this.prisma.pin.findMany({
         where: {
-          OR: [
-            { title: { contains: query, mode: 'insensitive' } },
-            { description: { contains: query, mode: 'insensitive' } },
+          AND: [
+            {
+              OR: [
+                { title: { contains: query, mode: 'insensitive' } },
+                { description: { contains: query, mode: 'insensitive' } },
+              ],
+            },
+            this.visibilityFilter(viewerId),
           ],
         },
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          user: { select: { id: true, username: true, avatarUrl: true } },
-          _count: { select: { likes: true } }
-        }
+          user: {
+            select: { id: true, username: true, avatarUrl: true, plan: true },
+          },
+          _count: { select: { likes: true } },
+        },
       });
+      return this.attachMarketInfoToList(keywordPins);
     }
 
     // 2. Query pgvector for cosine similarity against the search text's embedding
-    return this.queryPinsByEmbedding(JSON.stringify(embedding), null, null, limit, skip);
+    return this.queryPinsByEmbedding(
+      JSON.stringify(embedding),
+      null,
+      null,
+      limit,
+      skip,
+      false,
+      viewerId,
+    );
   }
 
-  async getSimilarPins(pinId: string, page: number = 1, limit: number = 20) {
+  async getSimilarPins(
+    pinId: string,
+    page: number = 1,
+    limit: number = 20,
+    viewerId?: string,
+  ) {
     const skip = (page - 1) * limit;
 
     const pin = await this.prisma.pin.findUnique({ where: { id: pinId } });
@@ -723,18 +1129,57 @@ export class PinsService {
     }
 
     // Check if this pin has an embedding
-    const rawPinArr: any[] = await this.prisma.$queryRawUnsafe(
+    const rawPinArr = await this.prisma.$queryRawUnsafe<PinEmbeddingRow[]>(
       'SELECT embedding FROM "Pin" WHERE id = $1',
-      pinId
+      pinId,
     );
-    const hasEmbedding = rawPinArr.length > 0 && rawPinArr[0].embedding !== null;
+    const embeddingString = rawPinArr[0]?.embedding;
 
-    if (!hasEmbedding) {
+    if (!embeddingString) {
       // Fallback: category-based similar pins
-      return this.getRelatedPins(pinId, page, limit);
+      return this.getRelatedPins(pinId, page, limit, viewerId);
     }
 
-    return this.queryPinsByEmbedding(rawPinArr[0].embedding, pinId, pin.imageUrl, limit, skip);
+    return this.queryPinsByEmbedding(
+      embeddingString,
+      pinId,
+      pin.imageUrl,
+      limit,
+      skip,
+      false,
+      viewerId,
+    );
+  }
+
+  /** Fetches a pin's own stored image server-side and returns its raw bytes
+   * — backs the `:id/image-proxy` route used as a canvas-safe fallback when
+   * the CDN doesn't send CORS headers the browser will accept for a
+   * cross-origin fetch. Only ever reads the imageUrl already on file for
+   * this pin id, never an arbitrary caller-supplied URL. */
+  async getPinImageForProxy(
+    pinId: string,
+  ): Promise<{ buffer: Buffer; contentType: string }> {
+    const pin = await this.prisma.pin.findUnique({
+      where: { id: pinId },
+      select: { imageUrl: true },
+    });
+    if (!pin) {
+      throw new NotFoundException('Pin not found');
+    }
+
+    try {
+      const response = await fetch(pin.imageUrl);
+      if (!response.ok) {
+        throw new ServiceUnavailableException('Không thể tải ảnh gốc lúc này.');
+      }
+      const contentType = response.headers.get('content-type') || 'image/jpeg';
+      const arrayBuffer = await response.arrayBuffer();
+      return { buffer: Buffer.from(arrayBuffer), contentType };
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) throw error;
+      console.error('Image proxy fetch error:', error);
+      throw new ServiceUnavailableException('Không thể tải ảnh gốc lúc này.');
+    }
   }
 
   /** Reverse image search: embeds an uploaded image (not yet a saved Pin)
@@ -742,12 +1187,22 @@ export class PinsService {
    * Pins with the closest embedding. Returns real database matches only —
    * if the CLIP service is unreachable this throws rather than pretending
    * to have found similar images. */
-  async searchPinsByImage(file: Express.Multer.File | undefined, page: number = 1, limit: number = 20) {
+  async searchPinsByImage(
+    file: Express.Multer.File | undefined,
+    page: number = 1,
+    limit: number = 20,
+    viewerId?: string,
+  ) {
     if (!file) {
       throw new BadRequestException('Vui lòng chọn một hình ảnh để tìm kiếm');
     }
 
-    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+    ];
     if (!allowedMimeTypes.includes(file.mimetype)) {
       throw new BadRequestException(
         'Định dạng ảnh không được hỗ trợ. Vui lòng dùng JPG, JPEG, PNG hoặc WebP',
@@ -755,72 +1210,123 @@ export class PinsService {
     }
 
     const skip = (page - 1) * limit;
-    const embedding = await this.getImageEmbedding(file.buffer, file.originalname, file.mimetype);
+    const embedding = await this.getImageEmbedding(
+      file.buffer,
+      file.originalname,
+      file.mimetype,
+    );
     if (!embedding) {
       throw new ServiceUnavailableException(
         'Dịch vụ tìm kiếm bằng hình ảnh hiện không khả dụng. Vui lòng thử lại sau.',
       );
     }
 
-    return this.queryPinsByEmbedding(JSON.stringify(embedding), null, null, limit, skip);
+    return this.queryPinsByEmbedding(
+      JSON.stringify(embedding),
+      null,
+      null,
+      limit,
+      skip,
+      true,
+      viewerId,
+    );
   }
 
   /** Shared pgvector cosine-similarity query used by text search, pin-to-pin
    * similarity, and reverse image search. `excludePinId`/`excludeImageUrl`
    * (both from an already-fetched pin) exclude that pin's own image from
-   * results — used by getSimilarPins. */
+   * results — used by getSimilarPins. `applyThreshold` additionally drops
+   * results that are too dissimilar to be a real match — used only by
+   * reverse image search, where returning "closest but irrelevant" pins is
+   * worse than returning fewer/zero results. */
   private async queryPinsByEmbedding(
     vectorString: string,
     excludePinId: string | null,
     excludeImageUrl: string | null,
     limit: number,
     skip: number,
+    applyThreshold: boolean,
+    viewerId?: string,
   ) {
-    const queryLimit = limit * 2;
+    // Private-account enforcement in raw SQL, mirroring visibilityFilter():
+    // a pin is visible if its author is public, is the viewer themself, or
+    // has accepted the viewer as a follower. $N below is bound to viewerId
+    // (or NULL for an anonymous caller, which simply never matches).
+    const queryLimit = limit * 3;
     const pins: any[] = excludePinId
-      ? await this.prisma.$queryRawUnsafe(`
+      ? await this.prisma.$queryRawUnsafe(
+          `
         SELECT
           p.id, p.title, p.description, p."imageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
-          u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl",
+          p.price, p."isForSale", p.currency,
+          u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl", u.plan AS "authorPlan",
           COUNT(l."pinId")::int AS "likesCount",
           1 - (p.embedding <=> $1::vector) AS similarity
         FROM "Pin" p
         LEFT JOIN "User" u ON p."userId" = u.id
         LEFT JOIN "Like" l ON p.id = l."pinId"
         WHERE p.id != $2 AND p.embedding IS NOT NULL
-        GROUP BY p.id, u.username, u."avatarUrl"
-        ORDER BY p.embedding <=> $1::vector
-        LIMIT $3 OFFSET $4
-      `, vectorString, excludePinId, queryLimit, skip)
-      : await this.prisma.$queryRawUnsafe(`
+          AND (u."isPrivate" = false OR u.id = $3 OR EXISTS (
+            SELECT 1 FROM "Follow" f WHERE f."followerId" = $3 AND f."followingId" = u.id
+          ))
+        GROUP BY p.id, u.username, u."avatarUrl", u.plan, u."isPrivate"
+        ORDER BY p.embedding <=> $1::vector, p.id
+        LIMIT $4 OFFSET $5
+      `,
+          vectorString,
+          excludePinId,
+          viewerId ?? null,
+          queryLimit,
+          skip,
+        )
+      : await this.prisma.$queryRawUnsafe(
+          `
         SELECT
           p.id, p.title, p.description, p."imageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
-          u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl",
+          p.price, p."isForSale", p.currency,
+          u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl", u.plan AS "authorPlan",
           COUNT(l."pinId")::int AS "likesCount",
           1 - (p.embedding <=> $1::vector) AS similarity
         FROM "Pin" p
         LEFT JOIN "User" u ON p."userId" = u.id
         LEFT JOIN "Like" l ON p.id = l."pinId"
         WHERE p.embedding IS NOT NULL
-        GROUP BY p.id, u.username, u."avatarUrl"
-        ORDER BY p.embedding <=> $1::vector
-        LIMIT $2 OFFSET $3
-      `, vectorString, queryLimit, skip);
+          AND (u."isPrivate" = false OR u.id = $2 OR EXISTS (
+            SELECT 1 FROM "Follow" f WHERE f."followerId" = $2 AND f."followingId" = u.id
+          ))
+        GROUP BY p.id, u.username, u."avatarUrl", u.plan, u."isPrivate"
+        ORDER BY p.embedding <=> $1::vector, p.id
+        LIMIT $3 OFFSET $4
+      `,
+          vectorString,
+          viewerId ?? null,
+          queryLimit,
+          skip,
+        );
 
+    const seenIds = new Set<string>();
     const seenUrls = new Set<string>();
-    if (excludeImageUrl) {
-      seenUrls.add(excludeImageUrl);
-    }
+    if (excludePinId) seenIds.add(excludePinId);
+    if (excludeImageUrl) seenUrls.add(excludeImageUrl);
 
-    const uniquePins: any[] = [];
+    const uniquePins: SimilarPinRow[] = [];
     for (const p of pins) {
-      if (!seenUrls.has(p.imageUrl)) {
-        seenUrls.add(p.imageUrl);
-        uniquePins.push(p);
-      }
+      if (seenIds.has(p.id) || seenUrls.has(p.imageUrl)) continue;
+      seenIds.add(p.id);
+      seenUrls.add(p.imageUrl);
+      uniquePins.push(p);
     }
 
-    return uniquePins.slice(0, limit).map(p => ({
+    // Results already arrive ordered by ascending distance (descending
+    // similarity) from the SQL query, so uniquePins[0] is the best match.
+    const filteredPins = applyThreshold
+      ? this.filterBySimilarityThreshold(uniquePins)
+      : uniquePins;
+
+    const page = filteredPins.slice(0, limit);
+    const auctionMap = await this.fetchLatestAuctionsByPinIds(page.map((p) => p.id));
+
+    return page.map((p) => ({
       id: p.id,
       title: p.title,
       description: p.description,
@@ -830,15 +1336,53 @@ export class PinsService {
       createdAt: p.createdAt,
       isAiGenerated: p.isAiGenerated,
       category: p.category,
+      price: p.price,
+      isForSale: p.isForSale,
+      currency: p.currency,
+      ...this.marketFieldsFor(p.isForSale, auctionMap.get(p.id)),
       user: {
         id: p.userId,
         username: p.authorUsername || 'Pinterest AI',
         avatarUrl: p.authorAvatarUrl,
+        plan: p.authorPlan ?? 'FREE',
       },
       _count: {
-        likes: p.likesCount || 0
+        likes: p.likesCount || 0,
       },
-      similarity: p.similarity
+      similarity: p.similarity,
     }));
+  }
+
+  /** Drops candidates that fail either the absolute similarity floor or the
+   * max-gap-from-best rule. Assumes `pins` is already sorted by descending
+   * similarity (ascending cosine distance). Returns [] if even the best
+   * candidate misses the floor — an empty result is correct there, not a
+   * bug to paper over with weaker matches. */
+  private filterBySimilarityThreshold(pins: SimilarPinRow[]): SimilarPinRow[] {
+    if (pins.length === 0) return [];
+    const best = pins[0].similarity;
+    if (best < this.imageSearchMinSimilarity) return [];
+    return pins.filter(
+      (p) =>
+        p.similarity >= this.imageSearchMinSimilarity &&
+        best - p.similarity <= this.imageSearchMaxSimilarityGap,
+    );
+  }
+
+  private readEmbedding(value: unknown): number[] | null {
+    if (
+      typeof value !== 'object' ||
+      value === null ||
+      !('embedding' in value)
+    ) {
+      return null;
+    }
+
+    const embedding = (value as Partial<EmbeddingResponse>).embedding;
+    if (!Array.isArray(embedding) || !embedding.every(Number.isFinite)) {
+      return null;
+    }
+
+    return embedding;
   }
 }

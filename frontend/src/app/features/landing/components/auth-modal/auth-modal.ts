@@ -1,5 +1,6 @@
 import {
   Component,
+  ElementRef,
   Input,
   Output,
   EventEmitter,
@@ -7,6 +8,7 @@ import {
   OnChanges,
   OnDestroy,
   SimpleChanges,
+  ViewChild,
   signal
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -44,6 +46,8 @@ export class AuthModal implements OnChanges, OnDestroy {
   @Output() closeModal = new EventEmitter<void>();
   @Output() loginRequested = new EventEmitter<void>();
 
+  @ViewChild('panel') private panel?: ElementRef<HTMLElement>;
+
   /** Pointer parallax offsets (-0.5..0.5) for the floating object field. */
   public readonly px = signal(0);
   public readonly py = signal(0);
@@ -60,6 +64,8 @@ export class AuthModal implements OnChanges, OnDestroy {
       : false;
   private parallaxFrame = 0;
   private exitTimer = 0;
+  private previouslyFocused: HTMLElement | null = null;
+  private previousBodyOverflow: string | null = null;
 
   ngOnChanges(changes: SimpleChanges) {
     if (!changes['open']) return;
@@ -67,13 +73,23 @@ export class AuthModal implements OnChanges, OnDestroy {
     if (this.open) {
       clearTimeout(this.exitTimer);
       this.leaving.set(false);
+      const wasVisible = this.visible();
       this.visible.set(true);
+      if (!wasVisible) {
+        this.previouslyFocused = (document.activeElement as HTMLElement) || null;
+        this.previousBodyOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        // Panel isn't in the DOM until this change detection cycle commits.
+        setTimeout(() => this.panel?.nativeElement.focus());
+      }
     } else if (this.visible()) {
       this.leaving.set(true);
+      this.previouslyFocused?.focus();
       this.exitTimer = window.setTimeout(
         () => {
           this.visible.set(false);
           this.leaving.set(false);
+          document.body.style.overflow = this.previousBodyOverflow ?? '';
         },
         this.reducedMotion ? 0 : EXIT_MS
       );
@@ -83,12 +99,34 @@ export class AuthModal implements OnChanges, OnDestroy {
   ngOnDestroy() {
     clearTimeout(this.exitTimer);
     if (this.parallaxFrame) cancelAnimationFrame(this.parallaxFrame);
+    if (this.visible()) document.body.style.overflow = this.previousBodyOverflow ?? '';
   }
 
-  @HostListener('document:keydown.escape')
-  onEscapeKey() {
-    if (this.open) {
+  @HostListener('document:keydown', ['$event'])
+  onKeydown(event: KeyboardEvent) {
+    if (!this.open) return;
+
+    if (event.key === 'Escape') {
       this.closeModal.emit();
+      return;
+    }
+
+    if (event.key === 'Tab') {
+      const panel = this.panel?.nativeElement;
+      if (!panel) return;
+      const focusable = Array.from(
+        panel.querySelectorAll<HTMLElement>('button:not([disabled]), [tabindex]:not([tabindex="-1"])'),
+      );
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     }
   }
 

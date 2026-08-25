@@ -1,0 +1,162 @@
+/* Fixed region, but never intercepts clicks on the page underneath except
+   over the toast cards themselves — toasts must never lock the UI. */
+.nf-toast-region {
+  position: fixed;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: min(380px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.nf-toast-region--top-right {
+  top: 76px;
+  right: 16px;
+  align-items: flex-end;
+}
+
+.nf-toast-region--bottom-left {
+  bottom: 16px;
+  left: 16px;
+  align-items: flex-start;
+}
+
+.nf-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 14px;
+  border-radius: var(--radius-panel);
+  background-color: color-mix(in srgb, var(--color-surface-elevated) 92%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-card);
+  color: var(--color-text);
+  animation: nf-toast-in 220ms var(--ease-spring);
+}
+
+.nf-toast:focus-visible {
+  outline: none;
+  box-shadow:
+    var(--shadow-card),
+    0 0 0 2px var(--color-bg),
+    0 0 0 4px var(--color-nova-blue);
+}
+
+.nf-toast__icon {
+  flex-shrink: 0;
+  font-size: 20px;
+  line-height: 1;
+  margin-top: 1px;
+}
+
+.nf-toast--success .nf-toast__icon {
+  color: var(--color-success);
+}
+.nf-toast--error .nf-toast__icon {
+  color: var(--color-error);
+}
+.nf-toast--warning .nf-toast__icon {
+  color: var(--color-warning);
+}
+.nf-toast--info .nf-toast__icon {
+  color: var(--color-nova-blue);
+}
+
+.nf-toast__message {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.nf-toast__action {
+  flex-shrink: 0;
+  height: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-high);
+  color: var(--color-text);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.nf-toast__action:hover {
+  background: color-mix(in srgb, var(--color-surface-high) 80%, var(--color-nova-blue));
+}
+.nf-toast__action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-nova-blue);
+}
+
+.nf-toast__close {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.nf-toast__close:hover {
+  background: var(--color-surface-high);
+  color: var(--color-text);
+}
+.nf-toast__close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-nova-blue);
+}
+.nf-toast__close .material-symbols-outlined {
+  font-size: 15px;
+}
+
+@keyframes nf-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nf-toast {
+    animation: none;
+  }
+}
+
+/* Mobile — bottom of screen, above safe area, never covers primary actions
+   since toasts stay compact and are stacked bottom-up. */
+@media (max-width: 640px) {
+  .nf-toast-region--top-right {
+    top: auto;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    right: 12px;
+    left: 12px;
+    max-width: none;
+    align-items: stretch;
+  }
+
+  /* Sits above the (now bottom, full-width) top-right region on mobile so
+     the two streams never overlap when both are active at once. */
+  .nf-toast-region--bottom-left {
+    bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+    left: 12px;
+    right: 12px;
+    max-width: none;
+    align-items: stretch;
+  }
+}

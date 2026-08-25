@@ -1,36 +1,88 @@
 <div
-  *ngIf="!hidden()"
+  #loaderRoot
   class="nf-loader"
-  [class.nf-loader--leaving]="leaving()"
+  [class.nf-loader--hidden]="hidden()"
+  [class.nf-loader--returning]="returning()"
   role="status"
   aria-live="polite"
-  [attr.aria-label]="'Đang tải NovaFrame ' + (progress() | number: '1.0-0') + '%'"
+  aria-label="Đang chuẩn bị không gian khám phá NovaFrame"
+  [attr.aria-hidden]="hidden() ? 'true' : null"
 >
-  <!-- Wordmark — each glyph rises on its own delay, then the whole lockup
-       lifts away as the curtain splits. -->
-  <div class="nf-loader__mark">
-    <img src="/logo-mark.png" alt="" aria-hidden="true" class="nf-loader__logo" />
-    <span class="nf-loader__word">
-      <span
-        *ngFor="let letter of letters; let i = index"
-        class="nf-loader__letter"
-        [style.--i]="i"
-        aria-hidden="true"
-        >{{ letter }}</span
-      >
-    </span>
-  </div>
-
-  <div class="nf-loader__meta">
-    <span class="nf-loader__label">Creative Observatory</span>
-    <span class="nf-loader__count">{{ progress() | number: '1.0-0' }}</span>
-  </div>
-
-  <div class="nf-loader__rail" aria-hidden="true">
-    <span class="nf-loader__bar" [style.transform]="'scaleX(' + progress() / 100 + ')'"></span>
-  </div>
-
-  <!-- Curtain halves that split apart to reveal the hero underneath -->
   <span class="nf-loader__curtain nf-loader__curtain--top" aria-hidden="true"></span>
   <span class="nf-loader__curtain nf-loader__curtain--bottom" aria-hidden="true"></span>
+
+  <div class="nf-loader__streams" aria-hidden="true">
+    <div
+      *ngFor="let strip of strips; let stripIndex = index"
+      class="nf-loader__strip"
+      [class.nf-loader__strip--far]="strip.depth === 'far'"
+      [class.nf-loader__strip--mid]="strip.depth === 'mid'"
+      [class.nf-loader__strip--hero]="strip.depth === 'hero'"
+      [style.--strip-index]="stripIndex"
+    >
+      <figure
+        *ngFor="let frame of strip.frames; let frameIndex = index"
+        class="nf-loader__frame"
+        [class.nf-loader__frame--portrait]="frame.ratio === 'portrait'"
+        [class.nf-loader__frame--landscape]="frame.ratio === 'landscape'"
+        [class.nf-loader__frame--square]="frame.ratio === 'square'"
+        [class.nf-loader__frame--tall]="frame.ratio === 'tall'"
+        [style.--frame-index]="frameIndex"
+      >
+        <span class="nf-loader__media">
+          <img
+            [src]="frame.src"
+            alt=""
+            aria-hidden="true"
+            [attr.fetchpriority]="frame.priority ? 'high' : null"
+            loading="eager"
+            decoding="async"
+          />
+        </span>
+        <figcaption class="nf-loader__caption">
+          {{ (stripIndex + 1).toString().padStart(2, '0') }}.{{
+            (frameIndex + 1).toString().padStart(2, '0')
+          }}
+        </figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="nf-assembly" aria-hidden="true">
+    <svg class="nf-assembly__mark" viewBox="0 0 320 224" fill="none">
+      <defs>
+        <linearGradient id="nf-assembly-gradient" x1="54" y1="32" x2="268" y2="196">
+          <stop stop-color="#6987ff" />
+          <stop offset="0.52" stop-color="#9475ff" />
+          <stop offset="1" stop-color="#31c7c2" />
+        </linearGradient>
+      </defs>
+      <path
+        class="nf-assembly__path"
+        pathLength="1"
+        d="M72 32H224C250.51 32 272 53.49 272 80V166C272 180.36 260.36 192 246 192H94C67.49 192 46 170.51 46 144V58C46 43.64 57.64 32 72 32Z"
+      />
+      <path
+        class="nf-assembly__path nf-assembly__path--echo"
+        pathLength="1"
+        d="M105 57H242C259.67 57 274 71.33 274 89V147C274 164.67 259.67 179 242 179H78C60.33 179 46 164.67 46 147V89C46 71.33 60.33 57 78 57H105Z"
+      />
+      <path
+        class="nf-assembly__path nf-assembly__path--n"
+        pathLength="1"
+        d="M112 151V78L208 151V78"
+      />
+    </svg>
+
+    <span
+      *ngFor="let fragment of assemblyFragments; let i = index"
+      class="nf-assembly__fragment"
+      [style.--from-x]="fragment.fromX"
+      [style.--from-y]="fragment.fromY"
+      [style.--from-r]="fragment.rotation + 'deg'"
+      [attr.data-bend-x]="i % 2 ? '-18px' : '18px'"
+    >
+      <img [src]="fragment.src" alt="" aria-hidden="true" decoding="async" />
+    </span>
+  </div>
 </div>

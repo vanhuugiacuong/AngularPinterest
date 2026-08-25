@@ -6,25 +6,37 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 
+type BoardWithPins = {
+  boardPins: { pin: { imageUrl: string } }[];
+  [key: string]: unknown;
+};
+
+function withCover<T extends BoardWithPins>(board: T) {
+  const { boardPins, ...rest } = board;
+  return {
+    ...rest,
+    boardPins,
+    pinCount: boardPins.length,
+    coverImageUrl: boardPins[0]?.pin.imageUrl ?? null,
+  };
+}
+
 @Injectable()
 export class BoardsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getUserBoards(userId: string) {
-    return this.prisma.board.findMany({
+    const boards = await this.prisma.board.findMany({
       where: { userId },
       include: {
         boardPins: {
-          include: {
-            pin: true,
-          },
-          orderBy: {
-            addedAt: 'desc',
-          },
+          include: { pin: { select: { imageUrl: true } } },
+          orderBy: { addedAt: 'desc' },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
+    return boards.map(withCover);
   }
 
   async getBoardById(id: string, userId: string) {
@@ -32,23 +44,19 @@ export class BoardsService {
       where: { id },
       include: {
         boardPins: {
-          include: {
-            pin: true,
-          },
+          include: { pin: true },
+          orderBy: { addedAt: 'desc' },
         },
       },
     });
 
-    if (!board) {
-      throw new NotFoundException('Board not found');
+    // Board riêng tư của người khác phải giống hệt "không tồn tại" - không
+    // được để lộ rằng nó tồn tại bằng cách trả mã lỗi khác (403 vs 404).
+    if (!board || (board.isSecret && board.userId !== userId)) {
+      throw new NotFoundException('Không tìm thấy bộ sưu tập.');
     }
 
-    // If it's a secret board, only the owner can view it
-    if (board.isSecret && board.userId !== userId) {
-      throw new ForbiddenException('This board is private');
-    }
-
-    return board;
+    return withCover(board);
   }
 
   async createBoard(
@@ -60,15 +68,13 @@ export class BoardsService {
     const normalizedName = name?.trim();
     const normalizedDescription = description?.trim();
     if (!normalizedName) {
-      throw new BadRequestException('Board name is required');
+      throw new BadRequestException('Tên bộ sưu tập là bắt buộc.');
     }
     if (normalizedName.length > 80) {
-      throw new BadRequestException('Board name must not exceed 80 characters');
+      throw new BadRequestException('Tên bộ sưu tập không được vượt quá 80 ký tự.');
     }
     if (normalizedDescription && normalizedDescription.length > 280) {
-      throw new BadRequestException(
-        'Board description must not exceed 280 characters',
-      );
+      throw new BadRequestException('Mô tả không được vượt quá 280 ký tự.');
     }
 
     return this.prisma.board.create({
@@ -81,16 +87,51 @@ export class BoardsService {
     });
   }
 
+  private async assertOwnedBoard(boardId: string, userId: string) {
+    const board = await this.prisma.board.findUnique({ where: { id: boardId } });
+    if (!board) throw new NotFoundException('Không tìm thấy bộ sưu tập.');
+    if (board.userId !== userId) throw new ForbiddenException('Bạn không sở hữu bộ sưu tập này.');
+    return board;
+  }
+
+  async updateBoard(
+    boardId: string,
+    userId: string,
+    updates: { name?: string; description?: string | null; isSecret?: boolean },
+  ) {
+    await this.assertOwnedBoard(boardId, userId);
+
+    const data: { name?: string; description?: string | null; isSecret?: boolean } = {};
+    if (updates.name !== undefined) {
+      const normalizedName = updates.name.trim();
+      if (!normalizedName) throw new BadRequestException('Tên bộ sưu tập là bắt buộc.');
+      if (normalizedName.length > 80) throw new BadRequestException('Tên bộ sưu tập không được vượt quá 80 ký tự.');
+      data.name = normalizedName;
+    }
+    if (updates.description !== undefined) {
+      const normalizedDescription = updates.description?.trim() || null;
+      if (normalizedDescription && normalizedDescription.length > 280) {
+        throw new BadRequestException('Mô tả không được vượt quá 280 ký tự.');
+      }
+      data.description = normalizedDescription;
+    }
+    if (updates.isSecret !== undefined) {
+      data.isSecret = updates.isSecret;
+    }
+
+    return this.prisma.board.update({ where: { id: boardId }, data });
+  }
+
+  async deleteBoard(boardId: string, userId: string) {
+    await this.assertOwnedBoard(boardId, userId);
+    // Xoá Board + các dòng BoardPin liên kết (cascade trong schema) - không
+    // đụng tới bảng Pin, ảnh gốc vẫn còn nguyên cho chủ sở hữu.
+    await this.prisma.board.delete({ where: { id: boardId } });
+    return { success: true };
+  }
+
   async addPinToBoard(boardId: string, pinId: string, userId: string) {
-    const board = await this.prisma.board.findUnique({
-      where: { id: boardId },
-    });
-    if (!board) {
-      throw new NotFoundException('Board not found');
-    }
-    if (board.userId !== userId) {
-      throw new ForbiddenException('You do not own this board');
-    }
+    await this.assertOwnedBoard(boardId, userId);
 
     const existing = await this.prisma.boardPin.findUnique({
       where: {
@@ -111,15 +152,7 @@ export class BoardsService {
   }
 
   async removePinFromBoard(boardId: string, pinId: string, userId: string) {
-    const board = await this.prisma.board.findUnique({
-      where: { id: boardId },
-    });
-    if (!board) {
-      throw new NotFoundException('Board not found');
-    }
-    if (board.userId !== userId) {
-      throw new ForbiddenException('You do not own this board');
-    }
+    await this.assertOwnedBoard(boardId, userId);
 
     await this.prisma.boardPin.delete({
       where: {

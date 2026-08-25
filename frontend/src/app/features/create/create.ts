@@ -9,6 +9,18 @@ import { FormsModule } from '@angular/forms';
 import { ImageEditor } from './image-editor/image-editor';
 import { PublishDialogStatus, PublishProgressDialog } from './publish-progress-dialog/publish-progress-dialog';
 import { MembershipService } from '../../core/services/membership';
+import { CollageTransferService } from '../collage/services/collage-transfer.service';
+import { DialogService } from '../../core/services/dialog';
+
+import { AuctionService } from '../../core/services/auction';
+import { ToastService } from '../../core/services/toast';
+import { toUserMessage } from '../../core/utils/http-error';
+
+/** Hình thức bán chọn ở Create Studio — 'none' không gửi price/auction nào,
+ * 'fixed' giữ nguyên luồng price hiện có, 'auction' tạo phiên đấu giá sau
+ * khi pin đã đăng thành công (2 bước, vì upload dùng multipart/FormData còn
+ * tạo phiên đấu giá là JSON thuần). */
+type ListingMode = 'none' | 'fixed' | 'auction';
 
 /** 'idle' — no file selected / check not run yet.
  * 'checking' — request in flight.
@@ -31,6 +43,10 @@ export class Create implements OnInit {
   private boardService = inject(BoardService);
   public supabaseService = inject(SupabaseService);
   public membership = inject(MembershipService);
+  private collageTransfer = inject(CollageTransferService);
+  private dialogService = inject(DialogService);
+  private auctionService = inject(AuctionService);
+  private toast = inject(ToastService);
 
   // Only ever mounted while activeTab() === 'upload' and an image is
   // selected — <app-image-editor> is not present anywhere in the AI tab.
@@ -40,6 +56,12 @@ export class Create implements OnInit {
   public title = '';
   public description = '';
   public price: number | null = null;
+  public listingMode: ListingMode = 'none';
+  public auctionStartingPrice: number | null = null;
+  public auctionMinimumIncrement: number | null = null;
+  /** Giá trị input datetime-local (chuỗi "YYYY-MM-DDTHH:mm", giờ máy client). */
+  public auctionStartsAt = '';
+  public auctionEndsAt = '';
   public activeTab = signal<'upload' | 'ai'>('upload');
 
   // Boards selector fields
@@ -76,12 +98,16 @@ export class Create implements OnInit {
   public dialogMessage = signal('');
   public dialogErrorMessage = signal('');
 
-  // Discard-edits confirm dialog — replaces window.confirm().
-  public showDiscardConfirm = signal(false);
-  private pendingDiscardAction: (() => void) | null = null;
-
   async ngOnInit() {
     await this.membership.load();
+    const collageFile = this.collageTransfer.take();
+    if (collageFile) {
+      this.selectedFile = collageFile;
+      this.formError.set(null);
+      this.resetImageModeration();
+      this.imagePreviewUrl.set(URL.createObjectURL(collageFile));
+      await this.checkSelectedImage(collageFile);
+    }
     await this.loadBoards();
   }
 
@@ -126,27 +152,21 @@ export class Create implements OnInit {
   }
 
   /** Routes an action that would discard the editor's in-progress edits
-   * (switching tabs, replacing the image) through an in-app confirm dialog
+   * (switching tabs, replacing the image) through the shared confirm dialog
    * instead of window.confirm(). Runs immediately when there's nothing to lose. */
-  private runOrConfirmDiscard(action: () => void): void {
+  private async runOrConfirmDiscard(action: () => void): Promise<void> {
     if (this.activeTab() === 'upload' && this.editorRef?.isDirty()) {
-      this.pendingDiscardAction = action;
-      this.showDiscardConfirm.set(true);
+      const confirmed = await this.dialogService.confirm({
+        variant: 'warning',
+        title: 'Bạn có chỉnh sửa chưa lưu',
+        description: 'Tiếp tục sẽ làm mất các thay đổi màu sắc và caption trên ảnh này. Bạn có chắc chắn muốn tiếp tục?',
+        confirmLabel: 'Tiếp tục, bỏ chỉnh sửa',
+        cancelLabel: 'Hủy',
+      });
+      if (confirmed) action();
       return;
     }
     action();
-  }
-
-  confirmDiscard(): void {
-    this.showDiscardConfirm.set(false);
-    const action = this.pendingDiscardAction;
-    this.pendingDiscardAction = null;
-    action?.();
-  }
-
-  cancelDiscard(): void {
-    this.showDiscardConfirm.set(false);
-    this.pendingDiscardAction = null;
   }
 
   replaceUploadedImage() {
@@ -200,11 +220,21 @@ export class Create implements OnInit {
    * non-2xx response instead sets 'error' — the image was never judged,
    * so it must not be treated as blocked-for-content. */
   private async checkSelectedImage(file: File): Promise<void> {
-    const token = await this.supabaseService.getSessionToken();
-    if (!token || this.selectedFile !== file) return;
-
+    if (this.selectedFile !== file) return;
     this.imageModerationStatus.set('checking');
     this.imageModerationMessage.set(null);
+
+    const token = await this.supabaseService.getSessionToken();
+    if (this.selectedFile !== file) return;
+    if (!token) {
+      // Was silently leaving status at 'idle' with no explanation — the
+      // submit button stays disabled forever (requires 'safe') with no clue
+      // why. A missing session is a real, actionable error, not "nothing
+      // happened yet".
+      this.imageModerationStatus.set('error');
+      this.imageModerationMessage.set('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      return;
+    }
 
     try {
       const result = await this.pinService.checkImageModeration(file, token);
@@ -222,7 +252,13 @@ export class Create implements OnInit {
       console.error('Error checking image moderation (service/network failure, not a content verdict):', error);
       if (this.selectedFile !== file) return;
       this.imageModerationStatus.set('error');
-      this.imageModerationMessage.set('Không thể kiểm tra ảnh lúc này. Vui lòng thử lại.');
+      // Surfaces the backend's real reason (e.g. "Không thể kiểm duyệt ảnh
+      // lúc này..." when the moderation service itself is down/unreachable,
+      // or "Không thể kết nối đến máy chủ..." for an actual network failure)
+      // instead of one hardcoded string for every possible failure mode.
+      this.imageModerationMessage.set(
+        toUserMessage(error, 'Không thể kiểm tra ảnh lúc này. Vui lòng thử lại.'),
+      );
     }
   }
 
@@ -233,10 +269,45 @@ export class Create implements OnInit {
     void this.checkSelectedImage(this.selectedFile);
   }
 
+  /** Explains exactly why the submit button is currently disabled — mirrors
+   * the same conditions as the button's own [disabled] binding in
+   * create.html, in the order a user would naturally fix them. Returns null
+   * once nothing is blocking submission, so the button never shows a stale
+   * reason once it's actually clickable. */
+  submitDisabledReason(): string | null {
+    if (this.isSubmitting()) return null;
+    if (!this.title.trim()) return 'Nhập tiêu đề cho tác phẩm để tiếp tục.';
+
+    if (this.activeTab() === 'upload') {
+      if (!this.selectedFile) return 'Chọn một ảnh để đăng.';
+      switch (this.imageModerationStatus()) {
+        case 'checking':
+          return 'Đang kiểm tra ảnh, vui lòng đợi...';
+        case 'unsafe':
+          return 'Ảnh chưa vượt qua kiểm duyệt nội dung — hãy chọn ảnh khác.';
+        case 'error':
+          return 'Chưa kiểm tra được ảnh — bấm "Thử lại kiểm tra" ở trên trước khi đăng.';
+        case 'idle':
+          return 'Đang chuẩn bị kiểm tra ảnh...';
+      }
+    } else if (this.activeTab() === 'ai' && !this.aiImagePreviewUrl()) {
+      return 'Tạo một ảnh AI trước khi đăng.';
+    }
+
+    return null;
+  }
+
   async generateAiImage() {
     if (this.dialogOpen() || !this.aiPrompt.trim()) return;
     this.formError.set(null);
-    try { await this.membership.consumeAi(); } catch (error) { this.formError.set(error instanceof Error ? error.message : 'Bạn đã hết lượt tạo AI hôm nay.'); return; }
+    // Kiểm tra mềm dựa trên trạng thái đã cache - chặn thật sự nằm ở
+    // saveAiPin() phía backend (trừ quota nguyên tử khi lưu, không thể bị
+    // bỏ qua bằng cách gọi thẳng Pollinations rồi chỉ submit form).
+    const remaining = this.membership.status()?.aiRemaining;
+    if (remaining !== undefined && remaining <= 0) {
+      this.formError.set('Bạn đã hết lượt tạo AI hôm nay.');
+      return;
+    }
     this.isGenerating.set(true);
 
     const seed = Math.floor(Math.random() * 1000000);
@@ -305,8 +376,8 @@ export class Create implements OnInit {
     }
   }
 
-  /** Resolves the board to save into, creating the default "Hồ sơ" board on
-   * first use — unchanged from the previous flow. */
+  /** Resolves the board to save into, creating the default "Bộ sưu tập của
+   * tôi" board on first use — unchanged from the previous flow. */
   private async resolveBoardId(token: string): Promise<string | undefined> {
     let boardId = this.selectedBoard()?.id;
     if (!boardId && this.boards().length > 0) {
@@ -314,7 +385,7 @@ export class Create implements OnInit {
     }
     if (!boardId) {
       try {
-        const defaultBoard = await this.boardService.createBoard('Hồ sơ', 'Bộ sưu tập lưu mặc định', false, token);
+        const defaultBoard = await this.boardService.createBoard('Bộ sưu tập của tôi', 'Bộ sưu tập lưu mặc định', false, token);
         this.boards.update(list => [defaultBoard, ...list]);
         boardId = defaultBoard.id;
       } catch (err) {
@@ -324,11 +395,51 @@ export class Create implements OnInit {
     return boardId;
   }
 
+  /** Validate các field đấu giá phía client — lặp lại đúng quy tắc backend
+   * (AuctionsService.createAuction) để người dùng thấy lỗi ngay, backend vẫn
+   * tự kiểm tra lại toàn bộ, không tin dữ liệu client. */
+  private validateAuctionFields(): string | null {
+    const starting = this.auctionStartingPrice;
+    const increment = this.auctionMinimumIncrement;
+    if (!starting || !Number.isInteger(starting) || starting < 1000) {
+      return 'Giá khởi điểm phải là số nguyên VNĐ, tối thiểu 1.000đ.';
+    }
+    if (!increment || !Number.isInteger(increment) || increment < 1000) {
+      return 'Bước giá tối thiểu phải là số nguyên VNĐ, tối thiểu 1.000đ.';
+    }
+    if (!this.auctionStartsAt || !this.auctionEndsAt) {
+      return 'Vui lòng chọn thời gian bắt đầu và kết thúc phiên đấu giá.';
+    }
+    const startsAt = new Date(this.auctionStartsAt);
+    const endsAt = new Date(this.auctionEndsAt);
+    if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
+      return 'Thời gian đấu giá không hợp lệ.';
+    }
+    if (endsAt.getTime() <= startsAt.getTime()) {
+      return 'Thời gian kết thúc phải sau thời gian bắt đầu.';
+    }
+    const durationMs = endsAt.getTime() - startsAt.getTime();
+    const ONE_HOUR_MS = 60 * 60 * 1000;
+    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+    if (durationMs < ONE_HOUR_MS || durationMs > THIRTY_DAYS_MS) {
+      return 'Thời lượng phiên đấu giá phải từ 1 giờ đến 30 ngày.';
+    }
+    return null;
+  }
+
   private async submitUpload(): Promise<void> {
     const token = await this.supabaseService.getSessionToken();
     if (!token || !this.selectedFile) {
       this.formError.set('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
       return;
+    }
+
+    if (this.listingMode === 'auction' && this.membership.status()?.canSell) {
+      const auctionValidationError = this.validateAuctionFields();
+      if (auctionValidationError) {
+        this.formError.set(auctionValidationError);
+        return;
+      }
     }
 
     const isDirty = !!this.editorRef?.isDirty();
@@ -362,10 +473,33 @@ export class Create implements OnInit {
       if (boardId) {
         formData.append('boardId', boardId);
       }
-      if (this.membership.status()?.canSell && this.price) formData.append('price', String(this.price));
+      if (this.listingMode === 'fixed' && this.membership.status()?.canSell && this.price) {
+        formData.append('price', String(this.price));
+      }
       // Regular uploads never carry AI metadata, regardless of tab history.
 
-      await this.pinService.createUploadPin(formData, token);
+      const createdPin = await this.pinService.createUploadPin(formData, token);
+
+      // Tạo phiên đấu giá là bước JSON riêng sau khi pin (multipart) đã đăng
+      // thành công — nếu bước này lỗi, pin vẫn tồn tại, chỉ báo rõ cho người
+      // dùng thay vì âm thầm bỏ qua hoặc làm mất ảnh đã đăng.
+      if (this.listingMode === 'auction' && this.membership.status()?.canSell) {
+        try {
+          await this.auctionService.create({
+            pinId: createdPin.id,
+            startingPrice: this.auctionStartingPrice!,
+            minimumIncrement: this.auctionMinimumIncrement!,
+            startsAt: new Date(this.auctionStartsAt).toISOString(),
+            endsAt: new Date(this.auctionEndsAt).toISOString(),
+          });
+        } catch (auctionError) {
+          console.error('Error creating auction after pin upload:', auctionError);
+          this.toast.error(
+            'Đã đăng ảnh nhưng không thể tạo phiên đấu giá. Bạn có thể tạo lại từ trang cá nhân.',
+          );
+        }
+      }
+
       await this.handlePublishSuccess();
     } catch (error) {
       console.error('Error uploading pin:', error);
@@ -405,10 +539,11 @@ export class Create implements OnInit {
       };
 
       await this.pinService.saveAiPin(body, token);
+      await this.membership.load();
       await this.handlePublishSuccess();
     } catch (error) {
       console.error('Error saving AI pin:', error);
-      this.showDialogError('Không thể lưu ảnh AI. Vui lòng thử lại.');
+      this.showDialogError(error instanceof Error ? error.message : 'Không thể lưu ảnh AI. Vui lòng thử lại.');
     } finally {
       this.isSubmitting.set(false);
     }

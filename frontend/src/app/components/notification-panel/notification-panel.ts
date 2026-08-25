@@ -4,11 +4,12 @@ import { NotificationService, Notification } from '../../core/services/notificat
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { Router } from '@angular/router';
+import { UserAvatar } from '../../shared/user-avatar/user-avatar';
 
 @Component({
   selector: 'app-notification-panel',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, UserAvatar],
   templateUrl: './notification-panel.html',
   styleUrl: './notification-panel.css',
 })

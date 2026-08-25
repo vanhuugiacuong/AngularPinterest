@@ -1,0 +1,3 @@
+/* Visuals live in the shared .nf-dialog-* primitives in src/styles.css so
+   every dialog in the app (this host and bespoke form modals alike) stays
+   visually identical without duplicating CSS per component. */

@@ -1,0 +1,106 @@
+<div class="modal-backdrop" (mousedown)="onBackdropMouseDown($event)" (click)="onBackdropClick($event)" role="presentation">
+  <section
+    #dialog
+    class="selector-dialog"
+    tabindex="-1"
+    (click)="$event.stopPropagation()"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="subject-selector-title"
+  >
+    <header>
+      <div>
+        <span class="eyebrow">AI Segmentation</span>
+        <h2 id="subject-selector-title">Chọn chủ thể</h2>
+      </div>
+      <button
+        type="button"
+        class="icon-button"
+        (click)="cancelled.emit()"
+        [disabled]="adding()"
+        title="Đóng"
+      >
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </header>
+
+    <div class="preview-stage">
+      <div class="image-frame">
+        <img
+          class="source-image"
+          [class.dimmed]="previewUrl()"
+          [src]="source.temporaryUrl || source.sourceImageUrl"
+          [alt]="source.title"
+          (click)="selectAtPoint($event)"
+          title="Nhấn vào người hoặc vật bạn muốn cắt"
+        />
+        <img
+          *ngIf="previewUrl() as cutout"
+          class="cutout-outline"
+          [src]="cutout"
+          alt="Vật thể đã chọn"
+        />
+      </div>
+
+      <div *ngIf="!selectedPoint() && !processing() && !error()" class="tap-instruction">
+        <span class="material-symbols-outlined">touch_app</span>
+        <strong>Nhấn trực tiếp vào người hoặc vật bạn muốn cắt</strong>
+        <small>Ví dụ: nhấn cô gái bên trái, cô gái bên phải hoặc chiếc laptop.</small>
+      </div>
+
+      <div *ngIf="processing()" class="processing-overlay" aria-live="polite">
+        <span class="spinner"></span>
+        <strong>Đang nhận diện vật thể…</strong>
+        <div
+          class="progress-track"
+          role="progressbar"
+          [attr.aria-valuenow]="progress()"
+          aria-valuemin="0"
+          aria-valuemax="100"
+        >
+          <span [style.width.%]="progress()"></span>
+        </div>
+        <small>{{ progress() }}% · Lần đầu cần tải mô hình AI</small>
+      </div>
+
+      <div *ngIf="error()" class="error-state" role="alert">
+        <span class="material-symbols-outlined">image_not_supported</span>
+        <strong>{{ error() }}</strong>
+        <button *ngIf="selectedPoint()" type="button" (click)="retry()">Thử lại</button>
+      </div>
+    </div>
+
+    <p class="hint">
+      <ng-container *ngIf="!previewUrl()">
+        Nhấn trực tiếp vào một người hoặc vật để chọn trọn vật thể đó. Bạn có thể nhấn lại vị trí
+        khác nếu muốn đổi lựa chọn.
+      </ng-container>
+      <ng-container *ngIf="previewUrl()">
+        Đường sáng đang bao quanh vật thể tại điểm đã chọn. Nhấn vị trí khác để đổi vật thể hoặc
+        thêm phần cắt này vào khung.
+      </ng-container>
+    </p>
+
+    <footer>
+      <button
+        type="button"
+        class="secondary-button"
+        (click)="selectAll()"
+        [disabled]="processing() || adding() || preparingWhole()"
+        title="Thêm ngay toàn bộ ảnh, không tách nền"
+      >
+        <span class="material-symbols-outlined">select_all</span>
+        {{ preparingWhole() ? 'Đang thêm…' : 'Chọn tất cả' }}
+      </button>
+      <button
+        type="button"
+        class="primary-button"
+        (click)="addCutout()"
+        [disabled]="processing() || !previewUrl() || adding() || preparingWhole()"
+      >
+        <span class="material-symbols-outlined">content_cut</span>
+        {{ adding() ? 'Đang thêm…' : 'Thêm phần cắt' }}
+      </button>
+    </footer>
+  </section>
+</div>

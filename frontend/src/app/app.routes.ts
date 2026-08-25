@@ -6,6 +6,7 @@ import { Profile } from './features/profile/profile';
 import { BoardDetail } from './features/board-detail/board-detail';
 import { Create } from './features/create/create';
 import { Messages } from './features/messages/messages';
+import { Settings } from './features/settings/settings';
 import { authGuard } from './core/guards/auth';
 import { Pricing } from './features/pricing/pricing';
 
@@ -17,7 +18,13 @@ export const routes: Routes = [
   { path: 'board/:id', component: BoardDetail, canActivate: [authGuard] },
   { path: 'create', component: Create, canActivate: [authGuard] },
   { path: 'pricing', component: Pricing, canActivate: [authGuard] },
+  {
+    path: 'collage',
+    loadComponent: () => import('./features/collage/collage').then((module) => module.Collage),
+    canActivate: [authGuard],
+  },
   { path: 'messages', component: Messages, canActivate: [authGuard] },
   { path: 'messages/:conversationId', component: Messages, canActivate: [authGuard] },
+  { path: 'settings', component: Settings, canActivate: [authGuard] },
   { path: '**', redirectTo: '' }
 ];

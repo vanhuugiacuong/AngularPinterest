@@ -26,7 +26,8 @@
       <button
         type="button"
         (click)="resetAll()"
-        class="h-10 px-3 rounded-control bg-surface border border-border hover:border-error/50 hover:text-error flex items-center justify-center text-text-muted cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        [disabled]="isCroppingMode()"
+        class="h-10 px-3 rounded-control bg-surface border border-border hover:border-error/50 hover:text-error flex items-center justify-center text-text-muted cursor-pointer transition-colors duration-200 disabled:opacity-35 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         title="Đặt lại toàn bộ chỉnh sửa"
         aria-label="Đặt lại toàn bộ chỉnh sửa"
       >
@@ -60,6 +61,18 @@
       >
         Caption
       </button>
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="activeTool() === 'crop'"
+        (click)="setActiveTool('crop')"
+        [class.bg-surface-high]="activeTool() === 'crop'"
+        [class.text-text]="activeTool() === 'crop'"
+        [class.text-text-muted]="activeTool() !== 'crop'"
+        class="h-9 px-4 rounded-control text-xs font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        Cắt ảnh
+      </button>
     </div>
 
     <!-- COLOR PANEL -->
@@ -71,7 +84,7 @@
             <button
               type="button"
               (click)="applyPreset(preset)"
-              class="h-8 px-3 rounded-control bg-surface border border-border hover:border-primary/50 text-[11px] font-bold text-text-muted hover:text-text cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              class="h-8 px-3 rounded-control bg-surface border border-border hover:border-primary/50 text-xs font-bold text-text-muted hover:text-text cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               {{ preset.label }}
             </button>
@@ -79,7 +92,7 @@
           <button
             type="button"
             (click)="resetColor()"
-            class="h-8 px-3 rounded-control bg-surface border border-border hover:border-error/50 hover:text-error text-[11px] font-bold text-text-muted cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            class="h-8 px-3 rounded-control bg-surface border border-border hover:border-error/50 hover:text-error text-xs font-bold text-text-muted cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             Reset màu
           </button>
@@ -100,7 +113,7 @@
                   <span class="material-symbols-outlined text-base leading-none text-text-muted">{{ group.icon }}</span>
                   {{ group.label }}
                   @if (groupChangeCount(group.keys) > 0) {
-                    <span class="mono-label text-[9px] uppercase text-accent bg-accent/10 rounded-control px-1.5 py-0.5">{{ groupChangeCount(group.keys) }} đã chỉnh</span>
+                    <span class="mono-label text-xs text-accent bg-accent/10 rounded-control px-1.5 py-0.5">{{ groupChangeCount(group.keys) }} đã chỉnh</span>
                   }
                 </span>
                 <span
@@ -342,13 +355,13 @@
             <div class="flex flex-col gap-1.5">
               <span class="text-xs font-bold text-text-muted" id="caption-pos-label">Vị trí nhanh</span>
               <div class="flex gap-1.5" role="group" aria-labelledby="caption-pos-label">
-                <button type="button" (click)="setCaptionPosition('top')" class="flex-1 h-9 rounded-control bg-surface-elevated border border-border hover:border-primary/50 text-[11px] font-bold text-text-muted hover:text-text cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                <button type="button" (click)="setCaptionPosition('top')" class="flex-1 h-9 rounded-control bg-surface-elevated border border-border hover:border-primary/50 text-xs font-bold text-text-muted hover:text-text cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                   Phía trên
                 </button>
-                <button type="button" (click)="setCaptionPosition('center')" class="flex-1 h-9 rounded-control bg-surface-elevated border border-border hover:border-primary/50 text-[11px] font-bold text-text-muted hover:text-text cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                <button type="button" (click)="setCaptionPosition('center')" class="flex-1 h-9 rounded-control bg-surface-elevated border border-border hover:border-primary/50 text-xs font-bold text-text-muted hover:text-text cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                   Chính giữa
                 </button>
-                <button type="button" (click)="setCaptionPosition('bottom')" class="flex-1 h-9 rounded-control bg-surface-elevated border border-border hover:border-primary/50 text-[11px] font-bold text-text-muted hover:text-text cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                <button type="button" (click)="setCaptionPosition('bottom')" class="flex-1 h-9 rounded-control bg-surface-elevated border border-border hover:border-primary/50 text-xs font-bold text-text-muted hover:text-text cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                   Phía dưới
                 </button>
               </div>
@@ -359,20 +372,54 @@
         <button
           type="button"
           (click)="resetCaption()"
-          class="h-9 rounded-control bg-surface border border-border hover:border-error/50 hover:text-error text-[11px] font-bold text-text-muted cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          class="h-9 rounded-control bg-surface border border-border hover:border-error/50 hover:text-error text-xs font-bold text-text-muted cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           Reset caption
+        </button>
+      </div>
+    }
+
+    <!-- CROP PANEL -->
+    @if (activeTool() === 'crop') {
+      <div class="flex flex-col gap-4" role="tabpanel" aria-label="Công cụ cắt ảnh">
+        <p class="text-xs text-text-muted leading-relaxed">
+          Kéo bên trong khung để chọn vùng ảnh muốn giữ. Kéo 4 góc để thay đổi kích thước khung cắt.
+        </p>
+
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            (click)="cancelCrop()"
+            class="flex-1 h-10 rounded-control bg-surface border border-border hover:border-border-strong text-xs font-bold text-text cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            Hủy
+          </button>
+          <button
+            type="button"
+            (click)="applyCrop()"
+            class="flex-1 h-10 rounded-control bg-gradient-brand cta-shape text-text text-xs font-extrabold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            Áp dụng
+          </button>
+        </div>
+
+        <button
+          type="button"
+          (click)="resetCropDraft()"
+          class="h-9 rounded-control bg-surface border border-border hover:border-error/50 hover:text-error text-[11px] font-bold text-text-muted cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          Đặt lại (nguyên ảnh)
         </button>
       </div>
     }
   </div>
 
   <!-- STAGE: canvas preview — the visual focal point of the studio -->
-  <div class="ie-stage rounded-frame frame-trace frame-trace-active bg-surface-elevated border border-border relative overflow-hidden flex items-center justify-center min-h-[320px] md:min-h-[520px]">
+  <div class="ie-stage rounded-frame frame-trace frame-trace-active bg-canvas-neutral border border-border relative overflow-hidden flex items-center justify-center min-h-[320px] md:min-h-[520px]">
     @if (isLoadingImage()) {
       <div class="flex flex-col items-center gap-2 py-10">
         <div class="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
-        <span class="mono-label text-[10px] uppercase text-text-muted">Đang tải ảnh vào editor...</span>
+        <span class="mono-label text-xs text-text-muted">Đang tải ảnh vào editor...</span>
       </div>
     }
 
@@ -386,7 +433,7 @@
     <canvas
       #previewCanvas
       class="max-w-full max-h-[520px] md:max-h-[640px] w-auto h-auto block touch-none"
-      [class.hidden]="isLoadingImage() || loadError()"
+      [class.hidden]="isLoadingImage() || loadError() || isCroppingMode()"
       [class.cursor-move]="activeTool() === 'caption' && caption().enabled"
       (pointerdown)="onCanvasPointerDown($event)"
       (pointermove)="onCanvasPointerMove($event)"
@@ -396,9 +443,59 @@
       aria-label="Xem trước ảnh đang chỉnh sửa"
     ></canvas>
 
-    @if (activeTool() === 'caption' && caption().enabled && !isLoadingImage() && !loadError()) {
+    @if (activeTool() === 'caption' && caption().enabled && !isLoadingImage() && !loadError() && !isCroppingMode()) {
       <span class="mono-label absolute bottom-2 left-2 text-[9px] uppercase text-text-muted bg-bg/70 px-2 py-1 rounded-control pointer-events-none">
         Kéo trên ảnh để đặt vị trí caption
+      </span>
+    }
+
+    <!-- CROP STAGE — the full source image (no crop clip) with a draggable/resizable
+         selection rectangle overlaid. Coordinates are all percentages of this wrapper,
+         which is sized exactly to the rendered crop canvas (inline-block shrink-to-fit),
+         so the crop box tracks correctly across window resizes without any JS math. -->
+    @if (isCroppingMode() && !isLoadingImage() && !loadError()) {
+      <div
+        #cropStageWrap
+        class="ie-crop-wrap relative inline-block max-w-full max-h-[520px] md:max-h-[640px]"
+        (pointermove)="onCropOverlayPointerMove($event)"
+        (pointerup)="onCropOverlayPointerUp($event)"
+        (pointercancel)="onCropOverlayPointerUp($event)"
+      >
+        <canvas #cropCanvas class="max-w-full max-h-[520px] md:max-h-[640px] w-auto h-auto block"></canvas>
+
+        <div
+          class="ie-crop-rect absolute border-2 border-white cursor-move"
+          [style.left.%]="draftCrop().x * 100"
+          [style.top.%]="draftCrop().y * 100"
+          [style.width.%]="draftCrop().width * 100"
+          [style.height.%]="draftCrop().height * 100"
+          (pointerdown)="onCropRectPointerDown($event)"
+        >
+          <div
+            class="ie-crop-handle ie-crop-handle-nw"
+            [style.cursor]="cropCursor('nw')"
+            (pointerdown)="onCropHandlePointerDown($event, 'nw')"
+          ></div>
+          <div
+            class="ie-crop-handle ie-crop-handle-ne"
+            [style.cursor]="cropCursor('ne')"
+            (pointerdown)="onCropHandlePointerDown($event, 'ne')"
+          ></div>
+          <div
+            class="ie-crop-handle ie-crop-handle-sw"
+            [style.cursor]="cropCursor('sw')"
+            (pointerdown)="onCropHandlePointerDown($event, 'sw')"
+          ></div>
+          <div
+            class="ie-crop-handle ie-crop-handle-se"
+            [style.cursor]="cropCursor('se')"
+            (pointerdown)="onCropHandlePointerDown($event, 'se')"
+          ></div>
+        </div>
+      </div>
+
+      <span class="mono-label absolute bottom-2 left-2 text-[9px] uppercase text-text-muted bg-bg/70 px-2 py-1 rounded-control pointer-events-none">
+        Kéo bên trong khung để di chuyển · Kéo góc để thay đổi kích thước
       </span>
     }
   </div>

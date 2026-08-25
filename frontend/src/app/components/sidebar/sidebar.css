@@ -13,9 +13,7 @@
    route's <main>) hundreds of pixels below the fold. */
 
 /* A faint vertical light trail along the rail's right edge — NovaFrame
-   signature. Aurora Archive rebalance: cyan/blue now carry most of the
-   trail's length and purple is pulled back to a brief accent near the
-   bottom, instead of splitting the trail 50/50 between the two hues. */
+   signature, split between the two brand hues rather than one flat line. */
 .nf-rail::after {
   content: "";
   position: absolute;
@@ -26,9 +24,9 @@
   background: linear-gradient(
     180deg,
     transparent 0%,
-    rgba(0, 229, 255, 0.4) 15%,
-    rgba(36, 87, 255, 0.3) 45%,
-    rgba(139, 44, 255, 0.22) 72%,
+    color-mix(in srgb, var(--color-studio-aqua) 40%, transparent) 15%,
+    color-mix(in srgb, var(--color-nova-blue) 32%, transparent) 45%,
+    color-mix(in srgb, var(--color-iris-violet) 24%, transparent) 72%,
     transparent 100%
   );
   opacity: 0.55;
@@ -36,25 +34,96 @@
 }
 
 .nf-active-tick {
-  box-shadow: 0 0 10px 1px rgba(139, 44, 255, 0.55);
+  box-shadow: 0 0 10px 1px color-mix(in srgb, var(--color-nova-blue) 55%, transparent);
 }
 
-/* Focus backdrop behind the open sidebar — light navy/violet tint + blur,
-   never pure black. Opacity-only transition keeps it in sync with the
-   sidebar's own transform transition and stays cheap to composite. */
+/* Focus backdrop behind the open sidebar — soft ink tint, never pure black.
+   No backdrop-filter: the sidebar opens on hover of the header's hamburger
+   trigger, so on a weak/integrated GPU this scrim was recomputing a blur
+   every time the pointer merely passed near that button — the same class of
+   jank as the header bar itself (see navbar.html). A slightly deeper flat
+   tint reads just as clearly without costing anything to composite. */
 .nf-sidebar-backdrop {
   background:
-    radial-gradient(120% 100% at 0% 50%, rgba(139, 44, 255, 0.13), transparent 60%),
-    rgba(8, 8, 20, 0.46);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+    radial-gradient(120% 100% at 0% 50%, color-mix(in srgb, var(--color-iris-violet) 13%, transparent), transparent 60%),
+    color-mix(in srgb, var(--color-ink) 74%, transparent);
   transition: opacity 0.25s ease-out;
 }
 
 /* Notification Side Drawer Animation & Glow */
 .nf-notification-drawer {
   animation: drawerSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  box-shadow: 10px 0 30px -5px rgba(0, 0, 0, 0.4), 0 0 15px 0 rgba(139, 44, 255, 0.15);
+  box-shadow:
+    10px 0 30px -5px color-mix(in srgb, var(--color-ink) 55%, transparent),
+    0 0 15px 0 color-mix(in srgb, var(--color-iris-violet) 15%, transparent);
+}
+
+/* Mobile notification sheet — slides up from the bottom nav instead of in
+   from the left rail. */
+.nf-notification-sheet {
+  animation: sheetSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  box-shadow: 0 -10px 30px -5px color-mix(in srgb, var(--color-ink) 55%, transparent);
+}
+
+/* One cohesive interaction surface: hovering or keyboard-focusing either the
+   message or its follow controls highlights the complete notification card. */
+.nf-notification-card {
+  position: relative;
+  background: transparent;
+  transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.nf-notification-card--unread {
+  background: color-mix(in srgb, var(--color-studio-aqua) 5%, transparent);
+}
+
+.nf-notification-card:hover,
+.nf-notification-card:focus-within {
+  background: color-mix(in srgb, var(--color-surface-elevated) 88%, var(--color-studio-aqua) 12%);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--color-studio-aqua) 72%, transparent);
+}
+
+.nf-notification-card__main {
+  background: transparent;
+}
+
+.nf-follow-action {
+  min-width: 0;
+  transition: transform 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.nf-follow-action:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.nf-follow-action--accept:not(:disabled):hover {
+  background: color-mix(in srgb, var(--color-studio-aqua) 82%, white 18%);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--color-studio-aqua) 20%, transparent);
+}
+
+.nf-follow-action--reject:not(:disabled):hover {
+  background: color-mix(in srgb, var(--color-surface-elevated) 78%, var(--color-text) 8%);
+  border-color: color-mix(in srgb, var(--color-border) 55%, var(--color-text-muted) 45%);
+}
+
+.nf-follow-action:focus-visible {
+  outline: 2px solid var(--color-studio-aqua);
+  outline-offset: 2px;
+}
+
+.nf-notification-card__result {
+  color: var(--color-studio-aqua);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nf-notification-card,
+  .nf-follow-action {
+    transition: none;
+  }
+
+  .nf-follow-action:not(:disabled):hover {
+    transform: none;
+  }
 }
 
 @keyframes drawerSlideIn {
@@ -68,3 +137,13 @@
   }
 }
 
+@keyframes sheetSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

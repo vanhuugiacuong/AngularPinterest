@@ -13,13 +13,19 @@ function makeRequest(overrides: Partial<MessageRequestRecord> = {}): MessageRequ
     receiverId: 'me',
     status: 'PENDING',
     createdAt: '2026-01-01T00:00:00.000Z',
-    sender: { id: 'sender-1', username: 'artist', avatarUrl: null },
+    sender: { id: 'sender-1', username: 'artist', avatarUrl: null, plan: 'FREE' },
     ...overrides,
   };
 }
 
 describe('Messages', () => {
-  function setup(overrides: { messagingService?: object; paramMap?: Record<string, string> } = {}) {
+  function setup(
+    overrides: {
+      messagingService?: object;
+      paramMap?: Record<string, string>;
+      queryParams?: Record<string, string>;
+    } = {},
+  ) {
     const messagingService = {
       listConversations: vi.fn().mockResolvedValue([]),
       listIncomingRequests: vi.fn().mockResolvedValue([]),
@@ -39,7 +45,10 @@ describe('Messages', () => {
       providers: [
         {
           provide: ActivatedRoute,
-          useValue: { paramMap: of(convertToParamMap(overrides.paramMap || {})) },
+          useValue: {
+            paramMap: of(convertToParamMap(overrides.paramMap || {})),
+            snapshot: { queryParamMap: convertToParamMap(overrides.queryParams || {}) },
+          },
         },
         { provide: Router, useValue: router },
         { provide: MessagingService, useValue: messagingService },
@@ -49,6 +58,15 @@ describe('Messages', () => {
             getSessionToken: vi.fn().mockResolvedValue('token'),
             dbUser: () => ({ id: 'me' }),
             user: () => ({ id: 'me' }),
+            getRealtimeClient: vi.fn().mockReturnValue({
+              channel: vi.fn().mockReturnValue({
+                on: vi.fn().mockReturnThis(),
+                subscribe: vi.fn(),
+                track: vi.fn(),
+                send: vi.fn(),
+              }),
+              removeChannel: vi.fn(),
+            }),
           },
         },
       ],
@@ -66,6 +84,17 @@ describe('Messages', () => {
     expect(messagingService.listConversations).toHaveBeenCalled();
     expect(messagingService.listIncomingRequests).toHaveBeenCalled();
     expect(messages.activeSection()).toBe('chats');
+    messages.ngOnDestroy();
+  });
+
+  it('prefills the draft message from a ?prefill= query param (from "Trao đổi với chủ sở hữu") without sending it', async () => {
+    const prefillText = 'Chào bạn, mình quan tâm đến tác phẩm "Tranh sơn dầu".';
+    const { fixture, messagingService } = setup({ queryParams: { prefill: prefillText } });
+    const messages = fixture.componentInstance;
+    await messages.ngOnInit();
+
+    expect(messages.messageDraft).toBe(prefillText);
+    expect(messagingService.sendMessage).not.toHaveBeenCalled();
     messages.ngOnDestroy();
   });
 
@@ -95,6 +124,24 @@ describe('Messages', () => {
     expect(typeof messages.acceptRequest).toBe('function');
     expect(typeof messages.rejectRequest).toBe('function');
     expect(typeof messages.openReportDialog).toBe('function');
+    messages.ngOnDestroy();
+  });
+
+  it('never shows requests that have already been handled', async () => {
+    const pending = makeRequest({ id: 'pending' });
+    const accepted = makeRequest({ id: 'accepted', status: 'ACCEPTED' });
+    const rejected = makeRequest({ id: 'rejected', status: 'REJECTED' });
+    const { fixture } = setup({
+      messagingService: {
+        listIncomingRequests: vi.fn().mockResolvedValue([pending, accepted]),
+        listOutgoingRequests: vi.fn().mockResolvedValue([rejected]),
+      },
+    });
+    const messages = fixture.componentInstance;
+    await messages.ngOnInit();
+
+    expect(messages.incomingRequests()).toEqual([pending]);
+    expect(messages.outgoingRequests()).toEqual([]);
     messages.ngOnDestroy();
   });
 

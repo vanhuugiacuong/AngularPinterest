@@ -32,16 +32,19 @@ export class NotificationsController {
     return { unreadCount: count };
   }
 
+  // Must be registered before ':id/read' — otherwise Nest matches this
+  // static path as the dynamic route with id='all' (PATCH /:id/read),
+  // which then 500s trying to update a notification that doesn't exist.
+  @Patch('all/read')
+  async markAllAsRead(@CurrentUser() user: UserPayload) {
+    return this.notificationsService.markAllAsRead(user.id);
+  }
+
   @Patch(':id/read')
   async markAsRead(
     @CurrentUser() user: UserPayload,
     @Param('id') notificationId: string,
   ) {
     return this.notificationsService.markAsRead(notificationId);
-  }
-
-  @Patch('all/read')
-  async markAllAsRead(@CurrentUser() user: UserPayload) {
-    return this.notificationsService.markAllAsRead(user.id);
   }
 }

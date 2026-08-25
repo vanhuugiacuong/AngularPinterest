@@ -15,11 +15,40 @@
         </div>
       }
 
+      <!-- Error state — fetch failure, not a 404-shaped empty state -->
+      @if (!isLoading() && loadError()) {
+        <div class="flex-1 flex flex-col items-center justify-center gap-4 py-24 text-center" role="alert">
+          <div class="w-14 h-14 rounded-full bg-error/10 flex items-center justify-center">
+            <span class="material-symbols-outlined text-2xl text-error">cloud_off</span>
+          </div>
+          <div class="flex flex-col gap-1.5 max-w-sm">
+            <h2 class="text-sm font-bold text-text">Không thể mở tác phẩm</h2>
+            <p class="text-xs text-text-muted leading-relaxed">{{ loadError() }}</p>
+          </div>
+          <div class="flex items-center gap-2.5">
+            <button
+              type="button"
+              (click)="goBack()"
+              class="h-10 px-5 rounded-control border border-border hover:border-border-strong text-text-muted hover:text-text font-bold text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              Quay lại
+            </button>
+            <button
+              type="button"
+              (click)="retryLoad()"
+              class="h-10 px-5 bg-gradient-brand cta-shape text-text-on-accent font-bold text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              Thử lại
+            </button>
+          </div>
+        </div>
+      }
+
       <!-- Artwork Inspection Space: full-bleed stage + hairline info dock -->
-      @if (!isLoading() && pin(); as p) {
-        <div class="w-full flex flex-col lg:flex-row gap-8 mt-2 items-start">
-          <!-- Left Area: Stage + Dock, plus bottom related belt -->
-          <div class="w-full lg:w-[63%] flex flex-col gap-10 min-w-0">
+      @if (!isLoading() && !loadError() && pin(); as p) {
+        <div class="w-full flex flex-col gap-10 mt-2">
+          <!-- Stage + Dock -->
+          <div class="w-full min-w-0">
             <div class="w-full flex flex-col" [class.lg:flex-row]="!isLandscape()">
               <!-- Stage: image is the priority, no enclosing split-card -->
               <div
@@ -36,28 +65,36 @@
                   <span class="material-symbols-outlined text-xl font-bold">arrow_back</span>
                 </button>
 
-                <img
-                  [src]="p.imageUrl"
-                  [alt]="p.title"
-                  class="w-full h-auto max-h-[720px] object-contain block select-none"
-                />
+                @if (!showImageSearch()) {
+                  <img
+                    [src]="p.imageUrl"
+                    [alt]="p.title"
+                    class="w-full h-auto max-h-[720px] object-contain block select-none"
+                  />
 
-                <!-- Image overlay options on bottom right -->
-                <div class="absolute bottom-5 right-5 flex items-center gap-2 z-20">
-                  <div
-                    class="flex items-center gap-1 bg-surface-high/90 hover:bg-surface-elevated text-text px-3.5 py-2 rounded-control text-xs font-bold shadow-card cursor-pointer transition-colors duration-200 select-none"
-                  >
-                    <span class="material-symbols-outlined text-sm leading-none font-bold"
-                      >search</span
+                  <!-- Real action: enters region-select mode to search NovaFrame's
+                       own CLIP index using just the chosen area of this image. -->
+                  <div class="absolute bottom-5 right-5 flex items-center gap-2 z-20">
+                    <button
+                      type="button"
+                      (click)="showImageSearch.set(true)"
+                      class="flex items-center gap-1 bg-surface-high/90 hover:bg-surface-high text-text px-3.5 py-2 rounded-control text-xs font-bold shadow-card cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      aria-label="Tìm kiếm bằng một vùng của ảnh này"
                     >
-                    <span>Tìm kiếm hình ảnh</span>
+                      <span class="material-symbols-outlined text-sm leading-none font-bold"
+                        >search</span
+                      >
+                      <span>Tìm kiếm hình ảnh</span>
+                    </button>
                   </div>
-                  <button
-                    class="w-8 h-8 rounded-control bg-surface-high/90 text-text flex items-center justify-center shadow-card hover:bg-surface-elevated cursor-pointer active:scale-90 border-none outline-none select-none transition-colors duration-200"
-                  >
-                    <span class="material-symbols-outlined text-base font-bold">open_in_full</span>
-                  </button>
-                </div>
+                } @else {
+                  <app-image-region-search
+                    [imageUrl]="p.imageUrl"
+                    [pinId]="p.id"
+                    (searchCompleted)="onImageSearchCompleted($event)"
+                    (closed)="showImageSearch.set(false)"
+                  ></app-image-region-search>
+                }
               </div>
 
               <!-- Dock: info panel — hairline seam, not a boxed card -->
@@ -71,12 +108,10 @@
                   class="flex items-center gap-3 bg-transparent border-none p-0 cursor-pointer text-left select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
                   [attr.aria-label]="'Xem trang cá nhân của ' + p.user?.username"
                 >
-                  <app-user-avatar [src]="p.user?.avatarUrl" [name]="p.user?.username" [size]="44"></app-user-avatar>
+                  <app-user-avatar [src]="p.user?.avatarUrl" [name]="p.user?.username" [size]="44" [plan]="p.user?.plan"></app-user-avatar>
                   <div class="flex flex-col text-left">
                     <span class="text-sm font-bold text-text hover:underline">{{ p.user?.username }}</span>
-                    <span class="mono-label text-[10px] uppercase text-text-muted font-medium"
-                      >Người đăng tải</span
-                    >
+                    <span class="text-xs text-text-muted">Người đăng tải</span>
                   </div>
                 </button>
 
@@ -96,7 +131,7 @@
                     class="p-4 rounded-control bg-surface-elevated border border-border flex flex-col gap-2"
                   >
                     <div
-                      class="mono-label flex items-center gap-1.5 text-[11px] uppercase text-text font-bold"
+                      class="mono-label flex items-center gap-1.5 text-xs uppercase text-text font-bold"
                     >
                       <span class="material-symbols-outlined text-sm leading-none text-accent"
                         >auto_awesome</span
@@ -117,32 +152,51 @@
                 >
                   <div class="flex items-center gap-2.5">
                     <!-- Like -->
-                    <button
-                      (click)="toggleLike()"
-                      class="h-10 px-4 bg-surface-elevated hover:bg-surface-high rounded-control flex items-center gap-1.5 cursor-pointer transition-colors duration-200 active:scale-95 border-none outline-none select-none text-text focus-visible:ring-2 focus-visible:ring-accent"
-                      [title]="isLikedByUser() ? 'Bỏ thích' : 'Thích'"
-                    >
-                      <span
-                        class="material-symbols-outlined text-lg leading-none font-bold"
-                        [class.text-accent]="isLikedByUser()"
-                        [class.text-text-muted]="!isLikedByUser()"
-                      >
-                        favorite
-                      </span>
-                      <span class="mono-label text-xs font-bold">{{
-                        p.likeCount ?? p._count?.likes ?? 0
-                      }}</span>
-                    </button>
+                    <app-like-button
+                      [liked]="isLikedByUser()"
+                      [count]="p.likeCount ?? p._count?.likes ?? 0"
+                      [ariaLabel]="(isLikedByUser() ? 'Bỏ thích ' : 'Thích ') + p.title"
+                      (toggled)="toggleLike()"
+                    ></app-like-button>
 
                     <!-- Share -->
-                    <button type="button" (click)="downloadPin()" class="h-10 px-4 rounded-control bg-accent text-white font-bold text-xs border-none cursor-pointer">
+                    <select *ngIf="membership.status()?.customWatermark && watermarkService.presets().length > 0"
+                      [(ngModel)]="selectedWatermarkPresetId" name="downloadWatermark"
+                      class="h-10 px-2 rounded-control bg-surface border border-border text-xs text-text">
+                      <option [ngValue]="null">Tải ảnh sạch (không watermark)</option>
+                      <option *ngFor="let preset of watermarkService.presets()" [ngValue]="preset.id">Watermark: {{ preset.name }}</option>
+                    </select>
+                    <button type="button" (click)="downloadPin()" [disabled]="downloading()" class="h-10 px-4 rounded-control bg-gradient-brand text-text-on-accent font-bold text-xs border-none cursor-pointer disabled:opacity-50">
                       {{ p.isForSale && p.user?.id !== supabaseService.user()?.id ? ('Mua & tải · ' + (p.price | number) + 'đ') : 'Tải ảnh' }}
                     </button>
                     <span *ngIf="downloadMessage()" class="text-[10px] text-text-muted">{{ downloadMessage() }}</span>
+                    <div *ngIf="pendingPurchase() as pay" class="flex flex-col items-start gap-1 mt-1">
+                      @if (bankQrFor(pay); as qrUrl) {
+                        <img [src]="qrUrl" alt="QR chuyển khoản mua ảnh" class="w-32 h-32 rounded-control border border-border object-contain bg-surface" />
+                        <span class="text-[10px] text-text-muted">Nội dung: <strong>{{ pay.paymentReference }}</strong></span>
+                      } @else {
+                        <p class="text-[10px] text-error">Người bán chưa cấu hình thông tin nhận thanh toán. Vui lòng liên hệ người bán.</p>
+                      }
+                    </div>
+
+                    <!-- Trao đổi với chủ sở hữu — chỉ hiện với tác phẩm có
+                         giá trị và không phải chính chủ; tái sử dụng luồng
+                         message request/conversation hiện có. -->
+                    @if (showContactButton()) {
+                      <button
+                        type="button"
+                        (click)="onContactOwner()"
+                        [disabled]="contactButtonDisabled()"
+                        class="h-10 px-4 rounded-control bg-surface-elevated hover:bg-surface-high border border-border text-text font-bold text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      >
+                        {{ contactButtonLabel() }}
+                      </button>
+                    }
 
                     <!-- Share -->
                     <button
                       class="w-10 h-10 rounded-control bg-surface-elevated hover:bg-surface-high flex items-center justify-center cursor-pointer transition-colors duration-200 active:scale-90 border-none outline-none select-none text-text focus-visible:ring-2 focus-visible:ring-accent"
+                      aria-label="Chia sẻ tác phẩm"
                     >
                       <span class="material-symbols-outlined text-lg leading-none">upload</span>
                     </button>
@@ -150,6 +204,7 @@
                     <!-- Option menu -->
                     <button
                       class="w-10 h-10 rounded-control bg-surface-elevated hover:bg-surface-high flex items-center justify-center cursor-pointer transition-colors duration-200 active:scale-90 border-none outline-none select-none text-text focus-visible:ring-2 focus-visible:ring-accent"
+                      aria-label="Thêm tùy chọn"
                     >
                       <span class="material-symbols-outlined text-lg leading-none font-bold"
                         >more_horiz</span
@@ -162,6 +217,8 @@
                     <button
                       (click)="toggleBoardDropdown($event)"
                       class="h-10 px-4 bg-surface-elevated hover:bg-surface-high rounded-control text-sm font-bold flex items-center gap-1 cursor-pointer border-none outline-none text-text select-none focus-visible:ring-2 focus-visible:ring-accent"
+                      aria-haspopup="listbox"
+                      [attr.aria-expanded]="showBoardDropdown()"
                     >
                       <span>{{ getSelectedBoardName() }}</span>
                       <span class="material-symbols-outlined text-base leading-none"
@@ -172,19 +229,20 @@
                     @if (showBoardDropdown()) {
                       <div
                         class="absolute right-0 top-11 w-48 glass-elevated rounded-panel shadow-card py-1.5 z-50 text-left"
+                        role="listbox"
                       >
-                        <span
-                          class="mono-label text-[9px] uppercase text-text-muted font-bold px-4 py-1 block"
+                        <span class="text-xs font-semibold text-text-muted px-4 py-1 block"
                           >Lưu vào bộ sưu tập</span
                         >
                         <div class="max-h-[140px] overflow-y-auto">
                           @for (b of boards(); track b.id) {
-                            <div
+                            <button
+                              type="button"
                               (click)="selectBoard(b, $event)"
-                              class="px-4 py-2 text-xs font-bold text-text hover:bg-surface-elevated cursor-pointer truncate"
+                              class="w-full text-left px-4 py-2 text-xs font-bold text-text hover:bg-surface-elevated cursor-pointer truncate border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                             >
                               {{ b.name }}
-                            </div>
+                            </button>
                           }
                         </div>
                       </div>
@@ -192,17 +250,156 @@
 
                     <button
                       (click)="savePinToBoard()"
-                      class="h-10 px-6 bg-gradient-brand cta-shape text-text text-sm font-bold cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      class="h-10 px-6 bg-gradient-brand cta-shape text-text-on-accent text-sm font-bold cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     >
                       Lưu
                     </button>
                   </div>
                 </div>
 
+                <!-- Đấu giá -->
+                @if (p.listingType === 'AUCTION') {
+                  <div class="flex flex-col gap-4 py-2" aria-live="polite">
+                    <div class="flex items-center gap-2">
+                      <svg viewBox="0 0 24 24" fill="none" class="w-4 h-4 text-accent shrink-0" aria-hidden="true">
+                        <path d="M4 8 L8 3 H16 L20 8 L12 21 Z" fill="currentColor" />
+                      </svg>
+                      <span class="text-sm font-bold text-text">Đấu giá tác phẩm</span>
+                    </div>
+
+                    @if (auctionLoading() && !auction()) {
+                      <p class="text-xs text-text-muted">Đang tải thông tin đấu giá...</p>
+                    } @else if (auctionError() && !auction()) {
+                      <p class="text-xs text-error" role="alert">{{ auctionError() }}</p>
+                    } @else if (auction(); as a) {
+                      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-control bg-surface-elevated border border-border">
+                        <div class="flex flex-col gap-0.5">
+                          <span class="text-[10px] uppercase font-bold text-text-muted">Giá khởi điểm</span>
+                          <span class="text-sm font-bold text-text mono-label">{{ formatVnd(a.startingPrice) }}</span>
+                        </div>
+                        <div class="flex flex-col gap-0.5">
+                          <span class="text-[10px] uppercase font-bold text-text-muted">Giá hiện tại</span>
+                          <span class="text-sm font-bold text-accent mono-label">{{ formatVnd(a.currentPrice) }}</span>
+                        </div>
+                        <div class="flex flex-col gap-0.5">
+                          <span class="text-[10px] uppercase font-bold text-text-muted">Bước giá tối thiểu</span>
+                          <span class="text-sm font-bold text-text mono-label">{{ formatVnd(a.minimumIncrement) }}</span>
+                        </div>
+                        <div class="flex flex-col gap-0.5">
+                          <span class="text-[10px] uppercase font-bold text-text-muted">Lượt đặt giá</span>
+                          <span class="text-sm font-bold text-text mono-label">{{ a.bidCount }}</span>
+                        </div>
+                      </div>
+
+                      @if (a.status === 'ACTIVE' || a.status === 'SCHEDULED') {
+                        <p class="text-xs text-text-muted">
+                          {{ a.status === 'SCHEDULED' ? 'Bắt đầu sau: ' : 'Còn lại: ' }}<span class="font-bold text-text">{{ countdownLabel() }}</span>
+                        </p>
+                      } @else if (a.status === 'ENDED') {
+                        <p class="text-xs text-text-muted">
+                          @if (a.winnerId) {
+                            Phiên đấu giá đã kết thúc. Người thắng cần hoàn tất thanh toán trước khi tải bản gốc.
+                          } @else {
+                            Phiên đấu giá đã kết thúc mà không có lượt đặt giá nào.
+                          }
+                        </p>
+                      } @else if (a.status === 'CANCELLED') {
+                        <p class="text-xs text-text-muted">Phiên đấu giá này đã bị người bán hủy.</p>
+                      }
+
+                      <!-- Thanh toán cho người bán — chỉ hiện với người thắng -->
+                      @if (a.status === 'ENDED' && a.winnerId === supabaseService.user()?.id && a.myPurchase; as mp) {
+                        <div class="flex flex-col gap-2 p-4 rounded-control bg-surface-elevated border border-accent/40">
+                          <span class="text-sm font-bold text-accent">Bạn đã thắng phiên đấu giá này!</span>
+                          @if (mp.status === 'PAID') {
+                            <p class="text-xs text-text-muted">Người bán đã xác nhận nhận được thanh toán — bạn có thể tải bản gốc.</p>
+                            <button
+                              type="button"
+                              (click)="downloadAuctionOriginal()"
+                              [disabled]="downloading()"
+                              class="h-10 px-4 rounded-control bg-gradient-brand text-text-on-accent font-bold text-xs border-none cursor-pointer disabled:opacity-50 self-start"
+                            >
+                              {{ downloading() ? 'Đang tải...' : 'Tải bản gốc' }}
+                            </button>
+                          } @else {
+                            <p class="text-xs text-text-muted">
+                              Vui lòng chuyển khoản {{ formatVnd(mp.amount) }} cho người bán, sau đó chờ người bán xác nhận. Bấm "Trao đổi với chủ sở hữu" ở trên để liên hệ trực tiếp.
+                            </p>
+                            @if (auctionPaymentQr(mp); as qrUrl) {
+                              <img [src]="qrUrl" alt="QR chuyển khoản cho người bán" class="w-32 h-32 rounded-control border border-border object-contain bg-surface" />
+                              <span class="text-[10px] text-text-muted">Nội dung: <strong>{{ mp.paymentReference }}</strong></span>
+                            } @else {
+                              <p class="text-[10px] text-error">Người bán chưa cấu hình thông tin nhận thanh toán. Vui lòng liên hệ người bán.</p>
+                            }
+                          }
+                          @if (downloadMessage()) {
+                            <span class="text-[10px] text-text-muted">{{ downloadMessage() }}</span>
+                          }
+                        </div>
+                      }
+
+                      @if (canPlaceBid()) {
+                        <form (submit)="submitBid(); $event.preventDefault()" class="flex flex-wrap items-center gap-2">
+                          <label class="sr-only" for="bidAmount">Giá đặt (VNĐ)</label>
+                          <input
+                            id="bidAmount"
+                            type="number"
+                            step="1000"
+                            [min]="minAcceptableBid()"
+                            [(ngModel)]="bidAmount"
+                            name="bidAmount"
+                            [placeholder]="'Tối thiểu ' + minAcceptableBidLabel()"
+                            class="w-44 bg-surface border border-border focus:border-accent outline-none rounded-control px-3 h-10 text-xs text-text placeholder-text-muted focus:ring-2 focus:ring-accent/40"
+                            [disabled]="bidSubmitting()"
+                          />
+                          <button
+                            type="submit"
+                            [disabled]="bidSubmitting()"
+                            class="h-10 px-4 bg-gradient-brand cta-shape text-text-on-accent text-xs font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                          >
+                            {{ bidSubmitting() ? 'Đang gửi...' : 'Đặt giá' }}
+                          </button>
+                        </form>
+                        @if (bidError()) {
+                          <p class="text-xs text-error" role="alert">{{ bidError() }}</p>
+                        }
+                        @if (bidSuccessMessage()) {
+                          <p class="text-xs text-success" role="status">{{ bidSuccessMessage() }}</p>
+                        }
+                      } @else if (isAuctionOwner()) {
+                        <p class="text-xs text-text-muted">Bạn là người bán — không thể tự đặt giá cho tác phẩm của mình.</p>
+                      } @else if (a.status === 'ACTIVE') {
+                        <p class="text-xs text-text-muted">
+                          Chỉ thành viên Plus hoặc Pro mới có thể đặt giá.
+                          <button type="button" (click)="goToPricing()" class="text-accent hover:underline bg-transparent border-none p-0 cursor-pointer font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control">Nâng cấp ngay</button>
+                        </p>
+                      }
+
+                      <!-- Danh sách bid — chỉ username/avatar công khai, không có email/dữ liệu thanh toán -->
+                      <div class="flex flex-col gap-2">
+                        <span class="text-xs font-bold text-text-muted">Lịch sử đặt giá</span>
+                        @if (a.bids.length === 0) {
+                          <p class="text-xs text-text-muted">Chưa có lượt đặt giá nào. Hãy là người đầu tiên!</p>
+                        } @else {
+                          <div class="flex flex-col gap-2 max-h-[180px] overflow-y-auto pr-1">
+                            @for (bid of a.bids; track bid.id) {
+                              <div class="flex items-center gap-2">
+                                <app-user-avatar [src]="bid.bidder.avatarUrl" [name]="bid.bidder.username" [size]="24" [plan]="bid.bidder.plan"></app-user-avatar>
+                                <span class="text-xs font-bold text-text truncate min-w-0">{{ bid.bidder.username }}</span>
+                                <span class="text-xs text-text-muted mono-label ml-auto shrink-0">{{ formatVnd(bid.amount) }}</span>
+                              </div>
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+
                 <!-- Discussion -->
                 <div class="flex flex-col gap-4">
-                  <span class="mono-label text-[11px] uppercase text-text font-bold select-none">
-                    Thảo luận · {{ p.comments?.length || 0 }}
+                  <span class="text-sm font-bold text-text select-none">
+                    Thảo luận · <span class="mono-label">{{ p.comments?.length || 0 }}</span>
                   </span>
 
                   <div class="flex flex-col gap-3 max-h-[260px] overflow-y-auto pr-1">
@@ -222,8 +419,9 @@
                         >
                           <app-user-avatar
                             [src]="comment.user?.avatarUrl"
-                            [name]="comment.user?.username"
+                            [name]="comment.user?.displayName || comment.user?.username"
                             [size]="32"
+                            [plan]="comment.user?.plan"
                           ></app-user-avatar>
                         </button>
                         <div
@@ -234,7 +432,7 @@
                             (click)="navigateToProfile(comment.user?.username)"
                             class="text-xs font-bold text-text truncate bg-transparent border-none p-0 cursor-pointer text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control w-fit"
                           >
-                            {{ comment.user?.username }}
+                            {{ comment.user?.displayName || comment.user?.username }}
                           </button>
                           <p
                             class="text-xs text-text-muted mt-0.5 leading-relaxed break-words whitespace-pre-line"
@@ -248,7 +446,7 @@
 
                   <!-- Comment input form -->
                   <div class="pt-4 border-t border-border flex items-center gap-3">
-                    <app-user-avatar [src]="myAvatarUrl()" [name]="myDisplayName()" [size]="36"></app-user-avatar>
+                    <app-user-avatar [src]="myAvatarUrl()" [name]="myDisplayName()" [size]="36" [plan]="myPlan()"></app-user-avatar>
 
                     <form
                       (submit)="submitComment(); $event.preventDefault()"
@@ -264,7 +462,7 @@
                       />
                       <button
                         type="submit"
-                        class="h-10 px-4 bg-gradient-brand cta-shape text-text text-xs font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
+                        class="h-10 px-4 bg-gradient-brand cta-shape text-text-on-accent text-xs font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
                         [disabled]="isSubmittingComment || !newCommentText.trim()"
                       >
                         Gửi
@@ -275,17 +473,30 @@
               </div>
             </div>
 
-            <!-- Bottom Related Pins (below stage) -->
-            <div class="flex flex-col gap-6 mt-2">
-              <h3 class="mono-label text-xs uppercase text-text-muted text-center select-none">
-                Từ kho lưu trữ — hình ảnh liên quan
-              </h3>
+            <!-- Hình ảnh liên quan — full-width gallery, always below the stage/dock -->
+            <section #relatedSection class="flex flex-col gap-6 mt-2 scroll-mt-24" aria-labelledby="related-gallery-heading">
+              <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center select-none" aria-live="polite">
+                @if (isVisualSearchResults()) {
+                  <span class="inline-flex items-center gap-1.5 text-xs font-bold text-accent">
+                    <span class="material-symbols-outlined text-base leading-none" aria-hidden="true">center_focus_strong</span>
+                    Tìm kiếm bằng hình ảnh
+                  </span>
+                  <span class="hidden sm:inline text-border-strong" aria-hidden="true">/</span>
+                  <h3 id="related-gallery-heading" class="text-sm font-bold text-text">
+                    {{ relatedPins().length }} ảnh liên quan đến vùng đã chọn
+                  </h3>
+                } @else {
+                  <h3 id="related-gallery-heading" class="text-sm font-bold text-text-muted">
+                    Từ kho lưu trữ — hình ảnh liên quan
+                  </h3>
+                }
+              </div>
 
               @if (isRelatedLoading()) {
                 <div class="flex gap-3.5 w-full">
-                  @for (colIndex of getBottomColumnsArray(); track colIndex) {
+                  @for (colIndex of getRelatedColumnsArray(); track colIndex) {
                     <div class="flex flex-col gap-3.5 flex-1 min-w-0">
-                      @for (dummy of getBottomSkeletonsForColumn(colIndex); track dummy) {
+                      @for (dummy of getRelatedSkeletonsForColumn(colIndex); track dummy) {
                         <div class="flex flex-col">
                           <div
                             class="skeleton w-full"
@@ -308,21 +519,20 @@
 
               @if (!isRelatedLoading() && relatedPins().length > 0) {
                 <div class="flex gap-3.5 w-full">
-                  @for (colIndex of getBottomColumnsArray(); track colIndex) {
+                  @for (colIndex of getRelatedColumnsArray(); track colIndex) {
                     <div class="flex flex-col gap-3.5 flex-1 min-w-0">
                       @for (
-                        rel of getBottomRelatedPinsForColumn(colIndex);
-                        track rel.id;
-                        let i = $index
+                        rel of getRelatedPinsForColumn(colIndex);
+                        track rel.id
                       ) {
-                        <div
-                          (click)="navigateToPin(rel.id)"
-                          class="group cursor-pointer flex flex-col mb-1"
-                        >
+                        <!-- Identical card markup to Home's masonry grid (see
+                             home.html) — same frame, hover action strip, and
+                             metadata row, so a related pin looks and behaves
+                             exactly like every other pin card in the app. -->
+                        <div class="group cursor-pointer flex flex-col mb-1">
                           <div
-                            class="relative overflow-hidden bg-surface shadow-card glow-hover frame-trace"
-                            [class.rounded-frame]="i % 2 === 0"
-                            [class.rounded-frame-alt]="i % 2 !== 0"
+                            (click)="navigateToPin(rel.id)"
+                            class="relative overflow-hidden bg-surface shadow-card glow-hover rounded-frame"
                             [style.aspect-ratio]="rel.aspectRatio || '0.75'"
                           >
                             <img
@@ -332,24 +542,94 @@
                               fetchpriority="low"
                               class="w-full h-full object-cover block transition-transform duration-500 ease-spring group-hover:scale-[1.04]"
                             />
+
+                            @if (rel.isAiGenerated) {
+                              <span class="mono-label absolute top-2.5 left-2.5 z-10 flex items-center gap-1 bg-surface-high/90 border border-border-strong text-accent text-xs font-bold uppercase px-2 py-1 rounded-control pointer-events-none">
+                                <span class="material-symbols-outlined text-[12px] leading-none">auto_awesome</span>
+                                AI
+                              </span>
+                            }
+
                             <div
-                              class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 flex items-center justify-between gap-2 z-10"
+                              (click)="$event.stopPropagation()"
+                              class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 focus-within:translate-y-0 [@media(hover:none)]:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 flex items-center justify-between gap-2 z-10"
                             >
-                              <span
-                                class="mono-label text-[10px] uppercase text-text-muted truncate max-w-[60%]"
-                                >{{ rel.title }}</span
+                              <div class="relative shrink-0 min-w-0">
+                                <button
+                                  type="button"
+                                  (click)="toggleRelatedBoardDropdown(rel.id, $event)"
+                                  class="flex items-center gap-1 bg-surface-high/95 border border-border-strong text-text px-2.5 py-1.5 rounded-control text-xs font-bold cursor-pointer min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                  [attr.aria-label]="'Lưu ' + rel.title + ' vào bộ sưu tập'"
+                                  aria-haspopup="listbox"
+                                  [attr.aria-expanded]="relatedActiveDropdownPinId() === rel.id"
+                                >
+                                  <span class="material-symbols-outlined text-[14px] leading-none">bookmark_add</span>
+                                  <span class="truncate max-w-[55px]">{{ getRelatedSelectedBoardName(rel.id) }}</span>
+                                  <span class="material-symbols-outlined text-[12px] leading-none">keyboard_arrow_down</span>
+                                </button>
+
+                                @if (relatedActiveDropdownPinId() === rel.id) {
+                                  <div class="absolute left-0 bottom-10 w-44 glass-elevated rounded-panel shadow-card py-1.5 z-[100] text-left" role="listbox">
+                                    <span class="text-xs font-semibold text-text-muted px-3.5 py-1 block">Lưu vào bộ sưu tập</span>
+                                    <div class="max-h-[140px] overflow-y-auto">
+                                      @for (b of boards(); track b.id) {
+                                        <button
+                                          type="button"
+                                          (click)="selectRelatedBoardForPin(rel.id, b, $event)"
+                                          class="w-full text-left px-3.5 py-2 text-xs font-bold text-text hover:bg-surface-elevated cursor-pointer truncate border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                        >
+                                          {{ b.name }}
+                                        </button>
+                                      }
+                                    </div>
+                                  </div>
+                                }
+                              </div>
+
+                              <div class="flex items-center gap-1.5 shrink-0">
+                                <app-like-button
+                                  size="compact"
+                                  [liked]="rel.isLiked === true"
+                                  [ariaLabel]="(rel.isLiked ? 'Bỏ thích ' : 'Thích ') + rel.title"
+                                  (toggled)="toggleRelatedLike(rel, $event)"
+                                ></app-like-button>
+                                <button
+                                  (click)="saveRelatedPinToBoard(rel.id, $event)"
+                                  class="h-8 px-3.5 bg-gradient-brand cta-shape text-text-on-accent font-bold text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                >
+                                  Lưu
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div class="px-1 flex flex-col gap-1 w-full min-w-0 mt-2">
+                            <span class="text-xs font-bold text-text truncate">{{ rel.title }}</span>
+                            <div class="flex items-center justify-between gap-2 min-w-0">
+                              <button
+                                type="button"
+                                (click)="$event.stopPropagation(); navigateToProfile(rel.author)"
+                                class="flex items-center gap-1.5 min-w-0 bg-transparent border-none p-0 cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
+                                [attr.aria-label]="'Xem trang cá nhân của ' + rel.author"
                               >
-                              <span
-                                class="material-symbols-outlined text-base text-text-muted hover:text-text cursor-pointer"
-                                >more_horiz</span
-                              >
+                                <app-user-avatar [src]="rel.authorAvatarUrl" [name]="rel.author" [size]="18" [ring]="false" [plan]="rel.authorPlan"></app-user-avatar>
+                                <span class="text-xs text-text-muted truncate hover:underline">{{ rel.author }}</span>
+                              </button>
+                              <div class="mono-label flex items-center gap-2 shrink-0 text-xs text-text-muted">
+                                @if (rel.likes) {
+                                  <span class="flex items-center gap-0.5">
+                                    <span class="material-symbols-outlined text-[12px] leading-none text-accent">favorite</span>
+                                    {{ rel.likes }}
+                                  </span>
+                                }
+                              </div>
                             </div>
                           </div>
                         </div>
                       }
 
                       @if (isScrollingLoad()) {
-                        @for (dummy of getBottomSkeletonsForColumn(colIndex); track dummy) {
+                        @for (dummy of getRelatedSkeletonsForColumn(colIndex); track dummy) {
                           <div class="flex flex-col mt-2">
                             <div
                               class="skeleton w-full"
@@ -370,94 +650,20 @@
                   }
                 </div>
               }
-            </div>
-          </div>
 
-          <!-- Right Side Sidebar Area: Side Related Pins -->
-          <div class="hidden lg:flex lg:w-[37%] flex-col gap-4">
-            @if (isRelatedLoading()) {
-              <div class="flex gap-3.5 w-full">
-                @for (colIndex of getSideColumnsArray(); track colIndex) {
-                  <div class="flex flex-col gap-3.5 flex-1 min-w-0">
-                    @for (dummy of getSideSkeletonsForColumn(colIndex); track dummy) {
-                      <div class="flex flex-col">
-                        <div
-                          class="skeleton w-full"
-                          [class.rounded-frame]="dummy % 2 === 0"
-                          [class.rounded-frame-alt]="dummy % 2 !== 0"
-                          [ngStyle]="{ height: dummy % 2 === 0 ? '250px' : '310px' }"
-                        ></div>
-                        <div class="mt-2 flex flex-col gap-1 px-1">
-                          <div class="skeleton rounded-control h-3 w-1/2"></div>
-                        </div>
-                      </div>
+              @if (!isRelatedLoading() && relatedPins().length === 0) {
+                <div class="flex flex-col items-center gap-2 py-8 text-center select-none">
+                  <span class="material-symbols-outlined text-2xl text-text-muted" aria-hidden="true">image_search</span>
+                  <p class="text-xs text-text-muted">
+                    @if (isVisualSearchResults()) {
+                      Chưa tìm thấy ảnh nào liên quan đến vùng đã chọn. Hãy thử chọn một vùng rộng hơn.
+                    } @else {
+                      Chưa tìm thấy hình ảnh liên quan nào.
                     }
-                  </div>
-                }
-              </div>
-            }
-
-            @if (!isRelatedLoading() && relatedPins().length > 0) {
-              <div class="flex gap-3.5 w-full">
-                @for (colIndex of getSideColumnsArray(); track colIndex) {
-                  <div class="flex flex-col gap-3.5 flex-1 min-w-0">
-                    @for (
-                      rel of getSideRelatedPinsForColumn(colIndex);
-                      track rel.id;
-                      let i = $index
-                    ) {
-                      <div
-                        (click)="navigateToPin(rel.id)"
-                        class="group cursor-pointer flex flex-col mb-1"
-                      >
-                        <div
-                          class="relative overflow-hidden bg-surface shadow-card glow-hover"
-                          [class.rounded-frame]="i % 2 === 0"
-                          [class.rounded-frame-alt]="i % 2 !== 0"
-                          [style.aspect-ratio]="rel.aspectRatio || '0.75'"
-                        >
-                          <img
-                            [src]="rel.image"
-                            [alt]="rel.title"
-                            loading="lazy"
-                            fetchpriority="low"
-                            class="w-full h-full object-cover block transition-transform duration-500 ease-spring group-hover:scale-[1.04]"
-                          />
-                          <div
-                            class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 flex items-center justify-between gap-2 z-10"
-                          >
-                            <span
-                              class="mono-label text-[10px] uppercase text-text-muted truncate max-w-[60%]"
-                              >{{ rel.title }}</span
-                            >
-                            <span
-                              class="material-symbols-outlined text-base text-text-muted hover:text-text cursor-pointer"
-                              >more_horiz</span
-                            >
-                          </div>
-                        </div>
-                      </div>
-                    }
-
-                    @if (isScrollingLoad()) {
-                      @for (dummy of getSideSkeletonsForColumn(colIndex); track dummy) {
-                        <div class="flex flex-col mt-2">
-                          <div
-                            class="skeleton w-full"
-                            [class.rounded-frame]="dummy % 2 === 0"
-                            [class.rounded-frame-alt]="dummy % 2 !== 0"
-                            [ngStyle]="{ height: dummy % 2 === 0 ? '250px' : '310px' }"
-                          ></div>
-                          <div class="mt-2 flex flex-col gap-1 px-1">
-                            <div class="skeleton rounded-control h-3 w-1/2"></div>
-                          </div>
-                        </div>
-                      }
-                    }
-                  </div>
-                }
-              </div>
-            }
+                  </p>
+                </div>
+              }
+            </section>
           </div>
         </div>
       }

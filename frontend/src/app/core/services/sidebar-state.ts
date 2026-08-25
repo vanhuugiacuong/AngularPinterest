@@ -1,17 +1,33 @@
 import { Injectable, signal } from '@angular/core';
 
+const HOVER_QUERY = '(hover: hover) and (pointer: fine)';
+
 @Injectable({ providedIn: 'root' })
 export class SidebarStateService {
   public readonly isOpen = signal(false);
 
-  public readonly supportsHover =
-    typeof window !== 'undefined' &&
-    window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  private readonly supportsHoverSignal = signal(
+    typeof window !== 'undefined' && !!window.matchMedia ? window.matchMedia(HOVER_QUERY).matches : false,
+  );
 
-  // 150-300ms window so the cursor can travel from the trigger zone to the
-  // panel, or from an icon to its tooltip, without the sidebar flickering
-  // shut in between.
-  private static readonly CLOSE_DELAY_MS = 220;
+  /** Tracks hover/pointer capability changes (e.g. a 2-in-1 laptop docking
+   * a mouse) rather than freezing whatever was true at page load. */
+  get supportsHover(): boolean {
+    return this.supportsHoverSignal();
+  }
+
+  constructor() {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mql = window.matchMedia(HOVER_QUERY);
+    mql.addEventListener('change', (event) => this.supportsHoverSignal.set(event.matches));
+  }
+
+  // Comfortably longer than the rail's own open/close slide (see
+  // sidebar.html's `duration-[250ms]`) so a fast cursor moving from the
+  // trigger toward the rail never gets closed out from under it mid-slide —
+  // the close-timer must not be able to win a race against the animation
+  // it's waiting behind.
+  private static readonly CLOSE_DELAY_MS = 280;
 
   private closeTimer: ReturnType<typeof setTimeout> | null = null;
 

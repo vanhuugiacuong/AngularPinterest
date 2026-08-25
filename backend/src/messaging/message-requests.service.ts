@@ -75,7 +75,7 @@ export class MessageRequestsService {
 
   async listIncoming(userId: string) {
     return this.prisma.messageRequest.findMany({
-      where: { receiverId: userId },
+      where: { receiverId: userId, status: 'PENDING' },
       orderBy: { createdAt: 'desc' },
       include: { sender: { select: PUBLIC_USER_SELECT } },
     });
@@ -83,7 +83,7 @@ export class MessageRequestsService {
 
   async listOutgoing(userId: string) {
     return this.prisma.messageRequest.findMany({
-      where: { senderId: userId },
+      where: { senderId: userId, status: 'PENDING' },
       orderBy: { createdAt: 'desc' },
       include: { receiver: { select: PUBLIC_USER_SELECT } },
     });

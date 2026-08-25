@@ -1,15 +1,46 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { API_BASE_URL } from '../api-base';
 import { SupabaseService } from './supabase';
-export type MembershipPlan = 'FREE' | 'PLUS' | 'PRO';
-export interface MembershipStatus { plan: MembershipPlan; ownedPlans: MembershipPlan[]; aiUsed: number; aiLimit: number; aiRemaining: number; canDownloadClean: boolean; canSell: boolean; }
+import { safeFetch } from '../utils/http-error';
+import type { MembershipPlan } from '../models/membership-plan';
+export type { MembershipPlan } from '../models/membership-plan';
+export interface MembershipStatus {
+  plan: MembershipPlan; ownedPlans: MembershipPlan[]; planStartedAt: string | null; planExpiresAt: string | null;
+  aiUsed: number; aiLimit: number; aiRemaining: number; aiResetAt: string;
+  aiDailyLimit: number; cleanDownload: boolean; customWatermark: boolean; advancedWatermark: boolean; maxWatermarkPresets: number;
+  canDownloadClean: boolean; canSell: boolean;
+}
+export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED' | 'REFUNDED';
+export interface MembershipPayment {
+  id: string; userId: string; plan: MembershipPlan; amount: string; paymentReference: string;
+  status: PaymentStatus; provider: string; createdAt: string; verifiedAt: string | null;
+}
+
+/** Tài khoản nhận tiền của người bán — người mua chuyển thẳng vào đây,
+ * không qua tài khoản chung của platform nữa. */
+export interface PayoutAccount {
+  bankCode: string;
+  accountNumber: string;
+  accountName: string;
+}
+
+export interface PendingSale {
+  id: string;
+  pinId: string;
+  amount: string;
+  status: PaymentStatus;
+  paymentReference: string | null;
+  createdAt: string;
+  pin: { id: string; title: string; imageUrl: string };
+  buyer?: { username: string };
+}
 @Injectable({ providedIn: 'root' })
 export class MembershipService {
   private auth = inject(SupabaseService);
   status = signal<MembershipStatus | null>(null);
   private async request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
     const token = await this.auth.getSessionToken();
-    const response = await fetch(`${API_BASE_URL}/api/memberships${path}`, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+    const response = await safeFetch(`${API_BASE_URL}/api/memberships${path}`, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.message || 'Yêu cầu không thành công.');
     return data;
@@ -17,5 +48,34 @@ export class MembershipService {
   async load() { const value = await this.request<MembershipStatus>('/me'); this.status.set(value); return value; }
   async subscribe(plan: MembershipPlan) { const value = await this.request<MembershipStatus>('/subscribe', 'POST', { plan }); this.status.set(value); return value; }
   async consumeAi() { const value = await this.request<{ used: number; limit: number; remaining: number }>('/ai/consume', 'POST'); this.status.update(s => s ? { ...s, aiUsed: value.used, aiLimit: value.limit, aiRemaining: value.remaining } : s); return value; }
-  purchase(pinId: string) { return this.request<{ imageUrl: string; paid: boolean }>(`/pins/${pinId}/purchase`, 'POST'); }
+  purchase(pinId: string) {
+    return this.request<{ id: string; status: PaymentStatus; paymentReference: string; amount: string; sellerPayout: PayoutAccount | null }>(
+      `/pins/${pinId}/purchase`,
+      'POST',
+    );
+  }
+  createPayment(plan: MembershipPlan) { return this.request<MembershipPayment>('/payments', 'POST', { plan }); }
+  getPayment(id: string) { return this.request<MembershipPayment>(`/payments/${id}`); }
+  listPayments() { return this.request<MembershipPayment[]>('/payments'); }
+  listSales() {
+    return this.request<{ sales: MarketplaceSale[]; revenue: number }>('/marketplace/sales');
+  }
+  listPurchases() { return this.request<MarketplaceSale[]>('/marketplace/purchases'); }
+  listPendingSales() { return this.request<PendingSale[]>('/marketplace/pending-sales'); }
+  getPayoutAccount() { return this.request<PayoutAccount | null>('/me/payout-account'); }
+  updatePayoutAccount(body: PayoutAccount) { return this.request<PayoutAccount | null>('/me/payout-account', 'PUT', body); }
+  confirmReceived(purchaseId: string) { return this.request<{ ok: true }>(`/purchases/${purchaseId}/confirm-received`, 'POST'); }
+}
+
+export interface MarketplaceSale {
+  id: string;
+  pinId: string;
+  amount: string;
+  status: PaymentStatus;
+  paymentReference: string | null;
+  createdAt: string;
+  verifiedAt: string | null;
+  pin: { id: string; title: string; imageUrl: string };
+  buyer?: { username: string };
+  seller?: { username: string };
 }

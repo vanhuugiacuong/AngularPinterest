@@ -1,12 +1,35 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { NotificationTemplateHelper, NotificationData, NOTIFICATION_TEMPLATES, NotificationTemplate } from '../templates/notification.templates';
+import { SupabaseService } from '../supabase/supabase.service';
+import {
+  NotificationTemplateHelper,
+  NotificationData,
+  NOTIFICATION_TEMPLATES,
+  NotificationTemplate,
+} from '../templates/notification.templates';
+import { PUBLIC_USER_SELECT } from '../common/relationship.util';
 
-export type NotificationType = 'LIKE' | 'COMMENT' | 'SAVE' | 'POST_SUCCESS' | 'POST_AI_SUCCESS';
+export type NotificationType =
+  | 'LIKE'
+  | 'COMMENT'
+  | 'SAVE'
+  | 'POST_SUCCESS'
+  | 'POST_AI_SUCCESS'
+  | 'FOLLOW'
+  | 'FOLLOW_REQUEST'
+  | 'AUCTION_NEW_BID'
+  | 'AUCTION_OUTBID'
+  | 'AUCTION_WON'
+  | 'AUCTION_ENDED_NO_BIDS'
+  | 'AUCTION_SALE_PAID'
+  | 'PURCHASE_CONFIRMED_BY_SELLER';
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly supabase: SupabaseService,
+  ) {}
 
   async createNotification(
     userId: string,
@@ -22,11 +45,14 @@ export class NotificationsService {
     if (templateData && !content) {
       const template = NotificationTemplateHelper.getTemplate(type, 'friendly');
       if (template) {
-        finalContent = NotificationTemplateHelper.formatMessage(template, templateData);
+        finalContent = NotificationTemplateHelper.formatMessage(
+          template,
+          templateData,
+        );
       }
     }
 
-    return this.prisma.notification.create({
+    const notification = await this.prisma.notification.create({
       data: {
         userId,
         senderId,
@@ -36,13 +62,17 @@ export class NotificationsService {
       },
       include: {
         sender: {
-          select: { id: true, username: true, avatarUrl: true },
+          select: PUBLIC_USER_SELECT,
         },
         pin: {
           select: { id: true, title: true, imageUrl: true },
         },
       },
     });
+
+    void this.supabase.broadcast(`user:${userId}`, 'notification', notification);
+
+    return notification;
   }
 
   async getNotifications(userId: string, page: number = 1, limit: number = 20) {
@@ -53,7 +83,7 @@ export class NotificationsService {
         where: { userId },
         include: {
           sender: {
-            select: { id: true, username: true, avatarUrl: true },
+            select: PUBLIC_USER_SELECT,
           },
           pin: {
             select: { id: true, title: true, imageUrl: true },

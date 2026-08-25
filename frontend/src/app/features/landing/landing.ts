@@ -12,12 +12,8 @@ import { CommonModule } from '@angular/common';
 import { SupabaseService } from '../../core/services/supabase';
 import { PublicHeader } from './components/public-header/public-header';
 import { AuthModal } from './components/auth-modal/auth-modal';
-import { NfLoader } from './components/loader/loader';
+import { LoaderMode, NfLoader } from './components/loader/loader';
 import { ScrollScenes } from './scroll-scenes';
-
-/** Kept in step with EXIT_MS in auth-modal.ts: how long the dialog takes to
- *  animate out, and therefore how long to wait before replaying the hero. */
-const AUTH_EXIT_MS = 420;
 
 /** One artwork in the exhibition strip.
  *
@@ -49,6 +45,7 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('creationScene') creationScene?: ElementRef<HTMLElement>;
   @ViewChild('aiScene') aiScene?: ElementRef<HTMLElement>;
   @ViewChild('ctaScene') ctaScene?: ElementRef<HTMLElement>;
+  @ViewChild(NfLoader) loader?: NfLoader;
 
   // --- Auth state (logic unchanged from before: same service, same flow) ---
   public showLoginModal = signal<boolean>(false);
@@ -92,19 +89,14 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
 
   private scenes?: ScrollScenes;
   private pointerFrame = 0;
-  private returnFrame = 0;
-  private returnTimer = 0;
   /** Saved so the authenticated app gets its dark body back untouched. */
   private previousBodyBackground = '';
 
   ngOnInit() {
-    // The public experience is light-toned while the authenticated app stays
-    // dark. Rather than editing the global stylesheet (which would follow the
-    // user past login), the body colour is overridden inline here and
-    // restored verbatim in ngOnDestroy, so the override lives exactly as long
-    // as this route does.
-    this.previousBodyBackground = document.body.style.backgroundColor;
-    document.body.style.backgroundColor = '#f7f7f2';
+    // Landing shares the app-wide ThemeService/data-theme system (see
+    // core/services/theme.ts) — body background comes from the global
+    // `body { background-color: var(--color-bg) }` rule in styles.css, the
+    // same as every authenticated route. No per-route override here.
 
     // Surface an OAuth error that Google redirected back with.
     const searchParams = new URLSearchParams(window.location.search);
@@ -133,72 +125,16 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
    *  leaving sign-in feels like stepping back into the page rather than
    *  being dropped wherever the scroll happened to be. */
   closeLoginModal() {
+    const authObjects = Array.from(
+      this.host.nativeElement.querySelectorAll<HTMLElement>('.nf-auth__obj')
+    );
     this.showLoginModal.set(false);
     this.errorMsg.set(null);
-    this.returnToHero();
+    this.returnToHero(authObjects);
   }
 
-  private returnToHero() {
-    clearTimeout(this.returnTimer);
-    if (this.returnFrame) cancelAnimationFrame(this.returnFrame);
-
-    const start = window.scrollY || document.documentElement.scrollTop;
-
-    if (this.reducedMotion) {
-      window.scrollTo(0, 0);
-      return;
-    }
-
-    // Already at the hero: start rebuilding straight away. The dialog is still
-    // fading over the top, so the moment where the hero is briefly empty
-    // happens behind the glass instead of in front of the visitor.
-    if (start < 8) {
-      this.replayHeroEntrance();
-      return;
-    }
-
-    // A native `scrollTo({behavior:'smooth'})` from twelve thousand pixels up
-    // crawls; this keeps the duration bounded no matter how deep the page was
-    // scrolled, and eases out so the hero settles rather than slams into place.
-    const duration = Math.min(1150, Math.max(650, start * 0.16));
-    const begin = performance.now();
-    let replayed = false;
-
-    const step = (now: number) => {
-      const t = Math.min((now - begin) / duration, 1);
-      // easeInOutCubic
-      const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      window.scrollTo(0, start * (1 - eased));
-
-      // Kick the entrance off slightly before the scroll lands, so the hero is
-      // already assembling as it comes into view rather than appearing blank
-      // and then filling in.
-      if (!replayed && eased > 0.7) {
-        replayed = true;
-        this.replayHeroEntrance();
-      }
-
-      if (t < 1) {
-        this.returnFrame = requestAnimationFrame(step);
-        return;
-      }
-      this.returnFrame = 0;
-      if (!replayed) this.replayHeroEntrance();
-    };
-
-    this.returnFrame = requestAnimationFrame(step);
-  }
-
-  /** Restarts the hero's CSS entrance. Removing the class, reading a layout
-   *  property to force a synchronous reflow, then re-adding it is what makes
-   *  the browser treat this as a brand-new animation; because it all happens
-   *  in one task, nothing is painted in between and there is no flash. */
-  private replayHeroEntrance() {
-    const hero = this.heroScene?.nativeElement;
-    if (!hero || this.reducedMotion) return;
-    hero.classList.remove('nf-hero--enter');
-    void hero.offsetWidth;
-    hero.classList.add('nf-hero--enter');
+  private returnToHero(authObjects: HTMLElement[]) {
+    this.loader?.playReturnTransition(authObjects);
   }
 
   async login() {
@@ -215,11 +151,8 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
 
   // --- Navigation within the page ----------------------------------------
 
-  onLoaderFinished() {
+  onLoaderFinished(_mode: LoaderMode) {
     this.loaderDone.set(true);
-    // The hero's entrance is held back until the loader curtain has opened,
-    // so the two motions read as one continuous reveal.
-    this.replayHeroEntrance();
   }
 
   scrollToId(targetId: string) {
@@ -281,8 +214,6 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
   ngOnDestroy() {
     this.scenes?.destroy();
     if (this.pointerFrame) cancelAnimationFrame(this.pointerFrame);
-    if (this.returnFrame) cancelAnimationFrame(this.returnFrame);
-    clearTimeout(this.returnTimer);
     document.body.style.backgroundColor = this.previousBodyBackground;
   }
 }

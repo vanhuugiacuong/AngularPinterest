@@ -1,0 +1,124 @@
+<div class="collage-page">
+  <app-navbar></app-navbar>
+
+  <main class="collage-main">
+    <header class="workspace-header">
+      <div>
+        <span class="workspace-eyebrow">NovaFrame · Collage Studio</span>
+        <h1>Tạo ảnh ghép</h1>
+        <p>Khung dọc 9:16 · PNG 1080 × 1920 px</p>
+      </div>
+      <div class="header-actions">
+        <button
+          type="button"
+          class="secondary-action"
+          (click)="saveDraft()"
+          [disabled]="!store.layers().length || isSaving() || isExporting()"
+          title="Lưu bản nháp trong trình duyệt"
+        >
+          <span class="material-symbols-outlined">save</span
+          >{{ isSaving() ? 'Đang lưu…' : 'Lưu bản nháp' }}
+        </button>
+        <button
+          type="button"
+          class="secondary-action"
+          (click)="downloadPng()"
+          [disabled]="!store.layers().length || isExporting()"
+          title="Tải PNG 1080 × 1920"
+        >
+          <span class="material-symbols-outlined">download</span>Tải PNG
+        </button>
+        <button
+          type="button"
+          class="primary-action"
+          (click)="finish()"
+          [disabled]="!store.layers().length || isExporting()"
+          title="Chuyển ảnh ghép sang luồng đăng bài"
+        >
+          <span class="material-symbols-outlined">arrow_forward</span
+          >{{ isExporting() ? 'Đang xuất…' : 'Hoàn thành' }}
+        </button>
+      </div>
+    </header>
+
+    <div class="editor-toolbar" aria-label="Công cụ ảnh ghép">
+      <button
+        type="button"
+        (click)="store.undo()"
+        [disabled]="!store.canUndo()"
+        title="Hoàn tác (Ctrl+Z)"
+      >
+        <span class="material-symbols-outlined">undo</span><span>Undo</span>
+      </button>
+      <button
+        type="button"
+        (click)="store.redo()"
+        [disabled]="!store.canRedo()"
+        title="Làm lại (Ctrl+Y)"
+      >
+        <span class="material-symbols-outlined">redo</span><span>Redo</span>
+      </button>
+      <span class="toolbar-divider"></span>
+      <button
+        type="button"
+        (click)="openLayerCrop()"
+        [disabled]="!store.selectedLayer()"
+        title="Chọn lại phần cắt trong ảnh"
+      >
+        <span class="material-symbols-outlined">crop</span><span>Cắt lại</span>
+      </button>
+      <button
+        type="button"
+        (click)="store.duplicate()"
+        [disabled]="!store.selectedLayer()"
+        title="Nhân bản layer"
+      >
+        <span class="material-symbols-outlined">content_copy</span><span>Nhân bản</span>
+      </button>
+      <button
+        type="button"
+        class="danger-tool"
+        (click)="store.remove()"
+        [disabled]="!store.selectedLayer()"
+        title="Xóa layer (Delete)"
+      >
+        <span class="material-symbols-outlined">delete</span><span>Xóa</span>
+      </button>
+    </div>
+
+    <div class="workspace-grid">
+      <aside class="layers-column"><app-collage-layer-list /></aside>
+      <section class="canvas-column">
+        <app-collage-canvas />
+        <p class="canvas-help">
+          Kéo để di chuyển · Kéo bốn góc để đổi kích thước · Dùng tay cầm phía trên để xoay
+        </p>
+      </section>
+      <aside class="images-column">
+        <app-collage-image-picker (imageSelected)="openSubjectSelector($event)" />
+      </aside>
+    </div>
+  </main>
+
+  <app-subject-selector
+    *ngIf="selectedSource() as source"
+    [source]="source"
+    (cancelled)="cancelSubjectSelector()"
+    (cutoutAdded)="addCutout($event)"
+  />
+
+  <app-layer-crop
+    *ngIf="cropTarget() as layer"
+    [imageUrl]="layer.cutoutImageUrl"
+    [initialCrop]="{
+      cropX: layer.cropX,
+      cropY: layer.cropY,
+      cropWidth: layer.cropWidth,
+      cropHeight: layer.cropHeight,
+    }"
+    (cancelled)="cancelLayerCrop()"
+    (cropApplied)="applyLayerCrop($event)"
+  />
+
+  <!-- Thông báo giờ dùng ToastService dùng chung (xem showToast() trong collage.ts). -->
+</div>

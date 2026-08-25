@@ -1,19 +1,49 @@
 @import "tailwindcss";
 
+/* =============================================================================
+   NovaFrame design tokens — "Phúc Quang Atelier"
+   Dark = "Đêm Lam" (compile-time default, matches @theme below)
+   Light = "Sương Ngọc" (applied via [data-theme="light"] / prefers-color-scheme)
+
+   Legacy names (--color-primary/secondary/accent/primary-neon) are kept as
+   aliases onto the new brand tokens so every existing bg-primary/text-accent
+   utility across the app keeps working — only the underlying values change.
+   ========================================================================== */
 @theme {
-  --color-bg: #070712;
-  --color-bg-secondary: #0d0d1d;
-  --color-surface: #131329;
-  --color-surface-elevated: #191936;
-  --color-primary: #8b2cff;
-  --color-primary-neon: #c000ff;
-  --color-secondary: #2457ff;
-  --color-accent: #00e5ff;
-  --color-text: #f7f7ff;
-  --color-text-muted: #a9abc3;
-  --color-border: rgba(139, 92, 246, 0.22);
-  --color-success: #2fe6b0;
-  --color-error: #ff3b5c;
+  /* ---- Brand hues — "Light Rail": Nova Blue → Iris Violet ---- */
+  --color-nova-blue: #6987ff;
+  --color-iris-violet: #9475ff;
+  --color-studio-aqua: #31c7c2;
+
+  /* ---- Surfaces & text (Đêm Lam) ---- */
+  --color-bg: #070910;
+  --color-bg-secondary: #0b0e18;
+  --color-surface: #0d111c;
+  --color-surface-elevated: #151c2b;
+  --color-surface-high: #1c2438;
+  --color-text: #f3f6fb;
+  --color-text-muted: #909cb0;
+  --color-text-on-accent: #090b12;
+  --color-border: rgba(144, 156, 176, 0.16);
+  --color-border-strong: rgba(144, 156, 176, 0.3);
+
+  /* Neutral, non-brand-tinted backdrop for the editor canvas / preview stage
+     — deliberately excluded from the blue/violet surface tint so artwork can
+     be judged accurately regardless of theme. */
+  --color-canvas-neutral: #1a1d24;
+  /* Deepest tier — pin-detail / board light-table stage, kept dark in both
+     themes (gallery-spotlight effect), independent of UI chrome theming. */
+  --color-ink: #05070e;
+
+  /* ---- Legacy aliases — do not rename, hundreds of templates reference these ---- */
+  --color-primary: var(--color-nova-blue);
+  --color-secondary: var(--color-iris-violet);
+  --color-accent: var(--color-studio-aqua);
+  --color-primary-neon: var(--color-iris-violet);
+
+  --color-success: #34d399;
+  --color-warning: #f2b84b;
+  --color-error: #f2495c;
 
   --radius-sm: 12px;
   --radius-md: 16px;
@@ -26,30 +56,26 @@
   --radius-cta: 22px 10px 22px 10px;
   --radius-panel: 26px 26px 26px 10px;
 
-  --color-surface-high: #1e2140;
-  --color-warning: #ffb84d;
-  --color-border-strong: rgba(150, 163, 255, 0.28);
+  --shadow-card: 0 8px 30px -12px rgba(3, 5, 16, 0.55);
+  --shadow-glow: 0 0 28px 0 color-mix(in srgb, var(--color-nova-blue) 35%, transparent);
+  --shadow-glow-soft:
+    0 18px 34px -16px color-mix(in srgb, var(--color-nova-blue) 38%, transparent);
 
-  /* Aurora Archive — deepest background tier, used sparingly (Landing hero,
-     Pin Detail stage) to add one extra layer of depth behind the surface
-     stack without touching the existing bg/bg-secondary values. */
-  --color-ink: #06060f;
-
-  --shadow-card: 0 8px 30px -12px rgba(3, 3, 20, 0.55);
-  --shadow-glow: 0 0 28px 0 rgba(139, 44, 255, 0.35);
-  --shadow-glow-soft: 0 18px 34px -16px rgba(59, 99, 255, 0.35), 0 0 30px -10px rgba(139, 44, 255, 0.32);
-
+  /* One typeface for heading/body/UI everywhere in the app — Manrope, full
+     Vietnamese diacritic coverage. --font-mono is reserved for genuine data
+     (price, timestamp, bid count, transaction id, image dimensions), never
+     generic UI labels — see .mono-label below. */
   --font-sans:
-    "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-sans);
   --font-mono:
-    ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
 
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-trace: cubic-bezier(0.4, 0, 0.2, 1);
 
   --animate-fade-in: fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   --animate-slide-in: slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  --animate-shimmer: shimmer 1.8s ease-in-out infinite;
   --animate-drift: drift 16s ease-in-out infinite;
   --animate-frame-split: frame-split 0.7s var(--ease-spring) both;
   --animate-trace-sweep: trace-sweep 1.1s var(--ease-trace);
@@ -73,15 +99,6 @@
     to {
       opacity: 1;
       transform: translateX(0);
-    }
-  }
-
-  @keyframes shimmer {
-    from {
-      background-position: -200% 0;
-    }
-    to {
-      background-position: 200% 0;
     }
   }
 
@@ -127,110 +144,186 @@
   }
 }
 
+/* =============================================================================
+   Theme resolution
+   Default (bare :root, matches @theme above) = Đêm Lam (dark).
+   - System preference light wins unless the user has explicitly forced dark.
+   - Explicit [data-theme] always wins over prefers-color-scheme.
+   ThemeService (core/services/theme.ts) sets data-theme on <html> and an
+   inline bootstrap script in index.html applies it before Angular renders.
+   ========================================================================== */
+:root {
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --color-bg: #f4f6fb;
+    --color-bg-secondary: #edf0f7;
+    --color-surface: #ffffff;
+    --color-surface-elevated: #e9eef7;
+    --color-surface-high: #dce3f1;
+    --color-text: #172033;
+    --color-text-muted: #657187;
+    --color-text-on-accent: #ffffff;
+    --color-border: rgba(23, 32, 51, 0.1);
+    --color-border-strong: rgba(23, 32, 51, 0.2);
+
+    --color-canvas-neutral: #e3e5ea;
+    --color-ink: #1b2233;
+
+    --color-nova-blue: #3659d9;
+    --color-iris-violet: #6947d4;
+    --color-studio-aqua: #087f83;
+
+    --color-success: #0e9f6e;
+    --color-warning: #b4740e;
+    --color-error: #d6304a;
+
+    --shadow-card: 0 10px 28px -14px rgba(23, 32, 51, 0.16);
+
+    color-scheme: light;
+  }
+}
+
+:root[data-theme="light"] {
+  --color-bg: #f4f6fb;
+  --color-bg-secondary: #edf0f7;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #e9eef7;
+  --color-surface-high: #dce3f1;
+  --color-text: #172033;
+  --color-text-muted: #657187;
+  --color-text-on-accent: #ffffff;
+  --color-border: rgba(23, 32, 51, 0.1);
+  --color-border-strong: rgba(23, 32, 51, 0.2);
+
+  --color-canvas-neutral: #e3e5ea;
+  --color-ink: #1b2233;
+
+  --color-nova-blue: #3659d9;
+  --color-iris-violet: #6947d4;
+  --color-studio-aqua: #087f83;
+
+  --color-success: #0e9f6e;
+  --color-warning: #b4740e;
+  --color-error: #d6304a;
+
+  --shadow-card: 0 10px 28px -14px rgba(23, 32, 51, 0.16);
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #070910;
+  --color-bg-secondary: #0b0e18;
+  --color-surface: #0d111c;
+  --color-surface-elevated: #151c2b;
+  --color-surface-high: #1c2438;
+  --color-text: #f3f6fb;
+  --color-text-muted: #909cb0;
+  --color-text-on-accent: #090b12;
+  --color-border: rgba(144, 156, 176, 0.16);
+  --color-border-strong: rgba(144, 156, 176, 0.3);
+
+  --color-canvas-neutral: #1a1d24;
+  --color-ink: #05070e;
+
+  --color-nova-blue: #6987ff;
+  --color-iris-violet: #9475ff;
+  --color-studio-aqua: #31c7c2;
+
+  --color-success: #34d399;
+  --color-warning: #f2b84b;
+  --color-error: #f2495c;
+
+  --shadow-card: 0 8px 30px -12px rgba(3, 5, 16, 0.55);
+
+  color-scheme: dark;
+}
+
 @utility bg-gradient-brand {
-  background-image: linear-gradient(
-    135deg,
-    #2024b8 0%,
-    #2457ff 35%,
-    #8b2cff 70%,
-    #d000ff 100%
-  );
+  background-image: none;
+  background-color: var(--color-nova-blue);
 }
 
 @utility text-gradient-brand {
-  background-image: linear-gradient(
-    135deg,
-    #2024b8 0%,
-    #2457ff 35%,
-    #8b2cff 70%,
-    #d000ff 100%
-  );
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
+  background-image: none;
+  color: var(--color-nova-blue);
 }
 
 @utility glass {
-  background-color: rgba(19, 19, 41, 0.6);
+  background-color: color-mix(in srgb, var(--color-surface) 78%, transparent);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--color-border);
 }
 
 @utility glass-elevated {
-  background-color: rgba(25, 25, 54, 0.75);
+  background-color: color-mix(in srgb, var(--color-surface-elevated) 88%, transparent);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--color-border);
 }
 
 /* NovaFrame signature — soft glow lift for image frames / cards on hover */
+/* Transform-only (compositor-friendly) hover lift — deliberately does not
+   animate box-shadow/border-color here anymore. Those properties force a
+   repaint on every frame instead of running on the compositor thread, which
+   is what made scrolling a card grid with many of these feel janky when
+   the pointer crossed several cards in quick succession. */
 @utility glow-hover {
-  transition:
-    transform 0.35s var(--ease-spring),
-    box-shadow 0.35s ease,
-    border-color 0.3s ease;
+  transition: transform 0.25s var(--ease-trace);
 
   &:hover {
     transform: translateY(-3px);
-    box-shadow: var(--shadow-glow-soft);
   }
 }
 
-/* NovaFrame signature — primary CTA shape: soft asymmetric radius, gentle spring on hover */
+/* NovaFrame signature — primary CTA shape: soft asymmetric radius (static —
+   no longer morphs on hover, since animating border-radius forces a repaint
+   every frame and was a real source of jank on buttons used throughout the
+   app). Hover feedback stays to a compositor-only transform. */
 @utility cta-shape {
   border-radius: var(--radius-cta);
-  transition:
-    border-radius 0.35s var(--ease-spring),
-    transform 0.35s var(--ease-spring),
-    box-shadow 0.35s var(--ease-spring);
-  box-shadow: 0 6px 20px -10px rgba(139, 44, 255, 0.5);
+  box-shadow: 0 6px 20px -10px color-mix(in srgb, var(--color-nova-blue) 45%, transparent);
+  transition: transform 0.2s var(--ease-trace);
 
   &:hover {
-    border-radius: 26px 10px 26px 14px;
-    transform: translateY(-2px) scale(1.02);
-    box-shadow:
-      0 12px 32px -8px rgba(139, 44, 255, 0.6),
-      0 0 26px rgba(0, 229, 255, 0.25);
+    transform: translateY(-2px);
   }
 
   &:active {
-    transform: translateY(0) scale(0.97);
+    transform: translateY(0);
   }
 }
 
-/* Monospace "creative workspace" metadata readout */
+/* Metadata readout — reserved for genuine metadata (timestamps, counts,
+   status codes), never generic UI labels. Now set in Inter like the rest of
+   the UI; tabular figures keep digits column-aligned the way the previous
+   monospace face did. */
 @utility mono-label {
   font-family: var(--font-mono);
-  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
 }
 
 /* Shimmer skeleton — replaces flat pulse for a more polished loading feel */
+/* Static — no longer animates. A masonry grid can show dozens of these at
+   once while a page loads/scrolls, and each one running its own infinite
+   background-position shimmer was a real, broadly-felt source of jank
+   (every one of them repaints every frame, all at the same time). A flat
+   surface color still reads clearly as "loading" without the cost. */
 @utility skeleton {
-  position: relative;
-  overflow: hidden;
   background-color: var(--color-surface-elevated);
-
-  &::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      100deg,
-      transparent 30%,
-      rgba(0, 229, 255, 0.1) 50%,
-      transparent 70%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.8s ease-in-out infinite;
-  }
 }
 
-/* NovaFrame signature — "Dual-Frame Trace": a thin light trace that traces
-   the element's own border on hover/focus, split into a blue-cyan arc and a
-   purple-magenta arc meeting at a corner — the same two-frame geometry as
-   the NovaFrame logomark. Scoped to a handful of moments (Observatory Canvas,
-   active/hovered artwork, Publish success) rather than every surface. */
+/* NovaFrame signature — "Split Aperture Frame": a thin light trace along the
+   element's own border, split into two short arcs (Nova blue→Studio aqua,
+   Iris violet→Nova blue) that meet near a corner and leave the rest of the
+   edge bare — the same two-frame geometry as the NovaFrame logomark.
+   Reserved for deliberate moments: the selected/active artwork, the primary
+   CTA, publish success, and important focus — never a blanket hover effect. */
 @utility frame-trace {
   position: relative;
   isolation: isolate;
@@ -243,13 +336,12 @@
     border-radius: inherit;
     background: conic-gradient(
       from 200deg at 28% 24%,
-      var(--color-secondary) 0deg,
-      var(--color-accent) 70deg,
-      transparent 130deg,
-      transparent 230deg,
-      var(--color-primary) 280deg,
-      var(--color-primary-neon) 330deg,
-      var(--color-secondary) 360deg
+      var(--color-nova-blue) 0deg,
+      var(--color-studio-aqua) 65deg,
+      transparent 125deg,
+      transparent 235deg,
+      var(--color-iris-violet) 285deg,
+      var(--color-nova-blue) 360deg
     );
     -webkit-mask:
       linear-gradient(#000 0 0) content-box,
@@ -277,23 +369,304 @@
   }
 }
 
+/* Accessible, theme-aware focus ring — ordinary keyboard focus everywhere.
+   Distinct from .frame-trace, which is a decorative flourish reserved for
+   the handful of moments named above. */
+@utility focus-ring {
+  &:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--color-bg),
+      0 0 0 4px var(--color-nova-blue);
+  }
+}
+
 body {
   background-color: var(--color-bg);
   color: var(--color-text);
+  font-family: var(--font-sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
 
 ::selection {
   background-color: var(--color-primary);
+  color: var(--color-text-on-accent);
+}
+
+/* Layered (not a bare global rule) so component/utility focus treatments —
+   Tailwind's `outline-none`, `focus-visible:ring-*`, and bespoke rules like
+   .nf-search's focus-sweep underline — can win over this default the way
+   their specificity/order already implies. An unlayered rule here would
+   always beat every layered utility regardless of specificity, which is
+   what caused the stray blue outline box to render on top of intentional
+   focus styles (e.g. the navbar search pill) even though those elements
+   already had their own outline-none/ring. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-nova-blue);
+    outline-offset: 2px;
+  }
+}
+
+/* =============================================================================
+   Shared dialog/modal primitives — "nf-dialog-*"
+   One source of truth for every confirm/warning/destructive/information
+   dialog AND every bespoke form/business modal in the app (checkout, create
+   album, report user, auth modal, image search, collage pickers...). Do not
+   copy these rules into a component stylesheet — reference the classes
+   directly so backdrop/panel/button styling stays visually identical and
+   theme-aware everywhere a dialog appears.
+   ========================================================================== */
+.nf-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: color-mix(in srgb, var(--color-ink) 72%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: nf-backdrop-in 200ms ease;
+}
+
+.nf-dialog-panel {
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 28px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-panel);
+  background-color: color-mix(in srgb, var(--color-surface-elevated) 92%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-card);
   color: var(--color-text);
+  text-align: center;
+  animation: nf-panel-in 220ms var(--ease-spring);
+}
+
+.nf-dialog-panel:focus-visible,
+.nf-dialog-panel:focus {
+  outline: none;
+}
+
+.nf-dialog-icon {
+  margin: 0 auto 14px;
+  width: 46px;
+  height: 46px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nf-dialog-icon .material-symbols-outlined {
+  font-size: 22px;
+}
+.nf-dialog-icon--confirm {
+  background: color-mix(in srgb, var(--color-nova-blue) 16%, transparent);
+  color: var(--color-nova-blue);
+}
+.nf-dialog-icon--information {
+  background: color-mix(in srgb, var(--color-studio-aqua) 16%, transparent);
+  color: var(--color-studio-aqua);
+}
+.nf-dialog-icon--warning {
+  background: color-mix(in srgb, var(--color-warning) 18%, transparent);
+  color: var(--color-warning);
+}
+.nf-dialog-icon--destructive {
+  background: color-mix(in srgb, var(--color-error) 16%, transparent);
+  color: var(--color-error);
+}
+
+.nf-dialog-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--color-text);
+  margin-bottom: 8px;
+}
+
+.nf-dialog-description {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.nf-dialog-error {
+  font-size: 0.76rem;
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+  border-radius: var(--radius-control);
+  padding: 8px 10px;
+  margin: -8px 0 16px;
+}
+
+.nf-dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.nf-dialog-btn {
+  min-height: 44px;
+  padding: 0 20px;
+  border: none;
+  border-radius: var(--radius-control);
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+.nf-dialog-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.nf-dialog-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.nf-dialog-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-nova-blue);
+}
+
+.nf-dialog-btn--cancel {
+  background: var(--color-surface-high);
+  color: var(--color-text);
+}
+.nf-dialog-btn--cancel:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-surface-high) 80%, var(--color-text) 6%);
+}
+
+.nf-dialog-btn--primary {
+  background-color: var(--color-nova-blue);
+  color: var(--color-text-on-accent);
+}
+.nf-dialog-btn--primary:hover:not(:disabled) {
+  box-shadow: var(--shadow-glow-soft);
+}
+
+.nf-dialog-btn--danger {
+  background: var(--color-error);
+  color: var(--color-text-on-accent);
+}
+.nf-dialog-btn--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-error) 88%, black);
+}
+
+.nf-dialog-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  border: 2px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-top-color: currentColor;
+  animation: nf-spin 0.7s linear infinite;
+}
+
+@keyframes nf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes nf-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes nf-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+  .nf-dialog-backdrop,
+  .nf-dialog-panel {
+    animation: none;
+  }
+  .nf-dialog-spinner {
+    animation-duration: 1.4s;
+  }
+}
+
+/* Mobile — near-bottom-sheet: anchored low, capped height, scrolls inside. */
+@media (max-width: 640px) {
+  .nf-dialog-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .nf-dialog-panel {
+    max-width: 100%;
+    max-height: 82vh;
+    border-radius: 20px 20px 0 0;
+    border-bottom: none;
+    padding: 24px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Unread-badge "bump" — replayed by BadgeBumpDirective every time a badge's
+   count increases, so a realtime notification/message arrival is visibly
+   noticeable, not just a silently changed number. */
+@keyframes nf-badge-bump {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.45);
+  }
+  55% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.nf-badge-bump {
+  animation: nf-badge-bump 550ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nf-badge-bump {
+    animation: none;
   }
 }

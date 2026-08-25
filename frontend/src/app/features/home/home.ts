@@ -8,7 +8,12 @@ import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
 import { UserService, ProfilePin } from '../../core/services/user';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
+import { LikeButton } from '../../shared/like-button/like-button';
 import { ImageSearchStore } from '../../core/services/image-search-store';
+import { ToastService } from '../../core/services/toast';
+import { MembershipService } from '../../core/services/membership';
+import { DialogService } from '../../core/services/dialog';
+import { formatVnd } from '../../core/utils/currency';
 
 /** Vietnamese labels for the category codes the backend's auto-classifier
  * assigns (see PinsService.classifyCategory) — chips are only ever built
@@ -27,7 +32,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, Navbar, UserAvatar],
+  imports: [CommonModule, Navbar, UserAvatar, LikeButton],
   templateUrl: './home.html',
   styleUrl: './home.css'
 })
@@ -35,10 +40,13 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   private pinService = inject(PinService);
   private supabaseService = inject(SupabaseService);
   private boardService = inject(BoardService);
+  private toast = inject(ToastService);
   private userService = inject(UserService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private imageSearchStore = inject(ImageSearchStore);
+  public membership = inject(MembershipService);
+  private dialogService = inject(DialogService);
 
   @ViewChild('scrollSentinel') scrollSentinel!: ElementRef;
 
@@ -81,12 +89,19 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
    * one (e.g. fast typing while the results page is live-updating). */
   private searchRequestId = 0;
 
+  /** The viewer's own unique username — the URL-safe identifier, distinct
+   * from displayName() below (free-text, not routable). Only ever use this
+   * one for navigation (e.g. `navigateToProfile`). */
+  public myUsername = computed(() => this.supabaseService.dbUser()?.username || '');
+
   /** Real display name sourced from the backend-synced profile (falls back to
    * OAuth metadata briefly while that sync is in flight) — same resolution
-   * order as Navbar.displayName(). Empty string renders no greeting. */
+   * order as Navbar.displayName(). Empty string renders no greeting. Display
+   * text only — never pass this to navigateToProfile(), it is not a valid
+   * username once the person has set a custom display name. */
   public displayName = computed(() => {
-    const dbName = this.supabaseService.dbUser()?.username;
-    if (dbName) return dbName;
+    const dbUser = this.supabaseService.dbUser();
+    if (dbUser) return dbUser.displayName || dbUser.username;
     const user = this.supabaseService.user();
     if (!user) return '';
     return (
@@ -185,12 +200,15 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   }
 
   updateNumColumns() {
+    // 4-5 columns is the sweet spot for readable card sizes; 6 is reserved
+    // for genuinely very wide screens (≥1920px) rather than an ordinary
+    // 1440-1536px laptop, so artwork doesn't shrink to thumbnails.
     const width = window.innerWidth;
-    if (width >= 1536) {
+    if (width >= 1920) {
       this.numColumns.set(6);
-    } else if (width >= 1280) {
+    } else if (width >= 1440) {
       this.numColumns.set(5);
-    } else if (width >= 768) {
+    } else if (width >= 1024) {
       this.numColumns.set(4);
     } else if (width >= 640) {
       this.numColumns.set(3);
@@ -441,16 +459,76 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
         hasBottomBar,
         author,
         authorAvatarUrl: p.user?.avatarUrl || null,
+        authorPlan: p.user?.plan || 'FREE',
         likes,
+        isLiked: p.isLiked === true,
         isAiGenerated: p.isAiGenerated,
         category: p.category,
-        aspectRatio
+        aspectRatio,
+        ownerId: p.userId,
+        price: p.price ?? null,
+        currency: p.currency ?? null,
+        listingType: p.listingType ?? 'NONE',
+        auction: p.auction ?? null,
       };
     });
   }
 
-  navigateToPin(pinId: string) {
-    this.router.navigate(['/pin', pinId]);
+  /** Text hiển thị trong badge vương miện — '' nếu pin không phải tác phẩm
+   * có giá trị (template ẩn badge hoàn toàn trong trường hợp đó). */
+  valueBadgeText(pin: any): string {
+    if (pin.listingType === 'FIXED_PRICE') return formatVnd(pin.price);
+    if (pin.listingType === 'AUCTION' && pin.auction) {
+      const a = pin.auction;
+      if (a.status === 'SCHEDULED') return 'Sắp diễn ra';
+      if (a.status === 'ENDED' || a.status === 'CANCELLED') return 'Đã kết thúc';
+      return `Giá hiện tại · ${formatVnd(a.currentPrice)}`;
+    }
+    return '';
+  }
+
+  valueBadgeAriaLabel(pin: any): string {
+    if (pin.listingType === 'FIXED_PRICE') return `Tác phẩm bán giá cố định, giá ${formatVnd(pin.price)}`;
+    if (pin.listingType === 'AUCTION' && pin.auction) {
+      const a = pin.auction;
+      if (a.status === 'SCHEDULED') return 'Tác phẩm đấu giá, phiên sắp diễn ra';
+      if (a.status === 'ENDED' || a.status === 'CANCELLED') return 'Tác phẩm đấu giá, phiên đã kết thúc';
+      return `Tác phẩm đấu giá, giá hiện tại ${formatVnd(a.currentPrice)}`;
+    }
+    return '';
+  }
+
+  /** true khi cần chặn mở chi tiết và hiện dialog nâng cấp thay vì điều
+   * hướng — chủ sở hữu luôn được mở, Plus/Pro còn hiệu lực luôn được mở.
+   * Đây chỉ là lớp UX; backend (GET /api/pins/:id) là lớp chặn thật. */
+  private requiresUpgradeToOpen(pin: any): boolean {
+    if (!pin.listingType || pin.listingType === 'NONE') return false;
+    const currentUserId = this.supabaseService.user()?.id;
+    if (currentUserId && pin.ownerId && currentUserId === pin.ownerId) return false;
+    // Navbar loads MembershipService asynchronously. During that short gap,
+    // use the already-synced database user plan so a paid member is not shown
+    // a false upgrade dialog just because they clicked quickly after routing.
+    const plan = this.membership.status()?.plan ?? this.supabaseService.dbUser()?.plan;
+    return plan !== 'PLUS' && plan !== 'PRO';
+  }
+
+  private async showUpgradeDialog(): Promise<void> {
+    const goToPricing = await this.dialogService.confirm({
+      variant: 'information',
+      title: 'Nâng cấp gói để xem chi tiết',
+      description: 'Nâng cấp gói để xem chi tiết và trao đổi với chủ sở hữu.',
+      confirmLabel: 'Xem các gói',
+      cancelLabel: 'Để sau',
+    });
+    if (goToPricing) this.router.navigate(['/pricing']);
+  }
+
+  navigateToPin(pin: any) {
+    if (this.requiresUpgradeToOpen(pin)) {
+      void this.showUpgradeDialog();
+      return;
+    }
+    this.router.navigate(['/pin', pin.id]);
   }
 
   navigateToProfile(username: string | undefined | null, event: MouseEvent) {
@@ -468,23 +546,48 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     const currentUser = this.supabaseService.user();
     if (!currentUser) return;
 
+    const previousLiked = pin.isLiked === true;
+    const previousLikes = Number(pin.likes) || 0;
+    pin.isLiked = !previousLiked;
+    pin.likes = Math.max(0, previousLikes + (previousLiked ? -1 : 1));
+    pin.likeQueuedToggles = (pin.likeQueuedToggles || 0) + 1;
+    this.pins.update((current) => [...current]);
+
+    await this.flushLikeQueue(pin);
+  }
+
+  private async flushLikeQueue(pin: any): Promise<void> {
+    if (pin.likeSyncing) return;
+    pin.likeSyncing = true;
+
     try {
-      const token = await this.supabaseService.getSessionToken();
-      if (token) {
-        const result = await this.pinService.toggleLike(pin.id, token);
-        console.log('Toggle like result:', result);
-        if (result.liked) {
-          pin.likes = (pin.likes || 0) + 1;
-        } else {
-          if (pin.likes !== undefined) {
-            pin.likes = Math.max(0, pin.likes - 1);
+      while ((pin.likeQueuedToggles || 0) > 0) {
+        pin.likeQueuedToggles--;
+
+        try {
+          const token = await this.supabaseService.getSessionToken();
+          if (!token) throw new Error('Không tìm thấy phiên đăng nhập.');
+
+          const result = await this.pinService.toggleLike(pin.id, token);
+          if (pin.likeQueuedToggles === 0) {
+            pin.isLiked = result.liked;
+            pin.likes = result.likeCount;
           }
+        } catch (error) {
+          const currentLiked = pin.isLiked === true;
+          pin.isLiked = !currentLiked;
+          pin.likes = Math.max(
+            0,
+            (Number(pin.likes) || 0) + (currentLiked ? -1 : 1),
+          );
+          console.error('Error toggling like:', error);
         }
-        // Force Signal updates on template
-        this.pins.update(current => [...current]);
+
+        this.pins.update((current) => [...current]);
       }
-    } catch (error) {
-      console.error('Error toggling like:', error);
+    } finally {
+      pin.likeSyncing = false;
+      this.pins.update((current) => [...current]);
     }
   }
 
@@ -515,11 +618,15 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     if (list.length > 0) {
       return list[0].name;
     }
-    return 'Hồ sơ';
+    return 'Lưu vào';
   }
 
-  async savePinToBoard(pinId: string, event: MouseEvent) {
+  savePinToBoard(pinId: string, event: MouseEvent) {
     event.stopPropagation();
+    void this.performSaveToBoard(pinId);
+  }
+
+  private async performSaveToBoard(pinId: string): Promise<void> {
     const currentUser = this.supabaseService.user();
     if (!currentUser) return;
 
@@ -535,7 +642,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
 
       if (!boardId) {
         const newBoard = await this.boardService.createBoard(
-          'Hồ sơ',
+          'Bộ sưu tập của tôi',
           'Bộ sưu tập lưu mặc định',
           false,
           token
@@ -545,10 +652,12 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       }
 
       await this.boardService.addPinToBoard(boardId, pinId, token);
-      alert('Đã lưu ảnh vào bộ sưu tập thành công!');
+      this.toast.success('Đã lưu vào bộ sưu tập');
     } catch (error) {
       console.error('Error saving pin to board:', error);
-      alert('Lỗi khi lưu ảnh vào bộ sưu tập.');
+      this.toast.error('Không thể lưu ảnh vào bộ sưu tập.', {
+        action: { label: 'Thử lại', onClick: () => this.performSaveToBoard(pinId) },
+      });
     }
   }
 }

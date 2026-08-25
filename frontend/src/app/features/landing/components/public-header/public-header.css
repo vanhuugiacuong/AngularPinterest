@@ -3,12 +3,12 @@
    touched by anything here. */
 
 :host {
-  --nf-paper: #f7f7f2;
-  --nf-ink: #111111;
-  --nf-blue: #2454ff;
-  --nf-electric: #1a2ef5;
-  --nf-purple: #7c3cff;
-  --nf-cyan: #00cfe8;
+  --nf-paper: var(--color-bg);
+  --nf-ink: var(--color-text);
+  --nf-blue: var(--color-nova-blue);
+  --nf-electric: var(--color-nova-blue);
+  --nf-purple: var(--color-iris-violet);
+  --nf-cyan: var(--color-studio-aqua);
 }
 
 .nf-head {
@@ -26,15 +26,20 @@
   color: var(--nf-ink);
   background: transparent;
   border-bottom: 1px solid transparent;
-  transition: background-color 0.45s ease, border-color 0.45s ease, height 0.45s ease,
-    backdrop-filter 0.45s ease;
+  transition: background-color 0.45s ease, border-color 0.45s ease, height 0.45s ease;
 }
 
+/* Solid background, no backdrop-filter — this is the very first thing a
+   logged-out visitor sees, it's `position: fixed` so it's on screen for
+   every scroll frame, and it used to animate backdrop-filter's own blur
+   radius on top of that (a transition on backdrop-filter re-blurs on every
+   frame of the 0.45s transition, not just once). That combination is one of
+   the heaviest things a browser can be asked to do continuously, and it's
+   invisible on a strong GPU but a real source of jank on weaker/integrated
+   ones — see app-navbar's header for the authenticated-app equivalent fix. */
 .nf-head--pinned {
   height: 64px;
-  background: color-mix(in srgb, var(--nf-paper) 78%, transparent);
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  background: color-mix(in srgb, var(--nf-paper) 96%, transparent);
   border-bottom-color: color-mix(in srgb, var(--nf-ink) 10%, transparent);
 }
 
@@ -100,9 +105,10 @@
   display: block;
   overflow: hidden;
   height: 1.15em;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.14em;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -136,6 +142,20 @@
   gap: 8px;
 }
 
+/* Theme switch — desktop row only; the 360-390px header doesn't have room
+   for it alongside the login button, so mobile gets it inside the sheet
+   instead (see .nf-head__sheet-theme-row below). */
+.nf-head__theme-toggle {
+  display: none;
+}
+
+@media (min-width: 860px) {
+  .nf-head__theme-toggle {
+    display: inline-flex;
+    margin-right: 4px;
+  }
+}
+
 .nf-head__cta {
   position: relative;
   overflow: hidden;
@@ -144,7 +164,7 @@
   height: 42px;
   padding: 0 22px;
   border-radius: 999px;
-  color: #fff;
+  color: var(--color-text-on-accent);
   font: inherit;
   font-weight: 700;
   font-size: 14px;
@@ -214,9 +234,7 @@
   flex-direction: column;
   padding: 10px;
   gap: 2px;
-  background: color-mix(in srgb, var(--nf-paper) 92%, transparent);
-  backdrop-filter: blur(18px) saturate(160%);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  background: color-mix(in srgb, var(--nf-paper) 98%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--nf-ink) 10%, transparent);
   animation: nf-head-sheet 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -240,10 +258,33 @@
   padding: 14px 16px;
   border-radius: 12px;
   color: inherit;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.14em;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
+}
+
+.nf-head__sheet-theme-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px 4px;
+  margin-top: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--nf-ink) 10%, transparent);
+}
+
+.nf-head__sheet-theme-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+@media (min-width: 860px) {
+  /* Desktop never opens the sheet (no burger to trigger it), but guard
+     against it lingering visible across a resize anyway. */
+  .nf-head__sheet-theme-row {
+    display: none;
+  }
 }
 
 .nf-head__sheet-link:hover {

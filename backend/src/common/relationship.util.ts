@@ -19,11 +19,11 @@ export async function isMutualFollow(
 ): Promise<boolean> {
   const [aFollowsB, bFollowsA] = await Promise.all([
     prisma.follow.findUnique({
-      where: { followerId_followingId: { followerId: userAId, followingId: userBId } },
+      where: { followerId_followingId: { followerId: userAId, followingId: userBId }, status: 'ACCEPTED' },
       select: { followerId: true },
     }),
     prisma.follow.findUnique({
-      where: { followerId_followingId: { followerId: userBId, followingId: userAId } },
+      where: { followerId_followingId: { followerId: userBId, followingId: userAId }, status: 'ACCEPTED' },
       select: { followerId: true },
     }),
   ]);
@@ -83,4 +83,6 @@ export const PUBLIC_USER_SELECT = {
   id: true,
   username: true,
   avatarUrl: true,
+  bio: true,
+  plan: true,
 } as const;

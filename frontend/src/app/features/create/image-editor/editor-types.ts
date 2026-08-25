@@ -43,7 +43,7 @@ export interface CaptionSettings {
 export const DEFAULT_CAPTION: CaptionSettings = {
   enabled: false,
   text: '',
-  font: "'Plus Jakarta Sans', ui-sans-serif, sans-serif",
+  font: "'Inter', ui-sans-serif, system-ui, sans-serif",
   fontSize: 42,
   color: '#f7f7ff',
   align: 'center',
@@ -66,7 +66,7 @@ export interface FontOption {
 // and every stack here renders Vietnamese diacritics correctly in evergreen
 // browsers.
 export const SUPPORTED_FONTS: FontOption[] = [
-  { label: 'NovaFrame Sans', value: "'Plus Jakarta Sans', ui-sans-serif, sans-serif" },
+  { label: 'Inter', value: "'Inter', ui-sans-serif, system-ui, sans-serif" },
   { label: 'Serif', value: "Georgia, 'Times New Roman', serif" },
   { label: 'Mono', value: "ui-monospace, 'Courier New', monospace" },
 ];
@@ -87,14 +87,32 @@ export const COLOR_PRESETS: ColorPreset[] = [
   { label: 'Cinematic', adjustments: { contrast: 118, saturation: 90, warmth: 12, brightness: 96 } },
 ];
 
+/** Crop rectangle in coordinates normalized to the SOURCE image (0-1), not
+ * screen/canvas pixels — stays correct across resize/zoom (see editor-render's
+ * renderEditedImage, which is the single pipeline used for preview + export). */
+export interface CropSettings {
+  x: number;      // left edge, 0-1
+  y: number;      // top edge, 0-1
+  width: number;  // 0 < width <= 1
+  height: number; // 0 < height <= 1
+}
+
+export const DEFAULT_CROP: CropSettings = { x: 0, y: 0, width: 1, height: 1 };
+
+export function isDefaultCrop(c: CropSettings): boolean {
+  return c.x === 0 && c.y === 0 && c.width === 1 && c.height === 1;
+}
+
 export interface EditorSnapshot {
   adjustments: ColorAdjustments;
   caption: CaptionSettings;
+  crop: CropSettings;
 }
 
 export function createDefaultSnapshot(): EditorSnapshot {
   return {
     adjustments: { ...DEFAULT_ADJUSTMENTS },
     caption: { ...DEFAULT_CAPTION },
+    crop: { ...DEFAULT_CROP },
   };
 }

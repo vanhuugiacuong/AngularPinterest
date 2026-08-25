@@ -14,16 +14,23 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Subject, Subscription, from, of } from 'rxjs';
+import { Observable, Subject, Subscription, combineLatest, from, of } from 'rxjs';
 import { debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 import { SupabaseService } from '../../core/services/supabase';
 import { SidebarStateService } from '../../core/services/sidebar-state';
+import { ThemeService } from '../../core/services/theme';
 import { PinService, Pin } from '../../core/services/pin';
 import { UserService, UserSearchResult } from '../../core/services/user';
+import { MembershipService } from '../../core/services/membership';
+import { NotificationService } from '../../core/services/notification';
+import { MessagingService } from '../../core/services/messaging';
+import type { MembershipPlan } from '../../core/models/membership-plan';
 import { SearchHistoryService } from '../../core/services/search-history';
 import { Sidebar } from '../sidebar/sidebar';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
 import { ImageSearchModal } from '../image-search-modal/image-search-modal';
+import { ThemeToggle } from '../../shared/theme-toggle/theme-toggle';
+import { BadgeBumpDirective } from '../../shared/badge-bump.directive';
 
 type SuggestionItem =
   | { kind: 'recent'; term: string }
@@ -34,18 +41,29 @@ type SuggestionItem =
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, FormsModule, Sidebar, UserAvatar, ImageSearchModal],
+  imports: [CommonModule, FormsModule, Sidebar, UserAvatar, ImageSearchModal, ThemeToggle, BadgeBumpDirective],
   templateUrl: './navbar.html',
   styleUrl: './navbar.css'
 })
 export class Navbar implements OnInit, OnDestroy {
   public supabaseService = inject(SupabaseService);
   public sidebarState = inject(SidebarStateService);
+  public themeService = inject(ThemeService);
   private router = inject(Router);
   private elementRef = inject(ElementRef);
   private pinService = inject(PinService);
   private userService = inject(UserService);
   private searchHistory = inject(SearchHistoryService);
+  private membership = inject(MembershipService);
+  private notificationService = inject(NotificationService);
+  private messagingService = inject(MessagingService);
+
+  /** Total unread (notifications + messages) — badged on the hamburger so
+   * it's visible even while the sidebar/notification drawer is collapsed. */
+  public totalUnread$: Observable<number> = combineLatest([
+    this.notificationService.unreadCount$,
+    this.messagingService.unreadCount$,
+  ]).pipe(map(([notifications, messages]) => notifications + messages));
 
   @Output() loginClick = new EventEmitter<void>();
   /** Emits the trimmed query on Enter / clear. Pages that care (e.g. /feed)
@@ -101,6 +119,16 @@ export class Navbar implements OnInit, OnDestroy {
   private searchSub?: Subscription;
 
   ngOnInit(): void {
+    // Loaded once per session (this is the only place that calls it besides
+    // the pricing page) so every avatar that needs the viewer's own plan
+    // reads the same cached signal instead of each issuing its own request.
+    if (!this.membership.status()) {
+      this.membership.load().catch(() => {
+        // Ignore — myPlan() falls back to the last-synced plan on dbUser,
+        // so a failed membership fetch never shows a wrong frame.
+      });
+    }
+
     this.searchSub = this.searchInput$
       .pipe(
         map((value) => value.trim()),
@@ -154,9 +182,19 @@ export class Navbar implements OnInit, OnDestroy {
     return user?.user_metadata?.['avatar_url'] || user?.user_metadata?.['picture'] || null;
   }
 
+  /** The signed-in viewer's own active plan, driving their navbar/account-
+   * popup avatar frame. Prefers the live MembershipService signal (kept
+   * current after subscribe()/webhook-driven changes); falls back to the
+   * plan already carried on dbUser from the last /api/users/sync while
+   * membership.status() hasn't loaded yet or failed to load — never FREE by
+   * default, since that would flash a real Plus/Pro member down to no frame. */
+  myPlan(): MembershipPlan | null | undefined {
+    return this.membership.status()?.plan ?? this.supabaseService.dbUser()?.plan;
+  }
+
   displayName(): string {
-    const dbName = this.supabaseService.dbUser()?.username;
-    if (dbName) return dbName;
+    const dbUser = this.supabaseService.dbUser();
+    if (dbUser) return dbUser.displayName || dbUser.username;
     const user = this.supabaseService.user();
     if (!user) return '';
     return (
@@ -338,6 +376,11 @@ export class Navbar implements OnInit, OnDestroy {
     this.router.navigate(['/create']);
   }
   navigateToPricing() { this.showProfilePopup.set(false); this.router.navigate(['/pricing']); }
+
+  navigateToSettings() {
+    this.showProfilePopup.set(false);
+    this.router.navigate(['/settings']);
+  }
 
   async signOut() {
     await this.supabaseService.signOut();

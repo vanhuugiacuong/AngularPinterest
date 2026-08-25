@@ -15,8 +15,8 @@
         </div>
       </section>
       <div class="content-skeleton-grid" aria-hidden="true">
-        @for (item of [1, 2, 3, 4, 5, 6, 7, 8]; track item; let i = $index) {
-          <div class="skeleton pin-skeleton" [class.rounded-frame]="i % 2 === 0" [class.rounded-frame-alt]="i % 2 !== 0"></div>
+        @for (item of [1, 2, 3, 4, 5, 6, 7, 8]; track item) {
+          <div class="skeleton pin-skeleton"></div>
         }
       </div>
     } @else if (profileError()) {
@@ -32,23 +32,23 @@
     } @else if (profile(); as p) {
       <section class="identity-card" aria-labelledby="profile-username">
         <div class="identity-person">
-          <div class="avatar-ring">
-            <img
-              [src]="
-                p.user.avatarUrl ||
-                'https://api.dicebear.com/7.x/bottts/svg?seed=' + p.user.username
-              "
-              [alt]="'Ảnh đại diện của ' + p.user.username"
-              class="profile-avatar"
-            />
-          </div>
+          <app-user-avatar
+            [src]="p.user.avatarUrl"
+            [name]="p.user.username"
+            [size]="profileAvatarSize()"
+            [plan]="p.user.plan"
+            class="profile-avatar-slot"
+          ></app-user-avatar>
 
           <div class="identity-copy">
             <div class="identity-kicker">
               <span class="signal-dot" aria-hidden="true"></span>
               Hồ sơ sáng tạo
             </div>
-            <h1 id="profile-username">{{ p.user.username }}</h1>
+            <h1 id="profile-username">{{ p.user.displayName || p.user.username }}</h1>
+            @if (p.user.displayName) {
+              <p class="profile-handle">&#64;{{ p.user.username }}</p>
+            }
             @if (p.user.bio) {
               <p class="profile-bio">{{ p.user.bio }}</p>
             } @else if (p.viewer.isOwnProfile) {
@@ -68,14 +68,14 @@
             <dd>{{ p.counts.albums }}</dd>
             <dt>Bộ sưu tập</dt>
           </div>
-          <div class="stat-readout">
+          <button type="button" class="stat-readout stat-readout-button" (click)="openFollowersDialog()">
             <dd>{{ p.counts.followers }}</dd>
             <dt>Người theo dõi</dt>
-          </div>
-          <div class="stat-readout">
+          </button>
+          <button type="button" class="stat-readout stat-readout-button" (click)="openFollowingDialog()">
             <dd>{{ p.counts.following }}</dd>
             <dt>Đang theo dõi</dt>
-          </div>
+          </button>
         </dl>
 
         <div class="identity-actions">
@@ -83,7 +83,7 @@
             <button
               type="button"
               class="primary-action"
-              [class.following-action]="p.viewer.isFollowing"
+              [class.following-action]="p.viewer.followRequestStatus === 'ACCEPTED' || p.viewer.followRequestStatus === 'PENDING_OUTGOING'"
               [disabled]="followPending()"
               (click)="toggleFollow()"
             >
@@ -91,10 +91,10 @@
                 <span class="button-spinner" aria-hidden="true"></span>
               } @else {
                 <span class="material-symbols-outlined">
-                  {{ p.viewer.isFollowing ? 'person_check' : 'person_add' }}
+                  {{ p.viewer.followRequestStatus === 'ACCEPTED' ? 'person_check' : p.viewer.followRequestStatus === 'PENDING_OUTGOING' ? 'schedule' : 'person_add' }}
                 </span>
               }
-              {{ p.viewer.isFollowing ? 'Bỏ theo dõi' : 'Theo dõi' }}
+              {{ p.viewer.followRequestStatus === 'ACCEPTED' ? 'Bỏ theo dõi' : p.viewer.followRequestStatus === 'PENDING_OUTGOING' ? 'Đã gửi yêu cầu' : 'Theo dõi' }}
             </button>
 
             <div class="message-row">
@@ -120,7 +120,7 @@
                   (click)="toggleSafetyMenu($event)"
                   aria-haspopup="true"
                   [attr.aria-expanded]="showSafetyMenu()"
-                  aria-label="Thêm tùy chọn cho hồ sơ này"
+                  aria-label="Báo cáo, chia sẻ hoặc chặn tài khoản này"
                 >
                   <span class="material-symbols-outlined">expand_more</span>
                 </button>
@@ -154,6 +154,15 @@
           } @else {
             <button
               type="button"
+              class="primary-action"
+              (click)="openEditProfileDialog()"
+              aria-label="Chỉnh sửa hồ sơ của bạn"
+            >
+              <span class="material-symbols-outlined">edit</span>
+              Chỉnh sửa hồ sơ
+            </button>
+            <button
+              type="button"
               class="secondary-action"
               (click)="shareProfile()"
               aria-label="Chia sẻ hồ sơ này"
@@ -165,6 +174,157 @@
         </div>
       </section>
 
+      @if (p.viewer.isOwnProfile && (marketplaceSales().length > 0 || marketplacePurchases().length > 0 || marketplacePendingSales().length > 0 || marketplaceLoading())) {
+        <section class="bg-surface border border-border rounded-panel p-5 sm:p-6 mb-6" aria-labelledby="nf-marketplace-heading">
+          <h2 id="nf-marketplace-heading" class="text-lg font-bold text-text font-display">Marketplace của bạn</h2>
+          <p class="text-sm text-text-muted mt-1 mb-4">Doanh thu và lịch sử giao dịch ảnh của bạn.</p>
+
+          @if (marketplaceLoading()) {
+            <p class="text-xs text-text-muted">Đang tải...</p>
+          }
+          @if (marketplaceError()) {
+            <p class="text-xs text-error">{{ marketplaceError() }}</p>
+          }
+
+          @if (!marketplaceLoading()) {
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div>
+                <span class="text-xs font-bold text-text-muted uppercase tracking-wide">Đang chờ xác nhận ({{ marketplacePendingSales().length }})</span>
+                <ul class="flex flex-col gap-3 mt-3">
+                  @for (pending of marketplacePendingSales(); track pending.id) {
+                    <li class="flex flex-col gap-1.5 text-xs border-b border-border pb-2 last:border-none last:pb-0">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-text truncate min-w-0">{{ pending.pin.title }}</span>
+                        <span class="text-text-muted shrink-0">{{ pending.amount | number }}đ</span>
+                      </div>
+                      <span class="text-text-muted">Người mua: {{ pending.buyer?.username }}</span>
+                      <button
+                        type="button"
+                        (click)="confirmReceived(pending.id)"
+                        [disabled]="confirmReceivedPendingId() === pending.id"
+                        class="self-start h-8 px-3 rounded-control bg-gradient-brand text-text-on-accent text-[11px] font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      >
+                        {{ confirmReceivedPendingId() === pending.id ? 'Đang xác nhận...' : 'Xác nhận đã nhận thanh toán' }}
+                      </button>
+                    </li>
+                  }
+                  @if (marketplacePendingSales().length === 0) {
+                    <li class="text-xs text-text-muted">Không có giao dịch nào đang chờ.</li>
+                  }
+                </ul>
+              </div>
+              <div>
+                <span class="text-xs font-bold text-text-muted uppercase tracking-wide">Doanh thu ({{ marketplaceSales().length }} giao dịch)</span>
+                <p class="text-2xl font-extrabold text-text font-display mt-1">{{ marketplaceRevenue() | number }}đ</p>
+                <ul class="flex flex-col gap-2 mt-3">
+                  @for (sale of marketplaceSales(); track sale.id) {
+                    <li class="flex items-center justify-between gap-2 text-xs">
+                      <span class="text-text truncate min-w-0">{{ sale.pin.title }}</span>
+                      <span class="text-text-muted shrink-0">{{ sale.amount | number }}đ · {{ sale.buyer?.username }}</span>
+                    </li>
+                  }
+                  @if (marketplaceSales().length === 0) {
+                    <li class="text-xs text-text-muted">Chưa có ảnh nào được bán.</li>
+                  }
+                </ul>
+              </div>
+              <div>
+                <span class="text-xs font-bold text-text-muted uppercase tracking-wide">Lịch sử mua ({{ marketplacePurchases().length }})</span>
+                <ul class="flex flex-col gap-2 mt-3">
+                  @for (purchase of marketplacePurchases(); track purchase.id) {
+                    <li class="flex items-center justify-between gap-2 text-xs">
+                      <span class="text-text truncate min-w-0">{{ purchase.pin.title }}</span>
+                      <span class="text-text-muted shrink-0">
+                        {{ purchase.amount | number }}đ ·
+                        {{ purchase.status === 'PAID' ? 'Đã thanh toán' : purchase.status === 'PENDING' ? 'Chờ xác nhận' : 'Thất bại' }}
+                      </span>
+                    </li>
+                  }
+                  @if (marketplacePurchases().length === 0) {
+                    <li class="text-xs text-text-muted">Bạn chưa mua ảnh nào.</li>
+                  }
+                </ul>
+              </div>
+            </div>
+          }
+        </section>
+      }
+
+      @if (p.viewer.isOwnProfile && (auctionsSelling().length > 0 || auctionsBidding().length > 0 || auctionsLoading())) {
+        <section class="bg-surface border border-border rounded-panel p-5 sm:p-6 mb-6" aria-labelledby="nf-auctions-heading">
+          <h2 id="nf-auctions-heading" class="text-lg font-bold text-text font-display">Đấu giá của bạn</h2>
+          <p class="text-sm text-text-muted mt-1 mb-4">Các phiên bạn đang bán và các phiên bạn đã đặt giá.</p>
+
+          @if (auctionsLoading()) {
+            <p class="text-xs text-text-muted">Đang tải...</p>
+          }
+          @if (auctionsError()) {
+            <p class="text-xs text-error">{{ auctionsError() }}</p>
+          }
+
+          @if (!auctionsLoading()) {
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <span class="text-xs font-bold text-text-muted uppercase tracking-wide">Phiên đang bán ({{ auctionsSelling().length }})</span>
+                <ul class="flex flex-col gap-3 mt-3">
+                  @for (a of auctionsSelling(); track a.id) {
+                    <li class="flex flex-col gap-1 text-xs border-b border-border pb-2 last:border-none last:pb-0">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-text font-bold truncate">{{ a.pin.title }}</span>
+                        <span class="text-text-muted shrink-0">{{ auctionStatusLabel(a.status) }}</span>
+                      </div>
+                      <span class="text-text-muted">Giá hiện tại: {{ a.currentPrice | number }}đ · {{ a.bidCount }} lượt đặt giá</span>
+                      @if (a.winner) {
+                        <span class="text-text-muted">Người thắng: {{ a.winner.username }} · {{ purchaseStatusLabel(a.purchaseStatus) }}</span>
+                      }
+                      @if (canCancelAuction(a)) {
+                        <button
+                          type="button"
+                          (click)="cancelAuction(a.id)"
+                          [disabled]="auctionCancelPendingId() === a.id"
+                          class="self-start mt-1 h-8 px-3 rounded-control border border-border text-text-muted hover:text-error hover:border-error/40 text-[11px] font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        >
+                          {{ auctionCancelPendingId() === a.id ? 'Đang hủy...' : 'Hủy phiên' }}
+                        </button>
+                      }
+                    </li>
+                  }
+                  @if (auctionsSelling().length === 0) {
+                    <li class="text-xs text-text-muted">Bạn chưa có phiên đấu giá nào.</li>
+                  }
+                </ul>
+              </div>
+              <div>
+                <span class="text-xs font-bold text-text-muted uppercase tracking-wide">Phiên tôi đã đặt giá ({{ auctionsBidding().length }})</span>
+                <ul class="flex flex-col gap-2 mt-3">
+                  @for (b of auctionsBidding(); track b.auctionId) {
+                    <li class="flex items-center justify-between gap-2 text-xs">
+                      <span class="text-text truncate">{{ b.pin.title }}</span>
+                      <span class="text-text-muted shrink-0">
+                        {{ auctionStatusLabel(b.status) }} · Giá của tôi: {{ b.myLastBid | number }}đ
+                        @if (b.isWinning) {
+                          · <span class="text-accent font-bold">Đang dẫn đầu</span>
+                        }
+                      </span>
+                    </li>
+                  }
+                  @if (auctionsBidding().length === 0) {
+                    <li class="text-xs text-text-muted">Bạn chưa đặt giá phiên nào.</li>
+                  }
+                </ul>
+              </div>
+            </div>
+          }
+        </section>
+      }
+
+      @if (!p.viewer.canViewPosts) {
+        <section class="profile-state profile-state-large" role="status">
+          <span class="material-symbols-outlined state-icon">lock</span>
+          <h1>Tài khoản riêng tư</h1>
+          <p>Theo dõi @&#8203;{{ p.user.username }} để xem tác phẩm và bộ sưu tập của họ.</p>
+        </section>
+      } @else {
       <section class="profile-content" aria-label="Nội dung hồ sơ">
         <div
           class="profile-tabs"
@@ -214,6 +374,22 @@
               <span class="material-symbols-outlined">favorite</span>
               <span>Đã thích</span>
               <span class="tab-count">{{ p.counts.favorites || 0 }}</span>
+            </button>
+          }
+          @if (p.viewer.canViewPrivateBoards) {
+            <button
+              id="profile-tab-private"
+              type="button"
+              role="tab"
+              [attr.aria-selected]="activeTab() === 'private'"
+              aria-controls="profile-panel-private"
+              [attr.tabindex]="activeTab() === 'private' ? 0 : -1"
+              [class.active]="activeTab() === 'private'"
+              (click)="setTab('private')"
+            >
+              <span class="material-symbols-outlined">lock</span>
+              <span>Chỉ mình bạn</span>
+              <span class="tab-count">{{ p.counts.privateBoards || 0 }}</span>
             </button>
           }
         </div>
@@ -270,13 +446,11 @@
               </div>
             } @else {
               <div class="pin-grid">
-                @for (pin of postsState().items; track pin.id; let i = $index) {
+                @for (pin of postsState().items; track pin.id) {
                   <article class="pin-card">
                     <button
                       type="button"
-                      class="pin-media frame-trace"
-                      [class.rounded-frame]="i % 2 === 0"
-                      [class.rounded-frame-alt]="i % 2 !== 0"
+                      class="pin-media glow-hover"
                       (click)="navigateToPin(pin.id)"
                       [attr.aria-label]="'Mở tác phẩm ' + pin.title"
                     >
@@ -396,7 +570,7 @@
                   <article class="album-card">
                     <button
                       type="button"
-                      class="album-collage frame-trace"
+                      class="album-collage"
                       [class.rounded-frame]="i % 2 === 0"
                       [class.rounded-frame-alt]="i % 2 !== 0"
                       (click)="navigateToAlbum(album.id)"
@@ -461,6 +635,101 @@
           </div>
         }
 
+        @if (activeTab() === 'private') {
+          <div
+            id="profile-panel-private"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="profile-tab-private"
+            tabindex="0"
+          >
+            <div class="panel-heading">
+              <div>
+                <span class="panel-kicker">Chỉ mình bạn thấy</span>
+                <h2>Bộ sưu tập riêng tư</h2>
+              </div>
+              <button type="button" class="primary-action" (click)="openCreateAlbumModal(true)">
+                <span class="material-symbols-outlined">add</span>
+                Tạo bộ sưu tập riêng tư
+              </button>
+            </div>
+
+            @if (privateState().loading) {
+              <div class="album-grid" aria-hidden="true">
+                @for (item of [1, 2, 3, 4]; track item; let i = $index) {
+                  <div class="skeleton album-skeleton" [class.rounded-frame]="i % 2 === 0" [class.rounded-frame-alt]="i % 2 !== 0"></div>
+                }
+              </div>
+            } @else if (privateState().error && privateState().items.length === 0) {
+              <ng-container
+                *ngTemplateOutlet="tabError; context: { $implicit: privateState().error }"
+              ></ng-container>
+            } @else if (privateState().loaded && privateState().items.length === 0) {
+              <div class="profile-state">
+                <span class="material-symbols-outlined state-icon">lock</span>
+                <h3>Bạn chưa có bộ sưu tập riêng tư nào.</h3>
+                <p>Lưu những ý tưởng chỉ dành cho bạn.</p>
+                <button type="button" class="primary-action" (click)="openCreateAlbumModal(true)">
+                  Tạo bộ sưu tập riêng tư
+                </button>
+              </div>
+            } @else {
+              <div class="album-grid">
+                @for (album of privateState().items; track album.id; let i = $index) {
+                  <article class="album-card">
+                    <button
+                      type="button"
+                      class="album-collage"
+                      [class.rounded-frame]="i % 2 === 0"
+                      [class.rounded-frame-alt]="i % 2 !== 0"
+                      (click)="navigateToAlbum(album.id)"
+                      [attr.aria-label]="'Mở bộ sưu tập riêng tư ' + album.name"
+                    >
+                      <div class="collage-cell collage-main">
+                        @if (album.thumbnails[0]) {
+                          <img [src]="album.thumbnails[0].imageUrl" [alt]="album.thumbnails[0].title" loading="lazy" />
+                        } @else {
+                          <span class="material-symbols-outlined empty-collage-icon">image</span>
+                        }
+                      </div>
+                      <div class="collage-cell collage-secondary">
+                        @if (album.thumbnails[1]) {
+                          <img [src]="album.thumbnails[1].imageUrl" [alt]="album.thumbnails[1].title" loading="lazy" />
+                        } @else {
+                          <span class="collage-coordinate">2</span>
+                        }
+                      </div>
+                      <div class="collage-cell collage-tertiary">
+                        @if (album.thumbnails[2]) {
+                          <img [src]="album.thumbnails[2].imageUrl" [alt]="album.thumbnails[2].title" loading="lazy" />
+                        } @else {
+                          <span class="collage-coordinate">3</span>
+                        }
+                      </div>
+                      <span class="secret-badge">
+                        <span class="material-symbols-outlined">lock</span>
+                        Chỉ mình bạn
+                      </span>
+                    </button>
+                    <div class="album-meta">
+                      <div>
+                        <h3>{{ album.name }}</h3>
+                        @if (album.description) {
+                          <p>{{ album.description }}</p>
+                        }
+                      </div>
+                      <div class="album-readout">
+                        <span>{{ album.pinCount }} tác phẩm</span>
+                        <span>{{ formatDate(album.createdAt) }}</span>
+                      </div>
+                    </div>
+                  </article>
+                }
+              </div>
+            }
+          </div>
+        }
+
         @if (activeTab() === 'favorites') {
           <div
             id="profile-panel-favorites"
@@ -497,13 +766,11 @@
               </div>
             } @else {
               <div class="pin-grid">
-                @for (pin of favoritesState().items; track pin.id; let i = $index) {
+                @for (pin of favoritesState().items; track pin.id) {
                   <article class="pin-card">
                     <button
                       type="button"
-                      class="pin-media frame-trace"
-                      [class.rounded-frame]="i % 2 === 0"
-                      [class.rounded-frame-alt]="i % 2 !== 0"
+                      class="pin-media glow-hover"
                       (click)="navigateToPin(pin.id)"
                       [attr.aria-label]="'Mở tác phẩm ' + pin.title"
                     >
@@ -520,16 +787,12 @@
                         <h3>{{ pin.title }}</h3>
                         <span>@{{ pin.user.username }}</span>
                       </div>
-                      <button
-                        type="button"
-                        class="icon-action liked"
-                        (click)="removeFavorite(pin, $event)"
-                        aria-label="Bỏ thích tác phẩm này"
-                        title="Bỏ thích"
-                      >
-                        <span class="material-symbols-outlined">favorite</span>
-                        <span>{{ pin._count.likes }}</span>
-                      </button>
+                      <app-like-button
+                        [liked]="true"
+                        [count]="pin._count.likes"
+                        ariaLabel="Bỏ thích tác phẩm này"
+                        (toggled)="removeFavorite(pin, $event)"
+                      ></app-like-button>
                     </div>
                   </article>
                 }
@@ -564,6 +827,7 @@
           </div>
         }
       </section>
+      }
     }
   </main>
 
@@ -572,9 +836,13 @@
   </div>
 
   @if (showCreateAlbumModal()) {
-    <div class="dialog-backdrop" (click)="closeCreateAlbumModal()">
+    <div
+      class="nf-dialog-backdrop"
+      (mousedown)="onDialogBackdropMouseDown($event)"
+      (click)="onCreateAlbumBackdropClick($event)"
+    >
       <section
-        class="profile-dialog"
+        class="nf-dialog-panel profile-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="create-album-title"
@@ -665,57 +933,147 @@
     </div>
   }
 
-  @if (deleteTarget(); as pin) {
-    <div class="dialog-backdrop" (click)="closeDeleteDialog()">
+  @if (showEditProfileDialog() && profile(); as editingProfile) {
+    <div
+      class="nf-dialog-backdrop"
+      (mousedown)="onDialogBackdropMouseDown($event)"
+      (click)="onEditProfileBackdropClick($event)"
+    >
       <section
-        class="profile-dialog confirm-dialog"
-        role="alertdialog"
+        class="nf-dialog-panel profile-dialog"
+        role="dialog"
         aria-modal="true"
-        aria-labelledby="delete-pin-title"
-        aria-describedby="delete-pin-description"
+        aria-labelledby="edit-profile-title"
         data-profile-dialog="active"
         (click)="$event.stopPropagation()"
       >
-        <div class="danger-icon" aria-hidden="true">
-          <span class="material-symbols-outlined">delete_forever</span>
-        </div>
-        <h2 id="delete-pin-title">Xóa “{{ pin.title }}”?</h2>
-        <p id="delete-pin-description">Tác phẩm sẽ bị xóa khỏi NovaFrame và không thể khôi phục.</p>
-        @if (deleteError()) {
-          <p class="form-error" role="alert">{{ deleteError() }}</p>
-        }
-        <div class="dialog-actions">
+        <div class="dialog-heading">
+          <div>
+            <span class="panel-kicker">Hồ sơ của bạn</span>
+            <h2 id="edit-profile-title">Chỉnh sửa hồ sơ</h2>
+          </div>
           <button
             type="button"
-            class="secondary-action"
-            (click)="closeDeleteDialog()"
-            [disabled]="deletePending()"
+            class="icon-action icon-only"
+            (click)="closeEditProfileDialog()"
+            aria-label="Đóng"
           >
-            Giữ lại
-          </button>
-          <button
-            id="confirm-delete-pin"
-            type="button"
-            class="danger-action"
-            (click)="confirmDeletePin()"
-            [disabled]="deletePending()"
-          >
-            @if (deletePending()) {
-              <span class="button-spinner" aria-hidden="true"></span>
-              Đang xóa
-            } @else {
-              Xóa bài
-            }
+            <span class="material-symbols-outlined">close</span>
           </button>
         </div>
+
+        <form (ngSubmit)="saveProfileEdits()" class="dialog-form">
+          <!-- Only the small camera badge is the click target (a <label for>
+               pointing at the file input) — the avatar circle and copy text
+               are plain, non-interactive display elements. Wrapping the
+               whole row in one big label made it too easy to accidentally
+               pop the native file picker while just looking at the form. -->
+          <div class="avatar-edit-field">
+            <span class="avatar-edit-preview">
+              @if (editAvatarPreviewUrl(); as previewUrl) {
+                <img [src]="previewUrl" alt="Ảnh đại diện mới" />
+              } @else {
+                <app-user-avatar
+                  [src]="editingProfile.user.avatarUrl"
+                  [name]="editingProfile.user.username"
+                  [size]="72"
+                  [ring]="false"
+                ></app-user-avatar>
+              }
+              <label
+                for="edit-profile-avatar-input"
+                class="avatar-edit-badge"
+                aria-label="Đổi ảnh đại diện"
+              >
+                <span class="material-symbols-outlined" aria-hidden="true">photo_camera</span>
+              </label>
+            </span>
+            <span class="avatar-edit-copy">
+              <strong>Đổi ảnh đại diện</strong>
+              <small>JPG, PNG hoặc WebP, tối đa 5MB.</small>
+            </span>
+            <input
+              id="edit-profile-avatar-input"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              [disabled]="editProfilePending()"
+              (change)="onEditAvatarSelected($event)"
+            />
+          </div>
+
+          <label for="edit-profile-display-name">Tên hiển thị</label>
+          <input
+            id="edit-profile-display-name"
+            name="editDisplayName"
+            type="text"
+            maxlength="50"
+            [(ngModel)]="editDisplayName"
+            [disabled]="editProfilePending()"
+            placeholder="Tên bạn muốn hiển thị"
+          />
+          <small class="dialog-field-hint">Tên hiển thị trên hồ sơ, bình luận... Có thể để trống để dùng ID bên dưới.</small>
+
+          <label for="edit-profile-username">ID/username <span aria-hidden="true">*</span></label>
+          <input
+            id="edit-profile-username"
+            name="editUsername"
+            type="text"
+            maxlength="20"
+            [(ngModel)]="editUsername"
+            [disabled]="editProfilePending()"
+            required
+            placeholder="ten-nguoi-dung"
+          />
+          <small class="dialog-field-hint">3-20 ký tự, chỉ chữ, số, dấu chấm hoặc gạch dưới. Đây là ID duy nhất dùng trong liên kết hồ sơ của bạn.</small>
+
+          <label for="edit-profile-bio">Tiểu sử</label>
+          <textarea
+            id="edit-profile-bio"
+            name="editBio"
+            rows="3"
+            maxlength="280"
+            [(ngModel)]="editBio"
+            [disabled]="editProfilePending()"
+            placeholder="Vài dòng giới thiệu về bạn..."
+          ></textarea>
+
+          @if (editProfileError()) {
+            <p class="form-error" role="alert">{{ editProfileError() }}</p>
+          }
+
+          <div class="dialog-actions">
+            <button
+              type="button"
+              class="secondary-action"
+              (click)="closeEditProfileDialog()"
+              [disabled]="editProfilePending()"
+            >
+              Hủy
+            </button>
+            <button type="submit" class="primary-action" [disabled]="editProfilePending() || !editUsername.trim()">
+              @if (editProfilePending()) {
+                <span class="button-spinner" aria-hidden="true"></span>
+                Đang lưu
+              } @else {
+                Lưu thay đổi
+              }
+            </button>
+          </div>
+        </form>
       </section>
     </div>
   }
 
+  <!-- Xóa tác phẩm giờ dùng DialogService dùng chung (xem openDeleteDialog). -->
+
   @if (showReportDialog()) {
-    <div class="dialog-backdrop" (click)="closeReportDialog()">
+    <div
+      class="nf-dialog-backdrop"
+      (mousedown)="onDialogBackdropMouseDown($event)"
+      (click)="onReportBackdropClick($event)"
+    >
       <section
-        class="profile-dialog"
+        class="nf-dialog-panel profile-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="report-dialog-title"
@@ -792,72 +1150,13 @@
     </div>
   }
 
-  @if (showBlockDialog()) {
-    <div class="dialog-backdrop" (click)="closeBlockDialog()">
-      <section
-        class="profile-dialog confirm-dialog"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="block-dialog-title"
-        aria-describedby="block-dialog-description"
-        data-profile-dialog="active"
-        (click)="$event.stopPropagation()"
-      >
-        <div class="danger-icon" aria-hidden="true">
-          <span class="material-symbols-outlined">block</span>
-        </div>
-        @if (profile(); as blockTargetProfile) {
-          <h2 id="block-dialog-title">
-            {{
-              blockTargetProfile.viewer.isBlocked
-                ? 'Bỏ chặn @' + blockTargetProfile.user.username + '?'
-                : 'Chặn @' + blockTargetProfile.user.username + '?'
-            }}
-          </h2>
-          <p id="block-dialog-description">
-            {{
-              blockTargetProfile.viewer.isBlocked
-                ? 'Hai bạn sẽ có thể theo dõi và nhắn tin lại với nhau như bình thường.'
-                : 'Người này sẽ không thể gửi yêu cầu nhắn tin hoặc nhắn tin cho bạn nữa.'
-            }}
-          </p>
-        }
-        @if (blockError()) {
-          <p class="form-error" role="alert">{{ blockError() }}</p>
-        }
-        <div class="dialog-actions">
-          <button
-            type="button"
-            class="secondary-action"
-            (click)="closeBlockDialog()"
-            [disabled]="blockPending()"
-          >
-            Hủy
-          </button>
-          <button
-            id="confirm-block-user"
-            type="button"
-            class="danger-action"
-            (click)="confirmBlock()"
-            [disabled]="blockPending()"
-          >
-            @if (blockPending()) {
-              <span class="button-spinner" aria-hidden="true"></span>
-              Đang xử lý
-            } @else {
-              {{ profile()?.viewer?.isBlocked ? 'Bỏ chặn' : 'Chặn' }}
-            }
-          </button>
-        </div>
-      </section>
-    </div>
-  }
+  <!-- Chặn/bỏ chặn người dùng giờ dùng DialogService dùng chung (xem openBlockDialog). -->
 </div>
 
 <ng-template #pinLoading>
   <div class="pin-grid" aria-hidden="true">
-    @for (item of [1, 2, 3, 4, 5, 6, 7, 8]; track item; let i = $index) {
-      <div class="skeleton pin-skeleton" [class.rounded-frame]="i % 2 === 0" [class.rounded-frame-alt]="i % 2 !== 0"></div>
+    @for (item of [1, 2, 3, 4, 5, 6, 7, 8]; track item) {
+      <div class="skeleton pin-skeleton"></div>
     }
   </div>
 </ng-template>
@@ -873,3 +1172,12 @@
     </button>
   </div>
 </ng-template>
+
+@if (followDialogTab() && profile()) {
+  <app-follow-list-dialog
+    [username]="profile()!.user.username"
+    [initialTab]="followDialogTab()!"
+    [isOwnProfile]="profile()!.viewer.isOwnProfile"
+    (closeDialog)="closeFollowDialog()"
+  ></app-follow-list-dialog>
+}

@@ -1,31 +1,74 @@
-<div
-  class="uav-root relative inline-flex items-center justify-center shrink-0 rounded-full overflow-hidden select-none bg-surface-elevated"
-  [style.width.px]="size"
-  [style.height.px]="size"
-  [ngClass]="{ 'ring-1 ring-primary/30 ring-offset-2 ring-offset-bg': ring }"
+<span
+  class="uav-outer relative inline-flex shrink-0 align-middle"
+  [class.uav-outer--plus]="hasFrame() && effectivePlan() === 'PLUS'"
+  [class.uav-outer--pro]="hasFrame() && effectivePlan() === 'PRO'"
+  [class.uav-outer--lg]="isLargeAvatar()"
+  [style.width.px]="size()"
+  [style.height.px]="size()"
+  [style.--uav-size]="size() + 'px'"
+  [attr.title]="showBadge() ? planLabel() : null"
 >
-  @if (src) {
-    <img
-      [src]="src"
-      [alt]="name ? 'Ảnh đại diện của ' + name : 'Ảnh đại diện'"
-      (load)="onImageLoad()"
-      (error)="onImageError()"
-      class="absolute inset-0 w-full h-full object-cover transition-opacity duration-200"
-      [class.opacity-0]="status() !== 'loaded'"
-    />
+  @if (hasFrame()) {
+    <span class="uav-ring uav-ring--primary" aria-hidden="true"></span>
+    @if (effectivePlan() === 'PRO') {
+      <span class="uav-ring uav-ring--pro-outer" aria-hidden="true"></span>
+    }
   }
 
-  @if (status() === 'loading' && src) {
-    <div class="skeleton absolute inset-0" aria-hidden="true"></div>
+  <span
+    class="uav-root relative inline-flex items-center justify-center shrink-0 rounded-full overflow-hidden select-none bg-surface-elevated w-full h-full"
+    [ngClass]="{ 'ring-1 ring-primary/30 ring-offset-2 ring-offset-bg': ring() && !hasFrame() }"
+  >
+    @if (src()) {
+      <img
+        [src]="src()"
+        [alt]="name() ? 'Ảnh đại diện của ' + name() : 'Ảnh đại diện'"
+        (load)="onImageLoad()"
+        (error)="onImageError()"
+        class="absolute inset-0 w-full h-full object-cover transition-opacity duration-200"
+        [class.opacity-0]="status() !== 'loaded'"
+      />
+    }
+
+    @if (status() === 'loading' && src()) {
+      <div class="skeleton absolute inset-0" aria-hidden="true"></div>
+    }
+
+    @if (status() === 'error' || !src()) {
+      <div
+        class="absolute inset-0 flex items-center justify-center bg-gradient-brand font-extrabold text-text-on-accent leading-none"
+        [style.fontSize.px]="size() * 0.4"
+        aria-hidden="true"
+      >
+        {{ initials() }}
+      </div>
+    }
+  </span>
+
+  @if (showIcon()) {
+    <span class="uav-plan-icon" [class.uav-plan-icon--pro]="effectivePlan() === 'PRO'" aria-hidden="true">
+      @if (effectivePlan() === 'PRO') {
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 8 L8 3 H16 L20 8 L12 21 Z" fill="currentColor" />
+        </svg>
+      } @else {
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M12 2 L14.5 9.5 L22 12 L14.5 14.5 L12 22 L9.5 14.5 L2 12 L9.5 9.5 Z"
+            fill="currentColor"
+          />
+        </svg>
+      }
+    </span>
   }
 
-  @if (status() === 'error' || !src) {
-    <div
-      class="absolute inset-0 flex items-center justify-center bg-gradient-brand font-extrabold text-text leading-none"
-      [style.fontSize.px]="size * 0.4"
-      aria-hidden="true"
-    >
-      {{ initials() }}
-    </div>
+  @if (showBadge()) {
+    <span
+      class="uav-plan-badge"
+      [class.uav-plan-badge--pro]="effectivePlan() === 'PRO'"
+      [attr.aria-label]="planLabel()"
+    >{{ effectivePlan() }}</span>
+  } @else if (hasFrame()) {
+    <span class="sr-only">{{ planLabel() }}</span>
   }
-</div>
+</span>

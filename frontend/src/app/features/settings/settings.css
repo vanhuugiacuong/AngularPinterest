@@ -1,0 +1,60 @@
+/* Mini theme-preview swatches — deliberately fixed, literal colors (not the
+   live CSS variables) since each swatch must show what that specific option
+   looks like regardless of the theme currently applied to the page. */
+.nf-theme-preview {
+  position: relative;
+  display: block;
+}
+
+.nf-theme-preview__surface {
+  position: absolute;
+  inset: 0;
+}
+
+.nf-theme-preview__accent {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+}
+
+.nf-theme-preview__text {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.nf-theme-preview--light .nf-theme-preview__surface {
+  background: #f4f6fb;
+}
+.nf-theme-preview--light .nf-theme-preview__accent {
+  background: #3659d9;
+}
+.nf-theme-preview--light .nf-theme-preview__text {
+  color: #172033;
+}
+
+.nf-theme-preview--dark .nf-theme-preview__surface {
+  background: #070910;
+}
+.nf-theme-preview--dark .nf-theme-preview__accent {
+  background: #6987ff;
+}
+.nf-theme-preview--dark .nf-theme-preview__text {
+  color: #f3f6fb;
+}
+
+.nf-theme-preview--system .nf-theme-preview__surface {
+  background: linear-gradient(135deg, #f4f6fb 0%, #f4f6fb 48%, #070910 52%, #070910 100%);
+}
+.nf-theme-preview--system .nf-theme-preview__accent {
+  background: linear-gradient(135deg, #3659d9 0%, #6987ff 100%);
+}
+.nf-theme-preview--system .nf-theme-preview__text {
+  color: #f3f6fb;
+}

@@ -15,8 +15,8 @@
   height: 2px;
   /* Same brand gradient as .bg-gradient-brand / .text-gradient-brand in
      styles.css (rotated to horizontal), so every brand gradient in the app
-     resolves to the same four color stops. */
-  background: linear-gradient(90deg, #2024b8 0%, #2457ff 35%, #8b2cff 70%, #d000ff 100%);
+     resolves to the same token-driven stops. */
+  background: linear-gradient(90deg, var(--color-nova-blue) 0%, var(--color-iris-violet) 100%);
   transform: scaleX(0);
   transform-origin: left center;
   transition: transform 0.3s ease;
