@@ -385,9 +385,16 @@ export class PinsService {
   ) {
     const skip = (page - 1) * limit;
 
-    // 1. Fetch all pins with user and like counts
+    // 1. Fetch a bounded window of the most-recent pins (not the whole table).
+    //    The personalized re-ranking below runs in JS, so we only need a
+    //    candidate pool — fetching every row on each feed request was the main
+    //    latency source (full-table scan + per-row like-count subquery, shipped
+    //    cross-region every call). Tune the pool size via FEED_CANDIDATE_LIMIT.
+    const candidateLimit = Number(process.env.FEED_CANDIDATE_LIMIT) || 1000;
     const pins = await this.prisma.pin.findMany({
       where: this.visibilityFilter(userId),
+      orderBy: { createdAt: 'desc' },
+      take: candidateLimit,
       include: {
         user: {
           select: { id: true, username: true, avatarUrl: true, plan: true },
