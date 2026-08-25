@@ -344,16 +344,36 @@ export class PinsService {
     return { listingType: 'NONE', auction: null };
   }
 
-  /** Gắn listingType/auction vào danh sách pin đã fetch qua ORM (include),
-   * đồng thời bỏ originalStoragePath khỏi response — bản gốc chỉ backend
-   * được đọc trực tiếp qua endpoint tải ảnh có kiểm tra quyền riêng. */
+  /** Id của những pin trong danh sách mà viewerId đã thích - dùng để gắn cờ
+   * isLiked hàng loạt (1 query) thay vì N+1 theo từng pin. */
+  private async fetchLikedPinIds(pinIds: string[], viewerId?: string): Promise<Set<string>> {
+    if (!viewerId || pinIds.length === 0) return new Set();
+    const rows = await this.prisma.like.findMany({
+      where: { userId: viewerId, pinId: { in: pinIds } },
+      select: { pinId: true },
+    });
+    return new Set(rows.map((r) => r.pinId));
+  }
+
+  /** Gắn listingType/auction + isLiked (nếu có viewerId) vào danh sách pin đã
+   * fetch qua ORM (include), đồng thời bỏ originalStoragePath khỏi response -
+   * bản gốc chỉ backend được đọc trực tiếp qua endpoint tải ảnh có kiểm tra
+   * quyền riêng. */
   private async attachMarketInfoToList<T extends { id: string; isForSale: boolean; originalStoragePath?: string | null }>(
     pins: T[],
+    viewerId?: string,
   ): Promise<Omit<T, 'originalStoragePath'>[]> {
-    const auctionMap = await this.fetchLatestAuctionsByPinIds(pins.map((p) => p.id));
+    const [auctionMap, likedIds] = await Promise.all([
+      this.fetchLatestAuctionsByPinIds(pins.map((p) => p.id)),
+      this.fetchLikedPinIds(pins.map((p) => p.id), viewerId),
+    ]);
     return pins.map((p) => {
       const { originalStoragePath, ...rest } = p;
-      return { ...rest, ...this.marketFieldsFor(p.isForSale, auctionMap.get(p.id)) };
+      return {
+        ...rest,
+        ...this.marketFieldsFor(p.isForSale, auctionMap.get(p.id)),
+        isLiked: likedIds.has(p.id),
+      };
     });
   }
 
@@ -444,7 +464,7 @@ export class PinsService {
     const sortedPins = pinsWithScores.map((item) => item.pin);
 
     // 4. Return paginated slice
-    return this.attachMarketInfoToList(sortedPins.slice(skip, skip + limit));
+    return this.attachMarketInfoToList(sortedPins.slice(skip, skip + limit), userId);
   }
 
   async getRelatedPins(
@@ -474,7 +494,7 @@ export class PinsService {
         _count: { select: { likes: true } },
       },
     });
-    return this.attachMarketInfoToList(related);
+    return this.attachMarketInfoToList(related, viewerId);
   }
 
   /** Prisma `where` fragment that hides pins whose author has a private
@@ -1100,7 +1120,7 @@ export class PinsService {
           _count: { select: { likes: true } },
         },
       });
-      return this.attachMarketInfoToList(keywordPins);
+      return this.attachMarketInfoToList(keywordPins, viewerId);
     }
 
     // 2. Query pgvector for cosine similarity against the search text's embedding

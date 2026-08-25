@@ -460,6 +460,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
         authorAvatarUrl: p.user?.avatarUrl || null,
         authorPlan: p.user?.plan || 'FREE',
         likes,
+        isLiked: p.isLiked ?? false,
         isAiGenerated: p.isAiGenerated,
         category: p.category,
         aspectRatio,
@@ -549,6 +550,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       if (token) {
         const result = await this.pinService.toggleLike(pin.id, token);
         console.log('Toggle like result:', result);
+        pin.isLiked = result.liked;
         if (result.liked) {
           pin.likes = (pin.likes || 0) + 1;
         } else {

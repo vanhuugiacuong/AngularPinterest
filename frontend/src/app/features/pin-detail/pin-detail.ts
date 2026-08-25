@@ -527,7 +527,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   public relatedActiveDropdownPinId = signal<string | null>(null);
   public relatedSelectedBoardMap = signal<Record<string, Board>>({});
 
-  async toggleRelatedLike(rel: { id: string; likes: number }, event: MouseEvent) {
+  async toggleRelatedLike(rel: { id: string; likes: number; isLiked?: boolean }, event: MouseEvent) {
     event.stopPropagation();
     const currentUser = this.supabaseService.user();
     if (!currentUser) return;
@@ -536,6 +536,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       const token = await this.supabaseService.getSessionToken();
       if (!token) return;
       const result = await this.pinService.toggleLike(rel.id, token);
+      rel.isLiked = result.liked;
       rel.likes = result.liked ? (rel.likes || 0) + 1 : Math.max(0, (rel.likes || 0) - 1);
       this.relatedPins.update((current) => [...current]);
     } catch (error) {
@@ -633,6 +634,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
         authorAvatarUrl: p.user?.avatarUrl || null,
         authorPlan: p.user?.plan || 'FREE',
         likes: p._count?.likes ?? 0,
+        isLiked: (p as any).isLiked ?? false,
         isAiGenerated: p.isAiGenerated,
         aspectRatio,
       };
