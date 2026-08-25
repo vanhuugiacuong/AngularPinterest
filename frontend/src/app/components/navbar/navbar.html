@@ -218,12 +218,9 @@
         aria-label="Menu tài khoản"
       >
         <img
-          [src]="
-            user.user_metadata['avatar_url'] ||
-            user.user_metadata['picture'] ||
-            'https://api.dicebear.com/7.x/bottts/svg'
-          "
+          [src]="displayAvatarUrl"
           alt="Avatar"
+          (error)="onAvatarError($event)"
           class="w-8 h-8 rounded-full border border-[#dadad3] dark:border-[#444] object-cover"
         />
         <span
@@ -245,12 +242,9 @@
         <!-- User Card -->
         <div class="flex items-center gap-3.5 rounded-3xl bg-white dark:bg-[#1e1e1e] select-none">
           <img
-            [src]="
-              user.user_metadata['avatar_url'] ||
-              user.user_metadata['picture'] ||
-              'https://api.dicebear.com/7.x/bottts/svg'
-            "
+            [src]="displayAvatarUrl"
             alt="Avatar"
+            (error)="onAvatarError($event)"
             class="w-14 h-14 rounded-full border border-[#dadad3] dark:border-[#444] object-cover"
           />
           <div class="flex-1 min-w-0 flex flex-col justify-center">
@@ -310,10 +304,13 @@
 <!-- Floating capsule nav: height hugs its content (not full viewport). Home only
      navigates; the chevron below it is the sole open/close toggle. The chevron sits
      AFTER the icon panel in the DOM so it visually "flows" below the last icon once
-     the panel expands — no JS position math needed. -->
+     the panel expands — no JS position math needed.
+     left-[6px]: the capsule is 68px wide but its icon buttons are 44px, centered inside
+     it — so the capsule's own left edge has to sit 6px from the viewport, not 24px like
+     the header's px-6, for the icons' center-x to line up with the logo's center-x above. -->
 <nav
   *ngIf="supabaseService.user()"
-  class="nav-capsule fixed left-6 top-[88px] flex flex-col items-center py-3 gap-1"
+  class="nav-capsule fixed left-[6px] top-[88px] flex flex-col items-center py-3 gap-1"
   [class.z-40]="!showSearchDropdown()"
   [class.z-30]="showSearchDropdown()"
 >

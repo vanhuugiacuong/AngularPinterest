@@ -245,6 +245,47 @@ export class Navbar {
     this.loginClick.emit();
   }
 
+  // Set of URLs that failed even after a retry — deliberately NOT written back into the
+  // <img> src imperatively, so displayAvatarUrl (and therefore Angular's own binding)
+  // stays the source of truth. That matters because a raw `img.src = fallback` write
+  // permanently wedges the avatar on the placeholder with no way back: once Angular's
+  // change detection sees a component-level failure signal instead, a later real avatar
+  // change (new upload, dbUser resolving) naturally overrides it again on its own.
+  private avatarLoadFailures = signal<ReadonlySet<string>>(new Set());
+  private avatarRetried = new Set<string>();
+
+  // A URL can fail to load once from a purely transient blip (flaky network, or in dev
+  // a hot-reload tearing down the <img> mid-request) even though it's actually fine —
+  // retry the exact same URL once (cache-busted, since an unchanged src won't re-fetch)
+  // before treating it as truly broken.
+  onAvatarError(event: Event) {
+    const img = event.target as HTMLImageElement;
+    const originalUrl = img.src.split('#__avatar_retry=')[0];
+    if (!this.avatarRetried.has(originalUrl)) {
+      this.avatarRetried.add(originalUrl);
+      img.src = `${originalUrl}#__avatar_retry=${Date.now()}`;
+      return;
+    }
+    this.avatarLoadFailures.update((prev) => new Set(prev).add(originalUrl));
+  }
+
+  // dbUser().avatarUrl reflects avatars uploaded in Settings; Supabase's own
+  // user_metadata only ever holds what the OAuth provider (Google) handed us at
+  // sign-in. Prefer the DB copy so an in-app avatar change shows up here too,
+  // instead of navbar staying stuck on the Google photo (or lack thereof).
+  get displayAvatarUrl(): string {
+    const placeholder = 'https://api.dicebear.com/7.x/bottts/svg';
+    const primary =
+      this.supabaseService.dbUser()?.avatarUrl ||
+      this.supabaseService.user()?.user_metadata?.['avatar_url'] ||
+      this.supabaseService.user()?.user_metadata?.['picture'] ||
+      null;
+    if (!primary || this.avatarLoadFailures().has(primary)) {
+      return placeholder;
+    }
+    return primary;
+  }
+
   onLogoClick() {
     if (this.supabaseService.user()) {
       this.router.navigate(['/feed']);

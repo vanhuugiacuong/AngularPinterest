@@ -15,8 +15,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Pre-download the isnet-general-use model weights to cache them inside the Docker image
-RUN python -c 'from rembg import new_session; new_session("isnet-general-use")'
+# Pre-download the birefnet-general-lite model weights (~224MB) to cache them inside
+# the Docker image, so the container doesn't fetch it on first request at runtime.
+RUN python -c 'from rembg import new_session; new_session("birefnet-general-lite")'
 
 # Copy the application code
 COPY main.py .
