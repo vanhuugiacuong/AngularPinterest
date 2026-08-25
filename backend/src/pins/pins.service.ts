@@ -83,14 +83,14 @@ export class PinsService {
    * actual embedding distribution — tune with real data, don't guess. */
   private readonly imageSearchMinSimilarity = PinsService.parseThreshold(
     process.env.IMAGE_SEARCH_MIN_SIMILARITY,
-    0.75,
+    0.45,
   );
   /** Maximum allowed drop in similarity relative to the best result in the
    * batch — keeps a long tail of "technically above the floor but clearly
    * worse than the top hits" pins out of the results. */
   private readonly imageSearchMaxSimilarityGap = PinsService.parseThreshold(
     process.env.IMAGE_SEARCH_MAX_SIMILARITY_GAP,
-    0.12,
+    0.25,
   );
 
   private static parseThreshold(
