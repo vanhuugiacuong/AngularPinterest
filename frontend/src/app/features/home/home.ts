@@ -8,6 +8,7 @@ import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
 import { UserService, ProfilePin } from '../../core/services/user';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
+import { LikeButton } from '../../shared/like-button/like-button';
 import { ImageSearchStore } from '../../core/services/image-search-store';
 import { ToastService } from '../../core/services/toast';
 import { MembershipService } from '../../core/services/membership';
@@ -31,7 +32,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, Navbar, UserAvatar],
+  imports: [CommonModule, Navbar, UserAvatar, LikeButton],
   templateUrl: './home.html',
   styleUrl: './home.css'
 })
@@ -460,6 +461,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
         authorAvatarUrl: p.user?.avatarUrl || null,
         authorPlan: p.user?.plan || 'FREE',
         likes,
+        isLiked: p.isLiked === true,
         isAiGenerated: p.isAiGenerated,
         category: p.category,
         aspectRatio,
@@ -544,23 +546,48 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     const currentUser = this.supabaseService.user();
     if (!currentUser) return;
 
+    const previousLiked = pin.isLiked === true;
+    const previousLikes = Number(pin.likes) || 0;
+    pin.isLiked = !previousLiked;
+    pin.likes = Math.max(0, previousLikes + (previousLiked ? -1 : 1));
+    pin.likeQueuedToggles = (pin.likeQueuedToggles || 0) + 1;
+    this.pins.update((current) => [...current]);
+
+    await this.flushLikeQueue(pin);
+  }
+
+  private async flushLikeQueue(pin: any): Promise<void> {
+    if (pin.likeSyncing) return;
+    pin.likeSyncing = true;
+
     try {
-      const token = await this.supabaseService.getSessionToken();
-      if (token) {
-        const result = await this.pinService.toggleLike(pin.id, token);
-        console.log('Toggle like result:', result);
-        if (result.liked) {
-          pin.likes = (pin.likes || 0) + 1;
-        } else {
-          if (pin.likes !== undefined) {
-            pin.likes = Math.max(0, pin.likes - 1);
+      while ((pin.likeQueuedToggles || 0) > 0) {
+        pin.likeQueuedToggles--;
+
+        try {
+          const token = await this.supabaseService.getSessionToken();
+          if (!token) throw new Error('Không tìm thấy phiên đăng nhập.');
+
+          const result = await this.pinService.toggleLike(pin.id, token);
+          if (pin.likeQueuedToggles === 0) {
+            pin.isLiked = result.liked;
+            pin.likes = result.likeCount;
           }
+        } catch (error) {
+          const currentLiked = pin.isLiked === true;
+          pin.isLiked = !currentLiked;
+          pin.likes = Math.max(
+            0,
+            (Number(pin.likes) || 0) + (currentLiked ? -1 : 1),
+          );
+          console.error('Error toggling like:', error);
         }
-        // Force Signal updates on template
-        this.pins.update(current => [...current]);
+
+        this.pins.update((current) => [...current]);
       }
-    } catch (error) {
-      console.error('Error toggling like:', error);
+    } finally {
+      pin.likeSyncing = false;
+      this.pins.update((current) => [...current]);
     }
   }
 

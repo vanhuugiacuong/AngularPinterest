@@ -787,16 +787,12 @@
                         <h3>{{ pin.title }}</h3>
                         <span>@{{ pin.user.username }}</span>
                       </div>
-                      <button
-                        type="button"
-                        class="icon-action liked"
-                        (click)="removeFavorite(pin, $event)"
-                        aria-label="Bỏ thích tác phẩm này"
-                        title="Bỏ thích"
-                      >
-                        <span class="material-symbols-outlined">favorite</span>
-                        <span>{{ pin._count.likes }}</span>
-                      </button>
+                      <app-like-button
+                        [liked]="true"
+                        [count]="pin._count.likes"
+                        ariaLabel="Bỏ thích tác phẩm này"
+                        (toggled)="removeFavorite(pin, $event)"
+                      ></app-like-button>
                     </div>
                   </article>
                 }
