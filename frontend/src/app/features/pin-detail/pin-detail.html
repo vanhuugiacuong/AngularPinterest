@@ -431,7 +431,7 @@
                         >
                           <app-user-avatar
                             [src]="comment.user?.avatarUrl"
-                            [name]="comment.user?.username"
+                            [name]="comment.user?.displayName || comment.user?.username"
                             [size]="32"
                             [plan]="comment.user?.plan"
                           ></app-user-avatar>
@@ -444,7 +444,7 @@
                             (click)="navigateToProfile(comment.user?.username)"
                             class="text-xs font-bold text-text truncate bg-transparent border-none p-0 cursor-pointer text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control w-fit"
                           >
-                            {{ comment.user?.username }}
+                            {{ comment.user?.displayName || comment.user?.username }}
                           </button>
                           <p
                             class="text-xs text-text-muted mt-0.5 leading-relaxed break-words whitespace-pre-line"
@@ -535,17 +535,16 @@
                     <div class="flex flex-col gap-3.5 flex-1 min-w-0">
                       @for (
                         rel of getRelatedPinsForColumn(colIndex);
-                        track rel.id;
-                        let i = $index
+                        track rel.id
                       ) {
-                        <div
-                          (click)="navigateToPin(rel.id)"
-                          class="group cursor-pointer flex flex-col mb-1"
-                        >
+                        <!-- Identical card markup to Home's masonry grid (see
+                             home.html) — same frame, hover action strip, and
+                             metadata row, so a related pin looks and behaves
+                             exactly like every other pin card in the app. -->
+                        <div class="group cursor-pointer flex flex-col mb-1">
                           <div
-                            class="relative overflow-hidden bg-surface shadow-card glow-hover"
-                            [class.rounded-frame]="i % 2 === 0"
-                            [class.rounded-frame-alt]="i % 2 !== 0"
+                            (click)="navigateToPin(rel.id)"
+                            class="relative overflow-hidden bg-surface shadow-card glow-hover rounded-frame"
                             [style.aspect-ratio]="rel.aspectRatio || '0.75'"
                           >
                             <img
@@ -555,13 +554,88 @@
                               fetchpriority="low"
                               class="w-full h-full object-cover block transition-transform duration-500 ease-spring group-hover:scale-[1.04]"
                             />
+
+                            @if (rel.isAiGenerated) {
+                              <span class="mono-label absolute top-2.5 left-2.5 z-10 flex items-center gap-1 bg-surface-high/90 border border-border-strong text-accent text-xs font-bold uppercase px-2 py-1 rounded-control pointer-events-none">
+                                <span class="material-symbols-outlined text-[12px] leading-none">auto_awesome</span>
+                                AI
+                              </span>
+                            }
+
                             <div
+                              (click)="$event.stopPropagation()"
                               class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 focus-within:translate-y-0 [@media(hover:none)]:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 flex items-center justify-between gap-2 z-10"
                             >
-                              <span
-                                class="mono-label text-xs text-text-muted truncate max-w-[60%]"
-                                >{{ rel.title }}</span
+                              <div class="relative shrink-0 min-w-0">
+                                <button
+                                  type="button"
+                                  (click)="toggleRelatedBoardDropdown(rel.id, $event)"
+                                  class="flex items-center gap-1 bg-surface-high/95 border border-border-strong text-text px-2.5 py-1.5 rounded-control text-xs font-bold cursor-pointer min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                  [attr.aria-label]="'Lưu ' + rel.title + ' vào bộ sưu tập'"
+                                  aria-haspopup="listbox"
+                                  [attr.aria-expanded]="relatedActiveDropdownPinId() === rel.id"
+                                >
+                                  <span class="material-symbols-outlined text-[14px] leading-none">bookmark_add</span>
+                                  <span class="truncate max-w-[55px]">{{ getRelatedSelectedBoardName(rel.id) }}</span>
+                                  <span class="material-symbols-outlined text-[12px] leading-none">keyboard_arrow_down</span>
+                                </button>
+
+                                @if (relatedActiveDropdownPinId() === rel.id) {
+                                  <div class="absolute left-0 bottom-10 w-44 glass-elevated rounded-panel shadow-card py-1.5 z-[100] text-left" role="listbox">
+                                    <span class="text-xs font-semibold text-text-muted px-3.5 py-1 block">Lưu vào bộ sưu tập</span>
+                                    <div class="max-h-[140px] overflow-y-auto">
+                                      @for (b of boards(); track b.id) {
+                                        <button
+                                          type="button"
+                                          (click)="selectRelatedBoardForPin(rel.id, b, $event)"
+                                          class="w-full text-left px-3.5 py-2 text-xs font-bold text-text hover:bg-surface-elevated cursor-pointer truncate border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                        >
+                                          {{ b.name }}
+                                        </button>
+                                      }
+                                    </div>
+                                  </div>
+                                }
+                              </div>
+
+                              <div class="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  (click)="toggleRelatedLike(rel, $event)"
+                                  class="w-8 h-8 rounded-control bg-surface-high/95 border border-border-strong flex items-center justify-center text-text-muted hover:text-accent transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                  [attr.aria-label]="'Thích ' + rel.title"
+                                >
+                                  <span class="material-symbols-outlined text-[16px] leading-none">favorite</span>
+                                </button>
+                                <button
+                                  (click)="saveRelatedPinToBoard(rel.id, $event)"
+                                  class="h-8 px-3.5 bg-gradient-brand cta-shape text-text-on-accent font-bold text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                >
+                                  Lưu
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div class="px-1 flex flex-col gap-1 w-full min-w-0 mt-2">
+                            <span class="text-xs font-bold text-text truncate">{{ rel.title }}</span>
+                            <div class="flex items-center justify-between gap-2 min-w-0">
+                              <button
+                                type="button"
+                                (click)="$event.stopPropagation(); navigateToProfile(rel.author)"
+                                class="flex items-center gap-1.5 min-w-0 bg-transparent border-none p-0 cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
+                                [attr.aria-label]="'Xem trang cá nhân của ' + rel.author"
                               >
+                                <app-user-avatar [src]="rel.authorAvatarUrl" [name]="rel.author" [size]="18" [ring]="false" [plan]="rel.authorPlan"></app-user-avatar>
+                                <span class="text-xs text-text-muted truncate hover:underline">{{ rel.author }}</span>
+                              </button>
+                              <div class="mono-label flex items-center gap-2 shrink-0 text-xs text-text-muted">
+                                @if (rel.likes) {
+                                  <span class="flex items-center gap-0.5">
+                                    <span class="material-symbols-outlined text-[12px] leading-none text-accent">favorite</span>
+                                    {{ rel.likes }}
+                                  </span>
+                                }
+                              </div>
                             </div>
                           </div>
                         </div>

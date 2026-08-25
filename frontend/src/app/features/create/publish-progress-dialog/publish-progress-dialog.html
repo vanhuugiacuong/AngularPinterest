@@ -1,4 +1,10 @@
-<div *ngIf="open" class="nf-dialog-backdrop" (click)="onBackdropClick()" role="presentation">
+<div
+  *ngIf="open"
+  class="nf-dialog-backdrop"
+  (mousedown)="onBackdropMouseDown($event)"
+  (click)="onBackdropClick($event)"
+  role="presentation"
+>
   <div
     #dialogEl
     (click)="$event.stopPropagation()"

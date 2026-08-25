@@ -19,6 +19,7 @@ function baseViewer(overrides: Partial<ProfileViewerState> = {}): ProfileViewerS
     followRequestStatus: 'NONE',
     canViewFavorites: false,
     canViewPrivateBoards: false,
+    canViewPosts: true,
     messageRequestStatus: 'NONE',
     conversationId: null,
     isBlocked: false,

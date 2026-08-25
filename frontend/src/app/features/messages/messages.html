@@ -369,7 +369,11 @@
   </div>
 
   @if (reportTarget(); as request) {
-    <div class="nf-dialog-backdrop" (click)="closeReportDialog()">
+    <div
+      class="nf-dialog-backdrop"
+      (mousedown)="onBackdropMouseDown($event)"
+      (click)="onReportBackdropClick($event)"
+    >
       <section
         class="nf-dialog-panel text-left"
         role="dialog"

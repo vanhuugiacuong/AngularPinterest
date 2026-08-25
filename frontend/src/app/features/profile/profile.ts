@@ -100,6 +100,15 @@ export class Profile implements OnInit, OnDestroy {
   readonly reportError = signal<string | null>(null);
   reportDetails = '';
 
+  readonly showEditProfileDialog = signal(false);
+  readonly editProfilePending = signal(false);
+  readonly editProfileError = signal<string | null>(null);
+  readonly editAvatarPreviewUrl = signal<string | null>(null);
+  editDisplayName = '';
+  editUsername = '';
+  editBio = '';
+  private editAvatarFile?: File;
+
   private readonly pageSize = 20;
   private routeSubscription?: Subscription;
   private currentUsername = '';
@@ -309,6 +318,13 @@ export class Profile implements OnInit, OnDestroy {
     await this.loadTab(this.activeTab(), true);
   }
 
+  /** Handles all three follow states with one call - the backend decides
+   * whether a click follows immediately (public account), sends/withdraws a
+   * pending FollowRequest (private account), or unfollows, based on the
+   * target's isPrivate flag and any existing Follow/FollowRequest row. The
+   * optimistic update below predicts that same branching client-side using
+   * the isPrivate flag we already have, so the button never flashes the
+   * wrong state while the request is in flight. */
   async toggleFollow() {
     const summary = this.profile();
     if (!summary || summary.viewer.isOwnProfile || this.followPending()) return;
@@ -667,6 +683,167 @@ export class Profile implements OnInit, OnDestroy {
     }
   }
 
+  openEditProfileDialog() {
+    const p = this.profile();
+    if (!p || !p.viewer.isOwnProfile) return;
+    this.dialogReturnFocus = document.activeElement as HTMLElement;
+    this.editDisplayName = p.user.displayName || '';
+    this.editUsername = p.user.username;
+    this.editBio = p.user.bio || '';
+    this.editAvatarFile = undefined;
+    this.releaseAvatarPreview();
+    this.editProfileError.set(null);
+    this.showEditProfileDialog.set(true);
+    setTimeout(() => document.getElementById('edit-profile-display-name')?.focus());
+  }
+
+  closeEditProfileDialog() {
+    if (this.editProfilePending()) return;
+    this.showEditProfileDialog.set(false);
+    this.editProfileError.set(null);
+    this.releaseAvatarPreview();
+    this.restoreDialogFocus();
+  }
+
+  onEditAvatarSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) {
+      this.editProfileError.set('Ảnh đại diện phải là JPG, PNG hoặc WebP.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      this.editProfileError.set('Ảnh đại diện tối đa 5MB.');
+      return;
+    }
+    this.editProfileError.set(null);
+    this.editAvatarFile = file;
+    this.releaseAvatarPreview();
+    this.editAvatarPreviewUrl.set(URL.createObjectURL(file));
+  }
+
+  private releaseAvatarPreview() {
+    const url = this.editAvatarPreviewUrl();
+    if (url) URL.revokeObjectURL(url);
+    this.editAvatarPreviewUrl.set(null);
+  }
+
+  async saveProfileEdits() {
+    const current = this.profile();
+    if (!current || this.editProfilePending()) return;
+
+    const displayName = this.editDisplayName.trim();
+    const username = this.editUsername.trim();
+    const bio = this.editBio.trim();
+    if (displayName.length > 50) {
+      this.editProfileError.set('Tên hiển thị tối đa 50 ký tự.');
+      return;
+    }
+    if (!username) {
+      this.editProfileError.set('Nhập ID cho hồ sơ.');
+      return;
+    }
+    if (!/^[a-zA-Z0-9_.]{3,20}$/.test(username)) {
+      this.editProfileError.set('ID phải từ 3-20 ký tự, chỉ gồm chữ, số, dấu chấm hoặc gạch dưới.');
+      return;
+    }
+    if (bio.length > 280) {
+      this.editProfileError.set('Tiểu sử tối đa 280 ký tự.');
+      return;
+    }
+
+    this.editProfilePending.set(true);
+    this.editProfileError.set(null);
+    try {
+      const token = await this.requireToken();
+      const usernameChanged = username !== current.user.username;
+      // displayName/bio are always sent (even empty, to allow clearing them);
+      // username/avatar are only sent when actually changed, so a save that
+      // only edits the bio never re-triggers ID-uniqueness checks or a
+      // needless avatar re-upload.
+      const updated = await this.userService.updateProfile(
+        {
+          displayName,
+          username: usernameChanged ? username : undefined,
+          bio,
+          avatar: this.editAvatarFile,
+        },
+        token,
+      );
+
+      const dbUser = this.supabaseService.dbUser();
+      if (dbUser) {
+        this.supabaseService.dbUser.set({
+          ...dbUser,
+          username: updated.username,
+          displayName: updated.displayName,
+          bio: updated.bio,
+          avatarUrl: updated.avatarUrl,
+        });
+      }
+
+      this.showEditProfileDialog.set(false);
+      this.releaseAvatarPreview();
+      this.announce('Đã cập nhật hồ sơ.');
+      this.restoreDialogFocus();
+
+      if (usernameChanged) {
+        await this.router.navigate(['/profile', updated.username], { replaceUrl: true });
+      } else {
+        this.updateProfile((p) => ({
+          ...p,
+          user: {
+            ...p.user,
+            displayName: updated.displayName,
+            bio: updated.bio,
+            avatarUrl: updated.avatarUrl,
+          },
+        }));
+      }
+    } catch (error) {
+      this.editProfileError.set(this.errorMessage(error, 'Lỗi máy chủ. Vui lòng thử lại sau.'));
+    } finally {
+      this.editProfilePending.set(false);
+    }
+  }
+
+  /** Tracks where a press on a dialog backdrop started. A dialog must only
+   * close when BOTH the mousedown AND the resulting click landed on the
+   * backdrop itself — checking the click alone isn't enough: dragging to
+   * select text that starts inside the panel (e.g. selecting the ID field
+   * to retype it) and releasing outside the panel gets its `click` event
+   * retargeted by the browser to the nearest common ancestor, which is this
+   * backdrop, since mousedown and mouseup landed on different elements.
+   * Closing is still driven by `click` (not `mousedown` directly) so a
+   * genuine backdrop click behaves like every other click-to-dismiss
+   * control in the app and never interferes with the browser's own
+   * text-selection/drag handling. */
+  private backdropMouseDownTarget: EventTarget | null = null;
+
+  onDialogBackdropMouseDown(event: MouseEvent) {
+    this.backdropMouseDownTarget = event.target;
+  }
+
+  private backdropPressStartedOnBackdrop(event: MouseEvent): boolean {
+    const startedOnBackdrop = this.backdropMouseDownTarget === event.currentTarget;
+    this.backdropMouseDownTarget = null;
+    return startedOnBackdrop && event.target === event.currentTarget;
+  }
+
+  onCreateAlbumBackdropClick(event: MouseEvent) {
+    if (this.backdropPressStartedOnBackdrop(event)) this.closeCreateAlbumModal();
+  }
+
+  onEditProfileBackdropClick(event: MouseEvent) {
+    if (this.backdropPressStartedOnBackdrop(event)) this.closeEditProfileDialog();
+  }
+
+  onReportBackdropClick(event: MouseEvent) {
+    if (this.backdropPressStartedOnBackdrop(event)) this.closeReportDialog();
+  }
+
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent) {
     const target = event.target as HTMLElement;
@@ -680,12 +857,16 @@ export class Profile implements OnInit, OnDestroy {
     if (event.key === 'Escape') {
       if (this.showCreateAlbumModal()) this.closeCreateAlbumModal();
       else if (this.showReportDialog()) this.closeReportDialog();
+      else if (this.showEditProfileDialog()) this.closeEditProfileDialog();
       else if (this.showSafetyMenu()) this.showSafetyMenu.set(false);
       else this.activePostMenu.set(null);
       return;
     }
 
-    if (event.key === 'Tab' && (this.showCreateAlbumModal() || this.showReportDialog())) {
+    if (
+      event.key === 'Tab' &&
+      (this.showCreateAlbumModal() || this.showReportDialog() || this.showEditProfileDialog())
+    ) {
       const dialog = document.querySelector<HTMLElement>('[data-profile-dialog="active"]');
       if (!dialog) return;
       const focusable = Array.from(

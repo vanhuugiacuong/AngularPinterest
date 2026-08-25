@@ -2,11 +2,11 @@
   <app-navbar></app-navbar>
 
   <div class="flex-1 pt-16 flex flex-col min-w-0">
-    <main class="flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col max-w-3xl">
-      <header class="mb-8">
+    <main class="flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6 max-w-5xl">
+      <header>
         <span class="mono-label text-xs text-accent">Cài đặt</span>
         <h1 class="text-2xl font-extrabold text-text mt-1 font-display">Tuỳ chỉnh không gian của bạn</h1>
-        <p class="text-sm text-text-muted mt-1.5">Điều chỉnh cách NovaFrame hiển thị trên thiết bị này.</p>
+        <p class="text-sm text-text-muted mt-1.5">Điều chỉnh cách NovaFrame hiển thị và ai có thể xem nội dung của bạn.</p>
       </header>
 
       <section aria-labelledby="nf-appearance-heading" class="bg-surface border border-border rounded-panel p-5 sm:p-6">
@@ -160,6 +160,53 @@
             {{ payoutSaving() ? 'Đang lưu...' : 'Lưu thông tin nhận thanh toán' }}
           </button>
         </div>
+      </section>
+
+      <section aria-labelledby="nf-privacy-heading" class="bg-surface border border-border rounded-panel p-5 sm:p-6 mt-6">
+        <h2 id="nf-privacy-heading" class="text-lg font-bold text-text font-display">Quyền riêng tư tài khoản</h2>
+        <p class="text-sm text-text-muted mt-1 mb-5">
+          Tài khoản riêng tư chỉ hiển thị tác phẩm và bộ sưu tập công khai cho người bạn đã chấp nhận theo dõi.
+        </p>
+
+        <div class="flex items-center justify-between gap-4 pt-1">
+          <div class="flex flex-col gap-0.5">
+            <span id="nf-privacy-toggle-label" class="text-sm font-bold text-text">
+              {{ isPrivateAccount() ? 'Riêng tư' : 'Công khai' }}
+            </span>
+            <span class="text-xs text-text-muted leading-relaxed">
+              @if (isPrivateAccount()) {
+                Chỉ người theo dõi được bạn chấp nhận mới xem được tác phẩm của bạn.
+              } @else {
+                Bất kỳ ai trên NovaFrame đều có thể xem tác phẩm của bạn.
+              }
+            </span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            data-testid="privacy-toggle-switch"
+            aria-labelledby="nf-privacy-toggle-label"
+            [attr.aria-checked]="isPrivateAccount()"
+            [disabled]="privacyPending()"
+            (click)="togglePrivacy()"
+            [class.bg-gradient-brand]="isPrivateAccount()"
+            [class.bg-surface-elevated]="!isPrivateAccount()"
+            class="w-11 h-6 rounded-full relative border border-border-strong cursor-pointer transition-colors duration-200 shrink-0 disabled:opacity-60 disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            <span
+              class="absolute top-0.5 h-4 w-4 rounded-full bg-text transition-all duration-200"
+              [class.left-[22px]]="isPrivateAccount()"
+              [class.left-0.5]="!isPrivateAccount()"
+            ></span>
+          </button>
+        </div>
+
+        @if (privacyPending()) {
+          <p class="mono-label text-xs text-text-muted mt-4" aria-live="polite">Đang lưu...</p>
+        }
+        @if (privacyError()) {
+          <p class="text-xs text-error mt-4" role="alert">{{ privacyError() }}</p>
+        }
       </section>
 
       <section aria-labelledby="nf-watermark-heading" class="bg-surface border border-border rounded-panel p-5 sm:p-6 mt-6">

@@ -15,8 +15,8 @@
         </div>
       </section>
       <div class="content-skeleton-grid" aria-hidden="true">
-        @for (item of [1, 2, 3, 4, 5, 6, 7, 8]; track item; let i = $index) {
-          <div class="skeleton pin-skeleton" [class.rounded-frame]="i % 2 === 0" [class.rounded-frame-alt]="i % 2 !== 0"></div>
+        @for (item of [1, 2, 3, 4, 5, 6, 7, 8]; track item) {
+          <div class="skeleton pin-skeleton"></div>
         }
       </div>
     } @else if (profileError()) {
@@ -45,7 +45,10 @@
               <span class="signal-dot" aria-hidden="true"></span>
               Hồ sơ sáng tạo
             </div>
-            <h1 id="profile-username">{{ p.user.username }}</h1>
+            <h1 id="profile-username">{{ p.user.displayName || p.user.username }}</h1>
+            @if (p.user.displayName) {
+              <p class="profile-handle">&#64;{{ p.user.username }}</p>
+            }
             @if (p.user.bio) {
               <p class="profile-bio">{{ p.user.bio }}</p>
             } @else if (p.viewer.isOwnProfile) {
@@ -149,6 +152,15 @@
               </div>
             </div>
           } @else {
+            <button
+              type="button"
+              class="primary-action"
+              (click)="openEditProfileDialog()"
+              aria-label="Chỉnh sửa hồ sơ của bạn"
+            >
+              <span class="material-symbols-outlined">edit</span>
+              Chỉnh sửa hồ sơ
+            </button>
             <button
               type="button"
               class="secondary-action"
@@ -306,6 +318,13 @@
         </section>
       }
 
+      @if (!p.viewer.canViewPosts) {
+        <section class="profile-state profile-state-large" role="status">
+          <span class="material-symbols-outlined state-icon">lock</span>
+          <h1>Tài khoản riêng tư</h1>
+          <p>Theo dõi @&#8203;{{ p.user.username }} để xem tác phẩm và bộ sưu tập của họ.</p>
+        </section>
+      } @else {
       <section class="profile-content" aria-label="Nội dung hồ sơ">
         <div
           class="profile-tabs"
@@ -427,13 +446,11 @@
               </div>
             } @else {
               <div class="pin-grid">
-                @for (pin of postsState().items; track pin.id; let i = $index) {
+                @for (pin of postsState().items; track pin.id) {
                   <article class="pin-card">
                     <button
                       type="button"
-                      class="pin-media"
-                      [class.rounded-frame]="i % 2 === 0"
-                      [class.rounded-frame-alt]="i % 2 !== 0"
+                      class="pin-media glow-hover"
                       (click)="navigateToPin(pin.id)"
                       [attr.aria-label]="'Mở tác phẩm ' + pin.title"
                     >
@@ -749,13 +766,11 @@
               </div>
             } @else {
               <div class="pin-grid">
-                @for (pin of favoritesState().items; track pin.id; let i = $index) {
+                @for (pin of favoritesState().items; track pin.id) {
                   <article class="pin-card">
                     <button
                       type="button"
-                      class="pin-media"
-                      [class.rounded-frame]="i % 2 === 0"
-                      [class.rounded-frame-alt]="i % 2 !== 0"
+                      class="pin-media glow-hover"
                       (click)="navigateToPin(pin.id)"
                       [attr.aria-label]="'Mở tác phẩm ' + pin.title"
                     >
@@ -816,6 +831,7 @@
           </div>
         }
       </section>
+      }
     }
   </main>
 
@@ -824,7 +840,11 @@
   </div>
 
   @if (showCreateAlbumModal()) {
-    <div class="nf-dialog-backdrop" (click)="closeCreateAlbumModal()">
+    <div
+      class="nf-dialog-backdrop"
+      (mousedown)="onDialogBackdropMouseDown($event)"
+      (click)="onCreateAlbumBackdropClick($event)"
+    >
       <section
         class="nf-dialog-panel profile-dialog"
         role="dialog"
@@ -917,10 +937,145 @@
     </div>
   }
 
+  @if (showEditProfileDialog() && profile(); as editingProfile) {
+    <div
+      class="nf-dialog-backdrop"
+      (mousedown)="onDialogBackdropMouseDown($event)"
+      (click)="onEditProfileBackdropClick($event)"
+    >
+      <section
+        class="nf-dialog-panel profile-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-profile-title"
+        data-profile-dialog="active"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="dialog-heading">
+          <div>
+            <span class="panel-kicker">Hồ sơ của bạn</span>
+            <h2 id="edit-profile-title">Chỉnh sửa hồ sơ</h2>
+          </div>
+          <button
+            type="button"
+            class="icon-action icon-only"
+            (click)="closeEditProfileDialog()"
+            aria-label="Đóng"
+          >
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <form (ngSubmit)="saveProfileEdits()" class="dialog-form">
+          <!-- Only the small camera badge is the click target (a <label for>
+               pointing at the file input) — the avatar circle and copy text
+               are plain, non-interactive display elements. Wrapping the
+               whole row in one big label made it too easy to accidentally
+               pop the native file picker while just looking at the form. -->
+          <div class="avatar-edit-field">
+            <span class="avatar-edit-preview">
+              @if (editAvatarPreviewUrl(); as previewUrl) {
+                <img [src]="previewUrl" alt="Ảnh đại diện mới" />
+              } @else {
+                <app-user-avatar
+                  [src]="editingProfile.user.avatarUrl"
+                  [name]="editingProfile.user.username"
+                  [size]="72"
+                  [ring]="false"
+                ></app-user-avatar>
+              }
+              <label
+                for="edit-profile-avatar-input"
+                class="avatar-edit-badge"
+                aria-label="Đổi ảnh đại diện"
+              >
+                <span class="material-symbols-outlined" aria-hidden="true">photo_camera</span>
+              </label>
+            </span>
+            <span class="avatar-edit-copy">
+              <strong>Đổi ảnh đại diện</strong>
+              <small>JPG, PNG hoặc WebP, tối đa 5MB.</small>
+            </span>
+            <input
+              id="edit-profile-avatar-input"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              [disabled]="editProfilePending()"
+              (change)="onEditAvatarSelected($event)"
+            />
+          </div>
+
+          <label for="edit-profile-display-name">Tên hiển thị</label>
+          <input
+            id="edit-profile-display-name"
+            name="editDisplayName"
+            type="text"
+            maxlength="50"
+            [(ngModel)]="editDisplayName"
+            [disabled]="editProfilePending()"
+            placeholder="Tên bạn muốn hiển thị"
+          />
+          <small class="dialog-field-hint">Tên hiển thị trên hồ sơ, bình luận... Có thể để trống để dùng ID bên dưới.</small>
+
+          <label for="edit-profile-username">ID/username <span aria-hidden="true">*</span></label>
+          <input
+            id="edit-profile-username"
+            name="editUsername"
+            type="text"
+            maxlength="20"
+            [(ngModel)]="editUsername"
+            [disabled]="editProfilePending()"
+            required
+            placeholder="ten-nguoi-dung"
+          />
+          <small class="dialog-field-hint">3-20 ký tự, chỉ chữ, số, dấu chấm hoặc gạch dưới. Đây là ID duy nhất dùng trong liên kết hồ sơ của bạn.</small>
+
+          <label for="edit-profile-bio">Tiểu sử</label>
+          <textarea
+            id="edit-profile-bio"
+            name="editBio"
+            rows="3"
+            maxlength="280"
+            [(ngModel)]="editBio"
+            [disabled]="editProfilePending()"
+            placeholder="Vài dòng giới thiệu về bạn..."
+          ></textarea>
+
+          @if (editProfileError()) {
+            <p class="form-error" role="alert">{{ editProfileError() }}</p>
+          }
+
+          <div class="dialog-actions">
+            <button
+              type="button"
+              class="secondary-action"
+              (click)="closeEditProfileDialog()"
+              [disabled]="editProfilePending()"
+            >
+              Hủy
+            </button>
+            <button type="submit" class="primary-action" [disabled]="editProfilePending() || !editUsername.trim()">
+              @if (editProfilePending()) {
+                <span class="button-spinner" aria-hidden="true"></span>
+                Đang lưu
+              } @else {
+                Lưu thay đổi
+              }
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  }
+
   <!-- Xóa tác phẩm giờ dùng DialogService dùng chung (xem openDeleteDialog). -->
 
   @if (showReportDialog()) {
-    <div class="nf-dialog-backdrop" (click)="closeReportDialog()">
+    <div
+      class="nf-dialog-backdrop"
+      (mousedown)="onDialogBackdropMouseDown($event)"
+      (click)="onReportBackdropClick($event)"
+    >
       <section
         class="nf-dialog-panel profile-dialog"
         role="dialog"
@@ -1004,8 +1159,8 @@
 
 <ng-template #pinLoading>
   <div class="pin-grid" aria-hidden="true">
-    @for (item of [1, 2, 3, 4, 5, 6, 7, 8]; track item; let i = $index) {
-      <div class="skeleton pin-skeleton" [class.rounded-frame]="i % 2 === 0" [class.rounded-frame-alt]="i % 2 !== 0"></div>
+    @for (item of [1, 2, 3, 4, 5, 6, 7, 8]; track item) {
+      <div class="skeleton pin-skeleton"></div>
     }
   </div>
 </ng-template>

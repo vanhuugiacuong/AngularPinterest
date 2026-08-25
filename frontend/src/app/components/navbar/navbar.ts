@@ -193,8 +193,8 @@ export class Navbar implements OnInit, OnDestroy {
   }
 
   displayName(): string {
-    const dbName = this.supabaseService.dbUser()?.username;
-    if (dbName) return dbName;
+    const dbUser = this.supabaseService.dbUser();
+    if (dbUser) return dbUser.displayName || dbUser.username;
     const user = this.supabaseService.user();
     if (!user) return '';
     return (

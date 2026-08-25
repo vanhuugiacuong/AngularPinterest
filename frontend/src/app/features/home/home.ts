@@ -88,12 +88,19 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
    * one (e.g. fast typing while the results page is live-updating). */
   private searchRequestId = 0;
 
+  /** The viewer's own unique username — the URL-safe identifier, distinct
+   * from displayName() below (free-text, not routable). Only ever use this
+   * one for navigation (e.g. `navigateToProfile`). */
+  public myUsername = computed(() => this.supabaseService.dbUser()?.username || '');
+
   /** Real display name sourced from the backend-synced profile (falls back to
    * OAuth metadata briefly while that sync is in flight) — same resolution
-   * order as Navbar.displayName(). Empty string renders no greeting. */
+   * order as Navbar.displayName(). Empty string renders no greeting. Display
+   * text only — never pass this to navigateToProfile(), it is not a valid
+   * username once the person has set a custom display name. */
   public displayName = computed(() => {
-    const dbName = this.supabaseService.dbUser()?.username;
-    if (dbName) return dbName;
+    const dbUser = this.supabaseService.dbUser();
+    if (dbUser) return dbUser.displayName || dbUser.username;
     const user = this.supabaseService.user();
     if (!user) return '';
     return (
@@ -584,7 +591,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     if (list.length > 0) {
       return list[0].name;
     }
-    return 'Hồ sơ';
+    return 'Lưu vào';
   }
 
   savePinToBoard(pinId: string, event: MouseEvent) {
@@ -608,7 +615,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
 
       if (!boardId) {
         const newBoard = await this.boardService.createBoard(
-          'Hồ sơ',
+          'Bộ sưu tập của tôi',
           'Bộ sưu tập lưu mặc định',
           false,
           token

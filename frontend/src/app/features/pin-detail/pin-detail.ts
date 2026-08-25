@@ -123,8 +123,8 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   }
 
   myDisplayName(): string {
-    const dbName = this.supabaseService.dbUser()?.username;
-    if (dbName) return dbName;
+    const dbUser = this.supabaseService.dbUser();
+    if (dbUser) return dbUser.displayName || dbUser.username;
     const user = this.supabaseService.user();
     if (!user) return '';
     return (
@@ -480,7 +480,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     if (list.length > 0) {
       return list[0].name;
     }
-    return 'Hồ sơ';
+    return 'Lưu vào';
   }
 
   async savePinToBoard() {
@@ -500,7 +500,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
       if (!boardId) {
         const newBoard = await this.boardService.createBoard(
-          'Hồ sơ',
+          'Bộ sưu tập của tôi',
           'Bộ sưu tập lưu mặc định',
           false,
           token,
@@ -515,6 +515,89 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       console.error('Error saving pin to board:', error);
       this.toast.error('Không thể lưu ảnh vào bộ sưu tập.', {
         action: { label: 'Thử lại', onClick: () => this.savePinToBoard() },
+      });
+    }
+  }
+
+  /** Per-related-pin like/save state — mirrors Home's own toggleLike/
+   * toggleBoardDropdown/selectBoardForPin/savePinToBoard exactly (same
+   * default board name, same toast/error pattern) so the related-pins strip
+   * behaves and looks identical to every other pin grid in the app, not a
+   * stripped-down hover-only preview. */
+  public relatedActiveDropdownPinId = signal<string | null>(null);
+  public relatedSelectedBoardMap = signal<Record<string, Board>>({});
+
+  async toggleRelatedLike(rel: { id: string; likes: number }, event: MouseEvent) {
+    event.stopPropagation();
+    const currentUser = this.supabaseService.user();
+    if (!currentUser) return;
+
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (!token) return;
+      const result = await this.pinService.toggleLike(rel.id, token);
+      rel.likes = result.liked ? (rel.likes || 0) + 1 : Math.max(0, (rel.likes || 0) - 1);
+      this.relatedPins.update((current) => [...current]);
+    } catch (error) {
+      console.error('Error toggling like:', error);
+    }
+  }
+
+  toggleRelatedBoardDropdown(pinId: string, event: MouseEvent) {
+    event.stopPropagation();
+    this.relatedActiveDropdownPinId.update((current) => (current === pinId ? null : pinId));
+  }
+
+  selectRelatedBoardForPin(pinId: string, board: Board, event: MouseEvent) {
+    event.stopPropagation();
+    this.relatedSelectedBoardMap.update((current) => ({ ...current, [pinId]: board }));
+    this.relatedActiveDropdownPinId.set(null);
+  }
+
+  getRelatedSelectedBoardName(pinId: string): string {
+    const selected = this.relatedSelectedBoardMap()[pinId];
+    if (selected) return selected.name;
+    const list = this.boards();
+    if (list.length > 0) return list[0].name;
+    return 'Lưu vào';
+  }
+
+  saveRelatedPinToBoard(pinId: string, event: MouseEvent) {
+    event.stopPropagation();
+    void this.performSaveRelatedToBoard(pinId);
+  }
+
+  private async performSaveRelatedToBoard(pinId: string): Promise<void> {
+    const currentUser = this.supabaseService.user();
+    if (!currentUser) return;
+
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (!token) return;
+
+      let boardId = this.relatedSelectedBoardMap()[pinId]?.id;
+
+      if (!boardId && this.boards().length > 0) {
+        boardId = this.boards()[0].id;
+      }
+
+      if (!boardId) {
+        const newBoard = await this.boardService.createBoard(
+          'Bộ sưu tập của tôi',
+          'Bộ sưu tập lưu mặc định',
+          false,
+          token,
+        );
+        this.boards.update((current) => [newBoard, ...current]);
+        boardId = newBoard.id;
+      }
+
+      await this.boardService.addPinToBoard(boardId, pinId, token);
+      this.toast.success('Đã lưu vào bộ sưu tập');
+    } catch (error) {
+      console.error('Error saving pin to board:', error);
+      this.toast.error('Không thể lưu ảnh vào bộ sưu tập.', {
+        action: { label: 'Thử lại', onClick: () => void this.performSaveRelatedToBoard(pinId) },
       });
     }
   }
@@ -547,7 +630,10 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
         title: p.title,
         image: p.imageUrl,
         author: p.user?.username || 'NovaFrame AI',
+        authorAvatarUrl: p.user?.avatarUrl || null,
+        authorPlan: p.user?.plan || 'FREE',
         likes: p._count?.likes ?? 0,
+        isAiGenerated: p.isAiGenerated,
         aspectRatio,
       };
     });

@@ -60,6 +60,9 @@ export class Settings implements OnInit {
   protected payoutSaving = signal(false);
   protected payoutError = signal('');
   protected payoutSaved = signal(false);
+
+  protected privacyPending = signal(false);
+  protected privacyError = signal('');
   protected previewPinId = signal<string | null>(null);
   protected previewUrl = signal<string | null>(null);
   protected previewLoading = signal(false);
@@ -294,6 +297,29 @@ export class Settings implements OnInit {
       await this.watermark.update(preset.id, { name: preset.name, type: preset.type, isDefault: true });
     } catch (e) {
       this.formError.set(e instanceof Error ? e.message : 'Không thể đặt mặc định.');
+    }
+  }
+
+  isPrivateAccount(): boolean {
+    return this.supabaseService.dbUser()?.isPrivate === true;
+  }
+
+  async togglePrivacy(): Promise<void> {
+    if (this.privacyPending()) return;
+    const current = this.supabaseService.dbUser();
+    if (!current) return;
+    const nextValue = !current.isPrivate;
+    this.privacyPending.set(true);
+    this.privacyError.set('');
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (!token) throw new Error('Phiên đăng nhập đã hết hạn.');
+      const result = await this.userService.updatePrivacy(nextValue, token);
+      this.supabaseService.dbUser.set({ ...current, isPrivate: result.isPrivate });
+    } catch (e) {
+      this.privacyError.set(e instanceof Error ? e.message : 'Không thể cập nhật quyền riêng tư.');
+    } finally {
+      this.privacyPending.set(false);
     }
   }
 

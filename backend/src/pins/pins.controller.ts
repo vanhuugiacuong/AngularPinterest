@@ -37,52 +37,70 @@ export class PinsController {
   }
 
   @Get('search')
+  @UseGuards(OptionalSupabaseAuthGuard)
   async searchPins(
+    @CurrentUser() user: UserPayload | undefined,
     @Query('q') query: string,
     @Query('page') page: string,
     @Query('limit') limit: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
-    return this.pinsService.searchPins(query || '', pageNum, limitNum);
+    return this.pinsService.searchPins(
+      query || '',
+      pageNum,
+      limitNum,
+      user?.id,
+    );
   }
 
   @Post('search-by-image')
+  @UseGuards(OptionalSupabaseAuthGuard)
   @UseInterceptors(
     FileInterceptor('image', {
       limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit, matches pin upload
     }),
   )
   async searchPinsByImage(
+    @CurrentUser() user: UserPayload | undefined,
     @UploadedFile() file: Express.Multer.File,
     @Query('page') page: string,
     @Query('limit') limit: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
-    return this.pinsService.searchPinsByImage(file, pageNum, limitNum);
+    return this.pinsService.searchPinsByImage(
+      file,
+      pageNum,
+      limitNum,
+      user?.id,
+    );
   }
 
   @Get(':id/similar')
+  @UseGuards(OptionalSupabaseAuthGuard)
   async getSimilarPins(
+    @CurrentUser() user: UserPayload | undefined,
     @Param('id') id: string,
     @Query('page') page: string,
     @Query('limit') limit: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
-    return this.pinsService.getSimilarPins(id, pageNum, limitNum);
+    return this.pinsService.getSimilarPins(id, pageNum, limitNum, user?.id);
   }
 
   @Get(':id/related')
+  @UseGuards(OptionalSupabaseAuthGuard)
   async getRelatedPins(
+    @CurrentUser() user: UserPayload | undefined,
     @Param('id') id: string,
     @Query('page') page: string,
     @Query('limit') limit: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
-    return this.pinsService.getSimilarPins(id, pageNum, limitNum);
+    return this.pinsService.getSimilarPins(id, pageNum, limitNum, user?.id);
   }
 
   /** Same-origin proxy for a pin's own stored image. Used by the pin-detail
@@ -93,7 +111,8 @@ export class PinsController {
    * file for this specific pin id — no arbitrary-URL fetch/SSRF surface. */
   @Get(':id/image-proxy')
   async proxyPinImage(@Param('id') id: string, @Res() res: Response) {
-    const { buffer, contentType } = await this.pinsService.getPinImageForProxy(id);
+    const { buffer, contentType } =
+      await this.pinsService.getPinImageForProxy(id);
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=3600');
     res.send(buffer);

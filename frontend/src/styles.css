@@ -62,19 +62,19 @@
     0 18px 34px -16px color-mix(in srgb, var(--color-nova-blue) 32%, transparent),
     0 0 30px -10px color-mix(in srgb, var(--color-iris-violet) 30%, transparent);
 
-  --font-display:
-    "Be Vietnam Pro", "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* One typeface across the whole UI. The three tokens are kept so callers
+     keep expressing intent (display / body / metadata) — they just resolve to
+     the same family now. */
   --font-sans:
     "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono:
-    "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-display: var(--font-sans);
+  --font-mono: var(--font-sans);
 
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-trace: cubic-bezier(0.4, 0, 0.2, 1);
 
   --animate-fade-in: fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   --animate-slide-in: slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  --animate-shimmer: shimmer 1.8s ease-in-out infinite;
   --animate-drift: drift 16s ease-in-out infinite;
   --animate-frame-split: frame-split 0.7s var(--ease-spring) both;
   --animate-trace-sweep: trace-sweep 1.1s var(--ease-trace);
@@ -98,15 +98,6 @@
     to {
       opacity: 1;
       transform: translateX(0);
-    }
-  }
-
-  @keyframes shimmer {
-    from {
-      background-position: -200% 0;
-    }
-    to {
-      background-position: 200% 0;
     }
   }
 
@@ -276,66 +267,55 @@
 }
 
 /* NovaFrame signature — soft glow lift for image frames / cards on hover */
+/* Transform-only (compositor-friendly) hover lift — deliberately does not
+   animate box-shadow/border-color here anymore. Those properties force a
+   repaint on every frame instead of running on the compositor thread, which
+   is what made scrolling a card grid with many of these feel janky when
+   the pointer crossed several cards in quick succession. */
 @utility glow-hover {
-  transition:
-    transform 0.35s var(--ease-spring),
-    box-shadow 0.35s ease,
-    border-color 0.3s ease;
+  transition: transform 0.25s var(--ease-trace);
 
   &:hover {
     transform: translateY(-3px);
-    box-shadow: var(--shadow-glow-soft);
   }
 }
 
-/* NovaFrame signature — primary CTA shape: soft asymmetric radius, gentle spring on hover */
+/* NovaFrame signature — primary CTA shape: soft asymmetric radius (static —
+   no longer morphs on hover, since animating border-radius forces a repaint
+   every frame and was a real source of jank on buttons used throughout the
+   app). Hover feedback stays to a compositor-only transform. */
 @utility cta-shape {
   border-radius: var(--radius-cta);
-  transition:
-    border-radius 0.35s var(--ease-spring),
-    transform 0.35s var(--ease-spring),
-    box-shadow 0.35s var(--ease-spring);
   box-shadow: 0 6px 20px -10px color-mix(in srgb, var(--color-iris-violet) 45%, transparent);
+  transition: transform 0.2s var(--ease-trace);
 
   &:hover {
-    border-radius: 26px 10px 26px 14px;
-    transform: translateY(-2px) scale(1.02);
-    box-shadow:
-      0 12px 32px -8px color-mix(in srgb, var(--color-iris-violet) 50%, transparent),
-      0 0 24px color-mix(in srgb, var(--color-studio-aqua) 26%, transparent);
+    transform: translateY(-2px);
   }
 
   &:active {
-    transform: translateY(0) scale(0.97);
+    transform: translateY(0);
   }
 }
 
-/* Monospace "creative workspace" metadata readout — reserved for genuine
-   metadata (timestamps, counts, status codes), never generic UI labels. */
+/* Metadata readout — reserved for genuine metadata (timestamps, counts,
+   status codes), never generic UI labels. Now set in Inter like the rest of
+   the UI; tabular figures keep digits column-aligned the way the previous
+   monospace face did. */
 @utility mono-label {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
 }
 
 /* Shimmer skeleton — replaces flat pulse for a more polished loading feel */
+/* Static — no longer animates. A masonry grid can show dozens of these at
+   once while a page loads/scrolls, and each one running its own infinite
+   background-position shimmer was a real, broadly-felt source of jank
+   (every one of them repaints every frame, all at the same time). A flat
+   surface color still reads clearly as "loading" without the cost. */
 @utility skeleton {
-  position: relative;
-  overflow: hidden;
   background-color: var(--color-surface-elevated);
-
-  &::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      100deg,
-      transparent 30%,
-      color-mix(in srgb, var(--color-studio-aqua) 12%, transparent) 50%,
-      transparent 70%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.8s ease-in-out infinite;
-  }
 }
 
 /* NovaFrame signature — "Split Aperture Frame": a thin light trace along the
@@ -429,19 +409,18 @@ select {
   color: var(--color-text-on-accent);
 }
 
-:focus-visible {
-  outline: 2px solid var(--color-nova-blue);
-  outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+/* Layered (not a bare global rule) so component/utility focus treatments —
+   Tailwind's `outline-none`, `focus-visible:ring-*`, and bespoke rules like
+   .nf-search's focus-sweep underline — can win over this default the way
+   their specificity/order already implies. An unlayered rule here would
+   always beat every layered utility regardless of specificity, which is
+   what caused the stray blue outline box to render on top of intentional
+   focus styles (e.g. the navbar search pill) even though those elements
+   already had their own outline-none/ring. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-nova-blue);
+    outline-offset: 2px;
   }
 }
 

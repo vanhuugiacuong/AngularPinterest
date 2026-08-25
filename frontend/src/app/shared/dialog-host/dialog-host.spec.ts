@@ -124,7 +124,7 @@ describe('DialogHost', () => {
     await expect(result).resolves.toBe(false);
   });
 
-  it('closes on backdrop click but ignores clicks inside the panel', async () => {
+  it('closes on a genuine backdrop click, but ignores a text-selection drag that starts in the panel', async () => {
     const fixture = TestBed.createComponent(DialogHost);
     fixture.detectChanges();
 
@@ -136,13 +136,25 @@ describe('DialogHost', () => {
     });
     fixture.detectChanges();
 
+    const backdrop = fixture.nativeElement.querySelector('.nf-dialog-backdrop') as HTMLElement;
     const panel = fixture.nativeElement.querySelector('.nf-dialog-panel') as HTMLElement;
-    panel.click();
+
+    // Regression test: a text-selection drag that starts inside the panel
+    // (e.g. selecting the description to copy it) and is released outside
+    // it makes the browser retarget the resulting `click` event to the
+    // nearest common ancestor of the mousedown/mouseup targets — this
+    // backdrop — even though the press itself started on the panel. Since
+    // the *mousedown* target (panel) doesn't match the backdrop, dismissal
+    // must not fire even though the retargeted click's target is the
+    // backdrop.
+    panel.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    backdrop.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     fixture.detectChanges();
     expect(dialogService.current()).not.toBeNull();
 
-    const backdrop = fixture.nativeElement.querySelector('.nf-dialog-backdrop') as HTMLElement;
-    backdrop.click();
+    // A genuine press-and-click that both start on the backdrop itself closes it.
+    backdrop.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    backdrop.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
     await expect(result).resolves.toBe(false);
   });

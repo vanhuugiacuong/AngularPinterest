@@ -6,8 +6,11 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { SupabaseAuthGuard } from '../supabase/supabase.guard';
 import { OptionalSupabaseAuthGuard } from '../supabase/optional-supabase.guard';
@@ -21,10 +24,47 @@ export class UsersController {
   @UseGuards(SupabaseAuthGuard)
   async syncUser(
     @CurrentUser() user: UserPayload,
-    @Body('username') username?: string,
+    // Historically named "username" in the request body (frontend still
+    // sends it that way) but it's really the OAuth display name — syncUser()
+    // derives a proper unique `username` slug from it and stores this raw
+    // value as `displayName`.
+    @Body('username') displayName?: string,
     @Body('avatarUrl') avatarUrl?: string,
   ) {
-    return this.usersService.syncUser(user.id, user.email, username, avatarUrl);
+    return this.usersService.syncUser(
+      user.id,
+      user.email,
+      displayName,
+      avatarUrl,
+    );
+  }
+
+  @Patch('me')
+  @UseGuards(SupabaseAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('avatar', { limits: { fileSize: 5 * 1024 * 1024 } }),
+  )
+  async updateMyProfile(
+    @CurrentUser() user: UserPayload,
+    @UploadedFile() avatar?: Express.Multer.File,
+    @Body('displayName') displayName?: string,
+    @Body('username') username?: string,
+    @Body('bio') bio?: string,
+  ) {
+    return this.usersService.updateProfile(
+      user.id,
+      { displayName, username, bio },
+      avatar,
+    );
+  }
+
+  @Patch('me/privacy')
+  @UseGuards(SupabaseAuthGuard)
+  async updateMyPrivacy(
+    @CurrentUser() user: UserPayload,
+    @Body('isPrivate') isPrivate: boolean,
+  ) {
+    return this.usersService.updatePrivacy(user.id, isPrivate === true);
   }
 
   @Get('me/favorites')
@@ -46,6 +86,12 @@ export class UsersController {
     @Query('limit') limit?: string,
   ) {
     return this.usersService.getPrivateBoards(user.id, page, limit);
+  }
+
+  @Get('me/follow-requests')
+  @UseGuards(SupabaseAuthGuard)
+  async getIncomingFollowRequests(@CurrentUser() user: UserPayload) {
+    return this.usersService.listIncomingFollowRequests(user.id);
   }
 
   @Get(':username/posts')
@@ -74,10 +120,7 @@ export class UsersController {
   // matches a literal request for "/api/users/search" against ':username'
   // and treats "search" as a username instead of routing here.
   @Get('search')
-  async searchUsers(
-    @Query('q') query: string,
-    @Query('limit') limit?: string,
-  ) {
+  async searchUsers(@Query('q') query: string, @Query('limit') limit?: string) {
     return this.usersService.searchUsers(query || '', limit);
   }
 
