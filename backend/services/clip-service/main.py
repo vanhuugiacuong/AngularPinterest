@@ -63,6 +63,34 @@ async def embed_text(query: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Text embedding failed: {str(e)}")
 
+
+# Zero-shot animal detection reusing the CLIP model already loaded above —
+# compares the image's embedding against a "contains an animal" prompt and
+# a "no animal" prompt, no extra model/weights needed.
+ANIMAL_PROMPT = "a photo of an animal, pet, or wildlife"
+NO_ANIMAL_PROMPT = "a photo with no animal, only people or objects"
+
+@app.post("/detect/animal")
+async def detect_animal(file: UploadFile = File(...)):
+    try:
+        image_bytes = await file.read()
+        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+
+        inputs = processor(
+            text=[ANIMAL_PROMPT, NO_ANIMAL_PROMPT],
+            images=image,
+            return_tensors="pt",
+            padding=True,
+        )
+        with torch.no_grad():
+            outputs = model(**inputs)
+            probs = outputs.logits_per_image.softmax(dim=1)[0]
+
+        animal_score = probs[0].item()
+        return {"hasAnimal": animal_score >= 0.5, "animalScore": animal_score}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Animal detection failed: {str(e)}")
+
 if __name__ == "__main__":
     # pyrefly: ignore [missing-import]
     import uvicorn

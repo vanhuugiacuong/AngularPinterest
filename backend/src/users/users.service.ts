@@ -58,6 +58,16 @@ export class UsersService {
         boards: {
           where: { isSecret: false },
           orderBy: { createdAt: 'desc' },
+          include: {
+            boardPins: {
+              orderBy: { addedAt: 'desc' },
+              include: {
+                pin: {
+                  select: { imageUrl: true },
+                },
+              },
+            },
+          },
         },
         _count: {
           select: {

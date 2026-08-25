@@ -11,7 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Pre-download the CLIP model weights to cache them inside the Docker image
+# Pre-download the CLIP model weights to cache them inside the Docker image,
+# so a fresh container (e.g. a HuggingFace Space rebuild) starts serving
+# immediately instead of downloading on first request.
 RUN python -c 'from transformers import CLIPProcessor, CLIPModel; \
     CLIPModel.from_pretrained("openai/clip-vit-base-patch32"); \
     CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")'
@@ -19,9 +21,11 @@ RUN python -c 'from transformers import CLIPProcessor, CLIPModel; \
 # Copy the application code
 COPY main.py .
 
-EXPOSE 8001
+# 7860 is HuggingFace Spaces' default container port for Docker SDK Spaces.
+# Local docker-compose.yml overrides PORT=8001 so nothing else needs to change.
+EXPOSE 7860
 
-ENV PORT=8001
+ENV PORT=7860
 ENV PYTHONUNBUFFERED=1
 
 CMD ["python", "main.py"]

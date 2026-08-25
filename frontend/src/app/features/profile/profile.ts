@@ -6,6 +6,7 @@ import { UserService } from '../../core/services/user';
 import { BoardService } from '../../core/services/board';
 import { SupabaseService } from '../../core/services/supabase';
 import { ToastService } from '../../core/services/toast';
+import { ChatService } from '../../core/services/chat';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -21,7 +22,9 @@ export class Profile implements OnInit {
   private userService = inject(UserService);
   private boardService = inject(BoardService);
   private toastService = inject(ToastService);
+  private chatService = inject(ChatService);
   public supabaseService = inject(SupabaseService);
+  public messagingUser = signal(false);
 
   public userProfile = signal<any | null>(null);
   public isLoading = signal<boolean>(true);
@@ -174,6 +177,32 @@ export class Profile implements OnInit {
       }
     } catch (error) {
       console.error('Error toggling follow:', error);
+    }
+  }
+
+  async shareProfile() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      this.toastService.success('Đã sao chép liên kết hồ sơ!');
+    } catch (error) {
+      console.error('Error copying profile link:', error);
+    }
+  }
+
+  async messageUser() {
+    const profile = this.userProfile();
+    if (!profile || this.isMyProfile() || this.messagingUser()) return;
+
+    this.messagingUser.set(true);
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (!token) throw new Error('Phiên đăng nhập đã hết hạn.');
+      const conversation = await this.chatService.openDirectConversation(profile.id, token);
+      this.router.navigate(['/chat', conversation.id]);
+    } catch (error) {
+      this.toastService.error(error instanceof Error ? error.message : 'Không thể mở cuộc trò chuyện.');
+    } finally {
+      this.messagingUser.set(false);
     }
   }
 }

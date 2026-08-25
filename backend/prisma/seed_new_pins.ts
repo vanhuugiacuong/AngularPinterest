@@ -10,7 +10,7 @@ if (!connectionString) {
   console.error('DATABASE_URL is not set in environment variables.');
   process.exit(1);
 }
-
+// test thành công
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
