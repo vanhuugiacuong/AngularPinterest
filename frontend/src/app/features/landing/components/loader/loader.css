@@ -330,7 +330,10 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+/* Only collapse the loader on displays that genuinely cannot animate (for
+   example e-ink). A normal Windows display may report reduced motion when
+   window animations are disabled; it should still receive the landing film. */
+@media (prefers-reduced-motion: reduce) and (update: none) {
   .nf-loader__streams {
     inset: 8vh 12vw;
     display: grid;
