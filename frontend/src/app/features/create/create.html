@@ -166,8 +166,12 @@
 
             <p class="text-[11px] text-text-muted flex items-center gap-1" *ngIf="membership.status() as m">
               <span class="material-symbols-outlined text-sm leading-none">bolt</span>
-              Còn <strong class="text-text">{{ m.aiRemaining }}/{{ m.aiLimit }}</strong> lượt tạo AI hôm nay
-              <span *ngIf="m.aiRemaining === 0"> · Làm mới lúc {{ m.aiResetAt | date:'HH:mm' }}</span>
+              @if (m.aiLimit === null) {
+                <strong class="text-text">Tạo AI không giới hạn</strong>
+              } @else {
+                Còn <strong class="text-text">{{ m.aiRemaining }}/{{ m.aiLimit }}</strong> lượt tạo AI hôm nay
+                <span *ngIf="m.aiRemaining === 0"> · Làm mới lúc {{ m.aiResetAt | date:'HH:mm' }}</span>
+              }
             </p>
 
             <!-- Action button for AI -->
@@ -236,11 +240,12 @@
               ></textarea>
             </div>
 
-            <!-- Hình thức bán — chỉ ở tab Upload, chỉ khi gói cho phép bán (Pro) -->
+            <!-- PLUS/PRO được bán giá cố định; đấu giá là đặc quyền PRO. -->
             <div *ngIf="activeTab() === 'upload' && membership.status()?.canSell" class="flex flex-col gap-3">
               <label class="text-xs font-bold text-text-muted" id="listingModeLabel">Hình thức bán</label>
               <div class="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="listingModeLabel">
                 <button
+                  *ngIf="membership.status()?.canAuction"
                   type="button"
                   role="radio"
                   [attr.aria-checked]="listingMode === 'none'"
@@ -307,9 +312,9 @@
                 </div>
               }
 
-              <span class="text-[10px] text-text-muted">Quyền riêng của gói Pro.</span>
+              <span class="text-[10px] text-text-muted">Plus mở lối kinh doanh với giá cố định · Pro sở hữu đặc quyền đấu giá.</span>
             </div>
-            <a *ngIf="activeTab() === 'upload' && !membership.status()?.canSell" href="/pricing" class="text-xs text-accent">Nâng cấp Pro để đặt giá và bán ảnh</a>
+            <a *ngIf="activeTab() === 'upload' && !membership.status()?.canSell" href="/pricing" class="text-xs text-accent">Nâng cấp Plus để bắt đầu kinh doanh tác phẩm</a>
             @if (activeTab() === 'ai') {
               <p class="text-[10px] text-text-muted">Bán và đấu giá chưa hỗ trợ cho ảnh AI ở phiên bản này.</p>
             }

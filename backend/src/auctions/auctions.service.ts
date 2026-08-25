@@ -173,8 +173,8 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
     const isOwner = viewerId === auction.sellerId;
     if (!isOwner) {
       const viewerPlan = viewerId ? (await this.memberships.status(viewerId)).plan : 'FREE';
-      if (viewerPlan !== 'PLUS' && viewerPlan !== 'PRO') {
-        throw new ForbiddenException('Nâng cấp gói để xem chi tiết và trao đổi với chủ sở hữu.');
+      if (viewerPlan !== 'PRO') {
+        throw new ForbiddenException('Chỉ thành viên Pro mới có thể xem chi tiết tác phẩm đấu giá.');
       }
     }
 
@@ -255,8 +255,8 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
       }
 
       const bidderStatus = await this.memberships.status(bidderId);
-      if (bidderStatus.plan !== 'PLUS' && bidderStatus.plan !== 'PRO') {
-        throw new ForbiddenException('Chỉ thành viên Plus hoặc Pro mới có thể đặt giá.');
+      if (bidderStatus.plan !== 'PRO') {
+        throw new ForbiddenException('Chỉ thành viên Pro mới có thể đặt giá.');
       }
 
       const minAcceptable =

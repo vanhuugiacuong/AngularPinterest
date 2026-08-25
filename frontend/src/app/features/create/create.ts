@@ -304,7 +304,7 @@ export class Create implements OnInit {
     // saveAiPin() phía backend (trừ quota nguyên tử khi lưu, không thể bị
     // bỏ qua bằng cách gọi thẳng Pollinations rồi chỉ submit form).
     const remaining = this.membership.status()?.aiRemaining;
-    if (remaining !== undefined && remaining <= 0) {
+    if (remaining !== undefined && remaining !== null && remaining <= 0) {
       this.formError.set('Bạn đã hết lượt tạo AI hôm nay.');
       return;
     }
@@ -434,7 +434,7 @@ export class Create implements OnInit {
       return;
     }
 
-    if (this.listingMode === 'auction' && this.membership.status()?.canSell) {
+    if (this.listingMode === 'auction' && this.membership.status()?.canAuction) {
       const auctionValidationError = this.validateAuctionFields();
       if (auctionValidationError) {
         this.formError.set(auctionValidationError);
@@ -483,7 +483,7 @@ export class Create implements OnInit {
       // Tạo phiên đấu giá là bước JSON riêng sau khi pin (multipart) đã đăng
       // thành công — nếu bước này lỗi, pin vẫn tồn tại, chỉ báo rõ cho người
       // dùng thay vì âm thầm bỏ qua hoặc làm mất ảnh đã đăng.
-      if (this.listingMode === 'auction' && this.membership.status()?.canSell) {
+      if (this.listingMode === 'auction' && this.membership.status()?.canAuction) {
         try {
           await this.auctionService.create({
             pinId: createdPin.id,

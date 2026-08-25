@@ -34,7 +34,7 @@ import { buildVietQrUrl } from '../../core/utils/vietqr';
 /** Phải khớp chính xác với thông báo ForbiddenException của
  * PinsService.getPinById ở backend — dùng để phân biệt "cần nâng cấp gói"
  * với các lỗi tải pin khác (404, mất mạng...). */
-const UPGRADE_REQUIRED_MESSAGE = 'Nâng cấp gói để xem chi tiết và trao đổi với chủ sở hữu.';
+const UPGRADE_REQUIRED_MESSAGE = 'Chỉ thành viên Pro mới có thể xem chi tiết tác phẩm đấu giá.';
 
 @Component({
   selector: 'app-pin-detail',
@@ -356,7 +356,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   private async handleUpgradeRequired(): Promise<void> {
     const goToPricing = await this.dialogService.confirm({
       variant: 'information',
-      title: 'Nâng cấp gói để xem chi tiết',
+      title: 'Cần gói Pro để xem đấu giá',
       description: UPGRADE_REQUIRED_MESSAGE,
       confirmLabel: 'Xem các gói',
       cancelLabel: 'Để sau',
@@ -372,8 +372,17 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     this.router.navigate(['/feed']);
   }
 
-  navigateToPin(pinId: string) {
-    this.router.navigate(['/pin', pinId]);
+  navigateToPin(pinOrId: string | { id: string; listingType?: string }) {
+    const pin = typeof pinOrId === 'string' ? null : pinOrId;
+    if (pin?.listingType === 'AUCTION' && this.myPlan() !== 'PRO') {
+      void this.handleUpgradeRequired();
+      return;
+    }
+    this.router.navigate(['/pin', typeof pinOrId === 'string' ? pinOrId : pinOrId.id]);
+  }
+
+  isAuctionRestricted(pin: { listingType?: string }): boolean {
+    return pin.listingType === 'AUCTION' && this.myPlan() !== 'PRO';
   }
 
   /** Receives real CLIP matches from the region selector and swaps only the
@@ -635,6 +644,8 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
         likes: p._count?.likes ?? 0,
         isAiGenerated: p.isAiGenerated,
         aspectRatio,
+        listingType: p.listingType ?? 'NONE',
+        auction: p.auction ?? null,
       };
     });
   }
@@ -780,7 +791,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     if (!a || a.status !== 'ACTIVE') return false;
     if (this.isAuctionOwner()) return false;
     const plan = this.membership.status()?.plan;
-    return plan === 'PLUS' || plan === 'PRO';
+    return plan === 'PRO';
   }
 
   async submitBid(): Promise<void> {

@@ -496,25 +496,29 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     return '';
   }
 
-  /** true khi cần chặn mở chi tiết và hiện dialog nâng cấp thay vì điều
-   * hướng — chủ sở hữu luôn được mở, Plus/Pro còn hiệu lực luôn được mở.
+  /** Chỉ khóa tác phẩm đấu giá cho người xem không có gói Pro. Ảnh bán giá
+   * cố định và ảnh thường luôn mở được với mọi gói.
    * Đây chỉ là lớp UX; backend (GET /api/pins/:id) là lớp chặn thật. */
   private requiresUpgradeToOpen(pin: any): boolean {
-    if (!pin.listingType || pin.listingType === 'NONE') return false;
+    if (pin.listingType !== 'AUCTION') return false;
     const currentUserId = this.supabaseService.user()?.id;
     if (currentUserId && pin.ownerId && currentUserId === pin.ownerId) return false;
     // Navbar loads MembershipService asynchronously. During that short gap,
     // use the already-synced database user plan so a paid member is not shown
     // a false upgrade dialog just because they clicked quickly after routing.
     const plan = this.membership.status()?.plan ?? this.supabaseService.dbUser()?.plan;
-    return plan !== 'PLUS' && plan !== 'PRO';
+    return plan !== 'PRO';
+  }
+
+  isAuctionRestricted(pin: any): boolean {
+    return this.requiresUpgradeToOpen(pin);
   }
 
   private async showUpgradeDialog(): Promise<void> {
     const goToPricing = await this.dialogService.confirm({
       variant: 'information',
-      title: 'Nâng cấp gói để xem chi tiết',
-      description: 'Nâng cấp gói để xem chi tiết và trao đổi với chủ sở hữu.',
+      title: 'Cần gói Pro để xem đấu giá',
+      description: 'Ảnh và trang chi tiết của tác phẩm đấu giá chỉ dành cho thành viên Pro.',
       confirmLabel: 'Xem các gói',
       cancelLabel: 'Để sau',
     });

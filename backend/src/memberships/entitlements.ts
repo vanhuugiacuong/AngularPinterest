@@ -1,11 +1,13 @@
 import { MembershipPlan } from '@prisma/client';
 
 export interface PlanEntitlements {
-  aiDailyLimit: number;
+  /** null means unlimited AI generations. */
+  aiDailyLimit: number | null;
   cleanDownload: boolean;
   customWatermark: boolean;
   advancedWatermark: boolean;
   canSell: boolean;
+  canAuction: boolean;
   maxWatermarkPresets: number;
 }
 
@@ -18,6 +20,7 @@ export const PLAN_ENTITLEMENTS: Record<MembershipPlan, PlanEntitlements> = {
     customWatermark: false,
     advancedWatermark: false,
     canSell: false,
+    canAuction: false,
     maxWatermarkPresets: 0,
   },
   PLUS: {
@@ -25,15 +28,17 @@ export const PLAN_ENTITLEMENTS: Record<MembershipPlan, PlanEntitlements> = {
     cleanDownload: true,
     customWatermark: true,
     advancedWatermark: false,
-    canSell: false,
+    canSell: true,
+    canAuction: false,
     maxWatermarkPresets: 1,
   },
   PRO: {
-    aiDailyLimit: 20,
+    aiDailyLimit: null,
     cleanDownload: true,
     customWatermark: true,
     advancedWatermark: true,
     canSell: true,
+    canAuction: true,
     maxWatermarkPresets: 20,
   },
 };
