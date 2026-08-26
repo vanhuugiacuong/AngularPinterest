@@ -275,8 +275,7 @@ export class PinsService {
     if (moderation.nsfw) {
       return {
         safe: false,
-        message:
-          'Ảnh có thể chứa nội dung không phù hợp hoặc nội dung 18+. Vui lòng chọn ảnh khác.',
+        message: 'Ảnh có nội dung không phù hợp. Vui lòng chọn ảnh khác.',
       };
     }
     return { safe: true };
@@ -724,9 +723,7 @@ export class PinsService {
       contentType,
     );
     if (moderation.nsfw) {
-      throw new BadRequestException(
-        'Ảnh AI có thể chứa nội dung không phù hợp hoặc nội dung 18+. Vui lòng thử prompt khác.',
-      );
+      throw new BadRequestException('Ảnh có nội dung không phù hợp. Vui lòng thử prompt khác.');
     }
 
     // 2. Store original (private) + preview (public)

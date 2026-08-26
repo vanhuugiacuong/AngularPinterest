@@ -58,7 +58,7 @@
 
             <!-- File Drag Drop & Upload Box -->
             <div
-              *ngIf="!imagePreviewUrl()"
+              *ngIf="imageModerationStatus() === 'idle'"
               class="drag-drop-area flex-1 min-h-[320px] md:min-h-[460px] rounded-frame bg-surface-elevated border border-dashed border-border flex flex-col items-center justify-center p-6 text-center cursor-pointer relative overflow-hidden"
               (click)="fileInput.click()"
             >
@@ -75,9 +75,13 @@
               />
             </div>
 
-            <!-- Upload Preview + Editor -->
-            <div *ngIf="imagePreviewUrl()" class="flex flex-col gap-3">
-              <div class="flex items-center justify-end">
+            <!-- Upload Preview + Editor — the panel itself is gated on the
+                 moderation status (not on imagePreviewUrl), because the real
+                 image is never revealed until 'safe'. This lets 'checking'/
+                 'unsafe'/'error' render their own neutral placeholder here
+                 instead of the actual pixels. -->
+            <div *ngIf="imageModerationStatus() !== 'idle'" class="flex flex-col gap-3">
+              <div *ngIf="imageModerationStatus() !== 'unsafe'" class="flex items-center justify-end">
                 <button
                   (click)="replaceUploadedImage()"
                   [disabled]="isSubmitting()"
@@ -89,21 +93,42 @@
                 </button>
               </div>
 
-              <!-- NSFW pre-submit moderation status — server checks again on submit regardless.
-                   'unsafe' (content rejected) and 'error' (check itself failed) are shown as
-                   distinct states; only 'error' offers a retry, since the image was never judged. -->
-              <div *ngIf="imageModerationStatus() === 'checking'" class="flex items-center gap-2">
-                <div class="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin"></div>
+              <!-- NSFW/bạo lực pre-submit moderation status — server checks again on submit
+                   regardless. 'unsafe' (content rejected) and 'error' (check itself failed) are
+                   shown as distinct states; only 'error' offers a retry, since the image was
+                   never judged. Ảnh thật sự chỉ được hiển thị ở nhánh 'safe' bên dưới - 'checking'
+                   và 'unsafe' luôn hiện khung placeholder trung tính, không bao giờ lộ ảnh gốc. -->
+              <div *ngIf="imageModerationStatus() === 'checking'" class="rounded-frame bg-surface-elevated border border-border flex flex-col items-center justify-center gap-2 min-h-[320px] md:min-h-[460px]">
+                <div class="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin"></div>
                 <span class="mono-label text-xs text-text-muted">Đang kiểm tra ảnh...</span>
               </div>
-              <div
-                *ngIf="imageModerationStatus() === 'unsafe'"
-                role="alert"
-                class="flex items-start gap-2 p-3 rounded-control bg-error/10 border border-error/30 text-error text-xs font-semibold"
-              >
-                <span class="material-symbols-outlined text-base leading-none shrink-0">error</span>
-                <span>{{ imageModerationMessage() }}</span>
+
+              <div *ngIf="imageModerationStatus() === 'unsafe'" class="flex flex-col gap-3">
+                <div
+                  role="alert"
+                  class="flex items-center gap-2.5 p-3.5 rounded-control bg-error/10 border border-error/30 text-error text-xs font-semibold"
+                >
+                  <span class="material-symbols-outlined unsafe-alert-icon shrink-0">error</span>
+                  <span class="unsafe-alert-text">{{ imageModerationMessage() }}</span>
+                </div>
+                <div class="unsafe-placeholder rounded-frame bg-surface-elevated border border-dashed border-border flex flex-col items-center justify-center gap-4 min-h-[320px] md:min-h-[460px] text-center px-6 py-10">
+                  <span class="material-symbols-outlined text-6xl leading-none text-error">block</span>
+                  <div class="flex flex-col gap-1.5">
+                    <p class="text-base font-bold text-text">Ảnh không thể sử dụng</p>
+                    <span class="text-xs text-text-muted">Vui lòng chọn một ảnh khác để tiếp tục.</span>
+                  </div>
+                  <button
+                    type="button"
+                    (click)="replaceUploadedImage()"
+                    [disabled]="isSubmitting()"
+                    class="h-11 px-6 bg-gradient-brand cta-shape text-text-on-accent font-bold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    <span class="material-symbols-outlined text-sm leading-none">upload</span>
+                    <span>Chọn ảnh khác</span>
+                  </button>
+                </div>
               </div>
+
               <div
                 *ngIf="imageModerationStatus() === 'error'"
                 role="alert"
@@ -122,8 +147,11 @@
                 </button>
               </div>
 
-              <!-- Image Editor — Upload tab only; the AI tab never mounts this component. -->
+              <!-- Image Editor — Upload tab only; the AI tab never mounts this component.
+                   Only mounted once moderation confirms 'safe', so the real pixels are
+                   never rendered anywhere before that. -->
               <app-image-editor
+                *ngIf="imageModerationStatus() === 'safe' && imagePreviewUrl()"
                 #editor
                 [sourceUrl]="imagePreviewUrl()!"
                 [sourceCrossOrigin]="false"

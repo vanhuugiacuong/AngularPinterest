@@ -415,7 +415,7 @@
   </div>
 
   <!-- STAGE: canvas preview — the visual focal point of the studio -->
-  <div class="ie-stage rounded-frame frame-trace frame-trace-active bg-canvas-neutral border border-border relative overflow-hidden flex items-center justify-center min-h-[320px] md:min-h-[520px]">
+  <div class="ie-stage rounded-frame frame-trace frame-trace-active bg-canvas-neutral border border-border relative overflow-hidden flex items-center justify-center h-[320px] md:h-[520px]">
     @if (isLoadingImage()) {
       <div class="flex flex-col items-center gap-2 py-10">
         <div class="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
@@ -432,7 +432,7 @@
 
     <canvas
       #previewCanvas
-      class="max-w-full max-h-[520px] md:max-h-[640px] w-auto h-auto block touch-none"
+      class="w-full h-full object-contain block touch-none"
       [class.hidden]="isLoadingImage() || loadError() || isCroppingMode()"
       [class.cursor-move]="activeTool() === 'caption' && caption().enabled"
       (pointerdown)="onCanvasPointerDown($event)"

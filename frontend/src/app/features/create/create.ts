@@ -204,8 +204,9 @@ export class Create implements OnInit {
     this.selectedFile = file;
     this.formError.set(null);
     this.resetImageModeration();
-    const objectUrl = URL.createObjectURL(file);
-    this.imagePreviewUrl.set(objectUrl);
+    // Ảnh KHÔNG được xem trước ở đây nữa - chỉ hiện sau khi kiểm duyệt xác
+    // nhận an toàn (xem checkSelectedImage). Ảnh 18+/bạo lực máu me phải bị
+    // chặn hoàn toàn, không được lộ ra dù chỉ trong lúc đang kiểm tra.
 
     await this.checkSelectedImage(file);
   }
@@ -242,11 +243,16 @@ export class Create implements OnInit {
 
       if (result.safe) {
         this.imageModerationStatus.set('safe');
+        // Chỉ tạo URL xem trước SAU KHI kiểm duyệt xác nhận ảnh an toàn.
+        this.imagePreviewUrl.set(URL.createObjectURL(file));
       } else {
         this.imageModerationStatus.set('unsafe');
         this.imageModerationMessage.set(
-          result.message || 'Ảnh có thể chứa nội dung không phù hợp hoặc nội dung 18+. Vui lòng chọn ảnh khác.',
+          result.message || 'Ảnh có nội dung không phù hợp. Vui lòng chọn ảnh khác.',
         );
+        // Chặn hẳn: xoá file đã chọn để không có cách nào đăng được ảnh này,
+        // và không bao giờ tạo URL xem trước cho nó.
+        this.selectedFile = null;
       }
     } catch (error) {
       console.error('Error checking image moderation (service/network failure, not a content verdict):', error);
