@@ -46,6 +46,9 @@ export class Navbar {
   // since localStorage can throw (private browsing, storage disabled, quota).
   private navMenuKey = 'pinhub_nav_menu_open';
   public showNavMenu = signal(this.readNavMenuPref());
+  // Hovering the capsule reveals the panel without needing a click; it collapses back
+  // to whatever the click-toggled/persisted state was once the mouse leaves.
+  public isHoveringNav = signal(false);
 
   public showNotifPopup = signal(false);
   public notifications = signal<AppNotification[]>([]);
@@ -173,6 +176,10 @@ export class Navbar {
     this.showProfilePopup.update(val => !val);
   }
 
+  isNavMenuVisible(): boolean {
+    return this.showNavMenu() || this.isHoveringNav();
+  }
+
   toggleNavMenu(event: MouseEvent) {
     event.stopPropagation();
     this.setNavMenu(!this.showNavMenu());
@@ -252,10 +259,6 @@ export class Navbar {
 
   navigateToCreate() {
     this.router.navigate(['/create']);
-  }
-
-  navigateToExplore() {
-    this.router.navigate(['/feed'], { queryParams: { sort: 'trending' } });
   }
 
   navigateToChat() {
@@ -414,10 +417,6 @@ export class Navbar {
 
   isCreatePage(): boolean {
     return this.router.url === '/create';
-  }
-
-  isExplorePage(): boolean {
-    return this.router.url.startsWith('/feed') && this.router.url.includes('sort=trending');
   }
 
   isNotificationsPage(): boolean {

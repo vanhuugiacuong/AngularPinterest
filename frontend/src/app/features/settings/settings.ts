@@ -56,7 +56,7 @@ export class Settings implements OnInit {
       this.toastService.success('Đã cập nhật ảnh đại diện!');
     } catch (error) {
       console.error('Error uploading avatar:', error);
-      this.toastService.error('Lỗi khi tải ảnh đại diện lên.');
+      this.toastService.error(error instanceof Error ? error.message : 'Lỗi khi tải ảnh đại diện lên.');
     } finally {
       this.isUploadingAvatar.set(false);
       input.value = '';

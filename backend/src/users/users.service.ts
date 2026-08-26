@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, ConflictException }
 import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { ModerationService } from '../moderation/moderation.service';
 
 @Injectable()
 export class UsersService {
@@ -9,6 +10,7 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
     private readonly supabaseService: SupabaseService,
+    private readonly moderationService: ModerationService,
   ) {}
 
   async syncUser(id: string, email: string, username?: string, avatarUrl?: string) {
@@ -150,6 +152,8 @@ export class UsersService {
   }
 
   async uploadAvatar(id: string, file: Express.Multer.File) {
+    await this.moderationService.checkImageIsSafe(file.buffer, file.originalname, file.mimetype);
+
     const extension = file.originalname.split('.').pop() || 'png';
     const filename = `${id}/avatar_${Date.now()}.${extension}`;
     const avatarUrl = await this.supabaseService.uploadImage('avatars', filename, file.buffer, file.mimetype);

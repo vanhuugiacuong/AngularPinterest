@@ -6,6 +6,7 @@ import { PinService } from '../../core/services/pin';
 import { BoardService, Board } from '../../core/services/board';
 import { SupabaseService } from '../../core/services/supabase';
 import { ToastService } from '../../core/services/toast';
+import { ModerationService } from '../../core/services/moderation';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -20,6 +21,7 @@ export class Create implements OnInit {
   private pinService = inject(PinService);
   private boardService = inject(BoardService);
   private toastService = inject(ToastService);
+  private moderationService = inject(ModerationService);
   public supabaseService = inject(SupabaseService);
 
   // Form Fields
@@ -44,6 +46,7 @@ export class Create implements OnInit {
 
   // Submit status
   public isSubmitting = signal<boolean>(false);
+  public isCheckingImage = signal<boolean>(false);
 
   async ngOnInit() {
     await this.loadBoards();
@@ -101,12 +104,55 @@ export class Create implements OnInit {
     return 'Chọn bảng';
   }
 
-  onFileSelected(event: any) {
-    const file = event.target.files[0];
+  async onFileSelected(event: any) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
     if (file) {
+      await this.processSelectedFile(file);
+    }
+    input.value = '';
+  }
+
+  public isDraggingOverDropzone = signal<boolean>(false);
+
+  onDropzoneDragOver(event: DragEvent) {
+    event.preventDefault();
+    this.isDraggingOverDropzone.set(true);
+  }
+
+  onDropzoneDragLeave(event: DragEvent) {
+    event.preventDefault();
+    this.isDraggingOverDropzone.set(false);
+  }
+
+  async onDropzoneDrop(event: DragEvent) {
+    event.preventDefault();
+    this.isDraggingOverDropzone.set(false);
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+      await this.processSelectedFile(file);
+    }
+  }
+
+  private async processSelectedFile(file: File) {
+    if (!file.type.startsWith('image/')) {
+      this.toastService.error('Vui lòng chọn một file ảnh.');
+      return;
+    }
+
+    this.isCheckingImage.set(true);
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (token) {
+        await this.moderationService.checkImage(file, token);
+      }
       this.selectedFile = file;
       const objectUrl = URL.createObjectURL(file);
       this.imagePreviewUrl.set(objectUrl);
+    } catch (error) {
+      this.toastService.error(error instanceof Error ? error.message : 'Ảnh không hợp lệ.');
+    } finally {
+      this.isCheckingImage.set(false);
     }
   }
 

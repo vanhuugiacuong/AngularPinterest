@@ -29,7 +29,6 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   public pins = signal<any[]>([]);
   public boards = signal<Board[]>([]);
   public activeDropdownPinId = signal<string | null>(null);
-  public activeOptionsMenuPinId = signal<string | null>(null);
   public selectedBoardMap = signal<Record<string, Board>>({});
   public isLoading = signal<boolean>(true);
   public isScrollingLoad = signal<boolean>(false);
@@ -297,6 +296,12 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     this.router.navigate(['/pin', pinId]);
   }
 
+  // Pins the current user has liked this session — the feed list endpoint only returns a
+  // like count, not a per-user "did I like this" flag, so this starts empty on load and
+  // fills in as the user actually clicks hearts (good enough for the heart's black->pink
+  // click feedback; it won't reflect likes from a previous session until reloaded).
+  public likedPinIds = signal<Set<string>>(new Set());
+
   async toggleLike(pin: any, event: MouseEvent) {
     event.stopPropagation();
     const currentUser = this.supabaseService.user();
@@ -306,7 +311,6 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       const token = await this.supabaseService.getSessionToken();
       if (token) {
         const result = await this.pinService.toggleLike(pin.id, token);
-        console.log('Toggle like result:', result);
         if (result.liked) {
           pin.likes = (pin.likes || 0) + 1;
         } else {
@@ -314,59 +318,20 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
             pin.likes = Math.max(0, pin.likes - 1);
           }
         }
+        this.likedPinIds.update(current => {
+          const next = new Set(current);
+          if (result.liked) {
+            next.add(pin.id);
+          } else {
+            next.delete(pin.id);
+          }
+          return next;
+        });
         // Force Signal updates on template
         this.pins.update(current => [...current]);
       }
     } catch (error) {
       console.error('Error toggling like:', error);
-    }
-  }
-
-  toggleOptionsMenu(pinId: string, event: MouseEvent) {
-    event.stopPropagation();
-    this.activeOptionsMenuPinId.set(this.activeOptionsMenuPinId() === pinId ? null : pinId);
-  }
-
-  async markInterest(pinId: string, event: MouseEvent) {
-    event.stopPropagation();
-    this.activeOptionsMenuPinId.set(null);
-    const token = await this.supabaseService.getSessionToken();
-    if (!token) return;
-    try {
-      await this.pinService.markInterest(pinId, token);
-      this.toastService.success('Sẽ hiện nhiều ảnh như thế này hơn cho bạn!');
-    } catch (error) {
-      console.error('Error marking interest:', error);
-      this.toastService.error('Không thể ghi nhận yêu cầu.');
-    }
-  }
-
-  async hidePin(pinId: string, event: MouseEvent) {
-    event.stopPropagation();
-    this.activeOptionsMenuPinId.set(null);
-    const token = await this.supabaseService.getSessionToken();
-    if (!token) return;
-    try {
-      await this.pinService.hidePin(pinId, token);
-      this.pins.update(current => current.filter(p => p.id !== pinId));
-      this.toastService.success('Đã ẩn ảnh này khỏi bảng tin của bạn.');
-    } catch (error) {
-      console.error('Error hiding pin:', error);
-      this.toastService.error('Không thể ẩn ảnh này.');
-    }
-  }
-
-  async reportPin(pinId: string, event: MouseEvent) {
-    event.stopPropagation();
-    this.activeOptionsMenuPinId.set(null);
-    const token = await this.supabaseService.getSessionToken();
-    if (!token) return;
-    try {
-      await this.pinService.reportPin(pinId, token);
-      this.toastService.success('Đã gửi báo cáo, cảm ơn bạn!');
-    } catch (error) {
-      console.error('Error reporting pin:', error);
-      this.toastService.error('Không thể gửi báo cáo.');
     }
   }
 

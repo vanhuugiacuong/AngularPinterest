@@ -28,6 +28,7 @@ export class Profile implements OnInit {
 
   public userProfile = signal<any | null>(null);
   public isLoading = signal<boolean>(true);
+  public isFollowing = signal<boolean>(false);
   public activeTab = signal<'boards' | 'created'>('boards');
 
   // New board modal properties
@@ -41,6 +42,9 @@ export class Profile implements OnInit {
     this.route.paramMap.subscribe(params => {
       const username = params.get('username');
       if (username) {
+        // Reset here (not inside loadProfile) since loadProfile is also re-run after
+        // toggleFollow() itself, which must not wipe the state it just set.
+        this.isFollowing.set(false);
         this.loadProfile(username);
       }
     });
@@ -124,6 +128,10 @@ export class Profile implements OnInit {
     this.router.navigate(['/pin', pinId]);
   }
 
+  goToExplore() {
+    this.router.navigate(['/feed']);
+  }
+
   openCreateBoardModal() {
     this.showCreateBoardModal.set(true);
     this.newBoardName = '';
@@ -172,8 +180,19 @@ export class Profile implements OnInit {
     try {
       const token = await this.supabaseService.getSessionToken();
       if (token) {
-        await this.userService.toggleFollow(profile.id, token);
-        this.loadProfile(profile.username);
+        const result = await this.userService.toggleFollow(profile.id, token);
+        this.isFollowing.set(result.followed);
+
+        // Update the follower count locally instead of re-fetching the whole profile
+        // (avoids a jarring full-page loading flash for what's a tiny count change).
+        const delta = result.followed ? 1 : -1;
+        this.userProfile.set({
+          ...profile,
+          _count: {
+            ...profile._count,
+            followers: Math.max(0, (profile._count?.followers || 0) + delta),
+          },
+        });
       }
     } catch (error) {
       console.error('Error toggling follow:', error);
