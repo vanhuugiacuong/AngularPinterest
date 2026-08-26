@@ -19,7 +19,7 @@
       (click)="$event.stopPropagation()"
     >
       <div class="nf-dialog-icon" [class]="'nf-dialog-icon--' + dialog.variant" aria-hidden="true">
-        <span class="material-symbols-outlined">{{ iconFor(dialog.variant) }}</span>
+        <span class="material-symbols-outlined" aria-hidden="true">{{ iconFor(dialog.variant) }}</span>
       </div>
 
       <h2 id="nf-dialog-title" class="nf-dialog-title">{{ dialog.title }}</h2>

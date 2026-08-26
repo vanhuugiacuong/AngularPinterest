@@ -115,11 +115,13 @@ export class NfLoader implements OnInit, AfterViewInit, OnDestroy {
   public readonly assemblyFragments = ASSEMBLY_FRAGMENTS;
 
   private readonly host = inject(ElementRef<HTMLElement>);
-  // Keep the cinematic landing loader consistent on regular desktop/mobile
-  // displays. Windows and embedded Chromium can report reduced motion merely
-  // because system window animations are disabled, which previously replaced
-  // the full reload sequence with a sub-second fallback.
-  private readonly reducedMotion = false;
+  // Same real prefers-reduced-motion check as public-header.ts/auth-modal.ts
+  // in this folder — a vestibular-disorder user's actual OS setting must
+  // win here too; this is every visitor's first screen.
+  private readonly reducedMotion =
+    typeof window !== 'undefined' && 'matchMedia' in window
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      : false;
 
   private gsap?: GsapApi;
   private master?: GsapTimeline;

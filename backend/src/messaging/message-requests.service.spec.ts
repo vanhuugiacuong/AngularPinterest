@@ -24,6 +24,7 @@ describe('MessageRequestsService', () => {
   };
   const blocksService = { isBlockedEitherWay: jest.fn() };
   const reportsService = { createMessageRequestReport: jest.fn() };
+  const supabase = { broadcast: jest.fn() };
 
   let service: MessageRequestsService;
 
@@ -31,7 +32,12 @@ describe('MessageRequestsService', () => {
     jest.clearAllMocks();
     prisma.$transaction.mockImplementation((cb: (tx: typeof prisma) => unknown) => cb(prisma));
     blocksService.isBlockedEitherWay.mockResolvedValue(false);
-    service = new MessageRequestsService(prisma as never, blocksService as never, reportsService as never);
+    service = new MessageRequestsService(
+      prisma as never,
+      blocksService as never,
+      reportsService as never,
+      supabase as never,
+    );
   });
 
   describe('sendRequest', () => {
@@ -117,7 +123,9 @@ describe('MessageRequestsService', () => {
 
       expect(prisma.messageRequest.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          include: { receiver: { select: expect.objectContaining({ plan: true }) } },
+          include: expect.objectContaining({
+            receiver: { select: expect.objectContaining({ plan: true }) },
+          }),
         }),
       );
       expect((result as { receiver: { plan: string } }).receiver.plan).toBe('PLUS');

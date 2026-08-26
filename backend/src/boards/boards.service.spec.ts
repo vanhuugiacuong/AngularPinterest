@@ -5,10 +5,18 @@ describe('BoardsService privacy and ownership', () => {
   const prisma = {
     board: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
     boardPin: { findUnique: jest.fn(), create: jest.fn(), delete: jest.fn() },
+    auction: { findMany: jest.fn() },
+    imagePurchase: { findMany: jest.fn() },
   };
   const service = new BoardsService(prisma as never);
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Default: no pin in these tests is commerce-restricted — none of them
+    // exercise the pin-image-protection feature.
+    prisma.auction.findMany.mockResolvedValue([]);
+    prisma.imagePurchase.findMany.mockResolvedValue([]);
+  });
 
   it('returns 404 (not 403) for a private board viewed by a non-owner, so it is indistinguishable from a board that does not exist', async () => {
     prisma.board.findUnique.mockResolvedValue({

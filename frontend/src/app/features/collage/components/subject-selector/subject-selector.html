@@ -19,8 +19,9 @@
         (click)="cancelled.emit()"
         [disabled]="adding()"
         title="Đóng"
+        aria-label="Đóng"
       >
-        <span class="material-symbols-outlined">close</span>
+        <span class="material-symbols-outlined" aria-hidden="true">close</span>
       </button>
     </header>
 
@@ -43,7 +44,7 @@
       </div>
 
       <div *ngIf="!selectedPoint() && !processing() && !error()" class="tap-instruction">
-        <span class="material-symbols-outlined">touch_app</span>
+        <span class="material-symbols-outlined" aria-hidden="true">touch_app</span>
         <strong>Nhấn trực tiếp vào người hoặc vật bạn muốn cắt</strong>
         <small>Ví dụ: nhấn cô gái bên trái, cô gái bên phải hoặc chiếc laptop.</small>
       </div>
@@ -64,7 +65,7 @@
       </div>
 
       <div *ngIf="error()" class="error-state" role="alert">
-        <span class="material-symbols-outlined">image_not_supported</span>
+        <span class="material-symbols-outlined" aria-hidden="true">image_not_supported</span>
         <strong>{{ error() }}</strong>
         <button *ngIf="selectedPoint()" type="button" (click)="retry()">Thử lại</button>
       </div>
@@ -89,7 +90,7 @@
         [disabled]="processing() || adding() || preparingWhole()"
         title="Thêm ngay toàn bộ ảnh, không tách nền"
       >
-        <span class="material-symbols-outlined">select_all</span>
+        <span class="material-symbols-outlined" aria-hidden="true">select_all</span>
         {{ preparingWhole() ? 'Đang thêm…' : 'Chọn tất cả' }}
       </button>
       <button
@@ -98,7 +99,7 @@
         (click)="addCutout()"
         [disabled]="processing() || !previewUrl() || adding() || preparingWhole()"
       >
-        <span class="material-symbols-outlined">content_cut</span>
+        <span class="material-symbols-outlined" aria-hidden="true">content_cut</span>
         {{ adding() ? 'Đang thêm…' : 'Thêm phần cắt' }}
       </button>
     </footer>

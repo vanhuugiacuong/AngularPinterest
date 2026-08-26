@@ -163,7 +163,7 @@
   cursor: pointer;
   height: 42px;
   padding: 0 22px;
-  border-radius: 999px;
+  border-radius: var(--radius-cta);
   color: var(--color-text-on-accent);
   font: inherit;
   font-weight: 700;

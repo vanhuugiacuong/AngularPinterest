@@ -51,12 +51,52 @@
   line-height: 1.6;
   text-align: center;
 }
+.layer-row-group {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+.layer-reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.layer-reorder-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  flex: 1;
+  min-height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.layer-reorder-btn .material-symbols-outlined {
+  font-size: 16px;
+}
+.layer-reorder-btn:hover:not(:disabled) {
+  background: var(--color-surface-high);
+  color: var(--color-accent);
+}
+.layer-reorder-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.layer-reorder-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-nova-blue);
+}
 .layer-row {
   display: grid;
   grid-template-columns: 18px 48px minmax(0, 1fr) 24px;
   align-items: center;
   gap: 9px;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 8px;
   border: 1px solid transparent;
   border-radius: var(--radius-control);
@@ -90,7 +130,8 @@
   font-size: 18px;
   pointer-events: none;
 }
-.layer-thumb {
+.layer-thumb,
+.layer-drag-preview .preview-thumb {
   display: flex;
   width: 48px;
   height: 48px;
@@ -98,7 +139,11 @@
   justify-content: center;
   overflow: hidden;
   border-radius: 8px;
+  /* Transparency checkerboard — theme-independent by convention, same as
+     --color-canvas-neutral's purpose: shows real alpha regardless of theme. */
   background: repeating-conic-gradient(#fff 0 25%, #dfe3ef 0 50%) 50% / 12px 12px;
+}
+.layer-thumb {
   pointer-events: none;
 }
 .layer-thumb img {
@@ -150,23 +195,13 @@
   background: color-mix(in srgb, var(--color-surface-high) 94%, transparent);
   box-shadow:
     0 18px 45px rgba(0, 0, 0, 0.48),
-    0 0 24px rgba(0, 229, 255, 0.16);
+    0 0 24px color-mix(in srgb, var(--color-accent) 16%, transparent);
   pointer-events: none;
   will-change: transform;
 }
 .layer-drag-preview > .material-symbols-outlined {
   color: var(--color-accent);
   font-size: 18px;
-}
-.layer-drag-preview .preview-thumb {
-  display: flex;
-  width: 48px;
-  height: 48px;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border-radius: 8px;
-  background: repeating-conic-gradient(#fff 0 25%, #dfe3ef 0 50%) 50% / 12px 12px;
 }
 .layer-drag-preview img {
   width: 100%;

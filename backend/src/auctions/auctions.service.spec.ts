@@ -10,18 +10,27 @@ describe('AuctionsService.createAuction', () => {
   const prisma = {
     pin: { findUnique: jest.fn(), update: jest.fn() },
     auction: { findFirst: jest.fn(), findUnique: jest.fn(), create: jest.fn(), updateMany: jest.fn() },
+    imagePurchase: { findUnique: jest.fn() },
     auditLog: { create: jest.fn() },
     $transaction: jest.fn(),
   };
   const memberships = { status: jest.fn(), getPayoutAccount: jest.fn() };
   const notifications = { createNotification: jest.fn() };
   const novaTokens = { reserveBid: jest.fn(), settleAuction: jest.fn() };
+  const pinPreviewProtection = { ensureProtectedPreview: jest.fn() };
   let service: AuctionsService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new AuctionsService(prisma as never, memberships as never, notifications as never, novaTokens as never);
+    service = new AuctionsService(
+      prisma as never,
+      memberships as never,
+      notifications as never,
+      novaTokens as never,
+      pinPreviewProtection as never,
+    );
     prisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(prisma));
+    prisma.imagePurchase.findUnique.mockResolvedValue(null);
     // Mặc định đã cấu hình tài khoản nhận tiền - test riêng cho case thiếu.
     memberships.getPayoutAccount.mockResolvedValue({
       bankCode: 'MB',
@@ -95,12 +104,14 @@ describe('AuctionsService.placeBid', () => {
     auctionBid: { findUnique: jest.fn(), findFirst: jest.fn(), create: jest.fn() },
     pin: { findUnique: jest.fn() },
     user: { findUnique: jest.fn() },
+    imagePurchase: { findUnique: jest.fn() },
     auditLog: { create: jest.fn() },
     $transaction: jest.fn(),
   };
   const memberships = { status: jest.fn() };
   const notifications = { createNotification: jest.fn() };
   const novaTokens = { reserveBid: jest.fn(), settleAuction: jest.fn() };
+  const pinPreviewProtection = { ensureProtectedPreview: jest.fn() };
   let service: AuctionsService;
 
   const activeAuction = {
@@ -118,17 +129,24 @@ describe('AuctionsService.placeBid', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new AuctionsService(prisma as never, memberships as never, notifications as never, novaTokens as never);
+    service = new AuctionsService(
+      prisma as never,
+      memberships as never,
+      notifications as never,
+      novaTokens as never,
+      pinPreviewProtection as never,
+    );
     prisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(prisma));
     prisma.auctionBid.findUnique.mockResolvedValue(null);
     prisma.auctionBid.findFirst.mockResolvedValue(null);
+    prisma.imagePurchase.findUnique.mockResolvedValue(null);
     // Shared mock for every prisma.auction.findUnique call in the flow —
     // ensureAuctionUpToDate's plain read, the transaction's plain read, and
     // getAuction()'s final include-based read all go through this same mock,
     // so it carries both the flat Auction fields and the include shape.
     prisma.auction.findUnique.mockResolvedValue({
       ...activeAuction,
-      pin: { id: 'pin-1', title: 'Tranh sơn dầu', imageUrl: 'https://img', userId: 'seller-1' },
+      pin: { id: 'pin-1', title: 'Tranh sơn dầu', imageUrl: 'https://img', protectedImageUrl: null, userId: 'seller-1', isForSale: false },
       bids: [],
     });
   });

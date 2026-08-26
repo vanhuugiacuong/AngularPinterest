@@ -1,6 +1,6 @@
 import { Injectable, effect, inject } from '@angular/core';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { BehaviorSubject, timer } from 'rxjs';
+import { BehaviorSubject, Subject, timer } from 'rxjs';
 import { switchMap, tap, catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { API_BASE_URL } from '../api-base';
@@ -84,6 +84,13 @@ export class MessagingService {
   unreadCount$ = this.unreadCountSubject.asObservable();
   private lastConversations: ConversationSummary[] = [];
 
+  /** Fires the moment a new incoming message request is pushed over
+   * realtime — MessagesComponent subscribes to trigger an immediate
+   * refresh of its requests queue instead of waiting for the next poll
+   * tick (see connectRealtime's 'message_request' broadcast handler). */
+  private incomingRequestSubject = new Subject<MessageRequestRecord>();
+  incomingRequest$ = this.incomingRequestSubject.asObservable();
+
   private realtimeChannel: RealtimeChannel | null = null;
   private realtimeUserId: string | null = null;
   /** Conversation currently open in the messages feature — set by
@@ -119,6 +126,9 @@ export class MessagingService {
       .on('broadcast', { event: 'message' }, ({ payload }) => {
         this.handleRealtimeMessage(payload as RealtimeMessagePayload);
       })
+      .on('broadcast', { event: 'message_request' }, ({ payload }) => {
+        this.handleRealtimeMessageRequest(payload as { request: MessageRequestRecord });
+      })
       .subscribe((status, err) => {
         if (status === 'SUBSCRIBED') {
           console.debug(`[MessagingService] Realtime kết nối OK — kênh user:${userId}`);
@@ -144,6 +154,13 @@ export class MessagingService {
 
     this.unreadCountSubject.next(this.unreadCountSubject.value + 1);
     this.toast.notify(`${sender.username}: ${message.content}`);
+  }
+
+  private handleRealtimeMessageRequest(payload: { request: MessageRequestRecord }): void {
+    const { request } = payload;
+    this.incomingRequestSubject.next(request);
+    const senderName = request.sender?.username ?? 'Ai đó';
+    this.toast.notify(`${senderName} đã gửi cho bạn một yêu cầu nhắn tin.`);
   }
 
   /** Optimistically zeroes this conversation's contribution to the global

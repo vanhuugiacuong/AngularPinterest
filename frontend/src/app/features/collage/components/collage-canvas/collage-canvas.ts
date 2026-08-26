@@ -38,6 +38,17 @@ export class CollageCanvasComponent implements AfterViewInit, OnDestroy {
   private isPointerTransforming = false;
   private pointerLayerId: string | null = null;
 
+  /** Fabric.js paints selection chrome on the canvas 2D context, which
+   * cannot read CSS custom properties directly — resolve the current
+   * theme's actual value once per call so corner/border colors stay on
+   * the Nova/Iris brand tokens (and adapt across light/dark) instead of
+   * a hardcoded neon cyan/violet. */
+  private resolveToken(name: string, fallback: string): string {
+    if (typeof window === 'undefined') return fallback;
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback;
+  }
+
   private readonly layerSyncEffect = effect(() => {
     const layers = this.store.layers();
     const selectedId = this.store.selectedId();
@@ -162,9 +173,9 @@ export class CollageCanvasComponent implements AfterViewInit, OnDestroy {
           originX: 'center',
           originY: 'center',
           cornerStyle: 'circle',
-          cornerColor: '#00e5ff',
-          cornerStrokeColor: '#070712',
-          borderColor: '#8b2cff',
+          cornerColor: this.resolveToken('--color-studio-aqua', '#4fb2ff'),
+          cornerStrokeColor: this.resolveToken('--color-ink', '#05070e'),
+          borderColor: this.resolveToken('--color-iris-violet', '#9475ff'),
           transparentCorners: false,
           cornerSize: 28,
           padding: 5,

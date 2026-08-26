@@ -9,6 +9,7 @@ import {
   ViewChild,
   signal,
 } from '@angular/core';
+import { clampNormalizedRect } from '../../../../core/utils/image-crop';
 
 export interface LayerCropRect {
   cropX: number;
@@ -27,18 +28,11 @@ const MIN_CROP_SIZE = 0.08;
 
 type CropHandle = 'move' | 'nw' | 'ne' | 'sw' | 'se';
 
+/** Delegates to the same shared clamp the image editor's own re-crop tool
+ * uses (core/utils/image-crop) so the two tools can't drift apart. */
 function clampCropRect(x: number, y: number, width: number, height: number): LayerCropRect {
-  let w = Number.isFinite(width) ? width : MIN_CROP_SIZE;
-  let h = Number.isFinite(height) ? height : MIN_CROP_SIZE;
-  w = Math.min(1, Math.max(MIN_CROP_SIZE, w));
-  h = Math.min(1, Math.max(MIN_CROP_SIZE, h));
-
-  let nx = Number.isFinite(x) ? x : 0;
-  let ny = Number.isFinite(y) ? y : 0;
-  nx = Math.min(1 - w, Math.max(0, nx));
-  ny = Math.min(1 - h, Math.max(0, ny));
-
-  return { cropX: nx, cropY: ny, cropWidth: w, cropHeight: h };
+  const r = clampNormalizedRect({ x, y, width, height }, MIN_CROP_SIZE);
+  return { cropX: r.x, cropY: r.y, cropWidth: r.width, cropHeight: r.height };
 }
 
 /** Re-crop tool for a single layer already placed on the collage canvas —

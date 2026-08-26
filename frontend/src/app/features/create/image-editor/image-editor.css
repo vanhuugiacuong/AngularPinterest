@@ -47,6 +47,15 @@
   touch-action: none;
 }
 
+/* Expands the draggable hit area to ~40px without growing the visible
+   dot — keeps the crop corner precise-looking while staying reachable on
+   touch (WCAG target-size guidance). */
+.ie-crop-handle::before {
+  content: '';
+  position: absolute;
+  inset: -13px;
+}
+
 .ie-crop-handle-nw {
   top: -7px;
   left: -7px;

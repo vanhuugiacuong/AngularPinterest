@@ -13,6 +13,8 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { AiGeneratorService } from '../ai-generator/ai-generator.service';
 import { MembershipsService } from '../memberships/memberships.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PinPreviewProtectionService } from '../watermark/pin-preview-protection.service';
+import { applyPinImageProtection, resolveSinglePinImageUrl, resolveViewablePinImageUrl } from '../common/pin-access.util';
 
 interface EmbeddingResponse {
   embedding: number[];
@@ -23,6 +25,7 @@ interface SimilarPinRow {
   title: string;
   description: string | null;
   imageUrl: string;
+  protectedImageUrl: string | null;
   sourceUrl: string | null;
   userId: string;
   createdAt: Date;
@@ -109,6 +112,7 @@ export class PinsService {
     private readonly aiGeneratorService: AiGeneratorService,
     private readonly membershipsService: MembershipsService,
     private readonly notificationsService: NotificationsService,
+    private readonly pinPreviewProtection: PinPreviewProtectionService,
   ) {}
 
   // Lưu bản gốc vào bucket private "pins-original" (chỉ backend đọc được) và
@@ -358,22 +362,46 @@ export class PinsService {
    * fetch qua ORM (include), đồng thời bỏ originalStoragePath khỏi response -
    * bản gốc chỉ backend được đọc trực tiếp qua endpoint tải ảnh có kiểm tra
    * quyền riêng. */
-  private async attachMarketInfoToList<T extends { id: string; isForSale: boolean; originalStoragePath?: string | null }>(
-    pins: T[],
-    viewerId?: string,
-  ): Promise<Omit<T, 'originalStoragePath'>[]> {
-    const [auctionMap, likedIds] = await Promise.all([
+  private async attachMarketInfoToList<
+    T extends {
+      id: string;
+      userId: string;
+      isForSale: boolean;
+      imageUrl: string;
+      protectedImageUrl?: string | null;
+      originalStoragePath?: string | null;
+    },
+  >(pins: T[], viewerId?: string): Promise<Omit<T, 'originalStoragePath'>[]> {
+    const [auctionMap, likedIds, purchasedIds] = await Promise.all([
       this.fetchLatestAuctionsByPinIds(pins.map((p) => p.id)),
       this.fetchLikedPinIds(pins.map((p) => p.id), viewerId),
+      this.fetchPaidPurchasePinIds(pins.map((p) => p.id), viewerId),
     ]);
     return pins.map((p) => {
       const { originalStoragePath, ...rest } = p;
       return {
         ...rest,
+        imageUrl: resolveViewablePinImageUrl(p, {
+          viewerId,
+          hasAuction: Boolean(auctionMap.get(p.id)),
+          hasPaidPurchase: purchasedIds.has(p.id),
+        }),
         ...this.marketFieldsFor(p.isForSale, auctionMap.get(p.id)),
         isLiked: likedIds.has(p.id),
       };
     });
+  }
+
+  /** Id của những pin trong danh sách mà viewerId đã mua thành công (PAID) -
+   * dùng để attachMarketInfoToList quyết định trả imageUrl thật hay bản đã
+   * watermark, hàng loạt (1 query) thay vì N+1 theo từng pin. */
+  private async fetchPaidPurchasePinIds(pinIds: string[], viewerId?: string): Promise<Set<string>> {
+    if (!viewerId || pinIds.length === 0) return new Set();
+    const rows = await this.prisma.imagePurchase.findMany({
+      where: { buyerId: viewerId, pinId: { in: pinIds }, status: 'PAID' },
+      select: { pinId: true },
+    });
+    return new Set(rows.map((r) => r.pinId));
   }
 
   async getAllPins(
@@ -580,8 +608,13 @@ export class PinsService {
     }
 
     const { likes, _count, originalStoragePath, ...safePin } = pin;
+    // Plan check above only gates whether the *page* can be viewed at all;
+    // it doesn't imply a purchase. An eligible-but-not-yet-buying Plus/Pro
+    // viewer still gets the watermarked preview, not the real one.
+    const imageUrl = await resolveSinglePinImageUrl(this.prisma, pin, viewerId, Boolean(auction));
     return {
       ...safePin,
+      imageUrl,
       _count,
       likeCount: _count.likes,
       isLiked: likes.length > 0,
@@ -697,6 +730,12 @@ export class PinsService {
           err,
         );
       }
+    }
+
+    // 3. Listed for sale right at upload — generate the watermarked
+    // preview non-buyers will see immediately, not on the first read.
+    if (pin.isForSale) {
+      await this.pinPreviewProtection.ensureProtectedPreview(pin.id);
     }
 
     return pin;
@@ -1183,21 +1222,28 @@ export class PinsService {
   /** Fetches a pin's own stored image server-side and returns its raw bytes
    * — backs the `:id/image-proxy` route used as a canvas-safe fallback when
    * the CDN doesn't send CORS headers the browser will accept for a
-   * cross-origin fetch. Only ever reads the imageUrl already on file for
-   * this pin id, never an arbitrary caller-supplied URL. */
+   * cross-origin fetch. Only ever reads a URL already on file for this pin
+   * id, never an arbitrary caller-supplied URL — but WHICH URL (real vs
+   * watermarked) still has to go through the same commerce gate every
+   * other pin-reading path uses, or this route becomes a bypass of all of
+   * them (it used to be exactly that: no guard at all, any pinId, real
+   * bytes, unconditionally). */
   async getPinImageForProxy(
     pinId: string,
+    viewerId?: string,
   ): Promise<{ buffer: Buffer; contentType: string }> {
     const pin = await this.prisma.pin.findUnique({
       where: { id: pinId },
-      select: { imageUrl: true },
+      select: { id: true, userId: true, imageUrl: true, protectedImageUrl: true, isForSale: true },
     });
     if (!pin) {
       throw new NotFoundException('Pin not found');
     }
+    const hasAuction = (await this.fetchLatestAuctionsByPinIds([pin.id])).has(pin.id);
+    const imageUrl = await resolveSinglePinImageUrl(this.prisma, pin, viewerId, hasAuction);
 
     try {
-      const response = await fetch(pin.imageUrl);
+      const response = await fetch(imageUrl);
       if (!response.ok) {
         throw new ServiceUnavailableException('Không thể tải ảnh gốc lúc này.');
       }
@@ -1286,7 +1332,7 @@ export class PinsService {
       ? await this.prisma.$queryRawUnsafe(
           `
         SELECT
-          p.id, p.title, p.description, p."imageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
+          p.id, p.title, p.description, p."imageUrl", p."protectedImageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
           p.price, p."isForSale", p.currency,
           u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl", u.plan AS "authorPlan",
           COUNT(l."pinId")::int AS "likesCount",
@@ -1311,7 +1357,7 @@ export class PinsService {
       : await this.prisma.$queryRawUnsafe(
           `
         SELECT
-          p.id, p.title, p.description, p."imageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
+          p.id, p.title, p.description, p."imageUrl", p."protectedImageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
           p.price, p."isForSale", p.currency,
           u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl", u.plan AS "authorPlan",
           COUNT(l."pinId")::int AS "likesCount",
@@ -1353,13 +1399,20 @@ export class PinsService {
       : uniquePins;
 
     const page = filteredPins.slice(0, limit);
-    const auctionMap = await this.fetchLatestAuctionsByPinIds(page.map((p) => p.id));
+    const [auctionMap, purchasedIds] = await Promise.all([
+      this.fetchLatestAuctionsByPinIds(page.map((p) => p.id)),
+      this.fetchPaidPurchasePinIds(page.map((p) => p.id), viewerId),
+    ]);
 
     return page.map((p) => ({
       id: p.id,
       title: p.title,
       description: p.description,
-      imageUrl: p.imageUrl,
+      imageUrl: resolveViewablePinImageUrl(p, {
+        viewerId,
+        hasAuction: Boolean(auctionMap.get(p.id)),
+        hasPaidPurchase: purchasedIds.has(p.id),
+      }),
       sourceUrl: p.sourceUrl,
       userId: p.userId,
       createdAt: p.createdAt,

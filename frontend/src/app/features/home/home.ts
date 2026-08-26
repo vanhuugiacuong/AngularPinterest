@@ -54,6 +54,18 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   public pins = signal<any[]>([]);
   public boards = signal<Board[]>([]);
   public activeDropdownPinId = signal<string | null>(null);
+  /** Screen position of the currently-open board dropdown's trigger button.
+   * The dropdown itself renders as a `position: fixed` portal outside the
+   * pin card's `overflow-hidden` frame (see home.html) instead of as an
+   * absolutely-positioned descendant of it — otherwise a dropdown taller
+   * than the remaining space above its anchor gets silently clipped by the
+   * card's own rounded-corner mask. */
+  public dropdownAnchor = signal<{ top: number; left: number } | null>(null);
+  public readonly activeDropdownPin = computed(() => {
+    const id = this.activeDropdownPinId();
+    if (!id) return null;
+    return this.filteredPins().find((pin) => pin.id === id) ?? null;
+  });
   public selectedBoardMap = signal<Record<string, Board>>({});
   public isLoading = signal<boolean>(true);
   public isScrollingLoad = signal<boolean>(false);
@@ -198,6 +210,17 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   @HostListener('window:resize')
   onResize() {
     this.updateNumColumns();
+    this.closeBoardDropdown();
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.activeDropdownPinId()) this.closeBoardDropdown();
+  }
+
+  @HostListener('window:scroll')
+  onWindowScroll(): void {
+    if (this.activeDropdownPinId()) this.closeBoardDropdown();
   }
 
   updateNumColumns() {
@@ -603,10 +626,21 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   toggleBoardDropdown(pinId: string, event: MouseEvent) {
     event.stopPropagation();
     if (this.activeDropdownPinId() === pinId) {
-      this.activeDropdownPinId.set(null);
-    } else {
-      this.activeDropdownPinId.set(pinId);
+      this.closeBoardDropdown();
+      return;
     }
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const dropdownWidth = 176; // w-44
+    this.dropdownAnchor.set({
+      top: rect.top,
+      left: Math.min(rect.left, window.innerWidth - dropdownWidth - 12),
+    });
+    this.activeDropdownPinId.set(pinId);
+  }
+
+  closeBoardDropdown(): void {
+    this.activeDropdownPinId.set(null);
+    this.dropdownAnchor.set(null);
   }
 
   selectBoardForPin(pinId: string, board: Board, event: MouseEvent) {
@@ -615,7 +649,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       ...current,
       [pinId]: board
     }));
-    this.activeDropdownPinId.set(null);
+    this.closeBoardDropdown();
   }
 
   getSelectedBoardName(pinId: string): string {

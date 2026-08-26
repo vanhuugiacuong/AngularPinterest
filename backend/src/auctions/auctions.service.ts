@@ -15,6 +15,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { NovaTokenService } from '../memberships/novatoken.service';
 import { writeAuditLog } from '../memberships/audit.util';
 import { PUBLIC_USER_SELECT, isUniqueConstraintError } from '../common/relationship.util';
+import { resolveSinglePinImageUrl, applyPinImageProtection } from '../common/pin-access.util';
+import { PinPreviewProtectionService } from '../watermark/pin-preview-protection.service';
 
 const NON_TERMINAL_STATUSES: AuctionStatus[] = ['DRAFT', 'SCHEDULED', 'ACTIVE'];
 
@@ -31,6 +33,7 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
     private readonly memberships: MembershipsService,
     private readonly notifications: NotificationsService,
     private readonly novaTokens: NovaTokenService,
+    private readonly pinPreviewProtection: PinPreviewProtectionService,
   ) {}
 
   // Sweep nền "best effort" để phiên hết hạn vẫn được finalize (winner +
@@ -156,6 +159,11 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
       endsAt,
     });
 
+    // Generate the watermarked preview non-winning viewers will see instead
+    // of the real one — an auctioned pin is commerce-restricted the moment
+    // the auction exists, same as a pin listed for a fixed price at upload.
+    await this.pinPreviewProtection.ensureProtectedPreview(pinId);
+
     return this.getAuction(auctionId, sellerId);
   }
 
@@ -165,7 +173,7 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
     const auction = await this.prisma.auction.findUnique({
       where: { id },
       include: {
-        pin: { select: { id: true, title: true, imageUrl: true, userId: true } },
+        pin: { select: { id: true, title: true, imageUrl: true, protectedImageUrl: true, userId: true, isForSale: true } },
         bids: { orderBy: { createdAt: 'desc' }, include: { bidder: { select: PUBLIC_USER_SELECT } } },
         purchase: true,
       },
@@ -200,11 +208,18 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
       };
     }
 
+    // Winning a live auction only settles the payment via the winnerId flow
+    // above; the actual gate for "does this viewer get the real preview" is
+    // still the same PAID ImagePurchase row every other pin-image path
+    // checks (a plan-eligible PRO viewer who is simply browsing, not the
+    // winner, must not see the unwatermarked image either).
+    const pinImageUrl = await resolveSinglePinImageUrl(this.prisma, auction.pin, viewerId, true);
+
     return {
       myPurchase,
       id: auction.id,
       pinId: auction.pinId,
-      pin: auction.pin,
+      pin: { ...auction.pin, imageUrl: pinImageUrl },
       sellerId: auction.sellerId,
       status: auction.status,
       currency: auction.currency,
@@ -368,12 +383,18 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
     const bids = await this.prisma.auctionBid.findMany({
       where: { bidderId },
       orderBy: { createdAt: 'desc' },
-      include: { auction: { include: { pin: { select: { id: true, title: true, imageUrl: true } } } } },
+      include: {
+        auction: {
+          include: {
+            pin: { select: { id: true, title: true, imageUrl: true, protectedImageUrl: true, userId: true, isForSale: true } },
+          },
+        },
+      },
     });
     const seen = new Set<string>();
     const result: Array<{
       auctionId: string;
-      pin: { id: string; title: string; imageUrl: string };
+      pin: { id: string; title: string; imageUrl: string; protectedImageUrl: string | null; userId: string; isForSale: boolean };
       status: AuctionStatus;
       currentPrice: string;
       myLastBid: string;
@@ -393,7 +414,23 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
         isWinning: bid.auction.winnerId === bidderId,
       });
     }
-    return result;
+    // Bidding on a pin is not the same as owning or paying for it — every
+    // past bidder here, winner or not, must only see the real image once
+    // they've actually got a PAID ImagePurchase (checked by pin, batched).
+    await applyPinImageProtection(
+      this.prisma,
+      result.map((r) => r.pin),
+      bidderId,
+    );
+    return result.map((r) => ({
+      auctionId: r.auctionId,
+      pin: { id: r.pin.id, title: r.pin.title, imageUrl: r.pin.imageUrl },
+      status: r.status,
+      currentPrice: r.currentPrice,
+      myLastBid: r.myLastBid,
+      endsAt: r.endsAt,
+      isWinning: r.isWinning,
+    }));
   }
 
   /** Chuyển SCHEDULED -> ACTIVE khi đến giờ, và finalize khi đã hết hạn -

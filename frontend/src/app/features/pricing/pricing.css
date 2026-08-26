@@ -96,21 +96,42 @@
   border-color: var(--color-accent);
   box-shadow: 0 30px 90px color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
-.plan-card.is-featured:before {
-  content: 'auto_awesome';
-  font-family: 'Material Symbols Outlined';
-  font-size: 20px;
+.plan-card.is-current {
+  border-color: var(--color-nova-blue);
+}
+.recommended-badge {
   position: absolute;
   right: 24px;
   top: -14px;
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
+  padding: 6px 14px;
+  border-radius: var(--radius-control);
   background: var(--color-accent);
   color: var(--color-text-on-accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   box-shadow: 0 8px 25px color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+.membership-load-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  max-width: 1180px;
+  margin: 0 auto 24px;
+  color: var(--color-error);
+  font-size: 13px;
+}
+.membership-load-error button {
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--color-error) 40%, transparent);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+  color: var(--color-error);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
 }
 .card-top {
   display: flex;
@@ -234,7 +255,7 @@
   border-radius: 30px;
   background: linear-gradient(145deg, var(--color-surface-elevated), var(--color-surface));
   color: var(--color-text);
-  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 40px 120px color-mix(in srgb, var(--color-ink) 60%, transparent);
 }
 .close {
   position: absolute;
@@ -312,6 +333,9 @@
   width: 23px;
   height: 23px;
   border-radius: 7px;
+  /* MoMo's real brand pink, not a token — a third-party payment logo mark
+     must stay recognizable, same intentional exception as the QR's white
+     background. */
   background: #a50064;
   color: #fff;
 }
@@ -327,6 +351,7 @@
   min-width: 0;
 }
 .qr-frame {
+  position: relative;
   width: 100%;
   height: auto;
   aspect-ratio: 1 / 1;
@@ -334,6 +359,9 @@
   box-sizing: border-box;
   border-radius: 22px;
   overflow: hidden;
+  /* Real white, not a token — a QR code needs fixed contrast to stay
+     scannable regardless of theme (same intentional exception as the
+     watermark preview swatches in Settings). */
   background: #fff;
   border: 8px solid #fff;
 }
@@ -344,6 +372,27 @@
   object-fit: contain;
   object-position: center;
   border-radius: 12px;
+}
+/* Not a real, scannable code — dim it and stamp it so it can't be
+   mistaken for a working payment QR (it sits right next to a "Chưa khả
+   dụng" label, but the code itself looked identically functional). */
+.qr-frame--disabled img {
+  filter: grayscale(1);
+  opacity: 0.35;
+}
+.qr-frame__overlay {
+  position: absolute;
+  inset: 12px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-ink) 55%, transparent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-align: center;
+  padding: 0 12px;
 }
 .qr-copy {
   min-width: 0;
@@ -361,6 +410,14 @@
   box-shadow: 0 0 14px var(--color-success);
   margin-right: 5px;
 }
+.unavailable-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  margin-right: 5px;
+}
 .qr-copy p {
   color: var(--color-text-muted);
   line-height: 1.6;
@@ -376,11 +433,12 @@
 .amount small {
   display: block;
   color: var(--color-text-muted);
-  font: 700 9px monospace;
+  font: 700 9px var(--font-sans);
   letter-spacing: 0.15em;
 }
 .amount strong {
   display: block;
+  font-family: var(--font-mono);
   font-size: 28px;
   margin-top: 5px;
 }

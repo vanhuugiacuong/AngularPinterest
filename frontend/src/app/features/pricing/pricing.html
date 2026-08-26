@@ -7,14 +7,19 @@
     <h1>Mở rộng thế giới<br /><em>sáng tạo của bạn.</em></h1>
     <p>Một gói thành viên đúng với nhịp sáng tạo — từ ý tưởng đầu tiên đến tác phẩm có giá trị.</p>
   </header>
+  <p *ngIf="membershipLoadError()" class="membership-load-error" role="alert">
+    {{ membershipLoadError() }}
+    <button type="button" (click)="retryLoadMembership()">Thử lại</button>
+  </p>
   <section class="plan-grid">
     <article
       *ngFor="let plan of plans; let i = index"
       class="plan-card"
-      [class.is-featured]="membership.status()?.plan === plan.id"
+      [class.is-featured]="plan.recommended"
       [class.is-current]="membership.status()?.plan === plan.id"
       [attr.aria-current]="membership.status()?.plan === plan.id ? 'true' : null"
     >
+      <span *ngIf="plan.recommended" class="recommended-badge">Đề xuất</span>
       <div class="card-top">
         <span class="index">0{{ i + 1 }}</span
         ><span class="kicker">{{ plan.kicker }}</span>
@@ -78,17 +83,11 @@
         <strong>{{ priceOf(plan) | number: '1.0-0' }}đ</strong> / tháng
       </p>
     </div>
-    <div class="method-tabs">
-      <button [class.active]="method() === 'bank'" (click)="selectMethod('bank')">
-        <span class="material-symbols-outlined" aria-hidden="true">account_balance</span>Ngân hàng</button
-      ><button [class.active]="method() === 'momo'" (click)="selectMethod('momo')">
-        <span class="momo">M</span>MoMo</button
-      ><button [class.active]="method() === 'card'" (click)="selectMethod('card')">
-        <span class="material-symbols-outlined" aria-hidden="true">credit_card</span>Visa / Thẻ
-      </button>
-    </div>
+    <!-- Only bank transfer is wired to real automatic payment confirmation
+         — MoMo/thẻ are hidden entirely rather than shown disabled, since
+         there is nothing for a user to meaningfully do with them yet. -->
     <div class="payment-body">
-      <div class="qr-payment" *ngIf="method() === 'bank'">
+      <div class="qr-payment">
         <div class="qr-frame">
           <img
             *ngIf="currentPayment() as pay"
@@ -110,87 +109,14 @@
           </div>
         </div>
       </div>
-      <div class="qr-payment" *ngIf="method() === 'momo'">
-        <div class="qr-frame"><img src="/payments/momo-qr.png" alt="QR MoMo" /></div>
-        <div class="qr-copy">
-          <b><span class="live-dot"></span> Chưa khả dụng</b>
-          <p>
-            MoMo chưa được kết nối với hệ thống xác nhận thanh toán tự động. Vui lòng dùng tab Ngân
-            hàng.
-          </p>
-        </div>
-      </div>
-      <form
-        class="card-form"
-        *ngIf="method() === 'card'"
-        (submit)="$event.preventDefault(); confirmPayment()"
-      >
-        <label [class.has-error]="fieldErrors()['cardName']"
-          >Tên trên thẻ<input
-            [(ngModel)]="cardName"
-            name="cardName"
-            (input)="clearError('cardName')"
-            (blur)="validateField('cardName')"
-            autocomplete="cc-name"
-            placeholder="NGUYEN VAN A"
-          /><small *ngIf="fieldErrors()['cardName']">{{ fieldErrors()['cardName'] }}</small></label
-        >
-        <label [class.has-error]="fieldErrors()['cardNumber']"
-          >Số thẻ<input
-            [(ngModel)]="cardNumber"
-            name="cardNumber"
-            (input)="formatCard()"
-            (blur)="validateField('cardNumber')"
-            inputmode="numeric"
-            autocomplete="cc-number"
-            placeholder="0000 0000 0000 0000"
-          /><small *ngIf="fieldErrors()['cardNumber']">{{
-            fieldErrors()['cardNumber']
-          }}</small></label
-        >
-        <div>
-          <label [class.has-error]="fieldErrors()['expiry']"
-            >Ngày hết hạn<input
-              [(ngModel)]="expiry"
-              name="expiry"
-              (input)="formatExpiry()"
-              (blur)="validateField('expiry')"
-              placeholder="MM/YY"
-              maxlength="5"
-              autocomplete="cc-exp"
-            /><small *ngIf="fieldErrors()['expiry']">{{ fieldErrors()['expiry'] }}</small></label
-          ><label [class.has-error]="fieldErrors()['cvv']"
-            >CVV<input
-              [(ngModel)]="cvv"
-              name="cvv"
-              (input)="formatCvv()"
-              (blur)="validateField('cvv')"
-              type="password"
-              inputmode="numeric"
-              maxlength="3"
-              autocomplete="cc-csc"
-              placeholder="•••"
-            /><small *ngIf="fieldErrors()['cvv']">{{ fieldErrors()['cvv'] }}</small></label
-          >
-        </div>
-        <p class="lock-note"><span class="material-symbols-outlined" aria-hidden="true">lock</span>Thông tin thẻ chỉ dùng để mô phỏng và không được lưu.</p>
-      </form>
     </div>
     <p class="payment-message" [class.is-error]="hasErrors()" *ngIf="message()">{{ message() }}</p>
     <button
       class="pay-button"
       (click)="confirmPayment()"
-      [disabled]="processing() || (method() === 'bank' && (paymentLoading() || !currentPayment()))"
+      [disabled]="processing() || paymentLoading() || !currentPayment()"
     >
-      {{
-        processing()
-          ? 'Đang kiểm tra…'
-          : method() === 'bank'
-            ? 'Tôi đã chuyển khoản ' + (priceOf(plan) | number: '1.0-0') + 'đ'
-            : method() === 'card'
-              ? 'Thanh toán ' + (priceOf(plan) | number: '1.0-0') + 'đ'
-              : 'Chưa khả dụng'
-      }}
+      {{ processing() ? 'Đang kiểm tra…' : 'Tôi đã chuyển khoản ' + (priceOf(plan) | number: '1.0-0') + 'đ' }}
     </button>
   </section>
 </div>

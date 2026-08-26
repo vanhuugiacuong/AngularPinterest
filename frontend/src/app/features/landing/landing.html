@@ -57,7 +57,19 @@
         <p class="nf-hero__lede">
           Khám phá, lưu trữ và tạo ra hình ảnh của riêng bạn — bằng ảnh thật hoặc bằng AI.
         </p>
-        <div class="nf-hero__actions" aria-hidden="true"></div>
+        <div class="nf-hero__actions">
+          <button
+            type="button"
+            class="nf-btn nf-btn--solid"
+            (click)="openLoginModal()"
+          >
+            Bắt đầu khám phá
+          </button>
+          <button type="button" class="nf-btn nf-btn--ghost" (click)="scrollToId('nf-explore')">
+            Xem tác phẩm
+            <span class="material-symbols-outlined" aria-hidden="true">arrow_downward</span>
+          </button>
+        </div>
       </div>
 
       <span class="nf-hero__cue" aria-hidden="true">
@@ -176,7 +188,7 @@
             của bạn.
           </p>
           <p class="nf-ai__prompt" aria-hidden="true">
-            <span class="material-symbols-outlined">auto_awesome</span>
+            <span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
             <span class="nf-ai__prompt-text">một đài quan sát ánh sáng giữa sương màu…</span>
           </p>
         </header>

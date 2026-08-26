@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, ViewChild } from '@angular/core';
+import { Component, OnInit, inject, signal, ViewChild, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
@@ -181,6 +181,16 @@ export class Create implements OnInit {
   toggleBoardDropdown(event: MouseEvent) {
     event.stopPropagation();
     this.showBoardDropdown.update(val => !val);
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.showBoardDropdown()) this.showBoardDropdown.set(false);
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void {
+    if (this.showBoardDropdown()) this.showBoardDropdown.set(false);
   }
 
   selectBoard(board: Board, event: MouseEvent) {

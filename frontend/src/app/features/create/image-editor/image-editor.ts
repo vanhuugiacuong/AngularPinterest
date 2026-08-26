@@ -30,6 +30,7 @@ import {
 import { EditorHistory } from './editor-history';
 import { canvasToBlob, loadImage, renderEditedImage } from './editor-render';
 import { RangeControl } from '../../../shared/range-control/range-control';
+import { clampNormalizedRect } from '../../../core/utils/image-crop';
 
 const PREVIEW_MAX_DIMENSION = 1000;
 const EXPORT_MAX_DIMENSION = 2400;
@@ -48,19 +49,11 @@ function clamp01(v: number): number {
  * stays fully inside the source image bounds [0,1] — this is what
  * guarantees empty space can never appear inside the crop box (there is
  * nothing to clamp against outside the image, so an in-bounds rect can
- * never reveal a gap). Used for every pan/resize update. */
+ * never reveal a gap). Used for every pan/resize update. Delegates to the
+ * same shared clamp collage's layer-crop tool uses (core/utils/image-crop)
+ * so the two re-crop tools can't drift apart. */
 function clampCropRect(x: number, y: number, width: number, height: number): CropSettings {
-  let w = Number.isFinite(width) ? width : MIN_CROP_SIZE;
-  let h = Number.isFinite(height) ? height : MIN_CROP_SIZE;
-  w = Math.min(1, Math.max(MIN_CROP_SIZE, w));
-  h = Math.min(1, Math.max(MIN_CROP_SIZE, h));
-
-  let nx = Number.isFinite(x) ? x : 0;
-  let ny = Number.isFinite(y) ? y : 0;
-  nx = Math.min(1 - w, Math.max(0, nx));
-  ny = Math.min(1 - h, Math.max(0, ny));
-
-  return { x: nx, y: ny, width: w, height: h };
+  return clampNormalizedRect({ x, y, width, height }, MIN_CROP_SIZE);
 }
 
 @Component({
