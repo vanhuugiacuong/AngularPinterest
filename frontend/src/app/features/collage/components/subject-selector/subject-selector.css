@@ -72,39 +72,148 @@ h2 {
     radial-gradient(circle at 50% 45%, rgba(139, 44, 255, 0.18), transparent 60%),
     var(--color-bg-secondary);
 }
+/* Fills the entire preview-stage instead of shrink-wrapping to the image's
+   own rendered size — otherwise a wide/short or small source image would
+   collapse the frame down to a thin sliver floating inside a mostly-empty
+   box (inconsistent position/size per image). .source-image, .mask-canvas
+   and .highlight-canvas are absolutely positioned (inset: 0) rather than
+   CSS-grid-stacked — a grid cell with an implicit `auto` track and a
+   width:100% child is a circular-sizing case browsers resolve inconsistently
+   (the track can end up sized off the image's own intrinsic dimensions
+   instead of the parent's box), which is what was causing the frame to
+   shrink/crop differently per image. Absolute positioning has no such
+   ambiguity: each layer resolves against .image-frame's box, full stop. */
 .image-frame {
   position: relative;
-  display: inline-grid;
-  max-width: 100%;
-  max-height: 100%;
-  place-items: center;
+  width: 100%;
+  height: 100%;
 }
 .source-image {
   display: block;
-  grid-area: 1 / 1;
-  width: auto;
-  max-width: 100%;
-  height: auto;
-  max-height: min(58vh, 560px);
-  cursor: crosshair;
-  object-fit: contain;
-  transition:
-    opacity 0.16s ease,
-    filter 0.16s ease;
-}
-.source-image.dimmed {
-  opacity: 0.27;
-  filter: saturate(0.7);
-}
-.cutout-outline {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: fill;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Sits in the same box as .source-image, sized identically — but a <canvas>
+   defaults to object-fit: fill (stretch to the box, ignoring its own
+   aspect ratio) unlike an <img>, which is object-fit: contain here and
+   therefore letterboxed whenever the box's aspect ratio doesn't match the
+   photo's. Without object-fit: contain here too, this canvas would get
+   non-uniformly stretched relative to the (letterboxed) visible photo —
+   painted strokes would land in the wrong spot and look stretched/smeared.
+   Matching object-fit keeps this canvas's content pixel-aligned with the
+   displayed photo, so pointer coordinates read off its rect map 1:1 onto
+   image pixels. This is the authoritative alpha mask (opaque where painted)
+   used to composite the final cutout — kept invisible on screen (opacity: 0)
+   because showing it directly would be a solid color blob; the actual
+   visual feedback is .highlight-canvas, redrawn from this on every stroke. */
+.mask-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  touch-action: none;
+  cursor: crosshair;
+  opacity: 0;
+}
+.mask-canvas.erase-cursor {
+  cursor: cell;
+}
+
+/* Purely visual, non-interactive (pointer-events: none — all input goes to
+   .mask-canvas underneath). Needs the same object-fit: contain as the mask,
+   for the same reason — otherwise the glow would be stretched out of
+   alignment with the photo. Rebuilt from the mask every stroke: a blurred
+   glow bleeding past the painted silhouette, then the interior mostly
+   erased back out — reading as a bright rim around a see-through fill,
+   so the photo underneath stays visible while the selection is still obvious. */
+.highlight-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   pointer-events: none;
-  filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 5px var(--color-accent))
-    drop-shadow(0 0 10px var(--color-primary));
+}
+
+.brush-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-elevated);
+}
+.brush-mode-switch {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-bg-secondary);
+}
+.brush-mode-switch button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: calc(var(--radius-control) - 3px);
+  color: var(--color-text-muted);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.brush-mode-switch button.active {
+  color: var(--color-text);
+  background: var(--color-surface-high);
+}
+.brush-mode-switch .material-symbols-outlined {
+  font-size: 16px;
+}
+.brush-size {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted);
+}
+.brush-size .material-symbols-outlined {
+  font-size: 10px;
+}
+.brush-size input[type='range'] {
+  width: 120px;
+  accent-color: var(--color-accent);
+}
+.clear-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  margin-left: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text-muted);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.clear-button:not(:disabled):hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+.clear-button .material-symbols-outlined {
+  font-size: 16px;
 }
 .tap-instruction {
   position: absolute;
@@ -267,9 +376,6 @@ button:disabled {
     min-height: 300px;
     height: 52vh;
     padding: 0 8px;
-  }
-  .source-image {
-    max-height: 52vh;
   }
   .error-state {
     align-items: stretch;

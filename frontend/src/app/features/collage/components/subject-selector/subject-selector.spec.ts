@@ -1,21 +1,25 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SegmentationResult } from '../../collage.types';
-import { SEGMENTATION_PROVIDER, SegmentationProvider } from '../../services/segmentation-provider';
 import { SubjectSelectorComponent } from './subject-selector';
+
+function attachCanvases(component: SubjectSelectorComponent): void {
+  const maskCanvas = document.createElement('canvas');
+  const highlightCanvas = document.createElement('canvas');
+  (component as unknown as {
+    maskCanvasRef: { nativeElement: HTMLCanvasElement };
+    highlightCanvasRef: { nativeElement: HTMLCanvasElement };
+  }).maskCanvasRef = { nativeElement: maskCanvas };
+  (component as unknown as {
+    highlightCanvasRef: { nativeElement: HTMLCanvasElement };
+  }).highlightCanvasRef = { nativeElement: highlightCanvas };
+}
 
 describe('SubjectSelectorComponent', () => {
   let component: SubjectSelectorComponent;
-  let selectObject: SegmentationProvider['selectObject'];
 
   beforeEach(() => {
-    selectObject = vi.fn<SegmentationProvider['selectObject']>(
-      () => new Promise<SegmentationResult>(() => undefined),
-    );
-    const provider: SegmentationProvider = { selectObject };
-    TestBed.configureTestingModule({
-      providers: [{ provide: SEGMENTATION_PROVIDER, useValue: provider }],
-    });
+    TestBed.configureTestingModule({});
     component = TestBed.runInInjectionContext(() => new SubjectSelectorComponent());
     component.source = {
       sourceImageUrl: 'https://example.com/source.jpg',
@@ -26,20 +30,31 @@ describe('SubjectSelectorComponent', () => {
 
   afterEach(() => component.ngOnDestroy());
 
-  it('sends the exact clicked image point to the interactive provider', () => {
-    const image = {
-      getBoundingClientRect: () => ({ left: 100, top: 50, width: 400, height: 300 }),
-    } as HTMLImageElement;
-    const event = { currentTarget: image, clientX: 200, clientY: 200 } as unknown as MouseEvent;
+  it('sizes the mask canvas to the loaded image and starts with nothing painted', () => {
+    attachCanvases(component);
+    const canvas = (component as unknown as { maskCanvasRef: { nativeElement: HTMLCanvasElement } })
+      .maskCanvasRef.nativeElement;
+    const img = { naturalWidth: 800, naturalHeight: 600 } as HTMLImageElement;
 
-    component.selectAtPoint(event);
+    component.onImageLoad({ target: img } as unknown as Event);
 
-    expect(selectObject).toHaveBeenCalledWith(
-      component.source.blob,
-      { x: 0.25, y: 0.5 },
-      expect.any(Function),
-    );
-    expect(component.selectedPoint()).toEqual({ x: 0.25, y: 0.5 });
+    expect(canvas.width).toBe(800);
+    expect(canvas.height).toBe(600);
+    expect(component.imageReady()).toBe(true);
+    expect(component.hasPainted()).toBe(false);
+  });
+
+  it('marks hasPainted true after a stroke is drawn on the mask', () => {
+    attachCanvases(component);
+    const img = { naturalWidth: 400, naturalHeight: 400 } as HTMLImageElement;
+    component.onImageLoad({ target: img } as unknown as Event);
+
+    (component as unknown as { strokeTo: (point: { x: number; y: number }) => void }).strokeTo({
+      x: 100,
+      y: 100,
+    });
+
+    expect(component.hasPainted()).toBe(true);
   });
 
   it('adds the whole image immediately when selecting all', async () => {
@@ -61,21 +76,26 @@ describe('SubjectSelectorComponent', () => {
     expect(emitted).toHaveBeenCalledWith(wholeResult);
   });
 
-  it('adds the selected transparent object to the collage', () => {
-    const selectedResult: SegmentationResult = {
-      blob: new Blob(['cutout'], { type: 'image/png' }),
-      width: 640,
-      height: 960,
-    };
-    const testComponent = component as unknown as {
-      cutoutResult: SegmentationResult | null;
-    };
-    testComponent.cutoutResult = selectedResult;
+  it('does nothing when addCutout is called before anything is painted', async () => {
     const emitted = vi.spyOn(component.cutoutAdded, 'emit');
 
-    component.addCutout();
+    await component.addCutout();
 
-    expect(emitted).toHaveBeenCalledOnce();
-    expect(emitted).toHaveBeenCalledWith(selectedResult);
+    expect(emitted).not.toHaveBeenCalled();
+  });
+
+  it('clearMask resets hasPainted back to false', () => {
+    attachCanvases(component);
+    const img = { naturalWidth: 400, naturalHeight: 400 } as HTMLImageElement;
+    component.onImageLoad({ target: img } as unknown as Event);
+    (component as unknown as { strokeTo: (point: { x: number; y: number }) => void }).strokeTo({
+      x: 50,
+      y: 50,
+    });
+    expect(component.hasPainted()).toBe(true);
+
+    component.clearMask();
+
+    expect(component.hasPainted()).toBe(false);
   });
 });
