@@ -8,6 +8,7 @@ import { NotificationSocketService } from '../../core/services/notification-sock
 import { NotificationItem } from '../notification-item/notification-item';
 import { PinService, Pin } from '../../core/services/pin';
 import { ChatService, PublicUserSummary } from '../../core/services/chat';
+import { VisualSearchService } from '../../core/services/visual-search';
 
 // Lowercases and strips Vietnamese diacritics so "meo" matches "mèo" — same normalizer
 // used by the /search results page, kept in sync so typing and submitting agree.
@@ -37,6 +38,7 @@ export class Navbar {
   private elementRef = inject(ElementRef);
   private pinService = inject(PinService);
   private chatService = inject(ChatService);
+  private visualSearchService = inject(VisualSearchService);
 
   @Output() loginClick = new EventEmitter<void>();
   @ViewChild('searchInputEl') searchInputEl?: ElementRef<HTMLInputElement>;
@@ -229,6 +231,12 @@ export class Navbar {
   closeSearchDropdown() {
     this.showSearchDropdown.set(false);
     this.revertSearchQueryToCurrentRoute();
+  }
+
+  onVisualSearchClick(event: Event) {
+    event.stopPropagation();
+    this.showSearchDropdown.set(false);
+    this.visualSearchService.open();
   }
 
   private revertSearchQueryToCurrentRoute() {

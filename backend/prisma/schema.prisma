@@ -68,6 +68,13 @@ model Pin {
   generationModel String?
   category        String      @default("other")
   embedding       Unsupported("vector(512)")? // pgvector similarity embedding, managed outside Prisma
+  // NOTE: a "visualCategory" TEXT column also exists on this table, managed outside Prisma
+  // (added + backfilled by scratch/classify_visual_categories.ts). It stores the CLIP-classified
+  // visual category of the pin's image (dog/cat/animal/person/food/scenery/anime/product) and is
+  // used to scope "search by image" results. See src/pins/visual-search.ts.
+  // NOTE: an "avgColor" vector(3) column also exists, managed outside Prisma (added + backfilled by
+  // scratch/backfill_avg_colors.ts). It stores the mean RGB (0-255) of the pin image, used to rank
+  // flat-colour crop searches by colour proximity.
 
   user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   boardPins       BoardPin[]

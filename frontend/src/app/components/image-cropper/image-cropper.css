@@ -1,0 +1,18 @@
+:host {
+  display: contents;
+}
+
+.ic-corner {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 2.5px solid rgba(255, 255, 255, 0.85);
+  touch-action: none;
+}
+
+/* keep only two edges per corner so each reads as an L / bracket, with the
+   outer angle rounded so it looks like a soft curved bracket */
+.ic-nw { top: -2px; left: -2px; border-right: none; border-bottom: none; border-top-left-radius: 10px; cursor: nwse-resize; }
+.ic-ne { top: -2px; right: -2px; border-left: none; border-bottom: none; border-top-right-radius: 10px; cursor: nesw-resize; }
+.ic-se { bottom: -2px; right: -2px; border-left: none; border-top: none; border-bottom-right-radius: 10px; cursor: nwse-resize; }
+.ic-sw { bottom: -2px; left: -2px; border-right: none; border-top: none; border-bottom-left-radius: 10px; cursor: nesw-resize; }

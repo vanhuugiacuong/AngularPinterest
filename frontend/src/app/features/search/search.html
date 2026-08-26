@@ -4,13 +4,22 @@
   <div class="flex-1 pt-16 pl-28 pb-24 flex flex-col min-w-0">
     <main class="flex-1 w-full mx-auto px-6 py-6 flex flex-col max-w-none">
 
-      <h1 class="text-sm font-bold text-[#62625b] dark:text-[#999] mb-6">
-        @if (query()) {
-          Kết quả cho "<span class="text-black dark:text-white">{{ query() }}</span>"
-        } @else {
-          Tất cả ảnh
-        }
-      </h1>
+      @if (visualQueryPreviewUrl()) {
+        <div class="flex items-center gap-3 mb-6">
+          <img [src]="visualQueryPreviewUrl()" class="w-14 h-14 rounded-2xl object-cover shrink-0" />
+          <h1 class="text-sm font-bold text-[#62625b] dark:text-[#999]">
+            Kết quả cho <span class="text-black dark:text-white">hình ảnh này</span>
+          </h1>
+        </div>
+      } @else {
+        <h1 class="text-sm font-bold text-[#62625b] dark:text-[#999] mb-6">
+          @if (query()) {
+            Kết quả cho "<span class="text-black dark:text-white">{{ query() }}</span>"
+          } @else {
+            Tất cả ảnh
+          }
+        </h1>
+      }
 
       @if (refinementTags().length > 0) {
         <div class="relative mb-6">

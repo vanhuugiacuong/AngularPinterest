@@ -1,10 +1,11 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
 import { PinService } from '../../core/services/pin';
 import { ChatService, PublicUserSummary } from '../../core/services/chat';
 import { SupabaseService } from '../../core/services/supabase';
+import { VisualSearchService } from '../../core/services/visual-search';
 
 // Lowercases and strips Vietnamese diacritics (tone marks via NFD decomposition, plus
 // đ/Đ which don't decompose that way) so "cho" matches "chó" the same way real
@@ -32,12 +33,25 @@ export class Search implements OnInit {
   private pinService = inject(PinService);
   private chatService = inject(ChatService);
   private supabaseService = inject(SupabaseService);
+  public visualSearchService = inject(VisualSearchService);
 
   public query = signal<string>('');
   public results = signal<any[]>([]);
   public userResults = signal<PublicUserSummary[]>([]);
   public isLoading = signal<boolean>(true);
   public refinementTags = signal<{ label: string; imageUrl: string | null }[]>([]);
+  public visualQueryPreviewUrl = signal<string | null>(null);
+
+  // When the user runs another image search while already on the results page,
+  // the router sees the same /search?visual=1 URL and skips re-navigation, so
+  // ngOnInit never re-runs. React to the service's results signal directly so a
+  // repeat search still refreshes the page.
+  private readonly visualResultsEffect = effect(() => {
+    const results = this.visualSearchService.results();
+    if (results !== null && this.route.snapshot.queryParamMap.get('visual') === '1') {
+      this.showVisualSearchResults();
+    }
+  });
 
   // Rough Vietnamese stop-word list (diacritic-stripped) so common filler words never
   // show up as a "related" tag — this is a best-effort heuristic, not a real dictionary.
@@ -65,10 +79,25 @@ export class Search implements OnInit {
 
   ngOnInit() {
     this.route.queryParamMap.subscribe(params => {
+      const isVisualSearch = params.get('visual') === '1' && this.visualSearchService.results() !== null;
+      if (isVisualSearch) {
+        this.showVisualSearchResults();
+        return;
+      }
+      this.visualQueryPreviewUrl.set(null);
       const q = params.get('q') || '';
       this.query.set(q);
       this.runSearch(q);
     });
+  }
+
+  private showVisualSearchResults() {
+    this.query.set('');
+    this.visualQueryPreviewUrl.set(this.visualSearchService.lastQueryImageUrl());
+    this.userResults.set([]);
+    this.refinementTags.set([]);
+    this.results.set(this.visualSearchService.results() || []);
+    this.isLoading.set(false);
   }
 
   async runSearch(q: string) {

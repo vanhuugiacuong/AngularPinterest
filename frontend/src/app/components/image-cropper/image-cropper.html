@@ -1,0 +1,20 @@
+<div #frame class="absolute inset-0 overflow-hidden rounded-[24px] select-none touch-none">
+  <!-- Selection box: dims everything outside via a huge spread box-shadow.
+       overflow-hidden on the frame keeps that shadow inside the image bounds
+       (otherwise it bleeds over the whole card). -->
+  <div
+    class="absolute cursor-move"
+    [style.left]="boxStyle().left"
+    [style.top]="boxStyle().top"
+    [style.width]="boxStyle().width"
+    [style.height]="boxStyle().height"
+    style="box-shadow: 0 0 0 9999px rgba(0,0,0,0.42); outline: 1px solid rgba(255,255,255,0.25)"
+    (pointerdown)="onPointerDown($event, 'move')"
+  >
+    <!-- four thin translucent corner brackets -->
+    <span class="ic-corner ic-nw" (pointerdown)="onPointerDown($event, 'nw')"></span>
+    <span class="ic-corner ic-ne" (pointerdown)="onPointerDown($event, 'ne')"></span>
+    <span class="ic-corner ic-se" (pointerdown)="onPointerDown($event, 'se')"></span>
+    <span class="ic-corner ic-sw" (pointerdown)="onPointerDown($event, 'sw')"></span>
+  </div>
+</div>

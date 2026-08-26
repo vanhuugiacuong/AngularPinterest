@@ -14,6 +14,29 @@
         </div>
       }
 
+      <!-- Full-size image lightbox -->
+      @if (showFullImage() && pin(); as p) {
+        <div
+          class="fixed inset-0 z-[95] bg-black/90 flex items-center justify-center p-4 sm:p-10 animate-fade-in"
+          (click)="closeFullImage()"
+        >
+          <img
+            [src]="p.imageUrl"
+            [alt]="p.title"
+            class="w-[92vw] h-[88vh] object-contain select-none"
+            (click)="$event.stopPropagation()"
+          />
+          <button
+            type="button"
+            (click)="closeFullImage()"
+            title="Đóng"
+            class="fixed top-5 right-5 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center border-none outline-none cursor-pointer transition-colors"
+          >
+            <span class="material-symbols-outlined text-2xl leading-none">close</span>
+          </button>
+        </div>
+      }
+
       <!-- Unified 2-Column Split Outer Area -->
       @if (!isLoading() && pin(); as p) {
         <div class="w-full flex flex-col lg:flex-row gap-6 mt-2 items-start">
@@ -26,29 +49,51 @@
                    the card) so landscape photos aren't squeezed into a portrait-sized column -->
               <div class="md:max-w-[50%] relative bg-white dark:bg-[#1a1a1a] p-5 flex items-center justify-center">
                 <!-- Back button inside card -->
-                <button 
-                  (click)="goBack()" 
+                <button
+                  (click)="goBack()"
                   class="absolute top-4 left-4 w-10 h-10 rounded-full bg-white hover:bg-gray-100 flex items-center justify-center cursor-pointer shadow-md active:scale-95 border-none outline-none select-none z-30 text-black transition-all"
                   title="Quay lại"
                 >
                   <span class="material-symbols-outlined text-xl font-bold">arrow_back</span>
                 </button>
 
-                <img 
-                  [src]="p.imageUrl" 
-                  [alt]="p.title" 
-                  class="w-full h-auto max-h-[650px] object-contain block select-none rounded-[24px]"
-                />
-                
+                <!-- Image + inline crop layer -->
+                <div class="relative w-full max-h-[650px] flex items-center justify-center">
+                  <img
+                    [src]="p.imageUrl"
+                    [alt]="p.title"
+                    class="w-full h-auto max-h-[650px] object-contain block select-none rounded-[24px]"
+                    [class.pointer-events-none]="cropMode()"
+                  />
+
+                  @if (cropMode()) {
+                    <app-image-cropper
+                      [box]="cropBox()"
+                      (boxChange)="onCropBoxChange($event)"
+                      (commit)="onCropCommit()"
+                    />
+                  }
+                </div>
+
                 <!-- Image overlay options on bottom right -->
                 <div class="absolute bottom-9 right-9 flex items-center gap-2 z-20">
-                  <!-- Image Search badge -->
-                  <div class="flex items-center gap-1 bg-white hover:bg-gray-100 text-black px-3.5 py-2 rounded-full text-xs font-bold shadow-md cursor-pointer transition-colors select-none">
-                    <span class="material-symbols-outlined text-sm leading-none font-bold">search</span>
-                    <span>Tìm kiếm hình ảnh</span>
-                  </div>
+                  <!-- Crop / visual search toggle -->
+                  <button
+                    type="button"
+                    (click)="toggleCropMode()"
+                    [title]="cropMode() ? 'Thoát chế độ chọn vùng' : 'Chọn một vùng trên ảnh để tìm ảnh tương đồng'"
+                    class="w-8 h-8 rounded-full flex items-center justify-center shadow-md cursor-pointer transition-colors active:scale-90 border-none outline-none select-none"
+                    [ngClass]="cropMode() ? 'bg-[#B15CAA] text-white' : 'bg-white text-black hover:bg-gray-100'"
+                  >
+                    <span class="material-symbols-outlined text-base font-bold">{{ cropMode() ? 'close' : 'crop' }}</span>
+                  </button>
                   <!-- Fullscreen -->
-                  <button class="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center shadow-md hover:bg-gray-100 cursor-pointer active:scale-90 border-none outline-none select-none">
+                  <button
+                    type="button"
+                    (click)="openFullImage()"
+                    title="Phóng to ảnh"
+                    class="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center shadow-md hover:bg-gray-100 cursor-pointer active:scale-90 border-none outline-none select-none"
+                  >
                     <span class="material-symbols-outlined text-base font-bold">open_in_full</span>
                   </button>
                 </div>
@@ -316,12 +361,21 @@
               </div>
             </div>
 
-            <!-- Bottom Related Pins (below card) -->
+            <!-- Bottom grid: related pins, OR region-search results while cropping -->
             <div class="flex flex-col gap-6 mt-4">
-              <h3 class="text-lg font-bold text-black dark:text-white text-center select-none">Khám phá thêm các hình ảnh tương tự</h3>
-              
+              <h3 class="text-lg font-bold text-black dark:text-white text-center select-none flex items-center justify-center gap-2">
+                @if (cropMode()) {
+                  Kết quả cho vùng đã chọn
+                  @if (regionLoading()) {
+                    <span class="w-4 h-4 border-2 border-[#B15CAA] border-t-transparent rounded-full animate-spin inline-block"></span>
+                  }
+                } @else {
+                  Khám phá thêm các hình ảnh tương tự
+                }
+              </h3>
+
               <!-- Shimmer Skeletons for bottom related pins -->
-              @if (isRelatedLoading()) {
+              @if (isRelatedLoading() || (cropMode() && !regionResults())) {
                 <div class="flex gap-3.5 w-full">
                   @for (colIndex of getBottomColumnsArray(); track colIndex) {
                     <div class="flex flex-col gap-3.5 flex-1 min-w-0">
@@ -339,7 +393,7 @@
               }
 
               <!-- Non-shifting Flex Columns for bottom related pins -->
-              @if (!isRelatedLoading() && relatedPins().length > 0) {
+              @if (!isRelatedLoading() && displayPins().length > 0) {
                 <div class="flex gap-3.5 w-full">
                   @for (colIndex of getBottomColumnsArray(); track colIndex) {
                     <div class="flex flex-col gap-3.5 flex-1 min-w-0">
@@ -401,7 +455,7 @@
           <div class="hidden lg:flex lg:w-[37%] flex-col gap-4">
             
             <!-- Shimmer Skeletons for sidebar related pins -->
-            @if (isRelatedLoading()) {
+            @if (isRelatedLoading() || (cropMode() && !regionResults())) {
               <div class="flex gap-3.5 w-full">
                 @for (colIndex of getSideColumnsArray(); track colIndex) {
                   <div class="flex flex-col gap-3.5 flex-1 min-w-0">
@@ -419,7 +473,7 @@
             }
 
             <!-- Non-shifting Flex Columns for sidebar related pins -->
-            @if (!isRelatedLoading() && relatedPins().length > 0) {
+            @if (!isRelatedLoading() && displayPins().length > 0) {
               <div class="flex gap-3.5 w-full">
                 @for (colIndex of getSideColumnsArray(); track colIndex) {
                   <div class="flex flex-col gap-3.5 flex-1 min-w-0">

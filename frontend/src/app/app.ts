@@ -5,10 +5,11 @@ import { ThemeService } from './core/services/theme';
 import { PresenceService } from './core/services/presence';
 import { ToastContainer } from './components/toast-container/toast-container';
 import { ConfirmDialog } from './components/confirm-dialog/confirm-dialog';
+import { VisualSearchModal } from './components/visual-search-modal/visual-search-modal';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, ToastContainer, ConfirmDialog],
+  imports: [RouterOutlet, ToastContainer, ConfirmDialog, VisualSearchModal],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })

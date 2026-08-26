@@ -180,6 +180,40 @@ export class PinService {
     }
   }
 
+  async searchByImage(formData: FormData): Promise<any[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/search-by-image`, {
+        method: 'POST',
+        body: formData
+      });
+      if (!response.ok) {
+        throw new Error(await this.errorMessage(response, 'Không thể tìm kiếm bằng hình ảnh.'));
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error searching by image in PinService:', error);
+      throw error;
+    }
+  }
+
+  /** Crop / "Pinterest Lens" search: match against a region of an existing pin. box = 0..1 fractions. */
+  async searchByRegion(
+    pinId: string,
+    box: { x: number; y: number; width: number; height: number },
+    signal?: AbortSignal,
+  ): Promise<any[]> {
+    const response = await fetch(`${this.baseUrl}/${pinId}/search-by-region`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ box }),
+      signal,
+    });
+    if (!response.ok) {
+      throw new Error(await this.errorMessage(response, 'Không thể tìm kiếm theo vùng ảnh.'));
+    }
+    return await response.json();
+  }
+
   async saveAiPin(body: any, token: string): Promise<any> {
     try {
       const response = await fetch(`${this.baseUrl}/ai-save`, {
