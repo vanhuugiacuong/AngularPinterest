@@ -5,34 +5,72 @@
     <main class="flex-1 w-full max-w-[980px] mx-auto px-6 py-8 flex flex-col">
 
       @if (billing.isPro()) {
-        <!-- ══════════════ MÀN THÀNH VIÊN PRO ══════════════ -->
-        <div class="member-card relative overflow-hidden rounded-[30px] px-6 sm:px-11 py-11 text-white mb-8">
-          <div class="relative z-10 flex flex-col items-center text-center">
-            <span class="w-16 h-16 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center mb-5 ring-1 ring-white/25">
-              <app-icon name="crown" class="w-8 h-8"></app-icon>
-            </span>
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 text-[11px] font-extrabold tracking-wide mb-4">
-              <app-icon name="check" class="w-[13px] h-[13px]"></app-icon> ĐANG HOẠT ĐỘNG
-            </span>
-            <h1 class="text-[30px] sm:text-[42px] font-extrabold tracking-tight leading-tight">Bạn là thành viên PinHub Pro</h1>
-            <p class="text-white/85 text-base mt-3 max-w-lg">Cảm ơn bạn đã ủng hộ PinHub 💜 Toàn bộ quyền lợi Pro đang được mở khoá.</p>
+        <!-- ══════════════ THẺ HỘI VIÊN PRO (nền sáng, chi tiết) ══════════════ -->
+        <div class="pro-hero relative overflow-hidden rounded-[30px] p-6 sm:p-9 mb-8 border border-[#f0e4ef] dark:border-[#26262c] bg-white dark:bg-[#17171c]">
+          <div class="ph-glow"></div>
+          <app-icon name="crown" class="absolute -right-8 -bottom-10 w-52 h-52 text-[#F94083]/[0.05] pointer-events-none"></app-icon>
 
-            <div class="flex flex-wrap items-center justify-center gap-2.5 mt-6">
-              <span class="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/15 text-sm font-semibold">
-                <app-icon name="clock" class="w-[15px] h-[15px]"></app-icon> Hiệu lực đến {{ billing.proExpiresAt() | date: 'dd/MM/yyyy' }}
-              </span>
-              <span class="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/15 text-sm font-semibold">
-                <app-icon name="coin" class="w-[15px] h-[15px]"></app-icon> +300 credit / tháng
+          <div class="relative z-10">
+            <!-- Hàng trên -->
+            <div class="flex items-center justify-between gap-3 mb-8">
+              <div class="flex items-center gap-3">
+                <span class="ph-crest w-11 h-11 rounded-[14px] flex items-center justify-center shrink-0">
+                  <app-icon name="crown" class="w-6 h-6 text-white"></app-icon>
+                </span>
+                <div class="leading-tight">
+                  <div class="text-[10px] font-extrabold tracking-[0.28em] text-[#B15CAA]">PINHUB PRO</div>
+                  <div class="text-[#1b1620] dark:text-white font-bold text-sm">Thẻ hội viên</div>
+                </div>
+              </div>
+              <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#eafaf1] dark:bg-[#12271c] text-[11px] font-bold tracking-wide text-[#1f9d55]">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#4ade80] opacity-70"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-[#22c55e]"></span>
+                </span>
+                Đang hoạt động
               </span>
             </div>
 
-            <div class="flex flex-wrap items-center justify-center gap-3 mt-7">
-              <button (click)="goWallet()" class="h-11 px-6 rounded-full bg-white text-[#B15CAA] font-bold text-sm hover:bg-white/90 transition-colors cursor-pointer border-none outline-none flex items-center gap-2">
+            <!-- Headline -->
+            <h1 class="text-[26px] sm:text-[38px] font-extrabold tracking-tight text-[#1b1620] dark:text-white leading-[1.1]">
+              Đặc quyền sáng tạo <span class="ph-accent">không giới hạn</span>
+            </h1>
+            <p class="text-[#7c7784] dark:text-[#9b96a2] text-sm sm:text-[15px] mt-2.5 max-w-xl">Cảm ơn bạn đã ủng hộ PinHub. Toàn bộ quyền lợi Pro đang được mở khoá.</p>
+
+            <!-- Stat tiles -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 mt-7">
+              <div class="ph-tile">
+                <app-icon name="infinity" class="w-[18px] h-[18px] text-[#F94083]"></app-icon>
+                <div class="ph-tile-label">Tạo ảnh AI</div>
+                <div class="ph-tile-val">Không giới hạn</div>
+              </div>
+              <div class="ph-tile">
+                <app-icon name="coin" class="w-[18px] h-[18px]"></app-icon>
+                <div class="ph-tile-label">Credit tặng</div>
+                <div class="ph-tile-val">+300 / tháng</div>
+              </div>
+              <div class="ph-tile">
+                <app-icon name="hd" class="w-[18px] h-[18px] text-[#B15CAA]"></app-icon>
+                <div class="ph-tile-label">Chất lượng tải</div>
+                <div class="ph-tile-val">HD sạch</div>
+              </div>
+              <div class="ph-tile">
+                <app-icon name="clock" class="w-[18px] h-[18px] text-[#F94083]"></app-icon>
+                <div class="ph-tile-label">Hiệu lực đến</div>
+                <div class="ph-tile-val">{{ billing.proExpiresAt() | date: 'dd/MM/yyyy' }}</div>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-7 pt-5 border-t border-[#f2eef5] dark:border-[#232329]">
+              <span class="flex items-center gap-2 text-[#b0aab8] dark:text-[#6b6672] text-xs font-mono tracking-wider truncate">
+                <app-icon name="shield" class="w-4 h-4 shrink-0"></app-icon> PRO · {{ holderName }}
+              </span>
+              <button (click)="goWallet()" class="grad-btn h-11 px-6 rounded-full text-white font-bold text-sm hover:-translate-y-0.5 transition-transform duration-200 cursor-pointer border-none outline-none flex items-center justify-center gap-2 shadow-[0_10px_26px_-10px_rgba(249,64,131,0.5)] shrink-0">
                 <app-icon name="wallet" class="w-[17px] h-[17px]"></app-icon> Xem ví credit
               </button>
             </div>
           </div>
-          <app-icon name="crown" class="absolute -right-8 -bottom-10 w-52 h-52 text-white/10"></app-icon>
         </div>
 
         <!-- Quyền lợi đang có -->
