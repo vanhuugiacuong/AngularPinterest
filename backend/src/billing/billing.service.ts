@@ -360,15 +360,31 @@ export class BillingService {
 
   // ── Ví: tiện ích ─────────────────────────────────────────────────────────────
   private async ensureWallet(userId: string) {
-    return this.prisma.wallet.upsert({
-      where: { userId },
-      create: { userId },
-      update: {},
-    });
+    try {
+      return await this.prisma.wallet.upsert({
+        where: { userId },
+        create: { userId },
+        update: {},
+      });
+    } catch (error: any) {
+      if (error?.code === 'P2002') {
+        const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
+        if (wallet) return wallet;
+      }
+      throw error;
+    }
   }
 
   private async ensureWalletTx(tx: any, userId: string) {
-    return tx.wallet.upsert({ where: { userId }, create: { userId }, update: {} });
+    try {
+      return await tx.wallet.upsert({ where: { userId }, create: { userId }, update: {} });
+    } catch (error: any) {
+      if (error?.code === 'P2002') {
+        const wallet = await tx.wallet.findUnique({ where: { userId } });
+        if (wallet) return wallet;
+      }
+      throw error;
+    }
   }
 
   private async addCreditsTx(
