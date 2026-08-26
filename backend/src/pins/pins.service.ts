@@ -16,7 +16,7 @@ import {
 
 @Injectable()
 export class PinsService {
-  private readonly clipServiceUrl = process.env.CLIP_SERVICE_URL || 'http://localhost:8001';
+  private readonly clipServiceUrl = (process.env.CLIP_SERVICE_URL || 'http://127.0.0.1:8001').replace('localhost', '127.0.0.1');
 
   /** Giá Premium hợp lệ (credit), null nếu không bán. */
   private normalizePremium(isPremium?: boolean, priceCredits?: number): { isPremium: boolean; priceCredits: number | null } {
