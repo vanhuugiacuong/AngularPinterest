@@ -11,8 +11,9 @@ services:
     environment:
       - PORT=8001
       # Minimum unsafe-vs-safe probability (0-1) before an image is rejected.
-      # 0.5 means the strongest unsafe prompt must beat the strongest safe one.
-      - NSFW_THRESHOLD=0.5
+      # 0.62 gives borderline swimwear/lingerie photos room to score as safe
+      # while still catching clearly explicit content, which scores much higher.
+      - NSFW_THRESHOLD=0.62
     volumes:
       # Persists the downloaded CLIP model weights (~600MB) across container
       # rebuilds — without this, `docker-compose up --build` re-downloads

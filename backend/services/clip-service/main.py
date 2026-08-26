@@ -35,25 +35,36 @@ HF_TOKEN = os.getenv("HF_TOKEN", "")
 # strongest unsafe match with the strongest safe match, so adding more labels
 # to either group cannot bias the verdict merely by increasing that group's
 # total probability mass. Threshold is tunable via env.
-NSFW_THRESHOLD = float(os.getenv("NSFW_THRESHOLD", "0.5"))
+NSFW_THRESHOLD = float(os.getenv("NSFW_THRESHOLD", "0.62"))
 
 NSFW_LABELS = [
-    "explicit nudity",
-    "graphic nudity",
-    "pornographic content",
-    "explicit sexual activity",
-    "exposed genitals",
-    "exposed female breasts",
+    "fully nude body with no clothing at all",
+    "graphic nudity showing bare genitals or bare breasts with no clothing",
+    "pornographic content showing explicit sex acts",
+    "explicit sexual activity or sexual penetration",
+    "fully exposed bare genitals with no underwear or swimwear covering them",
+    "fully exposed bare female nipples with no bikini, bra, or clothing covering them",
+    "graphic violence with visible blood",
+    "a gory mutilated body or corpse",
+    "a person being killed or tortured",
+    "a severed body part",
+    "a bloody weapon wound",
 ]
 SAFE_LABELS = [
     "a normal safe photo",
     "a portrait photo of a fully clothed person",
     "a fashion photo of clothing",
+    "a person wearing a bikini or swimsuit at the beach or pool",
+    "a close-up photo of a person wearing a bikini or swimsuit",
+    "a bikini or swimsuit photo taken from behind",
+    "a wet bikini photo at the pool or beach",
+    "a lingerie or underwear fashion photo with underwear covering the body",
     "a photo of food",
     "a photo of an animal or pet",
     "a landscape or nature photo",
     "a meme or funny picture",
     "a photo of a product",
+    "a video game or animated action scene with no real gore",
 ]
 
 _label_embeddings_cache: dict[str, np.ndarray] = {}
