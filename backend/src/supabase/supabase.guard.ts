@@ -27,7 +27,6 @@ export class SupabaseAuthGuard extends AuthGuard('supabase') {
           if (payloadBase64) {
             const decodedPayload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf8'));
             if (decodedPayload && decodedPayload.sub && decodedPayload.email) {
-              console.log('[Dev Auth Fallback] Decoded JWT payload without signature verification:', decodedPayload.email);
               request.user = {
                 id: decodedPayload.sub,
                 email: decodedPayload.email,
