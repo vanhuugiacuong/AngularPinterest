@@ -495,14 +495,14 @@
         <img [src]="pin.imageUrl" [alt]="pin.title" class="w-full rounded-2xl object-contain" />
 
         <div class="flex items-center gap-2 mt-4 mb-5">
-          @if (pin.user?.avatarUrl) {
+          @if (pin.user.avatarUrl) {
             <img [src]="pin.user.avatarUrl" [alt]="pin.user.username" class="w-8 h-8 rounded-full object-cover" />
           } @else {
             <div class="w-8 h-8 rounded-full bg-[#211922] dark:bg-white text-white dark:text-[#211922] flex items-center justify-center text-xs font-bold">
-              {{ (pin.user?.username || '?')[0] | uppercase }}
+              {{ (pin.user.username || '?')[0] | uppercase }}
             </div>
           }
-          <span class="text-sm font-bold">{{ pin.user?.username }}</span>
+          <span class="text-sm font-bold">{{ pin.user.username }}</span>
         </div>
 
         @if (relatedPins.length > 0) {
