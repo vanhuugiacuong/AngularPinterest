@@ -6,33 +6,48 @@
 
       @if (billing.isPro()) {
         <!-- ══════════════ MÀN THÀNH VIÊN PRO ══════════════ -->
-        <div class="member-card relative overflow-hidden rounded-[30px] px-6 sm:px-11 py-11 text-white mb-8">
+        <div class="member-card relative overflow-hidden rounded-[30px] px-6 sm:px-11 py-12 text-white mb-8">
+          <!-- Lớp trang trí -->
+          <div class="mc-aurora"></div>
+          <div class="mc-dots"></div>
+          <span class="mc-spark s1"></span>
+          <span class="mc-spark s2"></span>
+          <span class="mc-spark s3"></span>
+          <span class="mc-spark s4"></span>
+          <span class="mc-spark s5"></span>
+          <app-icon name="crown" class="absolute -right-10 -bottom-12 w-56 h-56 text-white/[0.08] pointer-events-none"></app-icon>
+          <app-icon name="crown" class="absolute -left-12 -top-14 w-44 h-44 text-white/[0.06] pointer-events-none rotate-12"></app-icon>
+
           <div class="relative z-10 flex flex-col items-center text-center">
-            <span class="w-16 h-16 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center mb-5 ring-1 ring-white/25">
-              <app-icon name="crown" class="w-8 h-8"></app-icon>
+            <span class="mc-crest w-[76px] h-[76px] rounded-[22px] flex items-center justify-center mb-5">
+              <app-icon name="crown" class="w-9 h-9"></app-icon>
             </span>
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 text-[11px] font-extrabold tracking-wide mb-4">
-              <app-icon name="check" class="w-[13px] h-[13px]"></app-icon> ĐANG HOẠT ĐỘNG
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 ring-1 ring-white/25 text-[11px] font-extrabold tracking-[0.15em] mb-4 backdrop-blur-sm">
+              <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#7bffb0] opacity-80"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-[#7bffb0]"></span>
+              </span>
+              ĐANG HOẠT ĐỘNG
             </span>
-            <h1 class="text-[30px] sm:text-[42px] font-extrabold tracking-tight leading-tight">Bạn là thành viên PinHub Pro</h1>
-            <p class="text-white/85 text-base mt-3 max-w-lg">Cảm ơn bạn đã ủng hộ PinHub 💜 Toàn bộ quyền lợi Pro đang được mở khoá.</p>
+            <h1 class="text-[30px] sm:text-[42px] font-extrabold tracking-tight leading-tight drop-shadow-sm">Bạn là thành viên PinHub Pro</h1>
+            <p class="text-white/85 text-base mt-3 max-w-lg">Cảm ơn bạn đã ủng hộ PinHub. Toàn bộ quyền lợi Pro đang được mở khoá.</p>
 
             <div class="flex flex-wrap items-center justify-center gap-2.5 mt-6">
-              <span class="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/15 text-sm font-semibold">
+              <span class="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/12 ring-1 ring-white/20 text-sm font-semibold backdrop-blur-sm">
                 <app-icon name="clock" class="w-[15px] h-[15px]"></app-icon> Hiệu lực đến {{ billing.proExpiresAt() | date: 'dd/MM/yyyy' }}
               </span>
-              <span class="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/15 text-sm font-semibold">
-                <app-icon name="coin" class="w-[15px] h-[15px]"></app-icon> +300 credit / tháng
+              <span class="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/12 ring-1 ring-white/20 text-sm font-semibold backdrop-blur-sm">
+                <app-icon name="coin" class="w-[16px] h-[16px]"></app-icon> +300 credit / tháng
+              </span>
+              <span class="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/12 ring-1 ring-white/20 text-sm font-semibold backdrop-blur-sm">
+                <app-icon name="infinity" class="w-[16px] h-[16px]"></app-icon> AI không giới hạn
               </span>
             </div>
 
-            <div class="flex flex-wrap items-center justify-center gap-3 mt-7">
-              <button (click)="goWallet()" class="h-11 px-6 rounded-full bg-white text-[#B15CAA] font-bold text-sm hover:bg-white/90 transition-colors cursor-pointer border-none outline-none flex items-center gap-2">
-                <app-icon name="wallet" class="w-[17px] h-[17px]"></app-icon> Xem ví credit
-              </button>
-            </div>
+            <button (click)="goWallet()" class="mt-8 h-11 px-6 rounded-full bg-white text-[#B15CAA] font-bold text-sm hover:bg-white/90 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer border-none outline-none flex items-center gap-2 shadow-[0_10px_24px_-8px_rgba(0,0,0,0.35)]">
+              <app-icon name="wallet" class="w-[17px] h-[17px]"></app-icon> Xem ví credit
+            </button>
           </div>
-          <app-icon name="crown" class="absolute -right-8 -bottom-10 w-52 h-52 text-white/10"></app-icon>
         </div>
 
         <!-- Quyền lợi đang có -->
