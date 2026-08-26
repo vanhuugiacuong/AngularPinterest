@@ -1,28 +1,42 @@
-.package-grid {
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
+/* Top-up dialog for the /novatoken route — every selector here renders
+   only inside .topup-backdrop/.topup-dialog. Page-level styles (hero,
+   packages, ledger) live in novatoken-wallet.css; keep that boundary so
+   the two files never define the same selector again. */
 
 .topup-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
   background: rgba(2, 4, 11, 0.88);
   backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 .topup-dialog {
   position: relative;
   width: min(760px, 100%);
   max-width: calc(100vw - 40px);
-  padding: 32px;
-  box-sizing: border-box;
+  max-height: 92vh;
+  overflow-y: auto;
   overflow-x: hidden;
+  box-sizing: border-box;
   text-align: initial;
+  padding: 32px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
   border-radius: 28px;
-  background: linear-gradient(145deg, #142331 0%, #0d1421 55%, #0a0f19 100%);
+  /* Theme-aware dark panel — was a hardcoded #142331/#0d1421/#0a0f19
+     gradient with no light-theme equivalent, so this dialog rendered as a
+     near-black card even under Sương Ngọc (light theme). */
+  background: linear-gradient(155deg, color-mix(in srgb, var(--color-accent) 10%, var(--color-surface-elevated)) 0%, var(--color-surface) 100%);
   box-shadow: 0 36px 110px rgba(0, 0, 0, 0.72), 0 0 60px color-mix(in srgb, var(--color-accent) 9%, transparent);
 }
 
 .dialog-glow {
   position: absolute;
+  z-index: -1;
   width: 300px;
   height: 300px;
   right: -120px;
@@ -35,20 +49,30 @@
 }
 
 .dialog-close {
+  position: absolute;
   right: 20px;
   top: 16px;
   z-index: 2;
   width: 36px;
   height: 36px;
+  display: grid;
+  place-items: center;
   border: 1px solid transparent;
   border-radius: 50%;
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 28px;
+  cursor: pointer;
   transition: 0.2s;
 }
-
 .dialog-close:hover {
   border-color: var(--color-border);
   background: var(--color-surface-high);
   color: var(--color-text);
+}
+.dialog-close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-nova-blue);
 }
 
 .dialog-header {
@@ -59,7 +83,6 @@
   padding: 0 42px 24px 0;
   border-bottom: 1px solid var(--color-border);
 }
-
 .dialog-coin-wrap {
   width: 104px;
   height: 104px;
@@ -69,11 +92,25 @@
   border-radius: 50%;
   background: radial-gradient(circle, color-mix(in srgb, var(--color-accent) 18%, transparent), transparent 68%);
 }
-
-.dialog-coin { width: 96px; }
-.dialog-header h2 { font-size: 38px; line-height: 1; margin: 8px 0 7px; letter-spacing: -0.04em; }
-.dialog-header h2 small { font-size: 16px; color: var(--color-accent); }
-.dialog-header p { margin: 0; font-size: 12px; color: var(--color-text-muted); }
+.dialog-coin {
+  width: 96px;
+  filter: drop-shadow(0 15px 20px rgba(0, 0, 0, 0.5));
+}
+.dialog-header h2 {
+  font-size: 38px;
+  line-height: 1;
+  margin: 8px 0 7px;
+  letter-spacing: -0.04em;
+}
+.dialog-header h2 small {
+  font-size: 16px;
+  color: var(--color-accent);
+}
+.dialog-header p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
 
 .payment-body {
   display: grid;
@@ -89,42 +126,127 @@
   padding: 14px;
   border: 1px solid var(--color-border);
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.035);
+  background: color-mix(in srgb, var(--color-text) 3.5%, transparent);
+}
+.scan-label {
+  font: 700 9px var(--font-sans);
+  letter-spacing: 0.13em;
+  color: var(--color-accent);
+  margin-bottom: 10px;
+}
+/* Real white, not a token: a QR code must stay scannable at fixed contrast
+   regardless of theme, same intentional exception as Settings' watermark
+   preview swatches and Pricing's MoMo QR frame. */
+.payment-qr {
+  display: block;
+  width: 205px;
+  height: 205px;
+  border-radius: 14px;
+  padding: 7px;
+  background: #fff;
+}
+.qr-shell small {
+  font: 600 9px var(--font-mono);
+  color: var(--color-text-muted);
+  margin-top: 10px;
 }
 
-.scan-label { font: 700 9px var(--font-mono); letter-spacing: 0.13em; color: var(--color-accent); margin-bottom: 10px; }
-.payment-qr { display: block; width: 205px; height: 205px; border-radius: 14px; padding: 7px; }
-.qr-shell small { font: 600 9px var(--font-mono); color: var(--color-text-muted); margin-top: 10px; }
-.payment-details { display: flex; flex-direction: column; gap: 11px; }
-.payment-details { min-width: 0; }
-.detail-heading { display: flex; justify-content: space-between; align-items: center; }
-.detail-heading > span { font: 700 9px var(--font-mono); letter-spacing: 0.12em; color: var(--color-text-muted); }
-.detail-heading em { font-style: normal; font-size: 9px; font-weight: 800; color: #f2bd5a; background: rgba(242, 189, 90, 0.1); border: 1px solid rgba(242, 189, 90, 0.23); padding: 5px 9px; border-radius: 99px; }
+.payment-details {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  min-width: 0;
+}
+.detail-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.detail-heading > span {
+  font: 700 9px var(--font-sans);
+  letter-spacing: 0.12em;
+  color: var(--color-text-muted);
+}
+/* "Đang chờ" status pill — same warning token/treatment as every other
+   pending/warning indicator in the app (was a hand-picked amber, #f2bd5a,
+   that drifted from --color-warning and didn't adapt to light theme). */
+.detail-heading em {
+  font-style: normal;
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 30%, transparent);
+  padding: 5px 9px;
+  border-radius: 99px;
+}
 
 .payment-fact {
   padding: 15px 16px;
   border: 1px solid var(--color-border);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.035);
+  background: color-mix(in srgb, var(--color-text) 3.5%, transparent);
   display: flex;
   flex-direction: column;
   gap: 5px;
 }
+.payment-fact span {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+.payment-fact strong {
+  font: 800 20px var(--font-mono);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+.payment-fact.reference strong {
+  font-size: 14px;
+  color: var(--color-accent);
+}
+.payment-fact small {
+  font-size: 9px;
+  color: var(--color-text-muted);
+}
 
-.payment-fact span { font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-muted); }
-.payment-fact strong { font: 800 20px var(--font-mono); color: var(--color-text); overflow-wrap: anywhere; }
-.payment-fact.reference strong { font-size: 14px; color: var(--color-accent); }
-.payment-fact small { font-size: 9px; color: var(--color-text-muted); }
-.payment-note { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border-radius: 12px; background: color-mix(in srgb, var(--color-accent) 7%, transparent); color: var(--color-text-muted); }
-.payment-note > span { display: grid; place-items: center; flex: 0 0 19px; height: 19px; border: 1px solid var(--color-accent); border-radius: 50%; color: var(--color-accent); font: 700 11px serif; }
-.payment-note p { font-size: 10px; line-height: 1.5; margin: 1px 0 0; }
+.payment-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-accent) 7%, transparent);
+  color: var(--color-text-muted);
+}
+.payment-note > span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 19px;
+  height: 19px;
+  border: 1px solid var(--color-accent);
+  border-radius: 50%;
+  color: var(--color-accent);
+  font-size: 13px;
+  line-height: 1;
+}
+.payment-note p {
+  font-size: 10px;
+  line-height: 1.5;
+  margin: 1px 0 0;
+}
 
 .confirm-button {
+  width: 100%;
   height: 54px;
   margin-top: 0;
+  border: 0;
   border-radius: 16px;
-  color: #071018;
+  background: linear-gradient(120deg, var(--color-nova-blue), var(--color-accent));
+  color: var(--color-text-on-accent);
   font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -132,40 +254,193 @@
   box-shadow: 0 12px 30px color-mix(in srgb, var(--color-accent) 15%, transparent);
   transition: 0.2s transform, 0.2s filter;
 }
+.confirm-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.confirm-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+}
+.confirm-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-nova-blue);
+}
+.confirm-button b {
+  font-size: 20px;
+}
 
-.confirm-button:hover { transform: translateY(-2px); filter: brightness(1.08); }
-.confirm-button b { font-size: 20px; }
-.secure-note { text-align: center; margin: 13px 0 0; font-size: 9px; color: var(--color-text-muted); }
-.paid-state { position: relative; overflow: hidden; margin-top: 24px; padding: 34px 34px 28px; display: flex; flex-direction: column; align-items: center; gap: 8px; border: 1px solid color-mix(in srgb, var(--color-accent) 34%, var(--color-border)); border-radius: 22px; background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--color-accent) 14%, transparent), transparent 45%), linear-gradient(145deg, rgba(255,255,255,.035), rgba(255,255,255,.012)); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
-.success-aura { width: 94px; height: 94px; display: grid; place-items: center; margin-bottom: 6px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--color-accent) 22%, transparent), transparent 68%); animation: success-breathe 2.8s ease-in-out infinite; }
-.success-mark { width: 62px; height: 62px; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--color-accent) 65%, white); border-radius: 50%; background: linear-gradient(145deg, color-mix(in srgb, var(--color-accent) 34%, transparent), color-mix(in srgb, var(--color-nova-blue) 18%, transparent)); box-shadow: 0 12px 32px color-mix(in srgb, var(--color-accent) 20%, transparent), inset 0 1px 0 rgba(255,255,255,.18); color: var(--color-accent); }
-.success-mark span { font-size: 34px; font-weight: 700; }
-.success-eyebrow { font: 800 9px var(--font-mono); letter-spacing: .2em; color: var(--color-accent); }
-.paid-state > strong { margin-top: 4px; color: var(--color-text); font-size: 24px; letter-spacing: -.025em; }
-.paid-state > p { margin: 2px 0 16px; color: var(--color-text-muted); font-size: 13px; }
-.paid-state > p b { color: var(--color-accent); font: 800 14px var(--font-mono); }
-.success-receipt { width: min(430px,100%); display: grid; grid-template-columns: 1fr 1px 1fr; align-items: center; padding: 15px 20px; box-sizing: border-box; border: 1px solid var(--color-border); border-radius: 14px; background: rgba(5,10,18,.26); }
-.success-receipt div { display: flex; flex-direction: column; gap: 5px; text-align: center; }
-.success-receipt span { color: var(--color-text-muted); font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
-.success-receipt strong { color: var(--color-text); font: 800 13px var(--font-mono); }
-.success-receipt div:last-child strong { color: var(--color-accent); }
-.success-receipt i { width: 1px; height: 30px; background: var(--color-border); }
-.success-done { min-width: 210px; height: 48px; margin-top: 14px; border: 0; border-radius: 14px; background: linear-gradient(110deg,var(--color-nova-blue),var(--color-accent)); color: #071018; font-weight: 900; cursor: pointer; box-shadow: 0 12px 28px color-mix(in srgb,var(--color-accent) 15%,transparent); transition: .2s transform,.2s filter; }
-.success-done span { margin-left: 8px; font-size: 18px; }
-.success-done:hover { transform: translateY(-2px); filter: brightness(1.07); }
-@keyframes success-breathe { 50% { transform: scale(1.05); filter: brightness(1.12); } }
+.secure-note {
+  text-align: center;
+  margin: 13px 0 0;
+  font-size: 9px;
+  color: var(--color-text-muted);
+}
 
-@media (max-width: 900px) {
-  .package-grid { grid-template-columns: repeat(2, 1fr); }
+.paid-state {
+  position: relative;
+  overflow: hidden;
+  margin-top: 24px;
+  padding: 34px 34px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 34%, var(--color-border));
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--color-accent) 14%, transparent), transparent 45%),
+    linear-gradient(145deg, color-mix(in srgb, var(--color-text) 3.5%, transparent), color-mix(in srgb, var(--color-text) 1.2%, transparent));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-text) 5%, transparent);
+}
+.success-aura {
+  width: 94px;
+  height: 94px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-accent) 22%, transparent), transparent 68%);
+  animation: success-breathe 2.8s ease-in-out infinite;
+}
+.success-mark {
+  width: 62px;
+  height: 62px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 65%, white);
+  border-radius: 50%;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--color-accent) 34%, transparent), color-mix(in srgb, var(--color-nova-blue) 18%, transparent));
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--color-accent) 20%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  color: var(--color-accent);
+}
+.success-mark span {
+  font-size: 34px;
+  font-weight: 700;
+}
+.success-eyebrow {
+  font: 800 9px var(--font-sans);
+  letter-spacing: 0.2em;
+  color: var(--color-accent);
+}
+.paid-state > strong {
+  margin-top: 4px;
+  color: var(--color-text);
+  font-size: 24px;
+  letter-spacing: -0.025em;
+}
+.paid-state > p {
+  margin: 2px 0 16px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+.paid-state > p b {
+  color: var(--color-accent);
+  font: 800 14px var(--font-mono);
+}
+.success-receipt {
+  width: min(430px, 100%);
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  align-items: center;
+  padding: 15px 20px;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-ink) 26%, transparent);
+}
+.success-receipt div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: center;
+}
+.success-receipt span {
+  color: var(--color-text-muted);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.success-receipt strong {
+  color: var(--color-text);
+  font: 800 13px var(--font-mono);
+}
+.success-receipt div:last-child strong {
+  color: var(--color-accent);
+}
+.success-receipt i {
+  width: 1px;
+  height: 30px;
+  background: var(--color-border);
+}
+.success-done {
+  min-width: 210px;
+  height: 48px;
+  margin-top: 14px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(110deg, var(--color-nova-blue), var(--color-accent));
+  color: var(--color-text-on-accent);
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-accent) 15%, transparent);
+  transition: 0.2s transform, 0.2s filter;
+}
+.success-done span {
+  margin-left: 8px;
+  font-size: 18px;
+}
+.success-done:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.07);
+}
+.success-done:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-nova-blue);
+}
+
+@keyframes success-breathe {
+  50% {
+    transform: scale(1.05);
+    filter: brightness(1.12);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .success-aura {
+    animation: none;
+  }
 }
 
 @media (max-width: 650px) {
-  .topup-dialog { padding: 24px 18px; border-radius: 22px; }
-  .dialog-header { gap: 12px; padding-bottom: 18px; }
-  .dialog-coin-wrap { width: 76px; height: 76px; flex-basis: 76px; }
-  .dialog-coin { width: 72px; }
-  .dialog-header h2 { font-size: 29px; }
-  .dialog-header p { display: none; }
-  .payment-body { grid-template-columns: 1fr; gap: 16px; padding-top: 20px; }
-  .payment-qr { width: 190px; height: 190px; }
+  .topup-dialog {
+    padding: 24px 18px;
+    border-radius: 22px;
+  }
+  .dialog-header {
+    gap: 12px;
+    padding-bottom: 18px;
+  }
+  .dialog-coin-wrap {
+    width: 76px;
+    height: 76px;
+    flex-basis: 76px;
+  }
+  .dialog-coin {
+    width: 72px;
+  }
+  .dialog-header h2 {
+    font-size: 29px;
+  }
+  .dialog-header p {
+    display: none;
+  }
+  .payment-body {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding-top: 20px;
+  }
+  .payment-qr {
+    width: 190px;
+    height: 190px;
+  }
 }

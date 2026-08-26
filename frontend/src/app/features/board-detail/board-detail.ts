@@ -1,12 +1,14 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
 import { Switch } from '../../shared/switch/switch';
 import { Board, BoardService } from '../../core/services/board';
 import { SupabaseService } from '../../core/services/supabase';
 import { toUserMessage } from '../../core/utils/http-error';
+import { ToastService } from '../../core/services/toast';
+import { DialogService } from '../../core/services/dialog';
 
 interface BoardPinView {
   id: string;
@@ -20,7 +22,7 @@ type LoadErrorKind = 'not-found' | 'auth' | 'network' | null;
 @Component({
   selector: 'app-board-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, Navbar, Switch],
+  imports: [CommonModule, FormsModule, RouterLink, Navbar, Switch],
   templateUrl: './board-detail.html',
   styleUrl: './board-detail.css',
 })
@@ -29,6 +31,8 @@ export class BoardDetail implements OnInit {
   private router = inject(Router);
   private boardService = inject(BoardService);
   public supabaseService = inject(SupabaseService);
+  private toast = inject(ToastService);
+  private dialogService = inject(DialogService);
 
   public board = signal<Board | null>(null);
   public pins = signal<BoardPinView[]>([]);
@@ -42,9 +46,6 @@ export class BoardDetail implements OnInit {
   public editIsSecret = false;
   public savingEdit = signal(false);
   public editError = signal('');
-
-  public deleteConfirmOpen = signal(false);
-  public deleting = signal(false);
 
   private currentBoardId: string | null = null;
 
@@ -135,8 +136,8 @@ export class BoardDetail implements OnInit {
         await this.boardService.removePinFromBoard(currentBoard.id, pinId, token);
       }
     } catch (error) {
-      console.error('Error removing pin from board:', error);
       this.pins.set(previous);
+      this.toast.error(toUserMessage(error, 'Không thể gỡ ảnh khỏi bộ sưu tập.'));
     }
   }
 
@@ -180,29 +181,24 @@ export class BoardDetail implements OnInit {
     }
   }
 
-  openDeleteConfirm() {
-    this.deleteConfirmOpen.set(true);
-  }
-
-  cancelDelete() {
-    if (this.deleting()) return;
-    this.deleteConfirmOpen.set(false);
-  }
-
-  async confirmDelete() {
+  async openDeleteConfirm() {
     const board = this.board();
     if (!board) return;
-    this.deleting.set(true);
-    try {
-      const token = await this.supabaseService.getSessionToken();
-      if (!token) throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-      await this.boardService.deleteBoard(board.id, token);
+    const confirmed = await this.dialogService.confirm({
+      variant: 'destructive',
+      title: 'Xoá bộ sưu tập này?',
+      description: 'Hành động này không thể hoàn tác. Các ảnh trong bộ sưu tập vẫn được giữ nguyên, chỉ bộ sưu tập bị xoá.',
+      confirmLabel: 'Xoá vĩnh viễn',
+      cancelLabel: 'Huỷ',
+      onConfirm: async () => {
+        const token = await this.supabaseService.getSessionToken();
+        if (!token) throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        await this.boardService.deleteBoard(board.id, token);
+      },
+    });
+    if (confirmed) {
+      this.toast.success('Đã xoá bộ sưu tập.');
       this.goBackToProfile();
-    } catch (error) {
-      this.editError.set(toUserMessage(error, 'Không thể xoá bộ sưu tập.'));
-      this.deleteConfirmOpen.set(false);
-    } finally {
-      this.deleting.set(false);
     }
   }
 }

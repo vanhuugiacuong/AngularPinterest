@@ -69,7 +69,7 @@
               (click)="navigateToCreate()"
               class="w-full sm:w-auto h-11 px-4 rounded-control border border-dashed border-border-strong bg-surface-elevated/60 hover:bg-surface-elevated text-xs font-bold text-text-muted hover:text-text flex items-center gap-2 cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
-              <span class="material-symbols-outlined text-base leading-none">add_photo_alternate</span>
+              <span class="material-symbols-outlined text-base leading-none" aria-hidden="true">add_photo_alternate</span>
               Bạn chưa có tác phẩm nào — Tạo tác phẩm đầu tiên
             </button>
           }
@@ -105,7 +105,7 @@
               (click)="clearSearch()"
               class="h-9 px-3.5 rounded-control bg-surface border border-border hover:border-border-strong text-xs font-bold text-text-muted hover:text-text flex items-center gap-1.5 cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
-              <span class="material-symbols-outlined text-base leading-none">close</span>
+              <span class="material-symbols-outlined text-base leading-none" aria-hidden="true">close</span>
               Quay lại Không gian khám phá
             </button>
           </div>
@@ -174,7 +174,7 @@
       @if (!isLoading() && loadError()) {
         <div class="flex-1 flex flex-col items-center justify-center gap-4 py-24 text-center" role="alert">
           <div class="w-14 h-14 rounded-full bg-error/10 flex items-center justify-center">
-            <span class="material-symbols-outlined text-2xl text-error">cloud_off</span>
+            <span class="material-symbols-outlined text-2xl text-error" aria-hidden="true">cloud_off</span>
           </div>
           <div class="flex flex-col gap-1.5 max-w-sm">
             <h2 class="text-sm font-bold text-text">Đã có lỗi xảy ra</h2>
@@ -194,7 +194,7 @@
       @if (!isLoading() && !loadError() && filteredPins().length === 0) {
         <div class="flex-1 flex flex-col items-center justify-center gap-4 py-24 text-center">
           <div class="w-14 h-14 rounded-full bg-surface-elevated border border-border flex items-center justify-center">
-            <span class="material-symbols-outlined text-2xl text-text-muted">
+            <span class="material-symbols-outlined text-2xl text-text-muted" aria-hidden="true">
               {{ isSearchActive() ? 'search_off' : activeCategory() ? 'filter_alt_off' : 'photo_library' }}
             </span>
           </div>
@@ -263,11 +263,11 @@
 
                     @if (pin.listingType === 'AUCTION') {
                       <span class="absolute top-2.5 left-2.5 z-20 w-8 h-8 rounded-full bg-surface-high/95 border border-border-strong text-accent flex items-center justify-center shadow-card pointer-events-none" aria-label="Tác phẩm đấu giá">
-                        <span class="material-symbols-outlined text-[19px] leading-none">crown</span>
+                        <span class="material-symbols-outlined text-[19px] leading-none" aria-hidden="true">crown</span>
                       </span>
                     } @else if (pin.listingType === 'FIXED_PRICE') {
                       <span class="absolute top-2.5 left-2.5 z-20 w-8 h-8 rounded-full bg-surface-high/95 border border-border-strong text-accent flex items-center justify-center shadow-card pointer-events-none" aria-label="Tác phẩm bán giá cố định">
-                        <span class="material-symbols-outlined text-[19px] leading-none">star</span>
+                        <span class="material-symbols-outlined text-[19px] leading-none" aria-hidden="true">star</span>
                       </span>
                     }
 
@@ -281,7 +281,7 @@
 
                     @if (pin.isAiGenerated) {
                       <span class="mono-label absolute top-12 left-2.5 z-20 flex items-center gap-1 bg-surface-high/90 border border-border-strong text-accent text-xs font-bold uppercase px-2 py-1 rounded-control pointer-events-none">
-                        <span class="material-symbols-outlined text-[12px] leading-none">auto_awesome</span>
+                        <span class="material-symbols-outlined text-[12px] leading-none" aria-hidden="true">auto_awesome</span>
                         AI
                       </span>
                     }
@@ -320,43 +320,25 @@
                           aria-haspopup="listbox"
                           [attr.aria-expanded]="activeDropdownPinId() === pin.id"
                         >
-                          <span class="material-symbols-outlined text-[14px] leading-none shrink-0">bookmark_add</span>
+                          <span class="material-symbols-outlined text-[14px] leading-none shrink-0" aria-hidden="true">bookmark_add</span>
                           <span class="truncate min-w-0">{{ getSelectedBoardName(pin.id) }}</span>
-                          <span class="material-symbols-outlined text-[12px] leading-none shrink-0">keyboard_arrow_down</span>
+                          <span class="material-symbols-outlined text-[12px] leading-none shrink-0" aria-hidden="true">keyboard_arrow_down</span>
                         </button>
-
-                        <!-- Dropdown options list -->
-                        @if (activeDropdownPinId() === pin.id) {
-                          <div class="absolute left-0 bottom-10 w-44 glass-elevated rounded-panel shadow-card py-1.5 z-[100] text-left" role="listbox">
-                            <span class="text-xs font-semibold text-text-muted px-3.5 py-1 block">Lưu vào bộ sưu tập</span>
-                            <div class="max-h-[140px] overflow-y-auto">
-                              @for (b of boards(); track b.id) {
-                                <button
-                                  type="button"
-                                  (click)="selectBoardForPin(pin.id, b, $event)"
-                                  class="w-full text-left px-3.5 py-2 text-xs font-bold text-text hover:bg-surface-elevated cursor-pointer truncate border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                                >
-                                  {{ b.name }}
-                                </button>
-                              }
-                            </div>
-                          </div>
-                        }
                       </div>
 
                       <!-- Like + Save actions -->
                       <div class="flex items-center gap-1.5 shrink-0">
                         <button
                           (click)="toggleLike(pin, $event)"
-                          class="w-8 h-8 rounded-control bg-surface-high/95 border border-border-strong flex items-center justify-center hover:text-accent transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                          [class.text-accent]="pin.isLiked"
+                          class="w-8 h-8 rounded-control bg-surface-high/95 border border-border-strong flex items-center justify-center hover:text-error transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                          [class.text-error]="pin.isLiked"
                           [class.text-text-muted]="!pin.isLiked"
                           [attr.aria-pressed]="!!pin.isLiked"
                           [attr.aria-label]="(pin.isLiked ? 'Bỏ thích ' : 'Thích ') + pin.title"
                         >
                           <span class="relative inline-flex items-center justify-center">
-                            <span class="material-symbols-outlined text-[16px] leading-none">favorite</span>
-                            <span class="material-symbols-outlined icon-fill text-[16px] leading-none absolute inset-0 flex items-center justify-center" [style.opacity]="pin.isLiked ? 1 : 0">favorite</span>
+                            <span class="material-symbols-outlined text-[16px] leading-none" aria-hidden="true">favorite</span>
+                            <span class="material-symbols-outlined icon-fill text-[16px] leading-none absolute inset-0 flex items-center justify-center" aria-hidden="true" [style.opacity]="pin.isLiked ? 1 : 0">favorite</span>
                           </span>
                         </button>
                         <button
@@ -385,9 +367,9 @@
                       <div class="mono-label flex items-center gap-2 shrink-0 text-xs text-text-muted">
                         @if (pin.likes) {
                           <span class="flex items-center gap-0.5">
-                            <span class="relative inline-flex items-center justify-center text-accent">
-                              <span class="material-symbols-outlined text-[12px] leading-none">favorite</span>
-                              <span class="material-symbols-outlined icon-fill text-[12px] leading-none absolute inset-0 flex items-center justify-center" [style.opacity]="pin.isLiked ? 1 : 0">favorite</span>
+                            <span class="relative inline-flex items-center justify-center text-error">
+                              <span class="material-symbols-outlined text-[12px] leading-none" aria-hidden="true">favorite</span>
+                              <span class="material-symbols-outlined icon-fill text-[12px] leading-none absolute inset-0 flex items-center justify-center" aria-hidden="true" [style.opacity]="pin.isLiked ? 1 : 0">favorite</span>
                             </span>
                             {{ pin.likes }}
                           </span>
@@ -417,4 +399,35 @@
 
     </main>
   </div>
+
+  <!-- Board-picker dropdown — rendered once here, positioned via
+       dropdownAnchor (computed on open from the trigger button's own
+       getBoundingClientRect), rather than as an absolutely-positioned
+       descendant of the pin card. The card's frame clips with
+       overflow-hidden for its rounded corners/hover-zoom; nesting the
+       dropdown inside that frame silently clipped it whenever it was
+       taller than the remaining space above its anchor. -->
+  @if (activeDropdownPin(); as pin) {
+    <div
+      (click)="$event.stopPropagation()"
+      class="fixed w-44 glass-elevated rounded-panel shadow-card py-1.5 z-[100] text-left"
+      [style.left.px]="dropdownAnchor()?.left"
+      [style.top.px]="dropdownAnchor()?.top"
+      [style.transform]="'translateY(-100%) translateY(-8px)'"
+      role="listbox"
+    >
+      <span class="text-xs font-semibold text-text-muted px-3.5 py-1 block">Lưu vào bộ sưu tập</span>
+      <div class="max-h-[140px] overflow-y-auto">
+        @for (b of boards(); track b.id) {
+          <button
+            type="button"
+            (click)="selectBoardForPin(pin.id, b, $event)"
+            class="w-full text-left px-3.5 py-2 text-xs font-bold text-text hover:bg-surface-elevated cursor-pointer truncate border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            {{ b.name }}
+          </button>
+        }
+      </div>
+    </div>
+  }
 </div>

@@ -63,7 +63,7 @@
         aria-label="Trang chủ"
         [attr.aria-current]="isFeedPage() ? 'page' : null"
       >
-        <span class="material-symbols-outlined text-xl" [class.font-bold]="isFeedPage()">home</span>
+        <span class="material-symbols-outlined text-xl" [class.font-bold]="isFeedPage()" aria-hidden="true">home</span>
       </button>
       <span
         role="tooltip"
@@ -84,7 +84,7 @@
         class="flex h-11 w-11 items-center justify-center rounded-control text-text-muted/50 cursor-not-allowed border-none bg-transparent"
         aria-label="Khám phá — sắp ra mắt"
       >
-        <span class="material-symbols-outlined text-xl">explore</span>
+        <span class="material-symbols-outlined text-xl" aria-hidden="true">explore</span>
       </button>
       <span
         role="tooltip"
@@ -112,7 +112,7 @@
         aria-label="Tạo mới"
         [attr.aria-current]="isCreatePage() ? 'page' : null"
       >
-        <span class="material-symbols-outlined text-xl" [class.font-bold]="isCreatePage()">add</span>
+        <span class="material-symbols-outlined text-xl" [class.font-bold]="isCreatePage()" aria-hidden="true">add</span>
       </button>
       <span
         role="tooltip"
@@ -140,7 +140,7 @@
         aria-label="Tạo ảnh ghép"
         [attr.aria-current]="isCollagePage() ? 'page' : null"
       >
-        <span class="material-symbols-outlined text-xl" [class.font-bold]="isCollagePage()">dashboard_customize</span>
+        <span class="material-symbols-outlined text-xl" [class.font-bold]="isCollagePage()" aria-hidden="true">dashboard_customize</span>
       </button>
       <span
         role="tooltip"
@@ -169,7 +169,7 @@
         aria-controls="nf-notification-panel"
         [attr.aria-expanded]="isNotificationOpen"
       >
-        <span class="material-symbols-outlined text-xl" [class.font-bold]="isNotificationOpen">notifications</span>
+        <span class="material-symbols-outlined text-xl" [class.font-bold]="isNotificationOpen" aria-hidden="true">notifications</span>
         <!-- Unread Badge -->
         <span
           *ngIf="(unreadCount$ | async)! > 0"
@@ -205,7 +205,7 @@
         aria-label="Tin nhắn"
         [attr.aria-current]="isMessagesPage() ? 'page' : null"
       >
-        <span class="material-symbols-outlined text-xl" [class.font-bold]="isMessagesPage()">sms</span>
+        <span class="material-symbols-outlined text-xl" [class.font-bold]="isMessagesPage()" aria-hidden="true">sms</span>
         <!-- Unread Badge -->
         <span
           *ngIf="(unreadMessageCount$ | async)! > 0"
@@ -242,7 +242,7 @@
       aria-label="Cài đặt"
       [attr.aria-current]="isSettingsPage() ? 'page' : null"
     >
-      <span class="material-symbols-outlined text-xl" [class.font-bold]="isSettingsPage()">settings</span>
+      <span class="material-symbols-outlined text-xl" [class.font-bold]="isSettingsPage()" aria-hidden="true">settings</span>
     </button>
     <span
       role="tooltip"
@@ -303,7 +303,7 @@
         class="flex h-9 w-9 items-center justify-center rounded-full text-text-muted hover:bg-surface-elevated hover:text-text transition-colors cursor-pointer"
         aria-label="Đóng thông báo"
       >
-        <span class="material-symbols-outlined text-lg">close</span>
+        <span class="material-symbols-outlined text-lg" aria-hidden="true">close</span>
       </button>
     </div>
   </div>
@@ -314,7 +314,7 @@
       <!-- Empty State -->
       <div *ngIf="list.length === 0" class="flex flex-col items-center justify-center h-72 p-6 text-center">
         <div class="flex h-16 w-16 items-center justify-center rounded-full bg-surface-elevated text-text-muted mb-3.5 shadow-inner">
-          <span class="material-symbols-outlined text-3xl">notifications_off</span>
+          <span class="material-symbols-outlined text-3xl" aria-hidden="true">notifications_off</span>
         </div>
         <p class="text-sm font-semibold text-text">Chưa có thông báo nào</p>
         <p class="text-xs text-text-muted mt-1.5 max-w-[240px] leading-relaxed">
@@ -343,25 +343,47 @@
             [showPlanBadge]="false"
           ></app-user-avatar>
 
-          <!-- Notification Type Badge -->
+          <!-- Notification Type Badge — one blue chip for every type, with
+               only the icon's own glyph/color telling the type apart (red
+               heart for LIKE, white glyph otherwise). Hand-drawn SVGs, not
+               Material Symbol ligatures: the icon font's FILL axis lost
+               every glyph's defining detail (heart's notch, bookmark's
+               cut corner, person's shoulders) and read as a plain blob at
+               every badge-appropriate size, on every icon, not just the
+               heart. An SVG path renders the exact shape regardless of
+               icon-font rendering. -->
           <span
-            class="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-text-on-accent shadow-md ring-2 ring-surface"
-            [ngClass]="{
-              'bg-error': item.type === 'LIKE',
-              'bg-primary': item.type === 'COMMENT',
-              'bg-secondary': item.type === 'SAVE',
-              'bg-success': item.type === 'POST_SUCCESS' || item.type === 'FOLLOW',
-              'bg-accent': item.type === 'FOLLOW_REQUEST'
-            }"
+            class="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center overflow-hidden rounded-full bg-primary shadow-md ring-2 ring-surface"
           >
-            <span class="material-symbols-outlined text-[12px]">
-              {{
-                item.type === 'LIKE' ? 'favorite' :
-                item.type === 'COMMENT' ? 'chat_bubble' :
-                item.type === 'SAVE' ? 'bookmark' :
-                item.type === 'FOLLOW' || item.type === 'FOLLOW_REQUEST' ? 'person' : 'check_circle'
-              }}
-            </span>
+            <svg
+              viewBox="0 0 24 24"
+              class="h-[11px] w-[11px]"
+              [class.text-error]="item.type === 'LIKE'"
+              [class.text-white]="item.type !== 'LIKE'"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              @switch (item.type) {
+                @case ('LIKE') {
+                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                }
+                @case ('COMMENT') {
+                  <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
+                }
+                @case ('SAVE') {
+                  <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z" />
+                }
+                @case ('FOLLOW') {
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                }
+                @case ('FOLLOW_REQUEST') {
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                }
+                @default {
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                }
+              }
+            </svg>
           </span>
 
           <!-- Unread marker — anchored to the avatar so it never collides
@@ -377,10 +399,7 @@
         <!-- Notification Message & Time -->
         <div class="flex-1 min-w-0 pr-2">
           <p class="text-sm text-text leading-relaxed" [class.font-semibold]="!item.isRead">
-            <span *ngIf="item.sender?.username as senderName" class="font-semibold text-text group-hover:text-accent transition-colors">
-              {{ senderName }}
-            </span>
-            <span class="ml-1">{{ item.content }}</span>
+            {{ item.content }}
             <span *ngIf="!item.isRead" class="sr-only">(chưa đọc)</span>
           </p>
           <span class="mono-label text-xs text-text-muted mt-1 inline-block">
@@ -484,7 +503,7 @@
     aria-label="Trang chủ"
     [attr.aria-current]="isFeedPage() ? 'page' : null"
   >
-    <span class="material-symbols-outlined text-2xl" [class.font-bold]="isFeedPage()">home</span>
+    <span class="material-symbols-outlined text-2xl" [class.font-bold]="isFeedPage()" aria-hidden="true">home</span>
     <span class="text-xs font-medium">Trang chủ</span>
   </button>
 
@@ -497,7 +516,7 @@
     aria-label="Tạo mới"
     [attr.aria-current]="isCreatePage() ? 'page' : null"
   >
-    <span class="material-symbols-outlined text-2xl" [class.font-bold]="isCreatePage()">add</span>
+    <span class="material-symbols-outlined text-2xl" [class.font-bold]="isCreatePage()" aria-hidden="true">add</span>
     <span class="text-xs font-medium">Tạo</span>
   </button>
 
@@ -511,7 +530,7 @@
     aria-controls="nf-notification-panel"
     [attr.aria-expanded]="isNotificationOpen"
   >
-    <span class="material-symbols-outlined text-2xl" [class.font-bold]="isNotificationOpen">notifications</span>
+    <span class="material-symbols-outlined text-2xl" [class.font-bold]="isNotificationOpen" aria-hidden="true">notifications</span>
     <span class="text-xs font-medium">Thông báo</span>
     <span
       *ngIf="(unreadCount$ | async)! > 0"
@@ -531,7 +550,7 @@
     aria-label="Tin nhắn"
     [attr.aria-current]="isMessagesPage() ? 'page' : null"
   >
-    <span class="material-symbols-outlined text-2xl" [class.font-bold]="isMessagesPage()">sms</span>
+    <span class="material-symbols-outlined text-2xl" [class.font-bold]="isMessagesPage()" aria-hidden="true">sms</span>
     <span class="text-xs font-medium">Tin nhắn</span>
     <span
       *ngIf="(unreadMessageCount$ | async)! > 0"
@@ -551,7 +570,7 @@
     aria-label="Cài đặt"
     [attr.aria-current]="isSettingsPage() ? 'page' : null"
   >
-    <span class="material-symbols-outlined text-2xl" [class.font-bold]="isSettingsPage()">settings</span>
+    <span class="material-symbols-outlined text-2xl" [class.font-bold]="isSettingsPage()" aria-hidden="true">settings</span>
     <span class="text-xs font-medium">Cài đặt</span>
   </button>
 </nav>

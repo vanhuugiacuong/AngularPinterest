@@ -3,6 +3,7 @@ import {
   OnInit,
   inject,
   signal,
+  computed,
   ViewChild,
   ElementRef,
   AfterViewInit,
@@ -30,6 +31,7 @@ import { MessagingService } from '../../core/services/messaging';
 import { formatVnd } from '../../core/utils/currency';
 import { NovaTokenService } from '../../core/services/novatoken';
 import { formatNovaToken, vndToNovaToken } from '../../core/utils/novatoken';
+import { SafetyService } from '../../core/services/safety';
 
 /** Phải khớp chính xác với thông báo ForbiddenException của
  * PinsService.getPinById ở backend — dùng để phân biệt "cần nâng cấp gói"
@@ -61,6 +63,8 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   private auctionService = inject(AuctionService);
   private userService = inject(UserService);
   private messagingService = inject(MessagingService);
+  private safetyService = inject(SafetyService);
+  public showMoreMenu = signal(false);
 
   // --- Đấu giá ---
   public auction = signal<AuctionDetail | null>(null);
@@ -141,6 +145,24 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   @HostListener('window:resize')
   onResize() {
     this.calculateColumns();
+    this.closeRelatedBoardDropdown();
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.showMoreMenu()) this.showMoreMenu.set(false);
+    if (this.relatedActiveDropdownPinId()) this.closeRelatedBoardDropdown();
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void {
+    if (this.showMoreMenu()) this.showMoreMenu.set(false);
+    if (this.relatedActiveDropdownPinId()) this.closeRelatedBoardDropdown();
+  }
+
+  @HostListener('window:scroll')
+  onWindowScroll(): void {
+    if (this.relatedActiveDropdownPinId()) this.closeRelatedBoardDropdown();
   }
 
   calculateColumns() {
@@ -251,6 +273,60 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     if (this.currentPinId) {
       this.loadPinDetail(this.currentPinId);
     }
+  }
+
+  async share(): Promise<void> {
+    const current = this.pin();
+    if (!current) return;
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: current.title, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        this.toast.success('Đã sao chép liên kết.');
+      }
+    } catch {
+      // Người dùng hủy hộp thoại chia sẻ của hệ điều hành — không phải lỗi.
+    }
+  }
+
+  toggleMoreMenu(event?: Event): void {
+    event?.stopPropagation();
+    this.showMoreMenu.update((open) => !open);
+  }
+
+  closeMoreMenu(): void {
+    this.showMoreMenu.set(false);
+  }
+
+  async copyLink(): Promise<void> {
+    this.showMoreMenu.set(false);
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      this.toast.success('Đã sao chép liên kết.');
+    } catch {
+      this.toast.error('Không thể sao chép liên kết.');
+    }
+  }
+
+  async reportPin(): Promise<void> {
+    this.showMoreMenu.set(false);
+    const current = this.pin();
+    if (!current) return;
+    const confirmed = await this.dialogService.confirm({
+      variant: 'destructive',
+      title: 'Báo cáo tác phẩm này?',
+      description: 'Đội ngũ NovaFrame sẽ xem xét tác phẩm và tài khoản đã đăng nó.',
+      confirmLabel: 'Báo cáo',
+      cancelLabel: 'Hủy',
+      onConfirm: async () => {
+        const token = await this.supabaseService.getSessionToken();
+        if (!token) throw new Error('Vui lòng đăng nhập lại để báo cáo.');
+        await this.safetyService.reportUser(current.userId, 'INAPPROPRIATE_CONTENT', undefined, token);
+      },
+    });
+    if (confirmed) this.toast.success('Đã gửi báo cáo. Cảm ơn bạn đã phản hồi.');
   }
 
   async loadBoards() {
@@ -548,6 +624,16 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
    * stripped-down hover-only preview. */
   public relatedActiveDropdownPinId = signal<string | null>(null);
   public relatedSelectedBoardMap = signal<Record<string, Board>>({});
+  /** Screen position of the open related-pin dropdown's trigger — see
+   * home.ts's dropdownAnchor for why this renders as a fixed-position
+   * portal instead of nesting inside the related card's overflow-hidden
+   * frame (which silently clipped it). */
+  public relatedDropdownAnchor = signal<{ top: number; left: number } | null>(null);
+  public readonly activeRelatedDropdownPin = computed(() => {
+    const id = this.relatedActiveDropdownPinId();
+    if (!id) return null;
+    return this.relatedPins().find((rel: { id: string }) => rel.id === id) ?? null;
+  });
 
   async toggleRelatedLike(rel: { id: string; likes: number; isLiked?: boolean }, event: MouseEvent) {
     event.stopPropagation();
@@ -577,13 +663,28 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
   toggleRelatedBoardDropdown(pinId: string, event: MouseEvent) {
     event.stopPropagation();
-    this.relatedActiveDropdownPinId.update((current) => (current === pinId ? null : pinId));
+    if (this.relatedActiveDropdownPinId() === pinId) {
+      this.closeRelatedBoardDropdown();
+      return;
+    }
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const dropdownWidth = 176; // w-44
+    this.relatedDropdownAnchor.set({
+      top: rect.top,
+      left: Math.min(rect.left, window.innerWidth - dropdownWidth - 12),
+    });
+    this.relatedActiveDropdownPinId.set(pinId);
+  }
+
+  closeRelatedBoardDropdown(): void {
+    this.relatedActiveDropdownPinId.set(null);
+    this.relatedDropdownAnchor.set(null);
   }
 
   selectRelatedBoardForPin(pinId: string, board: Board, event: MouseEvent) {
     event.stopPropagation();
     this.relatedSelectedBoardMap.update((current) => ({ ...current, [pinId]: board }));
-    this.relatedActiveDropdownPinId.set(null);
+    this.closeRelatedBoardDropdown();
   }
 
   getRelatedSelectedBoardName(pinId: string): string {
@@ -665,7 +766,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
         authorAvatarUrl: p.user?.avatarUrl || null,
         authorPlan: p.user?.plan || 'FREE',
         likes: p._count?.likes ?? 0,
-        isLiked: (p as any).isLiked ?? false,
+        isLiked: p.isLiked ?? false,
         isAiGenerated: p.isAiGenerated,
         aspectRatio,
         listingType: p.listingType ?? 'NONE',

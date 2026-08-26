@@ -93,7 +93,8 @@ model Pin {
   id                  String          @id @default(uuid())
   title               String
   description         String?
-  imageUrl            String // URL preview công khai (bucket "pins", có thể đã qua watermark)
+  imageUrl            String // URL preview công khai (bucket "pins") - trả về cho chủ sở hữu và người xem không bị giới hạn thương mại
+  protectedImageUrl   String? // Bản preview có watermark bắt buộc, sinh khi pin bắt đầu bán/đấu giá - trả về THAY imageUrl cho người xem không phải chủ sở hữu và chưa mua (xem common/pin-access.util.ts)
   originalStoragePath String? // Path bản gốc trong bucket private "pins-original" - chỉ backend đọc được
   sourceUrl           String?
   userId              String

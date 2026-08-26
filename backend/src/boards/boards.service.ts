@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { applyPinImageProtection, RestrictablePinImage } from '../common/pin-access.util';
 
 type BoardWithPins = {
   boardPins: { pin: { imageUrl: string } }[];
@@ -30,12 +31,17 @@ export class BoardsService {
       where: { userId },
       include: {
         boardPins: {
-          include: { pin: { select: { imageUrl: true } } },
+          include: { pin: { select: { id: true, imageUrl: true, protectedImageUrl: true, userId: true, isForSale: true } } },
           orderBy: { addedAt: 'desc' },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
+    // A board's owner isn't necessarily each pin's owner — addPinToBoard
+    // lets you save someone else's pin onto your own board, and that pin
+    // may itself be for-sale/auctioned. Gate on the *pin's* owner, not the
+    // board's, same as every other pin-image response in the app.
+    await this.protectBoardPinImages(boards, userId);
     return boards.map(withCover);
   }
 
@@ -56,7 +62,16 @@ export class BoardsService {
       throw new NotFoundException('Không tìm thấy bộ sưu tập.');
     }
 
+    await this.protectBoardPinImages([board], userId);
     return withCover(board);
+  }
+
+  private async protectBoardPinImages(
+    boards: { boardPins: { pin: RestrictablePinImage }[] }[],
+    viewerId: string,
+  ): Promise<void> {
+    const pins = boards.flatMap((b) => b.boardPins.map((bp) => bp.pin));
+    await applyPinImageProtection(this.prisma, pins, viewerId);
   }
 
   async createBoard(

@@ -110,11 +110,19 @@ export class PinsController {
    * a canvas without tainting it). Only ever fetches the URL already on
    * file for this specific pin id — no arbitrary-URL fetch/SSRF surface. */
   @Get(':id/image-proxy')
-  async proxyPinImage(@Param('id') id: string, @Res() res: Response) {
+  @UseGuards(OptionalSupabaseAuthGuard)
+  async proxyPinImage(
+    @CurrentUser() user: UserPayload | undefined,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
     const { buffer, contentType } =
-      await this.pinsService.getPinImageForProxy(id);
+      await this.pinsService.getPinImageForProxy(id, user?.id);
     res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 'public, max-age=3600');
+    // Was public/shared max-age=3600 — a commerce-restricted pin's protected
+    // bytes must not be cached and replayed across different viewers who
+    // may have different purchase/ownership eligibility.
+    res.setHeader('Cache-Control', 'private, max-age=3600');
     res.send(buffer);
   }
 

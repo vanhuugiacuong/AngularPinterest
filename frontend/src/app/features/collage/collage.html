@@ -47,16 +47,18 @@
         (click)="store.undo()"
         [disabled]="!store.canUndo()"
         title="Hoàn tác (Ctrl+Z)"
+        aria-label="Hoàn tác"
       >
-        <span class="material-symbols-outlined">undo</span><span>Undo</span>
+        <span class="material-symbols-outlined" aria-hidden="true">undo</span><span>Hoàn tác</span>
       </button>
       <button
         type="button"
         (click)="store.redo()"
         [disabled]="!store.canRedo()"
         title="Làm lại (Ctrl+Y)"
+        aria-label="Làm lại"
       >
-        <span class="material-symbols-outlined">redo</span><span>Redo</span>
+        <span class="material-symbols-outlined" aria-hidden="true">redo</span><span>Làm lại</span>
       </button>
       <span class="toolbar-divider"></span>
       <button
@@ -64,16 +66,18 @@
         (click)="openLayerCrop()"
         [disabled]="!store.selectedLayer()"
         title="Chọn lại phần cắt trong ảnh"
+        aria-label="Cắt lại"
       >
-        <span class="material-symbols-outlined">crop</span><span>Cắt lại</span>
+        <span class="material-symbols-outlined" aria-hidden="true">crop</span><span>Cắt lại</span>
       </button>
       <button
         type="button"
         (click)="store.duplicate()"
         [disabled]="!store.selectedLayer()"
         title="Nhân bản layer"
+        aria-label="Nhân bản"
       >
-        <span class="material-symbols-outlined">content_copy</span><span>Nhân bản</span>
+        <span class="material-symbols-outlined" aria-hidden="true">content_copy</span><span>Nhân bản</span>
       </button>
       <button
         type="button"
@@ -81,8 +85,9 @@
         (click)="store.remove()"
         [disabled]="!store.selectedLayer()"
         title="Xóa layer (Delete)"
+        aria-label="Xóa"
       >
-        <span class="material-symbols-outlined">delete</span><span>Xóa</span>
+        <span class="material-symbols-outlined" aria-hidden="true">delete</span><span>Xóa</span>
       </button>
     </div>
 
@@ -91,7 +96,11 @@
       <section class="canvas-column">
         <app-collage-canvas />
         <p class="canvas-help">
-          Kéo để di chuyển · Kéo bốn góc để đổi kích thước · Dùng tay cầm phía trên để xoay
+          @if (store.layers().length) {
+            Kéo để di chuyển · Kéo bốn góc để đổi kích thước · Dùng tay cầm phía trên để xoay
+          } @else {
+            Chọn một ảnh ở panel bên phải để bắt đầu ghép.
+          }
         </p>
       </section>
       <aside class="images-column">

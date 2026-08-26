@@ -33,7 +33,7 @@
     aria-labelledby="nf-auth-title"
   >
     <button type="button" class="nf-auth__close" (click)="closeModal.emit()" aria-label="Đóng">
-      <span class="material-symbols-outlined">close</span>
+      <span class="material-symbols-outlined" aria-hidden="true">close</span>
     </button>
 
     <div class="nf-auth__body">
@@ -61,7 +61,7 @@
         (click)="loginRequested.emit()"
       >
         @if (isSigningIn) {
-          <span class="nf-auth__spinner material-symbols-outlined">progress_activity</span>
+          <span class="nf-auth__spinner material-symbols-outlined" aria-hidden="true">progress_activity</span>
           <span>Đang kết nối với Google…</span>
         } @else {
           <svg class="nf-auth__gicon" viewBox="0 0 24 24" fill="none" aria-hidden="true">

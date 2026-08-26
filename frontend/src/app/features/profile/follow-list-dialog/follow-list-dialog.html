@@ -10,7 +10,7 @@
     <header class="fld-header">
       <h2 id="fld-heading" class="fld-title">Kết nối</h2>
       <button type="button" class="fld-close" (click)="closeDialog.emit()" aria-label="Đóng">
-        <span class="material-symbols-outlined">close</span>
+        <span class="material-symbols-outlined" aria-hidden="true">close</span>
       </button>
     </header>
 
@@ -50,13 +50,13 @@
         </div>
       } @else if (currentState().error) {
         <div class="fld-state" role="alert">
-          <span class="material-symbols-outlined text-2xl text-error">cloud_off</span>
+          <span class="material-symbols-outlined text-2xl text-error" aria-hidden="true">cloud_off</span>
           <p>{{ currentState().error }}</p>
           <button type="button" (click)="retry()">Thử lại</button>
         </div>
       } @else if (currentState().items.length === 0) {
         <div class="fld-state">
-          <span class="material-symbols-outlined text-2xl text-text-muted">group_off</span>
+          <span class="material-symbols-outlined text-2xl text-text-muted" aria-hidden="true">group_off</span>
           @if (activeTab() === 'followers') {
             <p>{{ isOwnProfile() ? 'Chưa có người theo dõi.' : 'Người này chưa có người theo dõi.' }}</p>
           } @else {

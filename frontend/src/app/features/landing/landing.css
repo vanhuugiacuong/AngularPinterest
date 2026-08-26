@@ -140,7 +140,7 @@
   gap: 8px;
   height: 56px;
   padding: 0 30px;
-  border-radius: 999px;
+  border-radius: var(--radius-cta);
   border: 1px solid transparent;
   cursor: pointer;
   font: inherit;

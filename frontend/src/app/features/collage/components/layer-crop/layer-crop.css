@@ -77,13 +77,17 @@
 }
 .primary-button {
   border: 0;
-  color: var(--color-text);
-  background: linear-gradient(
-    135deg,
-    var(--color-secondary),
-    var(--color-primary),
-    var(--color-primary-neon)
-  );
+  border-radius: var(--radius-cta);
+  color: var(--color-text-on-accent);
+  background: var(--color-nova-blue);
+  box-shadow: 0 6px 20px -10px color-mix(in srgb, var(--color-nova-blue) 45%, transparent);
+  transition: transform 0.2s var(--ease-trace);
+}
+.primary-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+.primary-button:active:not(:disabled) {
+  transform: translateY(0);
 }
 .material-symbols-outlined {
   font-size: 18px;
@@ -124,6 +128,15 @@
   border: 2px solid rgba(6, 6, 15, 0.45);
   border-radius: 4px;
   touch-action: none;
+}
+
+/* Expands the draggable hit area to ~40px without growing the visible
+   dot — keeps the crop corner precise-looking while staying reachable on
+   touch (WCAG target-size guidance). */
+.crop-handle::before {
+  content: '';
+  position: absolute;
+  inset: -13px;
 }
 .crop-handle-nw {
   top: -7px;

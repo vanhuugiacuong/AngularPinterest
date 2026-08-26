@@ -17,6 +17,7 @@ import {
 import { BlocksService } from '../blocks/blocks.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { applyPinImageProtection } from '../common/pin-access.util';
 
 export type MessageRequestRelationshipStatus =
   | 'NONE'
@@ -498,6 +499,8 @@ export class UsersService {
           title: true,
           description: true,
           imageUrl: true,
+          protectedImageUrl: true,
+          isForSale: true,
           sourceUrl: true,
           userId: true,
           createdAt: true,
@@ -519,6 +522,12 @@ export class UsersService {
       }),
       this.prisma.pin.count({ where }),
     ]);
+
+    // This route is publicly reachable (OptionalSupabeAuthGuard, no login
+    // required) — a for-sale/auctioned post must not hand its real preview
+    // to an anonymous or non-buyer viewer just because it showed up on the
+    // profile's posts tab instead of the feed.
+    await applyPinImageProtection(this.prisma, items, viewerId);
 
     return this.pageResult(
       items.map(({ likes, ...pin }) => ({
@@ -569,6 +578,9 @@ export class UsersService {
                   id: true,
                   title: true,
                   imageUrl: true,
+                  protectedImageUrl: true,
+                  userId: true,
+                  isForSale: true,
                   isAiGenerated: true,
                 },
               },
@@ -584,6 +596,15 @@ export class UsersService {
       pinCount: _count.boardPins,
       thumbnails: boardPins.map(({ pin }) => pin),
     }));
+
+    // A board's thumbnails can include someone else's pin (boards can save
+    // pins from other owners) — gate each thumbnail on its own pin's
+    // owner/commerce state, not the profile being viewed.
+    await applyPinImageProtection(
+      this.prisma,
+      items.flatMap((item) => item.thumbnails),
+      viewerId,
+    );
 
     return this.pageResult(items, total, page, limit);
   }
@@ -606,6 +627,8 @@ export class UsersService {
               title: true,
               description: true,
               imageUrl: true,
+              protectedImageUrl: true,
+              isForSale: true,
               sourceUrl: true,
               userId: true,
               createdAt: true,
@@ -635,6 +658,10 @@ export class UsersService {
       favoritedAt: createdAt,
       isLiked: true,
     }));
+
+    // Liking a pin isn't buying it — a for-sale/auctioned pin the caller
+    // merely favorited still needs the same purchase gate as everywhere else.
+    await applyPinImageProtection(this.prisma, items, userId);
 
     return this.pageResult(items, total, page, limit);
   }
@@ -886,6 +913,9 @@ export class UsersService {
                   id: true,
                   title: true,
                   imageUrl: true,
+                  protectedImageUrl: true,
+                  userId: true,
+                  isForSale: true,
                   isAiGenerated: true,
                 },
               },
@@ -901,6 +931,16 @@ export class UsersService {
       pinCount: _count.boardPins,
       thumbnails: boardPins.map(({ pin }) => pin),
     }));
+
+    // Same as getUserBoards — a private board's thumbnails can include a
+    // pin saved from someone else, gate on that pin's own owner/commerce
+    // state (userId here is always the caller viewing their own private
+    // boards, per the controller guard).
+    await applyPinImageProtection(
+      this.prisma,
+      items.flatMap((item) => item.thumbnails),
+      userId,
+    );
 
     return this.pageResult(items, total, page, limit);
   }

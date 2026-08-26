@@ -21,7 +21,10 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap"
     />
-    <!-- Material Symbols Outlined -->
+    <!-- Material Symbols Outlined — FILL kept as a 0..1 range (not a fixed
+         point) so .icon-fill can switch individual icons to the solid glyph
+         at runtime via font-variation-settings; a fixed point bakes a
+         static outline-only font that CSS can never fill in. -->
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0"

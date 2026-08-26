@@ -80,6 +80,18 @@ export class LayerListComponent {
     if (event.pointerId === this.pointerId) this.resetPointerDrag(event);
   }
 
+  /** Keyboard/touch equivalent of dragging a row one slot up (-1, toward
+   * index 0 = further forward) or down (+1 = further back) — reuses the
+   * same reorderFromFront primitive the pointer-drag path already calls. */
+  moveStep(id: string, direction: -1 | 1): void {
+    const orderedIds = this.orderedLayers.map((layer) => layer.id);
+    const index = orderedIds.indexOf(id);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= orderedIds.length) return;
+    [orderedIds[index], orderedIds[targetIndex]] = [orderedIds[targetIndex], orderedIds[index]];
+    this.store.reorderFromFront(orderedIds);
+  }
+
   private moveLayer(draggedId: string, targetId: string): void {
     const orderedIds = this.orderedLayers.map((layer) => layer.id);
     const fromIndex = orderedIds.indexOf(draggedId);

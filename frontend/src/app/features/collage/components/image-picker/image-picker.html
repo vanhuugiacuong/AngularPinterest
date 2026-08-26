@@ -1,12 +1,12 @@
 <section class="panel">
   <button type="button" class="panel-heading" (click)="toggle()" [attr.aria-expanded]="isOpen()">
     <span><span class="eyebrow">Nguồn ảnh</span><strong>Chọn ảnh</strong></span>
-    <span class="material-symbols-outlined">{{ isOpen() ? 'expand_less' : 'expand_more' }}</span>
+    <span class="material-symbols-outlined" aria-hidden="true">{{ isOpen() ? 'expand_less' : 'expand_more' }}</span>
   </button>
 
   <div *ngIf="isOpen()" class="panel-body">
     <label class="search-box">
-      <span class="material-symbols-outlined">search</span>
+      <span class="material-symbols-outlined" aria-hidden="true">search</span>
       <input
         type="search"
         [(ngModel)]="searchQuery"
@@ -17,7 +17,7 @@
     </label>
 
     <label class="upload-button" title="Chọn ảnh từ máy tính">
-      <span class="material-symbols-outlined">upload</span>
+      <span class="material-symbols-outlined" aria-hidden="true">upload</span>
       Tải ảnh từ máy
       <input type="file" accept="image/jpeg,image/png,image/webp" (change)="selectFile($event)" />
     </label>

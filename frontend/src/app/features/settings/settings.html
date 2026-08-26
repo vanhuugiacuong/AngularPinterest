@@ -6,7 +6,7 @@
       <!-- Page Header -->
       <header class="flex flex-col gap-1 pb-2 border-b border-border/60">
         <div class="flex items-center gap-2">
-          <span class="material-symbols-outlined text-accent text-xl">settings</span>
+          <span class="material-symbols-outlined text-accent text-xl" aria-hidden="true">settings</span>
           <span class="mono-label text-xs text-accent font-bold tracking-wider uppercase">Cài đặt hệ thống</span>
         </div>
         <h1 class="text-3xl font-extrabold text-text font-display tracking-tight">Tùy chỉnh không gian của bạn</h1>
@@ -16,7 +16,7 @@
       <!-- Section 1: Giao diện (Appearance) -->
       <section aria-labelledby="nf-appearance-heading" class="bg-surface border border-border rounded-panel p-6 shadow-sm">
         <div class="flex items-center gap-2.5 mb-1">
-          <span class="material-symbols-outlined text-xl text-accent">palette</span>
+          <span class="material-symbols-outlined text-xl text-accent" aria-hidden="true">palette</span>
           <h2 id="nf-appearance-heading" class="text-lg font-bold text-text font-display">Giao diện</h2>
         </div>
         <p class="text-sm text-text-muted mb-6">
@@ -84,7 +84,7 @@
       <!-- Section 2: Quyền riêng tư tài khoản -->
       <section aria-labelledby="nf-privacy-heading" class="bg-surface border border-border rounded-panel p-6 shadow-sm">
         <div class="flex items-center gap-2.5 mb-1">
-          <span class="material-symbols-outlined text-xl text-accent">lock</span>
+          <span class="material-symbols-outlined text-xl text-accent" aria-hidden="true">lock</span>
           <h2 id="nf-privacy-heading" class="text-lg font-bold text-text font-display">Quyền riêng tư tài khoản</h2>
         </div>
         <p class="text-sm text-text-muted mb-5">
@@ -94,7 +94,7 @@
         <div class="flex items-center justify-between gap-4 p-4 rounded-frame border border-border bg-canvas-neutral">
           <div class="flex flex-col gap-1">
             <span id="nf-privacy-toggle-label" class="text-sm font-bold text-text flex items-center gap-2">
-              <span class="material-symbols-outlined text-base text-accent">
+              <span class="material-symbols-outlined text-base text-accent" aria-hidden="true">
                 {{ isPrivateAccount() ? 'visibility_off' : 'public' }}
               </span>
               Chế độ {{ isPrivateAccount() ? 'Riêng tư' : 'Công khai' }}
@@ -118,13 +118,13 @@
 
         @if (privacyPending()) {
           <p class="mono-label text-xs text-text-muted mt-3 flex items-center gap-1.5" aria-live="polite">
-            <span class="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+            <span class="material-symbols-outlined text-sm animate-spin" aria-hidden="true">progress_activity</span>
             Đang lưu thay đổi...
           </p>
         }
         @if (privacyError()) {
           <p class="text-xs text-error mt-3 flex items-center gap-1.5" role="alert">
-            <span class="material-symbols-outlined text-sm">error</span>
+            <span class="material-symbols-outlined text-sm" aria-hidden="true">error</span>
             {{ privacyError() }}
           </p>
         }
@@ -132,7 +132,7 @@
       <!-- Section 3: Thông tin nhận thanh toán (Payout Info) -->
       <section aria-labelledby="nf-payout-heading" class="bg-surface border border-border rounded-panel p-6 shadow-sm">
         <div class="flex items-center gap-2.5 mb-1">
-          <span class="material-symbols-outlined text-xl text-accent">account_balance</span>
+          <span class="material-symbols-outlined text-xl text-accent" aria-hidden="true">account_balance</span>
           <h2 id="nf-payout-heading" class="text-lg font-bold text-text font-display">Thông tin nhận thanh toán</h2>
         </div>
         <p class="text-sm text-text-muted mb-5">
@@ -149,7 +149,7 @@
             Nâng cấp Plus để mở bán tác phẩm, hoặc chọn Pro để trải nghiệm thêm đặc quyền đấu giá và nhận tiền trực tiếp.
           </p>
           <a routerLink="/pricing" class="mt-2 h-10 px-5 rounded-full bg-gradient-brand text-text-on-accent font-bold text-xs flex items-center gap-2 cursor-pointer shadow-glow-sm hover:brightness-110 transition-all">
-            <span class="material-symbols-outlined text-base">diamond</span>
+            <span class="material-symbols-outlined text-base" aria-hidden="true">diamond</span>
             Khám phá các gói thành viên
           </a>
         </div>
@@ -157,7 +157,7 @@
         <!-- Pro Member: Payout Form -->
         <div *ngIf="canSell()" class="flex flex-col gap-4 max-w-xl">
           <p *ngIf="payoutLoading()" class="text-xs text-text-muted flex items-center gap-1.5">
-            <span class="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+            <span class="material-symbols-outlined text-sm animate-spin" aria-hidden="true">progress_activity</span>
             Đang tải dữ liệu tài khoản...
           </p>
 
@@ -206,12 +206,12 @@
             role="alert"
             class="flex items-start gap-2 p-3 rounded-control bg-error/10 border border-error/30 text-error text-xs font-semibold animate-fade-in"
           >
-            <span class="material-symbols-outlined text-base leading-none shrink-0">error</span>
+            <span class="material-symbols-outlined text-base leading-none shrink-0" aria-hidden="true">error</span>
             <span>{{ payoutError() }}</span>
           </div>
 
           <p *ngIf="payoutSaved()" role="status" class="text-xs text-success font-semibold flex items-center gap-1.5 animate-fade-in">
-            <span class="material-symbols-outlined text-base">check_circle</span>
+            <span class="material-symbols-outlined text-base" aria-hidden="true">check_circle</span>
             Đã lưu thông tin nhận thanh toán thành công.
           </p>
 
@@ -221,8 +221,8 @@
             [disabled]="payoutSaving()"
             class="h-11 px-6 bg-gradient-brand text-text-on-accent font-bold text-xs self-start rounded-control cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border-none outline-none focus-visible:ring-2 focus-visible:ring-accent flex items-center gap-2 shadow-glow-sm hover:brightness-110 transition-all mt-1"
           >
-            <span *ngIf="payoutSaving()" class="material-symbols-outlined text-base animate-spin">progress_activity</span>
-            <span *ngIf="!payoutSaving()" class="material-symbols-outlined text-base">save</span>
+            <span *ngIf="payoutSaving()" class="material-symbols-outlined text-base animate-spin" aria-hidden="true">progress_activity</span>
+            <span *ngIf="!payoutSaving()" class="material-symbols-outlined text-base" aria-hidden="true">save</span>
             <span>{{ payoutSaving() ? 'Đang lưu...' : 'Lưu thông tin tài khoản' }}</span>
           </button>
         </div>
@@ -231,7 +231,7 @@
       <!-- Section 4: Watermark cá nhân (Plus/Pro) -->
       <section aria-labelledby="nf-watermark-heading" class="bg-surface border border-border rounded-panel p-6 shadow-sm">
         <div class="flex items-center gap-2.5 mb-1">
-          <span class="material-symbols-outlined text-xl text-accent">branding_watermark</span>
+          <span class="material-symbols-outlined text-xl text-accent" aria-hidden="true">branding_watermark</span>
           <h2 id="nf-watermark-heading" class="text-lg font-bold text-text font-display">Watermark cá nhân</h2>
         </div>
         <p class="text-sm text-text-muted mb-5">
@@ -248,7 +248,7 @@
             Gói Free tự động gắn logo mặc định NovaFrame. Nâng cấp lên Plus hoặc Pro để thiết kế và tự chọn Watermark/Logo độc quyền của bạn.
           </p>
           <a routerLink="/pricing" class="mt-2 h-10 px-5 rounded-full bg-gradient-brand text-text-on-accent font-bold text-xs flex items-center gap-2 cursor-pointer shadow-glow-sm hover:brightness-110 transition-all">
-            <span class="material-symbols-outlined text-base">star</span>
+            <span class="material-symbols-outlined text-base" aria-hidden="true">star</span>
             Nâng cấp lên Plus/Pro ngay
           </a>
         </div>
@@ -261,7 +261,7 @@
               <span class="text-xs font-bold text-text-muted uppercase tracking-wider">Cấu hình watermark đã lưu</span>
               <div *ngFor="let preset of watermark.presets()" class="flex items-center justify-between gap-3 rounded-frame border border-border bg-canvas-neutral p-3.5 hover:border-border-strong transition-colors">
                 <div class="flex items-center gap-3 min-w-0">
-                  <span class="material-symbols-outlined text-accent text-xl">
+                  <span class="material-symbols-outlined text-accent text-xl" aria-hidden="true">
                     {{ preset.type === 'TEXT' ? 'text_fields' : 'image' }}
                   </span>
                   <div class="flex flex-col min-w-0">
@@ -275,9 +275,9 @@
                   </div>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
-                  <button type="button" (click)="setDefault(preset)" *ngIf="!preset.isDefault" class="h-8 px-3 rounded-control bg-surface-elevated hover:bg-surface-high text-xs font-bold text-text border border-border cursor-pointer transition-colors">Đặt mặc định</button>
-                  <button type="button" (click)="editPreset(preset)" class="h-8 px-3 rounded-control bg-surface-elevated hover:bg-surface-high text-xs font-bold text-text border border-border cursor-pointer transition-colors">Sửa</button>
-                  <button type="button" (click)="deletePreset(preset.id)" class="h-8 px-3 rounded-control bg-error/10 hover:bg-error/20 text-xs font-bold text-error border border-error/20 cursor-pointer transition-colors">Xoá</button>
+                  <button type="button" (click)="setDefault(preset)" *ngIf="!preset.isDefault" class="h-10 px-3 rounded-control bg-surface-elevated hover:bg-surface-high text-xs font-bold text-text border border-border cursor-pointer transition-colors">Đặt mặc định</button>
+                  <button type="button" (click)="editPreset(preset)" class="h-10 px-3 rounded-control bg-surface-elevated hover:bg-surface-high text-xs font-bold text-text border border-border cursor-pointer transition-colors">Sửa</button>
+                  <button type="button" (click)="deletePreset(preset)" class="h-10 px-3 rounded-control bg-error/10 hover:bg-error/20 text-xs font-bold text-error border border-error/20 cursor-pointer transition-colors">Xoá</button>
                 </div>
               </div>
             </div>
@@ -310,7 +310,7 @@
                     [class.text-text]="type !== 'TEXT'"
                     class="h-9 rounded-control text-xs font-bold transition-all border-none cursor-pointer flex items-center justify-center gap-1.5"
                   >
-                    <span class="material-symbols-outlined text-base">title</span>
+                    <span class="material-symbols-outlined text-base" aria-hidden="true">title</span>
                     <span>Chữ</span>
                   </button>
                   <button
@@ -322,7 +322,7 @@
                     [class.text-text]="type !== 'LOGO'"
                     class="h-9 rounded-control text-xs font-bold transition-all border-none cursor-pointer flex items-center justify-center gap-1.5 truncate px-2"
                   >
-                    <span class="material-symbols-outlined text-base">image</span>
+                    <span class="material-symbols-outlined text-base" aria-hidden="true">image</span>
                     <span class="truncate">Logo (PNG, JPG)</span>
                   </button>
                 </div>
@@ -340,7 +340,7 @@
                 <label class="relative flex items-center gap-3 p-3.5 rounded-control border border-dashed border-border-strong bg-surface hover:border-accent/60 transition-colors cursor-pointer">
                   <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onLogoSelected($event)" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
                   <div class="w-9 h-9 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent shrink-0">
-                    <span class="material-symbols-outlined text-xl">upload_file</span>
+                    <span class="material-symbols-outlined text-xl" aria-hidden="true">upload_file</span>
                   </div>
                   <div class="flex flex-col min-w-0 flex-1">
                     <span class="text-xs font-bold text-text truncate">
@@ -435,7 +435,7 @@
 
               <!-- Form Error -->
               <div *ngIf="formError()" role="alert" class="flex items-center gap-1.5 p-3 rounded-control bg-error/10 border border-error/30 text-error text-xs font-semibold">
-                <span class="material-symbols-outlined text-base">error</span>
+                <span class="material-symbols-outlined text-base" aria-hidden="true">error</span>
                 <span>{{ formError() }}</span>
               </div>
 
@@ -447,8 +447,8 @@
                   [disabled]="previewLoading()"
                   class="flex-1 h-10 rounded-control bg-surface-elevated hover:bg-surface-high text-xs font-bold text-text border border-border cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 transition-colors"
                 >
-                  <span *ngIf="previewLoading()" class="material-symbols-outlined text-base animate-spin">progress_activity</span>
-                  <span *ngIf="!previewLoading()" class="material-symbols-outlined text-base">visibility</span>
+                  <span *ngIf="previewLoading()" class="material-symbols-outlined text-base animate-spin" aria-hidden="true">progress_activity</span>
+                  <span *ngIf="!previewLoading()" class="material-symbols-outlined text-base" aria-hidden="true">visibility</span>
                   <span>{{ previewLoading() ? 'Đang tạo...' : 'Xem trước' }}</span>
                 </button>
 
@@ -458,8 +458,8 @@
                   [disabled]="saving()"
                   class="flex-1 h-10 rounded-control bg-gradient-brand text-text-on-accent text-xs font-bold border-none cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-glow-sm hover:brightness-110 transition-all"
                 >
-                  <span *ngIf="saving()" class="material-symbols-outlined text-base animate-spin">progress_activity</span>
-                  <span *ngIf="!saving()" class="material-symbols-outlined text-base">save</span>
+                  <span *ngIf="saving()" class="material-symbols-outlined text-base animate-spin" aria-hidden="true">progress_activity</span>
+                  <span *ngIf="!saving()" class="material-symbols-outlined text-base" aria-hidden="true">save</span>
                   <span>{{ saving() ? 'Đang lưu...' : (editingId() ? 'Cập nhật' : 'Lưu cấu hình') }}</span>
                 </button>
 
@@ -485,7 +485,7 @@
             <div class="rounded-frame border border-border bg-canvas-neutral aspect-square flex flex-col items-center justify-center overflow-hidden relative shadow-inner">
               <img *ngIf="previewUrl()" [src]="previewUrl()" alt="Xem trước watermark" class="w-full h-full object-cover block animate-fade-in" />
               <div *ngIf="!previewUrl()" class="flex flex-col items-center gap-2 px-6 text-center text-text-muted">
-                <span class="material-symbols-outlined text-3xl text-text-muted/60">preview</span>
+                <span class="material-symbols-outlined text-3xl text-text-muted/60" aria-hidden="true">preview</span>
                 <span class="text-xs leading-relaxed">Nhấn nút <strong>"Xem trước"</strong> để render watermark trực tiếp lên 1 tác phẩm của bạn.</span>
               </div>
             </div>

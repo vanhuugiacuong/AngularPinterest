@@ -24,7 +24,19 @@ export class NovaTokenWalletPage implements OnInit, OnDestroy {
   private reconciliationInFlight = false;
 
   async ngOnInit() {
-    try { await this.tokens.load(); }
+    await this.loadWallet();
+  }
+
+  async retryLoad() {
+    this.loading.set(true);
+    await this.loadWallet();
+  }
+
+  private async loadWallet() {
+    try {
+      this.error.set(null);
+      await this.tokens.load();
+    }
     catch (error) { this.error.set(error instanceof Error ? error.message : 'Không thể tải ví NovaToken.'); }
     finally { this.loading.set(false); }
   }
@@ -66,7 +78,6 @@ export class NovaTokenWalletPage implements OnInit, OnDestroy {
         this.selectedTopUp.set(null);
         void this.dialog.confirm({
           variant: 'warning',
-          size: 'large',
           title: 'Giao dịch chưa được thanh toán',
           description: 'Hệ thống chưa ghi nhận khoản chuyển tiền của bạn. Giao dịch nạp NovaToken đã thất bại, vui lòng kiểm tra lại và thử nạp lần nữa.',
           confirmLabel: 'Đóng thông báo',

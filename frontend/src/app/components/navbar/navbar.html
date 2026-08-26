@@ -31,7 +31,7 @@
            on mouseleave/backdrop/Escape, so there is no separate "close" icon
            state to represent here. Hidden on mobile: the bottom nav replaces
            this entirely below md. -->
-      <span class="material-symbols-outlined text-2xl">menu</span>
+      <span class="material-symbols-outlined text-2xl" aria-hidden="true">menu</span>
       <!-- Combined unread badge (notifications + messages) — visible even
            while the sidebar is collapsed. -->
       <span
@@ -59,7 +59,7 @@
       [class.cursor-pointer]="!supabaseService.user()"
       class="nf-search flex items-center gap-2 px-4 h-11 rounded-control text-text-muted bg-surface border border-border transition-colors duration-200 hover:border-border-strong"
     >
-      <span class="material-symbols-outlined text-xl">search</span>
+      <span class="material-symbols-outlined text-xl" aria-hidden="true">search</span>
       <input
         *ngIf="supabaseService.user()"
         type="search"
@@ -135,7 +135,7 @@
               class="w-full flex items-center justify-between gap-2 text-left px-3 py-2 rounded-control hover:bg-surface-elevated cursor-pointer border-none outline-none bg-transparent focus-visible:ring-2 focus-visible:ring-accent"
             >
               <span class="flex items-center gap-2 min-w-0 text-sm text-text">
-                <span class="material-symbols-outlined text-base text-text-muted leading-none">history</span>
+                <span class="material-symbols-outlined text-base text-text-muted leading-none" aria-hidden="true">history</span>
                 <span class="truncate">{{ term }}</span>
               </span>
               <span
@@ -156,13 +156,13 @@
       <ng-container *ngIf="searchQuery().trim()">
         <!-- Loading -->
         <div *ngIf="isSuggesting()" class="flex items-center gap-2 px-2 py-1 text-xs text-text-muted select-none">
-          <span class="material-symbols-outlined text-base animate-spin leading-none">progress_activity</span>
+          <span class="material-symbols-outlined text-base animate-spin leading-none" aria-hidden="true">progress_activity</span>
           Đang tìm gợi ý...
         </div>
 
         <!-- Error -->
         <div *ngIf="!isSuggesting() && suggestError()" class="flex items-center gap-2 px-2 py-1 text-xs text-error select-none">
-          <span class="material-symbols-outlined text-base leading-none">cloud_off</span>
+          <span class="material-symbols-outlined text-base leading-none" aria-hidden="true">cloud_off</span>
           {{ suggestError() }}
         </div>
 
@@ -181,7 +181,7 @@
                 [class.bg-surface-elevated]="activeSuggestionIndex() === i"
                 class="w-full text-left flex items-center gap-2 px-3 py-2 rounded-control hover:bg-surface-elevated cursor-pointer border-none outline-none bg-transparent text-sm text-text focus-visible:ring-2 focus-visible:ring-accent"
               >
-                <span class="material-symbols-outlined text-base text-text-muted leading-none">search</span>
+                <span class="material-symbols-outlined text-base text-text-muted leading-none" aria-hidden="true">search</span>
                 <span class="truncate">{{ term }}</span>
               </button>
             </div>
@@ -261,10 +261,10 @@
     <button
       *ngIf="supabaseService.user()"
       (click)="navigateToPricing()"
-      class="hidden sm:flex h-10 items-center gap-2 px-4 rounded-full border border-accent/35 bg-accent/10 hover:bg-accent/20 text-accent font-bold text-xs cursor-pointer transition-all shadow-[0_0_24px_rgba(157,99,255,.12)]"
+      class="hidden sm:flex h-10 items-center gap-2 px-4 rounded-full border border-accent/35 bg-accent/10 hover:bg-accent/20 text-accent font-bold text-xs cursor-pointer transition-all shadow-[0_0_24px_color-mix(in_srgb,var(--color-accent)_12%,transparent)]"
       aria-label="Xem các gói thành viên"
     >
-      <span class="material-symbols-outlined text-base">diamond</span>
+      <span class="material-symbols-outlined text-base" aria-hidden="true">diamond</span>
       <span>Thành viên</span>
     </button>
     <!-- Quick theme switch — visibility controlled from /settings -->
@@ -283,6 +283,7 @@
         <app-user-avatar [src]="avatarUrl()" [name]="displayName()" [size]="36" [plan]="myPlan()"></app-user-avatar>
         <span
           class="material-symbols-outlined text-[20px] text-text-muted font-semibold leading-none select-none"
+          aria-hidden="true"
           >keyboard_arrow_down</span
         >
       </button>
@@ -325,7 +326,7 @@
           (click)="navigateToMyProfile()"
           class="account-menu-item"
         >
-          <span class="material-symbols-outlined">person</span><span>Trang cá nhân</span><i class="material-symbols-outlined">chevron_right</i>
+          <span class="material-symbols-outlined" aria-hidden="true">person</span><span>Trang cá nhân</span><i class="material-symbols-outlined" aria-hidden="true">chevron_right</i>
         </button>
 
         <!-- Settings Option -->
@@ -335,7 +336,7 @@
           (click)="navigateToSettings()"
           class="account-menu-item"
         >
-          <span class="material-symbols-outlined">settings</span><span>Cài đặt</span><i class="material-symbols-outlined">chevron_right</i>
+          <span class="material-symbols-outlined" aria-hidden="true">settings</span><span>Cài đặt</span><i class="material-symbols-outlined" aria-hidden="true">chevron_right</i>
         </button>
 
         <!-- Quick theme switch — mobile only; sm: and up already has it in
@@ -354,7 +355,7 @@
           role="menuitem"
           (click)="navigateToNovaToken()"
           class="account-menu-item account-menu-wallet"
-        ><img src="/assets/novatoken/novatoken-coin.png" alt="" /><span><b>Ví NovaToken</b><small>{{ (novaTokens.wallet()?.balance || '0') | number:'1.0-0' }} NT khả dụng</small></span><i class="material-symbols-outlined">chevron_right</i></button>
+        ><img src="/assets/novatoken/novatoken-coin.png" alt="" /><span><b>Ví NovaToken</b><small>{{ (novaTokens.wallet()?.balance || '0') | number:'1.0-0' }} NT khả dụng</small></span><i class="material-symbols-outlined" aria-hidden="true">chevron_right</i></button>
 
         <!-- Pricing Option -->
         <button
@@ -362,7 +363,7 @@
           role="menuitem"
           (click)="navigateToPricing()"
           class="account-menu-item account-menu-membership"
-        ><span class="material-symbols-outlined">diamond</span><span>Gói thành viên</span><em>{{ myPlan() || 'FREE' }}</em><i class="material-symbols-outlined">chevron_right</i></button>
+        ><span class="material-symbols-outlined" aria-hidden="true">diamond</span><span>Gói thành viên</span><em>{{ myPlan() || 'FREE' }}</em><i class="material-symbols-outlined" aria-hidden="true">chevron_right</i></button>
 
         <!-- Sign Out Option -->
         <button
@@ -371,7 +372,7 @@
           (click)="signOut()"
           class="account-menu-item account-menu-signout"
         >
-          <span class="material-symbols-outlined">logout</span><span>Đăng xuất</span>
+          <span class="material-symbols-outlined" aria-hidden="true">logout</span><span>Đăng xuất</span>
         </button>
       </div>
     </div>
