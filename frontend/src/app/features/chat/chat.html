@@ -1,7 +1,7 @@
 <div class="h-screen overflow-hidden bg-white dark:bg-[#121212] text-black dark:text-white flex flex-col font-sans relative transition-colors" style="height: 100dvh;">
   <app-navbar></app-navbar>
 
-  <div class="flex-1 min-h-0 pt-16 pl-28 pb-16 flex flex-col min-w-0">
+  <div class="flex-1 min-h-0 pt-16 pl-28 pb-4 flex flex-col min-w-0">
     <main class="flex-1 min-h-0 w-full mx-auto px-3 py-4 flex flex-col max-w-[1800px]">
       <div
         class="flex-1 flex min-h-0 border border-[#dadad3] dark:border-[#333] rounded-[24px] overflow-hidden bg-white dark:bg-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
@@ -144,9 +144,13 @@
           [class.flex]="!!selectedConversationId()"
         >
           @if (!selectedConversationId()) {
-            <div class="hidden sm:flex flex-1 flex-col items-center justify-center gap-3 text-center px-6">
-              <span class="material-symbols-outlined text-4xl text-[#91918c] dark:text-[#999]">chat_bubble</span>
-              <p class="text-sm text-[#62625b] dark:text-[#999]">Chọn một cuộc trò chuyện để bắt đầu nhắn tin.</p>
+            <div class="hidden sm:flex flex-1 flex-col items-center justify-center text-center px-6">
+              <img src="illustrations/chat-empty.png" alt="" aria-hidden="true" class="w-[340px] max-w-full h-auto select-none -mb-16" />
+
+              <div class="flex flex-col gap-2 max-w-[320px]">
+                <h2 class="text-2xl font-extrabold text-[#211922] dark:text-white">Bắt đầu trò chuyện</h2>
+                <p class="text-sm text-[#767672] dark:text-[#999] leading-relaxed">Chọn một cuộc trò chuyện để bắt đầu</p>
+              </div>
             </div>
           } @else {
             <!-- Thread header -->

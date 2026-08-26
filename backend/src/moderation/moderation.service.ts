@@ -15,6 +15,11 @@ const NSFW_BLOCK_THRESHOLD = 0.5;
 const NSFW_BLOCK_THRESHOLD_WITH_ANIMAL = 0.3;
 const NSFW_BLOCK_MESSAGE = 'Ảnh chứa nội dung khỏa thân/gợi dục không phù hợp. Vui lòng chọn ảnh khác.';
 
+// Gore/violence/disturbing imagery (blood, missing/exposed body parts, corpses...) —
+// checked via Sightengine's gore-2.0 model in the same request as nudity-2.1.
+const GORE_BLOCK_THRESHOLD = 0.5;
+const GORE_BLOCK_MESSAGE = 'Ảnh chứa nội dung máu me/kinh dị không phù hợp. Vui lòng chọn ảnh khác.';
+
 // No image-moderation vendor documents reliable coverage for sexual content
 // involving animals (Sightengine and AWS Rekognition's own published label
 // taxonomies are explicitly human-body-part scoped). As a text-based backstop,
@@ -45,21 +50,32 @@ export class ModerationService {
 
   async checkImageIsSafe(buffer: Buffer, filename: string, mimetype: string): Promise<void> {
     try {
-      const [nudity, hasAnimal] = await Promise.all([
-        this.getNudityScores(buffer, filename, mimetype),
+      const [scores, hasAnimal] = await Promise.all([
+        this.getModerationScores(buffer, filename, mimetype),
         this.detectAnimal(buffer, filename, mimetype),
       ]);
-      if (!nudity) return;
+      if (!scores) return;
 
-      const threshold = hasAnimal ? NSFW_BLOCK_THRESHOLD_WITH_ANIMAL : NSFW_BLOCK_THRESHOLD;
-      const isNsfw =
-        nudity.sexual_activity >= threshold ||
-        nudity.sexual_display >= threshold ||
-        nudity.erotica >= threshold ||
-        nudity.very_suggestive >= threshold;
+      const { nudity, gore } = scores;
 
-      if (isNsfw) {
-        throw new BadRequestException(NSFW_BLOCK_MESSAGE);
+      if (nudity) {
+        // Deliberately excludes Sightengine's "very_suggestive"/"suggestive" categories —
+        // those also fire on ordinary swimwear/bikini photos with covered body parts,
+        // which should be allowed. Only the categories that mean actual exposed nudity
+        // or explicit sexual content block the upload.
+        const threshold = hasAnimal ? NSFW_BLOCK_THRESHOLD_WITH_ANIMAL : NSFW_BLOCK_THRESHOLD;
+        const isNsfw =
+          nudity.sexual_activity >= threshold ||
+          nudity.sexual_display >= threshold ||
+          nudity.erotica >= threshold;
+
+        if (isNsfw) {
+          throw new BadRequestException(NSFW_BLOCK_MESSAGE);
+        }
+      }
+
+      if (gore && gore.prob >= GORE_BLOCK_THRESHOLD) {
+        throw new BadRequestException(GORE_BLOCK_MESSAGE);
       }
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
@@ -67,15 +83,15 @@ export class ModerationService {
     }
   }
 
-  private async getNudityScores(
+  private async getModerationScores(
     buffer: Buffer,
     filename: string,
     mimetype: string,
-  ): Promise<Record<string, number> | null> {
+  ): Promise<{ nudity: Record<string, number> | null; gore: { prob: number; classes?: Record<string, number> } | null } | null> {
     const formData = new FormData();
     const blob = new Blob([new Uint8Array(buffer)], { type: mimetype });
     formData.append('media', blob, filename);
-    formData.append('models', 'nudity-2.1');
+    formData.append('models', 'nudity-2.1,gore-2.0');
     formData.append('api_user', this.apiUser);
     formData.append('api_secret', this.apiSecret);
 
@@ -95,7 +111,7 @@ export class ModerationService {
       return null;
     }
 
-    return result.nudity || {};
+    return { nudity: result.nudity || null, gore: result.gore || null };
   }
 
   /** Best-effort zero-shot animal detection via clip-service — see

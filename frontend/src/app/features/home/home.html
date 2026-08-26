@@ -138,74 +138,24 @@
                     </div>
                   </div>
 
-                  <!-- Bottom Bar Metadata (if set) -->
-                  @if (pin.hasBottomBar) {
-                    <div class="px-1 flex items-center justify-between w-full min-w-0 mt-2">
-                      <span class="text-xs font-bold text-[#211922] dark:text-white truncate max-w-[70%]">{{ pin.title }}</span>
-                      <div class="flex items-center gap-2 shrink-0">
-                        <!-- Heart Likes count if duck plush -->
-                        @if (pin.likes) {
-                          <span class="flex items-center gap-0.5 text-xs text-[#62625b] dark:text-[#999]">
-                            <span class="material-symbols-outlined text-[14px] leading-none text-[#B15CAA]">favorite</span>
-                            {{ pin.likes }}
-                          </span>
-                        }
-                        <!-- Three-dots action (Show on hover) -->
-                        <div class="relative">
-                          <span
-                            (click)="toggleOptionsMenu(pin.id, $event)"
-                            class="material-symbols-outlined text-sm text-[#62625b] dark:text-[#999] hover:text-black dark:hover:text-white cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                          >more_horiz</span>
-
-                          @if (activeOptionsMenuPinId() === pin.id) {
-                            <div class="absolute right-0 top-6 w-44 bg-white dark:bg-[#242424] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-[100] text-left" (click)="$event.stopPropagation()">
-                              <button type="button" (click)="markInterest(pin.id, $event)" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333] border-none bg-transparent text-xs font-bold text-black dark:text-white">
-                                <span class="material-symbols-outlined text-base leading-none">favorite</span>
-                                Xem thêm
-                              </button>
-                              <button type="button" (click)="hidePin(pin.id, $event)" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333] border-none bg-transparent text-xs font-bold text-black dark:text-white">
-                                <span class="material-symbols-outlined text-base leading-none">visibility_off</span>
-                                Ẩn bớt
-                              </button>
-                              <button type="button" (click)="reportPin(pin.id, $event)" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333] border-none bg-transparent text-xs font-bold text-red-500">
-                                <span class="material-symbols-outlined text-base leading-none">flag</span>
-                                Báo cáo Ghim
-                              </button>
-                            </div>
-                          }
-                        </div>
-                      </div>
-                    </div>
-                  }
-
-                  <!-- Generic simple dots bar for cards without descriptive bottom bar -->
-                  @if (!pin.hasBottomBar) {
-                    <div class="mt-1 px-1 flex justify-end">
-                      <div class="relative">
-                        <span
-                          (click)="toggleOptionsMenu(pin.id, $event)"
-                          class="material-symbols-outlined text-sm text-[#62625b] dark:text-[#999] hover:text-black dark:hover:text-white cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                        >more_horiz</span>
-
-                        @if (activeOptionsMenuPinId() === pin.id) {
-                          <div class="absolute right-0 top-6 w-44 bg-white dark:bg-[#242424] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-[100] text-left" (click)="$event.stopPropagation()">
-                            <button type="button" (click)="markInterest(pin.id, $event)" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333] border-none bg-transparent text-xs font-bold text-black dark:text-white">
-                              <span class="material-symbols-outlined text-base leading-none">favorite</span>
-                              Xem thêm
-                            </button>
-                            <button type="button" (click)="hidePin(pin.id, $event)" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333] border-none bg-transparent text-xs font-bold text-black dark:text-white">
-                              <span class="material-symbols-outlined text-base leading-none">visibility_off</span>
-                              Ẩn bớt
-                            </button>
-                            <button type="button" (click)="reportPin(pin.id, $event)" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333] border-none bg-transparent text-xs font-bold text-red-500">
-                              <span class="material-symbols-outlined text-base leading-none">flag</span>
-                              Báo cáo Ghim
-                            </button>
-                          </div>
-                        }
-                      </div>
-                    </div>
-                  }
+                  <!-- Bottom Bar: title on the left, likes count (clickable toggle) on the right -->
+                  <div class="px-1 flex items-center justify-between w-full min-w-0 mt-2">
+                    <span class="text-xs font-bold text-[#211922] dark:text-white truncate max-w-[70%]">{{ pin.title }}</span>
+                    <button
+                      type="button"
+                      (click)="toggleLike(pin, $event)"
+                      class="flex items-center gap-0.5 text-xs text-[#62625b] dark:text-[#999] shrink-0 border-none bg-transparent cursor-pointer outline-none p-0"
+                    >
+                      <span
+                        class="material-symbols-outlined text-[14px] leading-none"
+                        [class.text-black]="!likedPinIds().has(pin.id)"
+                        [class.dark:text-white]="!likedPinIds().has(pin.id)"
+                        [class.text-[#B15CAA]]="likedPinIds().has(pin.id)"
+                        [style.font-variation-settings]="likedPinIds().has(pin.id) ? &quot;'FILL' 1&quot; : &quot;'FILL' 0&quot;"
+                      >favorite</span>
+                      {{ pin.likes || 0 }}
+                    </button>
+                  </div>
                 </div>
               }
 

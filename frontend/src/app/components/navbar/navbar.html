@@ -295,6 +295,8 @@
      the panel expands — no JS position math needed. -->
 <nav
   *ngIf="supabaseService.user()"
+  (mouseenter)="isHoveringNav.set(true)"
+  (mouseleave)="isHoveringNav.set(false)"
   class="nav-capsule fixed left-6 top-[88px] z-40 flex flex-col items-center py-3 gap-1"
 >
   <button
@@ -309,25 +311,13 @@
   </button>
 
   <!-- The other 4 destinations: grid-rows 0fr -> 1fr, not max-height (no jank) -->
-  <div id="nav-rail-panel" class="nav-panel-grid" [class.nav-panel-open]="showNavMenu()">
+  <div id="nav-rail-panel" class="nav-panel-grid" [class.nav-panel-open]="isNavMenuVisible()">
     <div class="nav-panel-inner flex flex-col items-center gap-1">
-      <button
-        type="button"
-        (click)="navigateToExplore()"
-        title="Khám phá"
-        [attr.tabindex]="showNavMenu() ? 0 : -1"
-        class="nav-icon-btn group relative w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer shrink-0"
-        [class.nav-icon-active]="isExplorePage()"
-      >
-        <span class="material-symbols-outlined text-2xl leading-none" [class.icon-filled]="isExplorePage()">explore</span>
-        <span class="nav-tooltip">Khám phá</span>
-      </button>
-
       <button
         type="button"
         (click)="navigateToCreate()"
         title="Tạo"
-        [attr.tabindex]="showNavMenu() ? 0 : -1"
+        [attr.tabindex]="isNavMenuVisible() ? 0 : -1"
         class="nav-icon-btn group relative w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer shrink-0"
         [class.nav-icon-active]="isCreatePage()"
       >
@@ -339,7 +329,7 @@
         type="button"
         (click)="navigateToChat()"
         title="Nhắn tin"
-        [attr.tabindex]="showNavMenu() ? 0 : -1"
+        [attr.tabindex]="isNavMenuVisible() ? 0 : -1"
         class="nav-icon-btn group relative w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer shrink-0"
         [class.nav-icon-active]="isChatPage()"
       >
@@ -351,7 +341,7 @@
         type="button"
         (click)="navigateToMyProfile()"
         title="Cá nhân"
-        [attr.tabindex]="showNavMenu() ? 0 : -1"
+        [attr.tabindex]="isNavMenuVisible() ? 0 : -1"
         class="nav-icon-btn group relative w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer shrink-0"
         [class.nav-icon-active]="isProfilePage()"
       >
@@ -365,12 +355,12 @@
   <button
     type="button"
     (click)="toggleNavMenu($event)"
-    [attr.aria-expanded]="showNavMenu()"
+    [attr.aria-expanded]="isNavMenuVisible()"
     aria-controls="nav-rail-panel"
     [title]="showNavMenu() ? 'Thu gọn menu' : 'Mở rộng menu'"
     class="nav-chevron-btn w-8 h-6 flex items-center justify-center border-none bg-transparent cursor-pointer shrink-0"
   >
-    <span class="material-symbols-outlined text-xl leading-none nav-chevron" [class.nav-chevron-open]="showNavMenu()">expand_more</span>
+    <span class="material-symbols-outlined text-xl leading-none nav-chevron" [class.nav-chevron-open]="isNavMenuVisible()">expand_more</span>
   </button>
 </nav>
 

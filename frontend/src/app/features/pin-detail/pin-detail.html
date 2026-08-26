@@ -58,19 +58,20 @@
               <div class="md:flex-1 min-w-0 p-8 flex flex-col justify-between bg-white dark:bg-[#1a1a1a]">
                 
                 <!-- Top Row actions -->
-                <div class="flex items-center justify-between pb-6 border-b border-[#dadad3] dark:border-[#333]">
-                  <div class="flex items-center gap-3">
+                <div class="flex items-center justify-between gap-2 pb-6 border-b border-[#dadad3] dark:border-[#333]">
+                  <div class="flex items-center gap-2 shrink-0">
                     <!-- Hearts / Likes count -->
                     <button 
                       (click)="toggleLike()" 
-                      class="h-10 px-4 bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] rounded-full flex items-center gap-1.5 cursor-pointer transition-colors active:scale-95 border-none outline-none select-none text-black dark:text-white"
+                      class="h-10 px-3 bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] rounded-full flex items-center gap-1 cursor-pointer transition-colors active:scale-95 border-none outline-none select-none text-black dark:text-white shrink-0"
                       [title]="isLikedByUser() ? 'Bỏ thích' : 'Thích'"
                     >
-                      <span 
-                        class="material-symbols-outlined text-lg leading-none font-bold" 
+                      <span
+                        class="material-symbols-outlined text-lg leading-none font-bold"
                         [class.text-[#B15CAA]]="isLikedByUser()"
                         [class.text-black]="!isLikedByUser()"
                         [class.dark:text-white]="!isLikedByUser()"
+                        [style.font-variation-settings]="isLikedByUser() ? &quot;'FILL' 1&quot; : &quot;'FILL' 0&quot;"
                       >
                         favorite
                       </span>
@@ -82,7 +83,7 @@
                       <button
                         (click)="toggleSharePopover($event)"
                         title="Chia sẻ"
-                        class="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] flex items-center justify-center cursor-pointer transition-colors active:scale-90 border-none outline-none select-none text-black dark:text-white"
+                        class="w-9 h-9 rounded-full bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] flex items-center justify-center cursor-pointer transition-colors active:scale-90 border-none outline-none select-none text-black dark:text-white shrink-0"
                       >
                         <span class="material-symbols-outlined text-lg leading-none">upload</span>
                       </button>
@@ -146,7 +147,7 @@
                     <div class="relative">
                       <button
                         (click)="toggleOptionsMenu($event)"
-                        class="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] flex items-center justify-center cursor-pointer transition-colors active:scale-90 border-none outline-none select-none text-black dark:text-white"
+                        class="w-9 h-9 rounded-full bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] flex items-center justify-center cursor-pointer transition-colors active:scale-90 border-none outline-none select-none text-black dark:text-white shrink-0"
                       >
                         <span class="material-symbols-outlined text-lg leading-none font-bold">more_horiz</span>
                       </button>
@@ -174,14 +175,14 @@
                   </div>
 
                   <!-- Profile Board save -->
-                  <div class="flex items-center gap-2 select-none relative">
+                  <div class="flex items-center gap-2 select-none relative shrink-0">
                     <!-- Dropdown Trigger -->
-                    <button 
+                    <button
                       (click)="toggleBoardDropdown($event)"
-                      class="h-10 px-4 bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] rounded-full text-sm font-bold flex items-center gap-1 cursor-pointer border-none outline-none text-black dark:text-white select-none"
+                      class="h-10 px-4 bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] rounded-full text-sm font-bold flex items-center gap-1 cursor-pointer border-none outline-none text-black dark:text-white select-none max-w-[110px] shrink-0"
                     >
-                      <span>{{ getSelectedBoardName() }}</span>
-                      <span class="material-symbols-outlined text-base leading-none">keyboard_arrow_down</span>
+                      <span class="truncate whitespace-nowrap">{{ getSelectedBoardName() }}</span>
+                      <span class="material-symbols-outlined text-base leading-none shrink-0">keyboard_arrow_down</span>
                     </button>
                     
                     <!-- Dropdown options list -->
@@ -202,9 +203,9 @@
                     }
 
                     <!-- Save button -->
-                    <button 
+                    <button
                       (click)="savePinToBoard()"
-                      class="h-10 px-6 bg-[#B15CAA] hover:bg-[#8F4A8B] text-white rounded-full text-sm font-bold cursor-pointer active:scale-95 border-none outline-none"
+                      class="h-10 px-6 bg-[#B15CAA] hover:bg-[#8F4A8B] text-white rounded-full text-sm font-bold cursor-pointer active:scale-95 border-none outline-none shrink-0"
                     >
                       Lưu
                     </button>

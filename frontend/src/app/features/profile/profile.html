@@ -59,7 +59,7 @@
               <img 
                 [src]="p.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'" 
                 alt="Avatar" 
-                class="w-[80px] h-[80px] rounded-full border border-[#dadad3] dark:border-[#333] object-cover shadow-sm"
+                class="w-16 h-16 rounded-full border border-[#dadad3] dark:border-[#333] object-cover shadow-sm"
               />
               <div class="flex flex-col text-left justify-center gap-0.5">
                 <span class="text-xl font-extrabold text-black dark:text-white leading-tight">{{ p.username }}</span>
@@ -74,9 +74,18 @@
               <button
                 *ngIf="!isMyProfile()"
                 (click)="toggleFollow()"
-                class="h-10 px-4 bg-[#B15CAA] hover:bg-[#8F4A8B] text-white rounded-full text-xs font-bold cursor-pointer transition-colors"
+                class="h-10 px-4 rounded-full text-xs font-bold cursor-pointer transition-colors"
+                [class.bg-[#B15CAA]]="!isFollowing()"
+                [class.hover:bg-[#8F4A8B]]="!isFollowing()"
+                [class.text-white]="!isFollowing()"
+                [class.bg-[#f0f0f0]]="isFollowing()"
+                [class.dark:bg-[#2a2a2a]]="isFollowing()"
+                [class.hover:bg-[#e1e1da]]="isFollowing()"
+                [class.dark:hover:bg-[#333]]="isFollowing()"
+                [class.text-black]="isFollowing()"
+                [class.dark:text-white]="isFollowing()"
               >
-                Theo dõi
+                {{ isFollowing() ? 'Đang theo dõi' : 'Theo dõi' }}
               </button>
               <button
                 *ngIf="!isMyProfile()"
@@ -239,41 +248,45 @@
           <div class="w-full flex flex-col gap-3 text-left">
             <h3 class="text-[17px] font-extrabold text-[#211922] dark:text-white mb-1 select-none">Ghim bạn đã lưu</h3>
             
-            <!-- Pinterest Masonry columns of aggregated saved pins -->
-            <div class="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-3.5 w-full">
-              <div 
-                *ngFor="let pin of getSavedPins()" 
+            <!-- Grid of aggregated saved pins (plain CSS grid, not columns-based masonry —
+                 the columns-* approach was collapsing to a tiny intrinsic width and making
+                 every card unclickable-looking/too small to tap). -->
+            <div class="grid gap-3.5 w-full" style="grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));">
+              <div
+                *ngFor="let pin of getSavedPins()"
                 (click)="navigateToPin(pin.id)"
-                class="break-inside-avoid mb-3.5 group cursor-pointer flex flex-col"
+                class="group cursor-pointer flex flex-col"
               >
                 <div class="relative overflow-hidden rounded-[24px] bg-[#f6f6f3] dark:bg-[#1e1e1e] shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-300">
-                  <img 
-                    [src]="pin.imageUrl" 
-                    [alt]="pin.title" 
-                    class="w-full object-cover rounded-[24px] block transition-transform duration-300 group-hover:scale-102"
+                  <img
+                    [src]="pin.imageUrl"
+                    [alt]="pin.title"
+                    class="w-full aspect-[3/4] object-cover rounded-[24px] block transition-transform duration-300 group-hover:scale-102"
                   />
-                  
-                  <!-- Hover Overlay -->
-                  <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 text-white z-10">
+
+                  <!-- Hover Overlay: pointer-events-none so it never swallows the card's own
+                       click (which navigates to the pin) — only the two buttons inside opt
+                       back in with pointer-events-auto. -->
+                  <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 text-white z-10 pointer-events-none">
                     <div class="flex justify-end">
-                      <button 
+                      <button
                         (click)="$event.stopPropagation()"
-                        class="bg-[#B15CAA] hover:bg-[#8F4A8B] text-white font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer border-none outline-none"
+                        class="pointer-events-auto bg-[#B15CAA] hover:bg-[#8F4A8B] text-white font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer border-none outline-none"
                       >
                         Lưu
                       </button>
                     </div>
                     <div class="flex items-center justify-end w-full min-w-0">
-                      <button 
+                      <button
                         (click)="$event.stopPropagation()"
-                        class="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-100 cursor-pointer border-none outline-none"
+                        class="pointer-events-auto w-7 h-7 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-100 cursor-pointer border-none outline-none"
                       >
                         <span class="material-symbols-outlined text-sm font-bold">more_horiz</span>
                       </button>
                     </div>
                   </div>
                 </div>
-                
+
                 <!-- Title -->
                 <span class="mt-2 px-1 text-xs font-bold text-[#211922] dark:text-white truncate block">
                   {{ pin.title }}
@@ -282,12 +295,69 @@
             </div>
 
             <!-- Empty aggregated pins status -->
-            <div 
-              *ngIf="getSavedPins().length === 0" 
-              class="py-20 flex flex-col items-center justify-center text-center gap-3 bg-gray-50 dark:bg-[#1e1e1e] rounded-[32px] border border-dashed border-[#dadad3] dark:border-[#333] w-full"
+            <div
+              *ngIf="getSavedPins().length === 0"
+              class="w-full min-h-[260px] flex flex-col items-center justify-center text-center rounded-[20px] border transition-colors"
+              style="background: #fffafb; border-color: #f3dfe5; box-shadow: 0 4px 20px rgba(232, 93, 141, 0.08);"
             >
-              <span class="material-symbols-outlined text-4xl text-gray-400">photo_library</span>
-              <p class="text-xs font-semibold text-gray-500 dark:text-[#999]">Chưa có ghim nào được lưu trong bảng của bạn.</p>
+              <!-- Stacked-photos illustration: 3 layered photo cards, each holding a tiny
+                   CSS mountain scene (sun circle + two triangle peaks) — no external image,
+                   no Material icon glyph, built entirely from divs/pseudo-shapes. -->
+              <div class="relative shrink-0" style="width: 115px; height: 90px;">
+                <!-- sparkles -->
+                <span class="absolute select-none" style="top: -4px; left: -6px; font-size: 9px; color: #f2c9dc;">✦</span>
+                <span class="absolute select-none" style="top: -8px; right: 14px; font-size: 6px; color: #f2c9dc;">✦</span>
+                <span class="absolute select-none" style="bottom: 4px; left: -10px; font-size: 10px; color: #f2c9dc;">✦</span>
+                <span class="absolute select-none" style="top: 26px; right: -8px; font-size: 7px; color: #f2c9dc;">✦</span>
+
+                <!-- back-left card -->
+                <div
+                  class="absolute rounded-[10px]"
+                  style="top: 14px; left: 2px; width: 52px; height: 64px; transform: rotate(-12deg); background: #f2dcea; opacity: 0.45; box-shadow: 0 4px 12px rgba(180,100,140,0.10);"
+                >
+                  <div style="position: absolute; bottom: 10px; left: 8px; width: 0; height: 0; border-left: 14px solid transparent; border-right: 14px solid transparent; border-bottom: 16px solid #e0b9cf;"></div>
+                </div>
+
+                <!-- back-right card -->
+                <div
+                  class="absolute rounded-[10px]"
+                  style="top: 10px; right: 0; width: 55px; height: 66px; transform: rotate(8deg); background: #e5d7f0; opacity: 0.35; box-shadow: 0 4px 12px rgba(180,100,140,0.10);"
+                >
+                  <div style="position: absolute; bottom: 10px; left: 10px; width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-bottom: 17px solid #c9a9d6;"></div>
+                </div>
+
+                <!-- main card, in front -->
+                <div
+                  class="absolute overflow-hidden"
+                  style="top: 4px; left: 25px; width: 65px; height: 78px; transform: rotate(-6deg); background: #fdf4f7; border: 2px solid rgba(235,190,210,0.55); border-radius: 11px; box-shadow: 0 4px 12px rgba(180,100,140,0.10);"
+                >
+                  <!-- sun -->
+                  <span style="position: absolute; top: 9px; left: 11px; width: 8px; height: 8px; border-radius: 50%; background: #f0bcd6;"></span>
+                  <!-- back mountain -->
+                  <span style="position: absolute; bottom: 7px; left: 3px; width: 0; height: 0; border-left: 18px solid transparent; border-right: 18px solid transparent; border-bottom: 22px solid #ecdcf0;"></span>
+                  <!-- front mountain -->
+                  <span style="position: absolute; bottom: 7px; left: 23px; width: 0; height: 0; border-left: 13px solid transparent; border-right: 13px solid transparent; border-bottom: 17px solid #f4d3e4;"></span>
+                </div>
+
+                <!-- plus badge, overlapping the main card's bottom-right corner -->
+                <span
+                  class="absolute rounded-full flex items-center justify-center"
+                  style="right: 4px; bottom: -2px; width: 38px; height: 38px; background: #e85d8d; box-shadow: 0 4px 12px rgba(180,100,140,0.18);"
+                >
+                  <span class="material-symbols-outlined text-white" style="font-size: 18px; font-weight: 300; line-height: 1;">add</span>
+                </span>
+              </div>
+
+              <h4 class="mt-3.5 text-[15px] font-bold text-[#211922] dark:text-white">Bộ sưu tập của bạn đang trống</h4>
+              <p class="mt-1 text-xs text-gray-400 dark:text-[#999]">Lưu những hình ảnh bạn thích vào đây</p>
+
+              <button
+                type="button"
+                (click)="goToExplore()"
+                class="mt-[18px] h-10 min-w-[130px] px-5 rounded-full bg-[#e85d8d] hover:bg-[#d94f7d] hover:shadow-md text-white text-sm font-bold cursor-pointer border-none outline-none transition-all duration-150"
+              >
+                Khám phá ảnh
+              </button>
             </div>
 
           </div>
@@ -323,24 +393,143 @@
             </div>
           </div>
 
-          <!-- Boards Collage Folders (5 in a row!) -->
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-6 gap-y-8 w-full text-left">
-            
+          <!-- Empty-state promo banner: only when this is my own profile and I have no boards yet -->
+          <div
+            *ngIf="isMyProfile() && (!p.boards || p.boards.length === 0)"
+            class="relative w-full overflow-hidden rounded-[32px] mb-8 flex flex-col md:flex-row items-center gap-8 md:gap-4 px-8 md:px-12 py-10 md:py-8"
+            style="background: linear-gradient(135deg, #f3e6ef 0%, #fbf2ec 55%, #fdeee0 100%);"
+          >
+            <!-- Decorative blurred blobs -->
+            <div class="absolute -top-12 -left-10 w-44 h-44 rounded-full bg-[#c9a3dd] opacity-40 blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-16 -right-10 w-52 h-52 rounded-full bg-[#f2b98a] opacity-40 blur-3xl pointer-events-none"></div>
+
+            <!-- Dot-grid texture, bottom-right -->
+            <svg class="absolute bottom-4 right-6 w-24 h-16 opacity-40 pointer-events-none hidden md:block" viewBox="0 0 96 64">
+              <g fill="#c79a72">
+                <circle cx="4" cy="4" r="1.6"></circle><circle cx="16" cy="4" r="1.6"></circle><circle cx="28" cy="4" r="1.6"></circle><circle cx="40" cy="4" r="1.6"></circle><circle cx="52" cy="4" r="1.6"></circle><circle cx="64" cy="4" r="1.6"></circle><circle cx="76" cy="4" r="1.6"></circle><circle cx="88" cy="4" r="1.6"></circle>
+                <circle cx="4" cy="16" r="1.6"></circle><circle cx="16" cy="16" r="1.6"></circle><circle cx="28" cy="16" r="1.6"></circle><circle cx="40" cy="16" r="1.6"></circle><circle cx="52" cy="16" r="1.6"></circle><circle cx="64" cy="16" r="1.6"></circle><circle cx="76" cy="16" r="1.6"></circle><circle cx="88" cy="16" r="1.6"></circle>
+                <circle cx="4" cy="28" r="1.6"></circle><circle cx="16" cy="28" r="1.6"></circle><circle cx="28" cy="28" r="1.6"></circle><circle cx="40" cy="28" r="1.6"></circle><circle cx="52" cy="28" r="1.6"></circle><circle cx="64" cy="28" r="1.6"></circle><circle cx="76" cy="28" r="1.6"></circle><circle cx="88" cy="28" r="1.6"></circle>
+                <circle cx="4" cy="40" r="1.6"></circle><circle cx="16" cy="40" r="1.6"></circle><circle cx="28" cy="40" r="1.6"></circle><circle cx="40" cy="40" r="1.6"></circle><circle cx="52" cy="40" r="1.6"></circle><circle cx="64" cy="40" r="1.6"></circle><circle cx="76" cy="40" r="1.6"></circle><circle cx="88" cy="40" r="1.6"></circle>
+                <circle cx="4" cy="52" r="1.6"></circle><circle cx="16" cy="52" r="1.6"></circle><circle cx="28" cy="52" r="1.6"></circle><circle cx="40" cy="52" r="1.6"></circle><circle cx="52" cy="52" r="1.6"></circle><circle cx="64" cy="52" r="1.6"></circle><circle cx="76" cy="52" r="1.6"></circle><circle cx="88" cy="52" r="1.6"></circle>
+              </g>
+            </svg>
+
+            <!-- Small decorative sparkle + dot, top-left -->
+            <span class="absolute top-6 left-10 w-2.5 h-2.5 rotate-45 bg-[#e8935f] rounded-[2px] opacity-80 pointer-events-none hidden md:block"></span>
+            <span class="absolute top-16 left-4 w-2 h-2 rounded-full bg-[#a06fc2] opacity-70 pointer-events-none hidden md:block"></span>
+
+            <!-- Small squiggle, bottom-left -->
+            <svg class="absolute bottom-6 left-6 w-10 h-6 opacity-50 pointer-events-none hidden md:block" viewBox="0 0 40 24" fill="none">
+              <path d="M2 20 Q 10 4 18 14 T 34 8" stroke="#a06fc2" stroke-width="2" stroke-linecap="round" />
+            </svg>
+
+            <!-- LEFT: moodboard cluster -->
+            <div class="relative w-full md:w-[42%] aspect-[4/3] shrink-0 select-none">
+              <!-- connecting strings, drawn first so pins/notes sit on top -->
+              <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 75" preserveAspectRatio="none">
+                <path d="M 30 16 Q 45 8 55 20" stroke="#d2724f" stroke-width="0.6" fill="none" />
+                <path d="M 55 20 Q 60 40 40 46" stroke="#d2724f" stroke-width="0.6" fill="none" />
+                <path d="M 22 40 Q 30 50 42 50" stroke="#d2724f" stroke-width="0.6" fill="none" />
+              </svg>
+
+              <!-- binder clip, decorative, top area -->
+              <div class="absolute top-[2%] left-[16%] w-6 h-3.5 rounded-t-full border-2 border-[#b9b3ad] bg-transparent -translate-x-1/2 z-20"></div>
+
+              <!-- photo: plant in vase -->
+              <div class="absolute top-[3%] left-[38%] w-[26%] aspect-square -rotate-[4deg] z-10">
+                <div class="w-full h-full rounded-xl bg-white p-1 shadow-[0_10px_20px_rgba(0,0,0,0.12)]">
+                  <img src="https://images.unsplash.com/photo-1485955900006-10f4d324d411?w=200&h=200&fit=crop" class="w-full h-full object-cover rounded-lg" alt="" />
+                </div>
+                <span class="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-[#e05b4f] shadow-sm"></span>
+              </div>
+
+              <!-- sticky note: Ý tưởng -->
+              <div class="absolute top-[10%] left-[2%] w-[30%] -rotate-[7deg] z-10">
+                <div class="rounded-md bg-[#f6e9a8] px-3 py-3 shadow-[0_8px_16px_rgba(0,0,0,0.1)] flex items-center justify-center">
+                  <span class="text-[11px] font-bold text-[#6b5f2a]" style="font-family: 'Comic Sans MS', 'Segoe Print', cursive;">Ý tưởng</span>
+                </div>
+                <span class="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-[#a06fc2] shadow-sm"></span>
+              </div>
+
+              <!-- sticky note: Cảm hứng mỗi ngày -->
+              <div class="absolute top-[16%] right-[4%] w-[36%] rotate-[4deg] z-10">
+                <div class="rounded-md bg-[#f4c9c2] px-3 py-3 shadow-[0_8px_16px_rgba(0,0,0,0.1)] flex items-center justify-center text-center">
+                  <span class="text-[11px] font-bold text-[#7a3f38]" style="font-family: 'Comic Sans MS', 'Segoe Print', cursive;">Cảm hứng<br />mỗi ngày</span>
+                </div>
+                <span class="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-[#e05b4f] shadow-sm"></span>
+              </div>
+
+              <!-- photo: ocean waves -->
+              <div class="absolute top-[42%] left-[2%] w-[26%] aspect-square -rotate-[6deg] z-10">
+                <div class="w-full h-full rounded-xl bg-white p-1 shadow-[0_10px_20px_rgba(0,0,0,0.12)]">
+                  <img src="https://images.unsplash.com/photo-1439405326854-014607f694d7?w=200&h=200&fit=crop" class="w-full h-full object-cover rounded-lg" alt="" />
+                </div>
+                <span class="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-[#a06fc2] shadow-sm"></span>
+              </div>
+
+              <!-- photo: cozy armchair -->
+              <div class="absolute top-[54%] left-[30%] w-[26%] aspect-square rotate-[3deg] z-10">
+                <div class="w-full h-full rounded-xl bg-white p-1 shadow-[0_10px_20px_rgba(0,0,0,0.12)]">
+                  <img src="https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=200&h=200&fit=crop" class="w-full h-full object-cover rounded-lg" alt="" />
+                </div>
+                <span class="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-[#e05b4f] shadow-sm"></span>
+              </div>
+
+              <!-- sticky note: Kế hoạch -->
+              <div class="absolute top-[62%] left-[56%] w-[30%] -rotate-[3deg] z-10">
+                <div class="rounded-md bg-[#f6e9a8] px-3 py-3 shadow-[0_8px_16px_rgba(0,0,0,0.1)] flex items-center justify-center">
+                  <span class="text-[11px] font-bold text-[#6b5f2a]" style="font-family: 'Comic Sans MS', 'Segoe Print', cursive;">Kế hoạch</span>
+                </div>
+                <span class="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-[#a06fc2] shadow-sm"></span>
+              </div>
+
+              <!-- small leaf sprig, bottom-right of cluster -->
+              <svg class="absolute bottom-0 right-0 w-10 h-10 opacity-80 pointer-events-none" viewBox="0 0 40 40">
+                <path d="M20 36 C 18 26 18 16 26 6" stroke="#7a9a6e" stroke-width="1.5" fill="none" stroke-linecap="round" />
+                <ellipse cx="22" cy="20" rx="5" ry="2.5" fill="#8fae7f" transform="rotate(-30 22 20)" />
+                <ellipse cx="24" cy="12" rx="4.5" ry="2.2" fill="#9cb98c" transform="rotate(-20 24 12)" />
+              </svg>
+            </div>
+
+            <!-- RIGHT: heading, copy, CTA -->
+            <div class="relative z-10 flex flex-col items-start text-left gap-3 md:pl-2">
+              <h2 class="text-2xl md:text-[28px] font-extrabold text-[#211922] dark:text-[#211922] leading-[1.15]">
+                Biến ý tưởng thành<br />bộ sưu tập của riêng bạn
+              </h2>
+              <p class="text-sm text-[#6b5f68] leading-relaxed max-w-[380px]">
+                Tạo bảng để gom những hình ảnh, ghi chú và cảm hứng theo từng chủ đề bạn yêu thích.
+              </p>
+              <button
+                type="button"
+                (click)="openCreateBoardModal()"
+                class="mt-2 h-11 px-6 rounded-full bg-[#B15CAA] hover:bg-[#8F4A8B] text-white font-bold text-sm cursor-pointer transition-all active:scale-95 border-none outline-none shadow-[0_6px_16px_rgba(177,92,170,0.35)] flex items-center gap-2"
+              >
+                Tạo bảng đầu tiên
+              </button>
+            </div>
+          </div>
+
+          <!-- Boards Collage Folders -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-x-6 gap-y-8 w-full text-left">
+
             <!-- Placeholder "Tạo" Board Card (First position if my profile) -->
-            <div 
-              *ngIf="isMyProfile()"
+            <div
+              *ngIf="isMyProfile() && p.boards && p.boards.length > 0"
               (click)="openCreateBoardModal()"
               class="flex flex-col cursor-pointer group"
             >
-              <div class="aspect-[1.5/1] w-full rounded-[24px] bg-[#e5e5e0] dark:bg-[#2a2a2a] mb-3 relative flex items-center justify-center hover:bg-gray-200 dark:hover:bg-[#333] transition-colors border border-dashed border-[#dadad3] dark:border-[#333] shadow-[0_2px_8px_rgba(0,0,0,0.01)]">
-                <div class="bg-white text-black font-extrabold px-5 py-2.5 rounded-full text-xs shadow-md hover:scale-105 transition-transform active:scale-95 select-none">
-                  Tạo
-                </div>
+              <div
+                class="aspect-[1.5/1] w-full rounded-[24px] mb-3 relative flex items-center justify-center bg-cover bg-center transition-transform group-hover:scale-[1.02] shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
+                style="background-image: url('illustrations/create-board-card.png');"
+              >
+                <span class="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-md transition-transform duration-200 group-hover:scale-110 hover:scale-110">
+                  <span class="material-symbols-outlined text-lg text-[#e85d8d] leading-none">add</span>
+                </span>
               </div>
-              <span class="text-sm font-bold text-black dark:text-white group-hover:text-[#B15CAA] transition-colors">
+              <span class="text-base font-bold text-black dark:text-white">
                 Tạo bảng mới
               </span>
-              <span class="text-[11px] text-[#62625b] dark:text-[#999] font-medium mt-0.5">
+              <span class="text-xs text-[#62625b] dark:text-[#999] font-medium mt-0.5">
                 Sắp xếp ý tưởng của bạn
               </span>
             </div>
@@ -353,7 +542,7 @@
             >
               <!-- Thumbnail Box: unified gradient placeholder when the board has no pins yet,
                    otherwise the usual 3-image split collage -->
-              <div class="aspect-[1.5/1] w-full rounded-[24px] bg-[#e5e5e0] dark:bg-[#2a2a2a] mb-3 relative overflow-hidden flex gap-[2px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all group-hover:opacity-95">
+              <div class="aspect-[1.5/1] w-full rounded-[24px] bg-[#e5e5e0] dark:bg-[#2a2a2a] mb-3 relative overflow-hidden flex gap-[2px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-200 group-hover:scale-[1.02] group-hover:shadow-[0_8px_20px_rgba(0,0,0,0.12)]">
 
                 @if (getBoardPreviews(board).length === 0) {
                   <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#E5BDDF] to-[#CF9BC7] dark:from-[#4a2f48] dark:to-[#3a2438]">
@@ -401,12 +590,12 @@
               </div>
               
               <!-- Board Title -->
-              <span class="text-sm font-bold text-black dark:text-white truncate group-hover:text-[#B15CAA] transition-colors px-1">
+              <span class="text-base font-bold text-black dark:text-white truncate px-1">
                 {{ board.name }}
               </span>
-              
+
               <!-- Pins count & status details -->
-              <span class="text-[11px] text-[#62625b] dark:text-[#999] font-medium mt-0.5 px-1">
+              <span class="text-xs text-[#62625b] dark:text-[#999] font-medium mt-0.5 px-1">
                 {{ board.boardPins?.length || 0 }} Ghim
               </span>
             </div>
@@ -456,7 +645,7 @@
   </div>
 
   <!-- Create Board Modal -->
-  <div 
+  <div
     *ngIf="showCreateBoardModal()"
     class="fixed inset-0 bg-black/50 z-[999] flex items-center justify-center p-4 backdrop-blur-sm"
   >
