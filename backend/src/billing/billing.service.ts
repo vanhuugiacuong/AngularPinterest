@@ -15,6 +15,7 @@ import {
   findPack,
   findPlan,
   getBank,
+  getSepayApiToken,
 } from './billing.config';
 
 @Injectable()
@@ -128,14 +129,78 @@ export class BillingService {
 
   // ── Dò trạng thái (frontend polling) ─────────────────────────────────────────
   async getPaymentStatus(userId: string, ref: string) {
-    const payment = await this.prisma.payment.findUnique({ where: { id: ref } });
+    let payment = await this.prisma.payment.findUnique({ where: { id: ref } });
     if (!payment || payment.userId !== userId) throw new NotFoundException('Không tìm thấy đơn.');
 
-    if (payment.status === 'PENDING' && payment.expiresAt.getTime() < Date.now()) {
+    // Còn chờ + có token SePay -> đối soát ngay để trả kết quả gần như tức thì.
+    if (payment.status === 'PENDING' && payment.expiresAt.getTime() >= Date.now() && getSepayApiToken()) {
+      const settled = await this.reconcileOneViaSepay(payment).catch(() => false);
+      if (settled) payment = await this.prisma.payment.findUnique({ where: { id: ref } });
+    }
+
+    if (payment!.status === 'PENDING' && payment!.expiresAt.getTime() < Date.now()) {
       await this.prisma.payment.update({ where: { id: ref }, data: { status: 'EXPIRED' } });
       return { status: 'EXPIRED' as const };
     }
-    return { status: payment.status };
+    return { status: payment!.status };
+  }
+
+  // ── Đối soát tự động qua API SePay (không cần webhook công khai) ──────────────
+  /** Poll tất cả đơn đang chờ. Trả về số đơn vừa được ghi nhận đã trả. */
+  async reconcilePendingViaSepay(): Promise<number> {
+    if (!getSepayApiToken()) return 0;
+    const pending = await this.prisma.payment.findMany({
+      where: { status: 'PENDING', expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+    let n = 0;
+    for (const p of pending) {
+      try {
+        if (await this.reconcileOneViaSepay(p)) n++;
+      } catch (e) {
+        // Lỗi mạng/timeout SePay -> bỏ qua, lần sau thử lại.
+      }
+    }
+    return n;
+  }
+
+  /** Hỏi SePay xem đã có giao dịch tiền vào khớp memo + số tiền chưa; có thì markPaid. */
+  private async reconcileOneViaSepay(payment: {
+    id: string;
+    memo: string;
+    amountVnd: number;
+    createdAt: Date;
+  }): Promise<boolean> {
+    const token = getSepayApiToken();
+    if (!token) return false;
+
+    const params = new URLSearchParams({
+      transfer_type: 'in',
+      amount_in_min: String(payment.amountVnd),
+      transaction_date_from: new Date(payment.createdAt.getTime() - 5 * 60_000).toISOString(),
+      per_page: '30',
+      timestamp_format: 'iso8601',
+    });
+
+    const res = await fetch(`https://userapi.sepay.vn/v2/transactions?${params}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return false;
+
+    const payload = (await res.json()) as { data?: Array<Record<string, unknown>> };
+    const memo = payment.memo.toUpperCase();
+    const tx = payload.data?.find(
+      (item) =>
+        item.transfer_type === 'in' &&
+        Number(item.amount_in) >= payment.amountVnd &&
+        String(item.transaction_content ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').includes(memo),
+    );
+    if (!tx?.id) return false;
+
+    await this.markPaid(payment.id, String(tx.id));
+    return true;
   }
 
   async cancelPayment(userId: string, ref: string) {

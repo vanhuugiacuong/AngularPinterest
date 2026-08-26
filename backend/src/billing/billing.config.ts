@@ -65,6 +65,14 @@ export function getSepayApiKey(): string {
   return process.env.SEPAY_API_KEY || '';
 }
 
+/**
+ * API token của SePay (Công ty → API Access → API Token) để backend TỰ POLL giao
+ * dịch — cách tự động không cần webhook công khai/ngrok. Có token là chạy tự động.
+ */
+export function getSepayApiToken(): string {
+  return process.env.SEPAY_API_TOKEN || '';
+}
+
 export function findPlan(code?: string): Plan | undefined {
   return PLANS.find((p) => p.code === code);
 }
