@@ -34,14 +34,56 @@
                   <span class="material-symbols-outlined text-xl font-bold">arrow_back</span>
                 </button>
 
-                <img 
-                  [src]="p.imageUrl" 
-                  [alt]="p.title" 
-                  class="w-full h-auto max-h-[650px] object-contain block select-none rounded-[24px]"
-                />
-                
-                <!-- Image overlay options on bottom right -->
-                <div class="absolute bottom-9 right-9 flex items-center gap-2 z-20">
+                <div class="relative w-full">
+                  <img
+                    [src]="p.imageUrl"
+                    [alt]="p.title"
+                    class="w-full h-auto max-h-[650px] object-contain block select-none rounded-[24px] transition-all"
+                    [class.premium-locked]="isLocked"
+                    [attr.draggable]="isPremiumPin ? 'false' : null"
+                    (contextmenu)="isPremiumPin ? $event.preventDefault() : null"
+                  />
+
+                  <!-- Badge Premium -->
+                  <div *ngIf="isPremiumPin" class="absolute top-2 right-2 z-20 flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-[#F7D48A] to-[#D6A320] text-white text-[11px] font-extrabold shadow-md select-none">
+                    <span class="material-symbols-outlined text-[14px] leading-none premium-fill">workspace_premium</span>
+                    Premium
+                  </div>
+
+                  <!-- Lớp khoá bản HD (chưa mua) -->
+                  <div *ngIf="isLocked" class="absolute inset-0 z-20 flex flex-col items-center justify-center text-center rounded-[24px] premium-scrim select-none px-6">
+                    <span class="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center mb-3 shadow-lg">
+                      <span class="material-symbols-outlined text-3xl text-[#B8860B] premium-fill">lock</span>
+                    </span>
+                    <div class="text-white font-extrabold text-base drop-shadow">Bản HD được bảo vệ</div>
+                    <div class="text-white/85 text-xs mt-1 max-w-[240px] drop-shadow">Bạn đang xem bản preview có watermark. Trả credit để tải bản gốc HD, không watermark.</div>
+                    <button
+                      (click)="buyDownload()"
+                      [disabled]="isBuying()"
+                      class="mt-4 flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-white hover:bg-[#fff7e6] text-[#8a6d10] text-sm font-extrabold shadow-lg cursor-pointer border-none outline-none transition-colors disabled:opacity-70"
+                    >
+                      <span class="material-symbols-outlined text-[18px] premium-fill">toll</span>
+                      {{ isBuying() ? 'Đang xử lý...' : 'Tải HD · ' + premiumPriceValue + ' credit' }}
+                    </button>
+                    <div class="text-white/70 text-[11px] mt-2 flex items-center gap-1">
+                      <span class="material-symbols-outlined text-[13px]">account_balance_wallet</span>
+                      Bạn có {{ billing.spendable() }} credit
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Image overlay options on bottom right (ẩn khi đang khoá) -->
+                <div *ngIf="!isLocked" class="absolute bottom-9 right-9 flex items-center gap-2 z-20">
+                  <!-- Tải HD (chủ ảnh / đã mua) -->
+                  <button
+                    *ngIf="canDownloadHd && isPremiumPin"
+                    (click)="downloadHd()"
+                    class="flex items-center gap-1 bg-[#211922] hover:bg-black text-white px-3.5 py-2 rounded-full text-xs font-bold shadow-md cursor-pointer transition-colors select-none border-none outline-none"
+                    title="Tải bản HD"
+                  >
+                    <span class="material-symbols-outlined text-sm leading-none font-bold">download</span>
+                    <span>Tải HD</span>
+                  </button>
                   <!-- Image Search badge -->
                   <div class="flex items-center gap-1 bg-white hover:bg-gray-100 text-black px-3.5 py-2 rounded-full text-xs font-bold shadow-md cursor-pointer transition-colors select-none">
                     <span class="material-symbols-outlined text-sm leading-none font-bold">search</span>

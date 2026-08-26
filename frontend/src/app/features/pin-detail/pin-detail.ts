@@ -8,6 +8,7 @@ import { BoardService, Board } from '../../core/services/board';
 import { ToastService } from '../../core/services/toast';
 import { ConfirmService } from '../../core/services/confirm';
 import { ChatService, ConversationSummary } from '../../core/services/chat';
+import { BillingService } from '../../core/services/billing';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -26,7 +27,10 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   private confirmService = inject(ConfirmService);
   private chatService = inject(ChatService);
   public supabaseService = inject(SupabaseService);
+  public billing = inject(BillingService);
   private elementRef = inject(ElementRef);
+
+  public isBuying = signal<boolean>(false);
 
   @ViewChild('scrollSentinel') scrollSentinel!: ElementRef;
 
@@ -90,6 +94,72 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
         this.numBottomColumns.set(2);
       }
     }
+  }
+
+  // ── Ảnh Premium ────────────────────────────────────────────────────────────
+  get isPremiumPin(): boolean {
+    const id = this.pin()?.id;
+    return !!id && this.billing.isPremium(id);
+  }
+
+  get premiumPriceValue(): number {
+    const id = this.pin()?.id;
+    return (id && this.billing.premiumPrice(id)) || 0;
+  }
+
+  get isOwnerOfPin(): boolean {
+    const uid = this.supabaseService.user()?.id || this.supabaseService.dbUser()?.id;
+    return !!uid && this.pin()?.userId === uid;
+  }
+
+  /** Đã có quyền tải HD: là chủ ảnh, hoặc đã mua entitlement. */
+  get canDownloadHd(): boolean {
+    const id = this.pin()?.id;
+    return this.isOwnerOfPin || (!!id && this.billing.hasEntitlement(id));
+  }
+
+  /** Cần khoá (hiện preview watermark + nút mua). */
+  get isLocked(): boolean {
+    return this.isPremiumPin && !this.canDownloadHd;
+  }
+
+  async buyDownload() {
+    const id = this.pin()?.id;
+    if (!id) return;
+    const price = this.premiumPriceValue;
+    if (this.billing.spendable() < price) {
+      this.toastService.error('Bạn không đủ credit. Hãy nạp thêm trong Ví.');
+      this.router.navigate(['/wallet']);
+      return;
+    }
+    this.isBuying.set(true);
+    try {
+      // TODO(api): POST /api/pins/:id/purchase (server trừ credit + chia doanh thu + entitlement)
+      const ok = this.billing.purchasePin(id, price);
+      if (ok) {
+        this.toastService.success('Đã mua quyền tải HD! Bạn có thể tải bản gốc ngay.');
+      } else {
+        this.toastService.error('Không đủ credit để mua.');
+      }
+    } finally {
+      this.isBuying.set(false);
+    }
+  }
+
+  /**
+   * Tải bản HD. Ở bản thật: gọi GET /api/pins/:id/download (guard kiểm entitlement,
+   * trả signed URL 1 lần + watermark ẩn). Ở bản demo: mở ảnh gốc để tải xuống.
+   */
+  downloadHd() {
+    const p = this.pin();
+    if (!p || !this.canDownloadHd) return;
+    const a = document.createElement('a');
+    a.href = p.imageUrl;
+    a.download = (p.title || 'pinhub') + '.jpg';
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.click();
+    this.toastService.success('Đang tải bản HD...');
   }
 
   private currentPage = 1;

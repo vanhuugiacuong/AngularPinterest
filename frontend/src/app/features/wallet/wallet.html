@@ -1,0 +1,85 @@
+<div class="min-h-screen bg-white dark:bg-[#121212] text-black dark:text-white flex flex-col font-sans transition-colors">
+  <app-navbar></app-navbar>
+
+  <div class="flex-1 pt-16 pl-28 pb-24 flex flex-col min-w-0">
+    <main class="flex-1 w-full max-w-[860px] mx-auto px-6 py-8 flex flex-col">
+      <h1 class="text-2xl font-extrabold mb-6">Ví Credit</h1>
+
+      <!-- Thẻ số dư -->
+      <div class="grid sm:grid-cols-[1.4fr_1fr] gap-4 mb-4">
+        <!-- Số dư credit -->
+        <div class="balance-card relative overflow-hidden rounded-3xl p-6 text-white bg-gradient-to-br from-[#F94083] to-[#B15CAA]">
+          <div class="flex items-center gap-2 text-white/85 text-sm font-semibold mb-2">
+            <span class="material-symbols-outlined text-[20px] icon-filled">toll</span> Credit khả dụng
+          </div>
+          <div class="text-5xl font-extrabold tracking-tight tabular">{{ billing.spendable() }}</div>
+          <div class="text-white/80 text-sm mt-1">Dùng để tải HD ảnh Premium của người khác</div>
+          <span class="material-symbols-outlined absolute -right-4 -bottom-4 text-[120px] text-white/10 icon-filled select-none">toll</span>
+        </div>
+
+        <!-- Trạng thái Pro -->
+        <div class="rounded-3xl p-6 border border-[#e5e5e0] dark:border-[#2a2a2a] flex flex-col justify-between bg-[#f6f6f3] dark:bg-[#1a1a1a]">
+          <div>
+            <div class="flex items-center gap-2 text-sm font-semibold mb-2 text-[#62625b] dark:text-[#999]">
+              <span class="material-symbols-outlined text-[20px]" [class.icon-filled]="billing.isPro()" [class.text-[#B8860B]]="billing.isPro()">workspace_premium</span>
+              Gói của bạn
+            </div>
+            <div *ngIf="billing.isPro()" class="text-lg font-extrabold text-[#B8860B]">PinHub Pro</div>
+            <div *ngIf="billing.isPro()" class="text-xs text-[#91918c] dark:text-[#777] mt-0.5">Hết hạn {{ billing.proExpiresAt() | date: 'dd/MM/yyyy' }}</div>
+            <div *ngIf="!billing.isPro()" class="text-lg font-extrabold">Miễn phí</div>
+            <div *ngIf="!billing.isPro()" class="text-xs text-[#91918c] dark:text-[#777] mt-0.5">Nâng cấp để nhận credit hàng tháng</div>
+          </div>
+          <button (click)="goPro()" class="mt-4 h-10 px-4 rounded-full font-bold text-sm cursor-pointer border-none outline-none transition-colors"
+            [class.bg-gradient-to-r]="!billing.isPro()" [class.from-[#F94083]]="!billing.isPro()" [class.to-[#B15CAA]]="!billing.isPro()" [class.text-white]="!billing.isPro()"
+            [class.bg-white]="billing.isPro()" [class.dark:bg-[#2a2a2a]]="billing.isPro()" [class.text-[#B15CAA]]="billing.isPro()" [class.border]="billing.isPro()" [class.border-[#e5e5e0]]="billing.isPro()">
+            {{ billing.isPro() ? 'Quản lý gói' : 'Nâng cấp Pro' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Mua thêm credit -->
+      <h2 class="text-lg font-extrabold mt-8 mb-4">Mua thêm credit</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-2">
+        <div
+          *ngFor="let p of packs"
+          class="relative rounded-2xl p-4 border border-[#e5e5e0] dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] flex flex-col items-center text-center hover:border-[#F94083] transition-colors"
+          [class.ring-2]="p.popular"
+          [class.ring-[#F94083]]="p.popular"
+        >
+          <span *ngIf="p.popular" class="absolute -top-2.5 px-2 py-0.5 rounded-full bg-[#F94083] text-white text-[10px] font-extrabold">Phổ biến</span>
+          <span class="material-symbols-outlined text-[26px] text-[#B8860B] icon-filled mt-1">toll</span>
+          <div class="text-2xl font-extrabold mt-1 tabular">{{ p.credits }}</div>
+          <div class="text-[11px] text-[#91918c] dark:text-[#777] mb-3">credit</div>
+          <button (click)="buy(p.code)" class="w-full h-9 rounded-full bg-[#211922] dark:bg-white text-white dark:text-black font-bold text-xs cursor-pointer border-none outline-none hover:opacity-90 transition-opacity">
+            {{ billing.formatVnd(p.priceVnd) }}
+          </button>
+        </div>
+      </div>
+      <p class="text-xs text-[#91918c] dark:text-[#777] mb-8">Credit mua lẻ không hết hạn. Thanh toán bằng mã QR, tự động xác nhận.</p>
+
+      <!-- Lịch sử giao dịch -->
+      <h2 class="text-lg font-extrabold mb-4">Lịch sử giao dịch</h2>
+      <div *ngIf="billing.transactions().length === 0" class="rounded-2xl border border-dashed border-[#e5e5e0] dark:border-[#333] py-12 flex flex-col items-center gap-2 text-center">
+        <span class="material-symbols-outlined text-3xl text-[#c8c8c1] dark:text-[#555]">receipt_long</span>
+        <p class="text-sm text-[#91918c] dark:text-[#777]">Chưa có giao dịch nào.</p>
+      </div>
+
+      <div *ngIf="billing.transactions().length > 0" class="rounded-2xl border border-[#e5e5e0] dark:border-[#2a2a2a] overflow-hidden divide-y divide-[#f0f0ed] dark:divide-[#2a2a2a]">
+        <div *ngFor="let t of billing.transactions()" class="flex items-center gap-3 px-4 py-3">
+          <span class="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+            [class.bg-[#e7f6ee]]="t.amount > 0" [class.text-[#3ca86b]]="t.amount > 0"
+            [class.bg-[#fdeef3]]="t.amount < 0" [class.text-[#F94083]]="t.amount < 0">
+            <span class="material-symbols-outlined text-[18px]">{{ txnIcon(t.type) }}</span>
+          </span>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-bold truncate">{{ txnLabel(t.type) }}</div>
+            <div class="text-xs text-[#91918c] dark:text-[#777] truncate">{{ t.note }} · {{ t.createdAt | date: 'dd/MM/yy HH:mm' }}</div>
+          </div>
+          <div class="text-sm font-extrabold shrink-0 tabular" [class.text-[#3ca86b]]="t.amount > 0" [class.text-[#F94083]]="t.amount < 0">
+            {{ t.amount > 0 ? '+' : '' }}{{ t.amount }}
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>

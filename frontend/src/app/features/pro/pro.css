@@ -1,0 +1,46 @@
+:host {
+  display: block;
+}
+
+.icon-filled {
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Soft radial glow behind the hero headline */
+.hero-glow::before {
+  content: '';
+  position: absolute;
+  top: -40%;
+  left: 50%;
+  width: 520px;
+  height: 520px;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(249, 64, 131, 0.14), transparent 62%);
+  pointer-events: none;
+}
+
+.plan-card:focus-visible {
+  box-shadow: 0 0 0 3px rgba(249, 64, 131, 0.35);
+}
+
+/* Subtle animated sheen sweeping across the CTA */
+.cta-shine {
+  position: relative;
+  overflow: hidden;
+}
+.cta-shine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: cta-sweep 3.4s ease-in-out infinite;
+}
+@keyframes cta-sweep {
+  0%, 100% { transform: translateX(-120%); }
+  55%, 70% { transform: translateX(120%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta-shine::after { animation: none; display: none; }
+}

@@ -1,5 +1,13 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
+//
+// ⚠️ CẢNH BÁO (nhánh liem-billing-qr): DB Supabase này DÙNG CHUNG với cả nhóm và
+// chứa nhiều bảng của hệ thống membership/NovaToken (MembershipSubscription,
+// NovaTokenTopUp, ImagePurchase, Auction, WatermarkPreset...) KHÔNG có trong file
+// schema này. => TUYỆT ĐỐI KHÔNG chạy `prisma db push` / `prisma migrate` từ nhánh
+// này (Prisma sẽ tưởng các bảng đó thừa và XOÁ mất dữ liệu thật của nhóm).
+// Các bảng/cột của tính năng billing-QR riêng được thêm bằng SQL chỉ-thêm:
+//   backend/scratch/apply-billing.sql  (idempotent, CREATE ... IF NOT EXISTS)
 
 generator client {
   provider = "prisma-client-js"
@@ -17,6 +25,16 @@ model User {
   avatarUrl    String?
   bio          String?
   createdAt    DateTime  @default(now())
+
+  // Thương mại hoá (Pro + Credit)
+  isPro        Boolean   @default(false)
+  proExpiresAt DateTime?
+
+  wallet        Wallet?
+  subscriptions Subscription[]
+  payments      Payment[]
+  creditTxns    CreditTransaction[]
+  entitlements  PinEntitlement[]
 
   pins         Pin[]
   boards       Board[]
@@ -69,6 +87,14 @@ model Pin {
   category        String      @default("other")
   embedding       Unsupported("vector(512)")? // pgvector similarity embedding, managed outside Prisma
 
+  // Ảnh Premium (bán — trả credit để tải HD). imageUrl/previewUrl = bản watermark
+  // công khai; originalPath = key file HD trong bucket PRIVATE (không public URL).
+  isPremium       Boolean     @default(false)
+  priceCredits    Int?
+  previewUrl      String?
+  originalPath    String?
+  isArchived      Boolean     @default(false)
+
   user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   boardPins       BoardPin[]
   likes           Like[]
@@ -78,6 +104,7 @@ model Pin {
   hiddenBy        HiddenPin[]
   reports         PinReport[]
   interestSignals InterestSignal[]
+  entitlements    PinEntitlement[]
 }
 
 // A user hid this pin from their own feed ("Ẩn bớt") — excluded from
@@ -268,4 +295,121 @@ model MessageReaction {
 
   @@unique([messageId, userId])
   @@index([messageId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Thương mại hoá: Pro subscription + Credit + thanh toán QR (VietQR/SePay/PayOS)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Ví credit của user. spendable = credit dùng để tải ảnh Premium (grant + mua);
+// earnings = credit thu nhập từ bán ảnh (tách riêng).
+model Wallet {
+  userId         String    @id
+  spendable      Int       @default(0)
+  earnings       Int       @default(0)
+  grantExpiresAt DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum SubPlan {
+  MONTHLY
+  YEARLY
+}
+
+enum SubStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+model Subscription {
+  id        String    @id @default(uuid())
+  userId    String
+  plan      SubPlan
+  status    SubStatus @default(ACTIVE)
+  startedAt DateTime  @default(now())
+  expiresAt DateTime
+  paymentId String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum PaymentPurpose {
+  PRO_SUB
+  CREDIT_PACK
+}
+
+// Đổi tên thành QrPaymentStatus để KHÔNG trùng enum `PaymentStatus` đã có sẵn của
+// hệ thống membership cũ trong DB dùng chung.
+enum QrPaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+}
+
+// Một đơn thanh toán qua chuyển khoản QR. `memo` là nội dung CK định danh dùng để
+// đối soát tự động khi webhook ngân hàng (SePay/PayOS) báo có tiền vào.
+model Payment {
+  id             String         @id @default(uuid())
+  userId         String
+  provider       String         @default("VIETQR")
+  purpose        PaymentPurpose
+  amountVnd      Int
+  planCode       String? // MONTHLY | YEARLY
+  packCode       String? // S | M | L | XL
+  creditsGranted Int? // số credit sẽ cộng khi PAID
+  status         QrPaymentStatus @default(PENDING)
+  memo           String         @unique // nội dung CK, vd PINHUBABC123
+  gatewayRef     String? // mã giao dịch phía ngân hàng/cổng
+  createdAt      DateTime       @default(now())
+  expiresAt      DateTime
+  paidAt         DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model PinEntitlement {
+  userId      String
+  pinId       String
+  creditsPaid Int
+  grantedAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pin  Pin  @relation(fields: [pinId], references: [id], onDelete: Cascade)
+
+  @@id([userId, pinId])
+  @@index([pinId])
+}
+
+enum CreditTxnType {
+  PURCHASE
+  MONTHLY_GRANT
+  SPEND_DOWNLOAD
+  EARN_SALE
+  PLATFORM_FEE
+  GRANT_EXPIRE
+  REFUND
+}
+
+model CreditTransaction {
+  id           String        @id @default(uuid())
+  userId       String
+  type         CreditTxnType
+  amount       Int // + cộng, - trừ
+  balanceAfter Int
+  refPinId     String?
+  refPaymentId String?
+  note         String?
+  createdAt    DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

@@ -1,0 +1,125 @@
+<div class="min-h-screen bg-white dark:bg-[#121212] text-black dark:text-white flex flex-col font-sans transition-colors">
+  <app-navbar></app-navbar>
+
+  <div class="flex-1 pt-16 pl-28 pb-24 flex flex-col min-w-0">
+    <main class="flex-1 w-full max-w-[1000px] mx-auto px-6 py-8 flex flex-col">
+
+      <!-- Đã là Pro -->
+      <div
+        *ngIf="billing.isPro()"
+        class="mb-8 rounded-3xl p-5 flex items-center gap-4 bg-gradient-to-br from-[#FFF4D6] to-[#FDE8B8] dark:from-[#2a2410] dark:to-[#1f1b0c] border border-[#F1D488] dark:border-[#4a3f18]"
+      >
+        <span class="material-symbols-outlined text-3xl text-[#B8860B] icon-filled">workspace_premium</span>
+        <div class="flex-1 min-w-0">
+          <div class="font-extrabold text-[#7a5c00] dark:text-[#F1D488]">Bạn đang là thành viên Pro</div>
+          <div class="text-sm text-[#96721a] dark:text-[#c9b268]">Hiệu lực tới {{ billing.proExpiresAt() | date: 'dd/MM/yyyy' }}</div>
+        </div>
+        <button (click)="goWallet()" class="h-10 px-4 rounded-full bg-white/70 dark:bg-black/30 text-[#7a5c00] dark:text-[#F1D488] font-bold text-sm border border-[#F1D488] dark:border-[#4a3f18] hover:bg-white transition-colors cursor-pointer">
+          Xem ví credit
+        </button>
+      </div>
+
+      <!-- Hero -->
+      <div class="hero-glow relative overflow-hidden rounded-[32px] p-8 sm:p-12 text-center mb-12 border border-[#f0e6ee] dark:border-[#2a2a2a] bg-gradient-to-b from-[#fff8fc] to-white dark:from-[#1a1520] dark:to-[#141018]">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FDE8B8] text-[#8a6d10] text-xs font-bold mb-5">
+          <span class="material-symbols-outlined text-[15px] icon-filled">bolt</span> PinHub Pro
+        </span>
+        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight mb-4">
+          Sáng tạo không giới hạn, <br class="hidden sm:block" />
+          <span class="bg-gradient-to-r from-[#F94083] to-[#B15CAA] bg-clip-text text-transparent">nâng tầm với Pro</span>
+        </h1>
+        <p class="text-[#62625b] dark:text-[#a0a0a0] text-base sm:text-lg max-w-xl mx-auto">
+          Tạo ảnh AI thỏa thích, tải bản HD sạch không watermark và nhận credit hàng tháng để sưu tầm tác phẩm đẹp của cộng đồng.
+        </p>
+      </div>
+
+      <!-- Bảng giá -->
+      <div class="grid sm:grid-cols-2 gap-5 mb-4">
+        <button
+          *ngFor="let plan of plans"
+          type="button"
+          (click)="selectPlan(plan.code)"
+          class="plan-card group relative text-left rounded-3xl p-6 border-2 transition-all duration-200 cursor-pointer outline-none"
+          [class.border-[#F94083]]="selected() === plan.code"
+          [class.shadow-[0_12px_40px_rgba(249,64,131,0.18)]]="selected() === plan.code"
+          [class.border-[#e5e5e0]]="selected() !== plan.code"
+          [class.dark:border-[#333]]="selected() !== plan.code"
+          [class.bg-white]="true"
+          [class.dark:bg-[#1a1a1a]]="true"
+        >
+          <span *ngIf="plan.badge" class="absolute top-5 right-5 px-2.5 py-1 rounded-full bg-[#FDE8B8] text-[#8a6d10] text-[11px] font-extrabold">
+            {{ plan.badge }}
+          </span>
+
+          <div class="flex items-center gap-2 mb-3">
+            <span
+              class="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0"
+              [class.border-[#F94083]]="selected() === plan.code"
+              [class.border-[#c8c8c1]]="selected() !== plan.code"
+            >
+              <span *ngIf="selected() === plan.code" class="w-2.5 h-2.5 rounded-full bg-[#F94083]"></span>
+            </span>
+            <span class="font-extrabold text-lg">{{ plan.name }}</span>
+          </div>
+
+          <div class="flex items-end gap-1 mb-1">
+            <span class="text-3xl font-extrabold tracking-tight">{{ billing.formatVnd(plan.priceVnd) }}</span>
+            <span class="text-[#91918c] dark:text-[#777] text-sm mb-1">/ {{ plan.code === 'YEARLY' ? 'năm' : 'tháng' }}</span>
+          </div>
+          <p *ngIf="plan.code === 'YEARLY'" class="text-sm text-[#3ca86b] font-semibold">
+            Chỉ ~{{ billing.formatVnd(monthlyEquivalent()) }}/tháng
+          </p>
+          <p *ngIf="plan.code === 'MONTHLY'" class="text-sm text-[#91918c] dark:text-[#777]">Linh hoạt, hủy bất cứ lúc nào</p>
+
+          <div class="mt-4 pt-4 border-t border-[#f0f0ed] dark:border-[#2a2a2a] flex items-center gap-2 text-sm text-[#62625b] dark:text-[#a0a0a0]">
+            <span class="material-symbols-outlined text-[18px] text-[#B8860B] icon-filled">toll</span>
+            Tặng {{ plan.grantCredits }} credit mỗi tháng
+          </div>
+        </button>
+      </div>
+
+      <!-- CTA -->
+      <button
+        (click)="subscribe()"
+        [disabled]="isStarting()"
+        class="cta-shine w-full h-14 rounded-full text-white font-extrabold text-base bg-gradient-to-r from-[#F94083] to-[#B15CAA] hover:shadow-[0_10px_30px_rgba(249,64,131,0.35)] transition-all duration-200 cursor-pointer border-none outline-none mb-2 disabled:opacity-70"
+      >
+        {{ isStarting() ? 'Đang tạo mã QR...' : 'Nâng cấp ' + selectedPlan.name + ' · ' + billing.formatVnd(selectedPlan.priceVnd) }}
+      </button>
+      <p class="text-center text-xs text-[#91918c] dark:text-[#777] mb-14">
+        Thanh toán bằng mã QR (VietQR) · tự động xác nhận · quản lý gói trong trang Ví
+      </p>
+
+      <!-- So sánh quyền lợi -->
+      <h2 class="text-xl font-extrabold mb-5">Bạn nhận được gì với Pro?</h2>
+      <div class="rounded-3xl overflow-hidden border border-[#e5e5e0] dark:border-[#2a2a2a]">
+        <div class="grid grid-cols-[1fr_88px_88px] sm:grid-cols-[1fr_120px_120px] bg-[#f6f6f3] dark:bg-[#1a1a1a] text-xs font-bold text-[#62625b] dark:text-[#999] uppercase tracking-wide">
+          <div class="px-4 sm:px-5 py-3">Quyền lợi</div>
+          <div class="px-2 py-3 text-center">Free</div>
+          <div class="px-2 py-3 text-center text-[#B15CAA]">Pro</div>
+        </div>
+        <div
+          *ngFor="let b of benefits; let last = last"
+          class="grid grid-cols-[1fr_88px_88px] sm:grid-cols-[1fr_120px_120px] items-center"
+          [class.border-b]="!last"
+          [class.border-[#f0f0ed]]="!last"
+          [class.dark:border-[#2a2a2a]]="!last"
+        >
+          <div class="px-4 sm:px-5 py-4 flex items-start gap-3 min-w-0">
+            <span class="material-symbols-outlined text-[20px] text-[#B15CAA] shrink-0 mt-0.5">{{ b.icon }}</span>
+            <div class="min-w-0">
+              <div class="font-bold text-sm">{{ b.title }}</div>
+              <div class="text-xs text-[#91918c] dark:text-[#777] leading-snug mt-0.5">{{ b.desc }}</div>
+            </div>
+          </div>
+          <div class="px-2 py-4 text-center text-xs text-[#91918c] dark:text-[#777]">{{ b.free }}</div>
+          <div class="px-2 py-4 text-center text-xs font-extrabold text-[#B15CAA]">{{ b.pro }}</div>
+        </div>
+      </div>
+
+      <p class="text-center text-xs text-[#b8b8b2] dark:text-[#666] mt-10">
+        Ảnh Premium của người khác vẫn cần trả credit để tải HD — Pro được tặng credit hàng tháng để dùng.
+      </p>
+    </main>
+  </div>
+</div>
