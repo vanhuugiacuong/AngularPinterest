@@ -63,8 +63,16 @@
             </div>
           </div>
 
-          <!-- Trạng thái dò tự động -->
-          <div class="mt-5 flex items-center gap-2.5 rounded-xl bg-[#f6f6f3] dark:bg-[#222] px-4 py-3">
+          <!-- Banner chế độ demo (backend chưa chạy) -->
+          <div *ngIf="isDemo" class="mt-5 flex items-start gap-2.5 rounded-xl bg-[#fff4e5] dark:bg-[#2a2010] border border-[#ffd591] dark:border-[#4a3a18] px-4 py-3">
+            <span class="material-symbols-outlined text-[19px] text-[#c77700] shrink-0">warning</span>
+            <span class="text-sm text-[#9a6100] dark:text-[#e0a94a]">
+              <b>Chế độ demo</b> — backend chưa chạy nên đây là thanh toán <b>giả lập</b> (không có tiền thật, không liên quan tài khoản ngân hàng). Bấm "Tôi đã chuyển khoản" để test luồng. Khi bật backend + SePay, giao dịch chỉ thành công khi có tiền vào thật.
+            </span>
+          </div>
+
+          <!-- Trạng thái dò tự động (chỉ khi nối backend thật) -->
+          <div *ngIf="!isDemo" class="mt-5 flex items-center gap-2.5 rounded-xl bg-[#f6f6f3] dark:bg-[#222] px-4 py-3">
             <span class="relative flex h-2.5 w-2.5 shrink-0">
               <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#3ca86b] opacity-70"></span>
               <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#3ca86b]"></span>

@@ -82,8 +82,6 @@ export const BANK = {
   shortName: 'BIDV',
 };
 
-/** Sau bao lâu thì coi như "đã nhận được tiền" (mô phỏng webhook đối soát). */
-const AUTO_CONFIRM_MS = 7000;
 /** Đơn QR hết hạn sau 10 phút. */
 export const QR_EXPIRE_MS = 10 * 60 * 1000;
 
@@ -332,14 +330,12 @@ export class BillingService {
       return 'PENDING';
     }
 
-    // Mô phỏng cục bộ
+    // Chế độ demo (backend chưa chạy): KHÔNG tự xác nhận nữa — để tránh hiểu nhầm là
+    // đã có tiền thật. Chỉ hết hạn theo thời gian; muốn "thành công" phải tự bấm
+    // nút "Tôi đã chuyển khoản" (confirmNow) — đúng nghĩa là thao tác test thủ công.
     if (Date.now() - p.createdAtMs > QR_EXPIRE_MS) {
       this.clearPending();
       return 'EXPIRED';
-    }
-    if (Date.now() - p.createdAtMs >= AUTO_CONFIRM_MS) {
-      this.completePending(ref, true);
-      return 'PAID';
     }
     return 'PENDING';
   }

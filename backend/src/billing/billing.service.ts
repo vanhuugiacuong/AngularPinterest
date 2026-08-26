@@ -7,7 +7,6 @@ import {
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../database/prisma.service';
 import {
-  BANK,
   CREDIT_PACKS,
   PLANS,
   PLATFORM_FEE_PERCENT,
@@ -15,6 +14,7 @@ import {
   buildQrUrl,
   findPack,
   findPlan,
+  getBank,
 } from './billing.config';
 
 @Injectable()
@@ -26,7 +26,7 @@ export class BillingService {
     return {
       plans: PLANS,
       creditPacks: CREDIT_PACKS,
-      bank: { shortName: BANK.shortName, accountName: BANK.accountName, accountNo: BANK.accountNo },
+      bank: (() => { const b = getBank(); return { shortName: b.shortName, accountName: b.accountName, accountNo: b.accountNo }; })(),
     };
   }
 
@@ -110,7 +110,7 @@ export class BillingService {
       memo: payment.memo,
       amountVnd: payment.amountVnd,
       qrUrl: buildQrUrl(payment.amountVnd, payment.memo),
-      bank: { shortName: BANK.shortName, accountName: BANK.accountName, accountNo: BANK.accountNo },
+      bank: (() => { const b = getBank(); return { shortName: b.shortName, accountName: b.accountName, accountNo: b.accountNo }; })(),
       expiresAt: payment.expiresAt,
     };
   }

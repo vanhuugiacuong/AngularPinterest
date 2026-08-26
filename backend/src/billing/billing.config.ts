@@ -49,15 +49,21 @@ export const QR_EXPIRE_MS = 10 * 60 * 1000;
  *   BANK_ACCOUNT_NAME tên chủ tài khoản (không dấu)
  *   BANK_SHORT_NAME  tên hiển thị
  */
-export const BANK = {
-  bin: process.env.BANK_BIN || '970422',
-  accountNo: process.env.BANK_ACCOUNT_NO || '0000000000',
-  accountName: process.env.BANK_ACCOUNT_NAME || 'PINHUB DEMO',
-  shortName: process.env.BANK_SHORT_NAME || 'MB Bank',
-};
+// Đọc process.env LAZY (mỗi lần gọi) — vì .env được ConfigModule nạp lúc runtime,
+// SAU khi file config này được import. Nếu đọc ở top-level sẽ ra giá trị mặc định.
+export function getBank() {
+  return {
+    bin: process.env.BANK_BIN || '970418', // BIDV
+    accountNo: process.env.BANK_ACCOUNT_NO || '8883473334',
+    accountName: process.env.BANK_ACCOUNT_NAME || 'NGUYEN THANH LIEM',
+    shortName: process.env.BANK_SHORT_NAME || 'BIDV',
+  };
+}
 
 /** Khoá xác thực webhook SePay (đặt trùng với "API Key" cấu hình trong SePay). */
-export const SEPAY_API_KEY = process.env.SEPAY_API_KEY || '';
+export function getSepayApiKey(): string {
+  return process.env.SEPAY_API_KEY || '';
+}
 
 export function findPlan(code?: string): Plan | undefined {
   return PLANS.find((p) => p.code === code);
@@ -69,10 +75,11 @@ export function findPack(code?: string): CreditPack | undefined {
 
 /** URL ảnh VietQR có nhúng sẵn số tiền + nội dung chuyển khoản. */
 export function buildQrUrl(amountVnd: number, memo: string): string {
+  const bank = getBank();
   const params = new URLSearchParams({
     amount: String(amountVnd),
     addInfo: memo,
-    accountName: BANK.accountName,
+    accountName: bank.accountName,
   });
-  return `https://img.vietqr.io/image/${BANK.bin}-${BANK.accountNo}-compact2.png?${params.toString()}`;
+  return `https://img.vietqr.io/image/${bank.bin}-${bank.accountNo}-compact2.png?${params.toString()}`;
 }

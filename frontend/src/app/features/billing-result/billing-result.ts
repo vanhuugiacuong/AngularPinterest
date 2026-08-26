@@ -92,6 +92,11 @@ export class BillingResult implements OnInit, OnDestroy {
     return this.pending()?.purpose === 'PRO_SUB';
   }
 
+  /** true = backend chưa chạy, đang chạy giả lập (không có tiền thật). */
+  get isDemo() {
+    return this.pending()?.source === 'local';
+  }
+
   get title() {
     const p = this.pending();
     if (!p) return '';

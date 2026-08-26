@@ -12,7 +12,7 @@ import { BillingService } from './billing.service';
 import { SupabaseAuthGuard } from '../supabase/supabase.guard';
 import { CurrentUser, UserPayload } from '../supabase/current-user.decorator';
 import type { BuyCreditsDto, SepayWebhookDto, SubscribeDto } from './dto/create-payment.dto';
-import { SEPAY_API_KEY } from './billing.config';
+import { getSepayApiKey } from './billing.config';
 
 @Controller('api/billing')
 export class BillingController {
@@ -80,8 +80,9 @@ export class BillingController {
    */
   @Post('webhook/sepay')
   async sepayWebhook(@Headers('authorization') auth: string, @Body() body: SepayWebhookDto) {
-    if (SEPAY_API_KEY) {
-      const expected = `Apikey ${SEPAY_API_KEY}`;
+    const apiKey = getSepayApiKey();
+    if (apiKey) {
+      const expected = `Apikey ${apiKey}`;
       if (auth !== expected) throw new UnauthorizedException('Sai API key webhook.');
     }
     // Chỉ xử lý giao dịch tiền vào.
