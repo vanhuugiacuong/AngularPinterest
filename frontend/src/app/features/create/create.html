@@ -4,18 +4,18 @@
 
   <!-- Main Content Area: shifted down to clear fixed header. Sidebar is an overlay and never reserves space. -->
   <div class="flex-1 pt-16 flex flex-col min-w-0 items-center">
-    <main class="w-full max-w-[1180px] px-4 sm:px-6 py-8 flex flex-col">
+    <main class="w-full max-w-[1180px] px-4 sm:px-6 py-3 sm:py-4 flex flex-col">
 
-      <div class="mb-7">
+      <div class="mb-3">
         <span class="text-xs font-semibold text-accent select-none">NovaFrame · Creation Studio</span>
-        <h1 class="text-2xl sm:text-3xl font-extrabold text-text tracking-tight mt-1">Tạo tác phẩm mới</h1>
+        <h1 class="text-xl sm:text-2xl font-extrabold text-text tracking-tight mt-0.5">Tạo tác phẩm mới</h1>
       </div>
 
       <!-- Studio: Mode rail / Canvas / Publish panel -->
       <div class="w-full grid grid-cols-1 lg:grid-cols-[76px_minmax(0,1fr)_360px] gap-5 lg:gap-6 items-start">
 
         <!-- MODE RAIL -->
-        <div class="flex lg:flex-col gap-3 lg:sticky lg:top-24 select-none" role="tablist" aria-label="Chế độ tạo tác phẩm">
+        <div class="flex lg:flex-col gap-3 lg:sticky lg:top-20 select-none" role="tablist" aria-label="Chế độ tạo tác phẩm">
           <button
             type="button"
             role="tab"
@@ -50,21 +50,21 @@
         </div>
 
         <!-- CANVAS -->
-        <div class="flex flex-col gap-4 min-w-0 text-left">
+        <div class="flex flex-col gap-3 min-w-0 text-left">
 
           <!-- TAB 1: STANDARD UPLOAD -->
           <div *ngIf="activeTab() === 'upload'" class="flex-1 flex flex-col">
-            <span class="text-xs font-semibold text-text-muted mb-2 block select-none">Canvas — hình ảnh tác phẩm</span>
+            <span class="text-xs font-semibold text-text-muted mb-1.5 block select-none">Canvas — hình ảnh tác phẩm</span>
 
             <!-- File Drag Drop & Upload Box -->
             <div
               *ngIf="imageModerationStatus() === 'idle'"
-              class="drag-drop-area flex-1 min-h-[320px] md:min-h-[460px] rounded-frame bg-surface-elevated border border-dashed border-border flex flex-col items-center justify-center p-6 text-center cursor-pointer relative overflow-hidden"
+              class="drag-drop-area flex-1 min-h-[260px] md:min-h-[380px] rounded-frame bg-surface-elevated border border-dashed border-border flex flex-col items-center justify-center p-5 text-center cursor-pointer relative overflow-hidden"
               (click)="fileInput.click()"
             >
-              <span class="material-symbols-outlined text-4xl text-text-muted mb-3">cloud_upload</span>
+              <span class="material-symbols-outlined text-3xl text-text-muted mb-2">cloud_upload</span>
               <p class="text-xs font-bold text-text">Kéo thả hoặc nhấp để chọn ảnh</p>
-              <span class="text-xs text-text-muted mt-2">Khuyên dùng: Ảnh JPG, PNG chất lượng cao có tỷ lệ dọc</span>
+              <span class="text-xs text-text-muted mt-1.5">Khuyên dùng: Ảnh JPG, PNG chất lượng cao có tỷ lệ dọc</span>
 
               <input
                 #fileInput
@@ -75,17 +75,13 @@
               />
             </div>
 
-            <!-- Upload Preview + Editor — the panel itself is gated on the
-                 moderation status (not on imagePreviewUrl), because the real
-                 image is never revealed until 'safe'. This lets 'checking'/
-                 'unsafe'/'error' render their own neutral placeholder here
-                 instead of the actual pixels. -->
+            <!-- Upload Preview + Editor -->
             <div *ngIf="imageModerationStatus() !== 'idle'" class="flex flex-col gap-3">
               <div *ngIf="imageModerationStatus() !== 'unsafe'" class="flex items-center justify-end">
                 <button
                   (click)="replaceUploadedImage()"
                   [disabled]="isSubmitting()"
-                  class="h-9 px-3 rounded-control bg-surface-high/90 text-text flex items-center gap-1.5 shadow-card hover:bg-surface-elevated cursor-pointer transition-colors duration-200 border-none outline-none text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-accent"
+                  class="h-8 px-2.5 rounded-control bg-surface-high/90 text-text flex items-center gap-1.5 shadow-card hover:bg-surface-elevated cursor-pointer transition-colors duration-200 border-none outline-none text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-accent"
                   title="Thay đổi ảnh khác"
                 >
                   <span class="material-symbols-outlined text-sm font-bold">delete</span>
@@ -93,12 +89,7 @@
                 </button>
               </div>
 
-              <!-- NSFW/bạo lực pre-submit moderation status — server checks again on submit
-                   regardless. 'unsafe' (content rejected) and 'error' (check itself failed) are
-                   shown as distinct states; only 'error' offers a retry, since the image was
-                   never judged. Ảnh thật sự chỉ được hiển thị ở nhánh 'safe' bên dưới - 'checking'
-                   và 'unsafe' luôn hiện khung placeholder trung tính, không bao giờ lộ ảnh gốc. -->
-              <div *ngIf="imageModerationStatus() === 'checking'" class="rounded-frame bg-surface-elevated border border-border flex flex-col items-center justify-center gap-2 min-h-[320px] md:min-h-[460px]">
+              <div *ngIf="imageModerationStatus() === 'checking'" class="rounded-frame bg-surface-elevated border border-border flex flex-col items-center justify-center gap-2 min-h-[260px] md:min-h-[380px]">
                 <div class="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin"></div>
                 <span class="mono-label text-xs text-text-muted">Đang kiểm tra ảnh...</span>
               </div>
@@ -106,22 +97,22 @@
               <div *ngIf="imageModerationStatus() === 'unsafe'" class="flex flex-col gap-3">
                 <div
                   role="alert"
-                  class="flex items-center gap-2.5 p-3.5 rounded-control bg-error/10 border border-error/30 text-error text-xs font-semibold"
+                  class="flex items-center gap-2.5 p-3 rounded-control bg-error/10 border border-error/30 text-error text-xs font-semibold"
                 >
                   <span class="material-symbols-outlined unsafe-alert-icon shrink-0">error</span>
                   <span class="unsafe-alert-text">{{ imageModerationMessage() }}</span>
                 </div>
-                <div class="unsafe-placeholder rounded-frame bg-surface-elevated border border-dashed border-border flex flex-col items-center justify-center gap-4 min-h-[320px] md:min-h-[460px] text-center px-6 py-10">
-                  <span class="material-symbols-outlined text-6xl leading-none text-error">block</span>
-                  <div class="flex flex-col gap-1.5">
-                    <p class="text-base font-bold text-text">Ảnh không thể sử dụng</p>
+                <div class="unsafe-placeholder rounded-frame bg-surface-elevated border border-dashed border-border flex flex-col items-center justify-center gap-3 min-h-[260px] md:min-h-[380px] text-center px-6 py-8">
+                  <span class="material-symbols-outlined text-5xl leading-none text-error">block</span>
+                  <div class="flex flex-col gap-1">
+                    <p class="text-sm font-bold text-text">Ảnh không thể sử dụng</p>
                     <span class="text-xs text-text-muted">Vui lòng chọn một ảnh khác để tiếp tục.</span>
                   </div>
                   <button
                     type="button"
                     (click)="replaceUploadedImage()"
                     [disabled]="isSubmitting()"
-                    class="h-11 px-6 bg-gradient-brand cta-shape text-text-on-accent font-bold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    class="h-10 px-5 bg-gradient-brand cta-shape text-text-on-accent font-bold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
                     <span class="material-symbols-outlined text-sm leading-none">upload</span>
                     <span>Chọn ảnh khác</span>
@@ -132,7 +123,7 @@
               <div
                 *ngIf="imageModerationStatus() === 'error'"
                 role="alert"
-                class="flex items-start justify-between gap-2 p-3 rounded-control bg-error/10 border border-error/30 text-error text-xs font-semibold"
+                class="flex items-start justify-between gap-2 p-2.5 rounded-control bg-error/10 border border-error/30 text-error text-xs font-semibold"
               >
                 <div class="flex items-start gap-2">
                   <span class="material-symbols-outlined text-base leading-none shrink-0">error</span>
@@ -147,9 +138,6 @@
                 </button>
               </div>
 
-              <!-- Image Editor — Upload tab only; the AI tab never mounts this component.
-                   Only mounted once moderation confirms 'safe', so the real pixels are
-                   never rendered anywhere before that. -->
               <app-image-editor
                 *ngIf="imageModerationStatus() === 'safe' && imagePreviewUrl()"
                 #editor
@@ -159,30 +147,36 @@
             </div>
           </div>
 
-          <!-- TAB 2: AI STUDIO — a faint warm wash (.ai-mode-panel, see create.css)
-               distinguishes this from Upload's neutral surface by color
-               temperature rather than restructuring the layout. -->
-          <div *ngIf="activeTab() === 'ai'" class="ai-mode-panel flex flex-col gap-4 flex-1">
+          <!-- TAB 2: AI STUDIO -->
+          <div *ngIf="activeTab() === 'ai'" class="ai-mode-panel flex flex-col gap-3 flex-1">
             <span class="text-xs font-semibold text-text-muted select-none">Canvas — trình tạo ảnh AI</span>
 
+            <!-- Notice Banner for Experimental AI Model & English Prompt Requirement -->
+            <div role="note" class="flex items-start gap-2.5 p-3 rounded-control bg-accent/10 border border-accent/30 text-text text-xs leading-relaxed">
+              <span class="material-symbols-outlined text-base leading-none shrink-0 mt-0.5 text-accent">auto_awesome</span>
+              <div>
+                <strong class="font-bold text-accent">Lưu ý thử nghiệm:</strong> Model Free & <strong class="font-bold underline decoration-accent/60">bắt buộc nhập Mô tả (Prompt) bằng tiếng Anh</strong> mới khởi tạo được hình ảnh.
+              </div>
+            </div>
+
             <!-- Prompt Input -->
-            <div class="flex flex-col gap-1.5">
+            <div class="flex flex-col gap-1">
               <label class="text-xs font-bold text-text-muted">Mô tả ý tưởng (Prompt) <span class="text-error">*</span></label>
               <textarea
                 [(ngModel)]="aiPrompt"
-                placeholder="Mô tả chi tiết bức ảnh bạn muốn tạo (bằng tiếng Anh sẽ cho chất lượng tốt nhất). Ví dụ: 'A cyberpunk samurai standing in neon rain, digital art...'"
-                rows="3"
-                class="w-full bg-surface-elevated border border-border focus:border-accent outline-none rounded-control p-4 text-xs text-text placeholder-text-muted transition-all resize-none focus:ring-2 focus:ring-accent/40"
+                placeholder="Mô tả chi tiết bức ảnh bằng tiếng Anh. Ví dụ: 'A cyberpunk samurai standing in neon rain, digital art...'"
+                rows="2"
+                class="w-full bg-surface-elevated border border-border focus:border-accent outline-none rounded-control p-3 text-xs text-text placeholder-text-muted transition-all resize-none focus:ring-2 focus:ring-accent/40"
                 [disabled]="isGenerating() || isSubmitting()"
               ></textarea>
             </div>
 
             <!-- Style Selection -->
-            <div class="flex flex-col gap-1.5">
+            <div class="flex flex-col gap-1">
               <label class="text-xs font-bold text-text-muted">Phong cách nghệ thuật (Model)</label>
               <select
                 [(ngModel)]="aiModel"
-                class="w-full bg-surface-elevated border border-border focus:border-accent outline-none rounded-control px-4 h-11 text-xs text-text transition-all focus:ring-2 focus:ring-accent/40"
+                class="w-full bg-surface-elevated border border-border focus:border-accent outline-none rounded-control px-3.5 h-9.5 text-xs text-text transition-all focus:ring-2 focus:ring-accent/40"
                 [disabled]="isGenerating() || isSubmitting()"
               >
                 <option value="flux">Flux Standard (Chi tiết cao)</option>
@@ -207,17 +201,17 @@
               type="button"
               (click)="generateAiImage()"
               [disabled]="isGenerating() || !aiPrompt.trim() || isSubmitting()"
-              class="w-full h-11 bg-gradient-brand cta-shape text-text-on-accent font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              class="w-full h-9.5 bg-gradient-brand cta-shape text-text-on-accent font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               <span class="material-symbols-outlined text-sm leading-none">auto_awesome</span>
               <span>{{ isGenerating() ? 'Đang tạo ảnh AI...' : 'Bắt đầu tạo ảnh AI' }}</span>
             </button>
 
-            <!-- AI Preview display box — no Image Editor in this tab by design. -->
-            <div class="relative rounded-frame frame-trace bg-canvas-neutral border border-border overflow-hidden flex items-center justify-center min-h-[260px] p-2 mt-1">
+            <!-- AI Preview display box -->
+            <div class="relative rounded-frame frame-trace bg-canvas-neutral border border-border overflow-hidden flex items-center justify-center min-h-[180px] p-2 mt-0.5">
               <!-- Generating spinner -->
-              <div *ngIf="isGenerating()" class="flex flex-col items-center justify-center py-10 gap-2">
-                <div class="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
+              <div *ngIf="isGenerating()" class="flex flex-col items-center justify-center py-6 gap-2">
+                <div class="w-7 h-7 border-3 border-accent border-t-transparent rounded-full animate-spin"></div>
                 <span class="mono-label text-xs text-text-muted font-semibold">AI đang vẽ bức ảnh của bạn...</span>
               </div>
 
@@ -226,12 +220,12 @@
                 *ngIf="!isGenerating() && aiImagePreviewUrl() as previewUrl"
                 [src]="previewUrl"
                 alt="AI Generated Preview"
-                class="w-full h-auto max-h-[420px] object-contain rounded-control block"
+                class="w-full h-auto max-h-[320px] object-contain rounded-control block"
               />
 
               <!-- Empty preview state -->
-              <div *ngIf="!isGenerating() && !aiImagePreviewUrl()" class="text-text-muted text-xs py-10 flex flex-col items-center gap-1">
-                <span class="material-symbols-outlined text-3xl">imagesmode</span>
+              <div *ngIf="!isGenerating() && !aiImagePreviewUrl()" class="text-text-muted text-xs py-6 flex flex-col items-center gap-1">
+                <span class="material-symbols-outlined text-2xl">imagesmode</span>
                 <span>Ảnh xem trước sẽ hiển thị ở đây</span>
               </div>
             </div>
@@ -239,41 +233,40 @@
         </div>
 
         <!-- PUBLISH PANEL -->
-        <div class="flex flex-col gap-6 bg-surface border border-border rounded-panel p-6 text-left lg:sticky lg:top-24">
+        <div class="flex flex-col gap-4 bg-surface border border-border rounded-panel p-4.5 text-left lg:sticky lg:top-20">
           <span class="text-xs font-semibold text-text-muted select-none">Thông tin xuất bản</span>
 
-          <div class="flex flex-col gap-5">
+          <div class="flex flex-col gap-3.5">
             <!-- Title -->
-            <div class="flex flex-col gap-1.5">
+            <div class="flex flex-col gap-1">
               <label class="text-xs font-bold text-text-muted">Tiêu đề tác phẩm <span class="text-error">*</span></label>
               <input
                 type="text"
                 [(ngModel)]="title"
                 placeholder="Thêm tiêu đề mô tả ngắn gọn..."
-                class="w-full bg-surface-elevated border border-border focus:border-accent outline-none rounded-control px-4 h-12 text-xs text-text placeholder-text-muted transition-all focus:ring-2 focus:ring-accent/40"
+                class="w-full bg-surface-elevated border border-border focus:border-accent outline-none rounded-control px-3.5 h-10 text-xs text-text placeholder-text-muted transition-all focus:ring-2 focus:ring-accent/40"
                 required
                 [disabled]="isSubmitting()"
               />
             </div>
 
             <!-- Description -->
-            <div class="flex flex-col gap-1.5">
+            <div class="flex flex-col gap-1">
               <label class="text-xs font-bold text-text-muted">Mô tả chi tiết</label>
               <textarea
                 [(ngModel)]="description"
                 placeholder="Viết mô tả cho ảnh để mọi người hiểu rõ hơn..."
-                rows="4"
-                class="w-full bg-surface-elevated border border-border focus:border-accent outline-none rounded-control p-4 text-xs text-text placeholder-text-muted transition-all resize-none focus:ring-2 focus:ring-accent/40"
+                rows="2"
+                class="w-full bg-surface-elevated border border-border focus:border-accent outline-none rounded-control p-3 text-xs text-text placeholder-text-muted transition-all resize-none focus:ring-2 focus:ring-accent/40"
                 [disabled]="isSubmitting()"
               ></textarea>
             </div>
 
             <!-- PLUS/PRO được bán giá cố định; đấu giá là đặc quyền PRO. -->
-            <div *ngIf="activeTab() === 'upload' && membership.status()?.canSell" class="flex flex-col gap-3">
+            <div *ngIf="activeTab() === 'upload' && membership.status()?.canSell" class="flex flex-col gap-2.5">
               <label class="text-xs font-bold text-text-muted" id="listingModeLabel">Hình thức bán</label>
               <div class="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="listingModeLabel">
                 <button
-                  *ngIf="membership.status()?.canAuction"
                   type="button"
                   role="radio"
                   [attr.aria-checked]="listingMode === 'none'"
@@ -281,9 +274,9 @@
                   [disabled]="isSubmitting()"
                   [class.bg-surface-elevated]="listingMode === 'none'"
                   [class.border-accent]="listingMode === 'none'"
-                  class="h-10 px-3.5 rounded-control border border-border text-xs font-bold text-text cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  class="h-9 px-3 rounded-control border border-border text-xs font-bold text-text cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
-                  Không bán
+                  Mặc định
                 </button>
                 <button
                   type="button"
@@ -293,11 +286,12 @@
                   [disabled]="isSubmitting()"
                   [class.bg-surface-elevated]="listingMode === 'fixed'"
                   [class.border-accent]="listingMode === 'fixed'"
-                  class="h-10 px-3.5 rounded-control border border-border text-xs font-bold text-text cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  class="h-9 px-3 rounded-control border border-border text-xs font-bold text-text cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
-                  Giá cố định
+                  Giá ổn định
                 </button>
                 <button
+                  *ngIf="membership.status()?.canAuction"
                   type="button"
                   role="radio"
                   [attr.aria-checked]="listingMode === 'auction'"
@@ -305,42 +299,42 @@
                   [disabled]="isSubmitting()"
                   [class.bg-surface-elevated]="listingMode === 'auction'"
                   [class.border-accent]="listingMode === 'auction'"
-                  class="h-10 px-3.5 rounded-control border border-border text-xs font-bold text-text cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  class="h-9 px-3 rounded-control border border-border text-xs font-bold text-text cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
-                  Đấu giá
+                  Độc quyền giao dịch
                 </button>
               </div>
 
               @if (listingMode === 'fixed') {
-                <div class="flex flex-col gap-1.5">
+                <div class="flex flex-col gap-1">
                   <label class="text-xs font-bold text-text-muted">Giá bán ảnh (VNĐ)</label>
-                  <input type="number" min="1000" step="1000" [(ngModel)]="price" placeholder="Ví dụ: 500000" [disabled]="isSubmitting()" class="w-full bg-surface-elevated border border-border rounded-control px-4 h-12 text-xs text-text" />
+                  <input type="number" min="1000" step="1000" [(ngModel)]="price" placeholder="Ví dụ: 500000" [disabled]="isSubmitting()" class="w-full bg-surface-elevated border border-border rounded-control px-3.5 h-10 text-xs text-text" />
                 </div>
               }
 
               @if (listingMode === 'auction') {
-                <div class="flex flex-col gap-3">
-                  <div class="flex flex-col gap-1.5">
+                <div class="flex flex-col gap-2">
+                  <div class="flex flex-col gap-1">
                     <label class="text-xs font-bold text-text-muted">Giá khởi điểm (VNĐ)</label>
-                    <input type="number" min="1000" step="1000" [(ngModel)]="auctionStartingPrice" placeholder="Ví dụ: 1000000" [disabled]="isSubmitting()" class="w-full bg-surface-elevated border border-border rounded-control px-4 h-12 text-xs text-text" />
+                    <input type="number" min="1000" step="1000" [(ngModel)]="auctionStartingPrice" placeholder="Ví dụ: 1000000" [disabled]="isSubmitting()" class="w-full bg-surface-elevated border border-border rounded-control px-3.5 h-10 text-xs text-text" />
                   </div>
-                  <div class="flex flex-col gap-1.5">
+                  <div class="flex flex-col gap-1">
                     <label class="text-xs font-bold text-text-muted">Bước giá tối thiểu (VNĐ)</label>
-                    <input type="number" min="1000" step="1000" [(ngModel)]="auctionMinimumIncrement" placeholder="Ví dụ: 100000" [disabled]="isSubmitting()" class="w-full bg-surface-elevated border border-border rounded-control px-4 h-12 text-xs text-text" />
+                    <input type="number" min="1000" step="1000" [(ngModel)]="auctionMinimumIncrement" placeholder="Ví dụ: 100000" [disabled]="isSubmitting()" class="w-full bg-surface-elevated border border-border rounded-control px-3.5 h-10 text-xs text-text" />
                   </div>
-                  <div class="flex flex-col gap-1.5">
+                  <div class="flex flex-col gap-1">
                     <label class="text-xs font-bold text-text-muted">Thời gian bắt đầu</label>
-                    <input type="datetime-local" [(ngModel)]="auctionStartsAt" [disabled]="isSubmitting()" class="w-full bg-surface-elevated border border-border rounded-control px-4 h-12 text-xs text-text" />
+                    <input type="datetime-local" [(ngModel)]="auctionStartsAt" [disabled]="isSubmitting()" class="w-full bg-surface-elevated border border-border rounded-control px-3.5 h-10 text-xs text-text" />
                   </div>
-                  <div class="flex flex-col gap-1.5">
+                  <div class="flex flex-col gap-1">
                     <label class="text-xs font-bold text-text-muted">Thời gian kết thúc</label>
-                    <input type="datetime-local" [(ngModel)]="auctionEndsAt" [disabled]="isSubmitting()" class="w-full bg-surface-elevated border border-border rounded-control px-4 h-12 text-xs text-text" />
+                    <input type="datetime-local" [(ngModel)]="auctionEndsAt" [disabled]="isSubmitting()" class="w-full bg-surface-elevated border border-border rounded-control px-3.5 h-10 text-xs text-text" />
                   </div>
                   <span class="text-[10px] text-text-muted">Thời lượng phiên đấu giá phải từ 1 giờ đến 30 ngày.</span>
                 </div>
               }
 
-              <span class="text-[10px] text-text-muted">Plus mở lối kinh doanh với giá cố định · Pro sở hữu đặc quyền đấu giá.</span>
+              <span class="text-[10px] text-text-muted">Plus mở lối kinh doanh với Giá ổn định · Pro sở hữu Độc quyền giao dịch.</span>
             </div>
             <a *ngIf="activeTab() === 'upload' && !membership.status()?.canSell" href="/pricing" class="text-xs text-accent">Nâng cấp Plus để bắt đầu kinh doanh tác phẩm</a>
             @if (activeTab() === 'ai') {
@@ -348,12 +342,12 @@
             }
 
             <!-- Board Selector dropdown -->
-            <div class="flex flex-col gap-1.5 relative">
+            <div class="flex flex-col gap-1 relative">
               <label class="text-xs font-bold text-text-muted">Lưu vào bộ sưu tập</label>
               <button
                 (click)="toggleBoardDropdown($event)"
                 [disabled]="isSubmitting()"
-                class="w-full bg-surface-elevated border border-border hover:border-border-strong rounded-control px-4 h-12 text-xs text-text font-bold flex items-center justify-between cursor-pointer outline-none transition-all select-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40 disabled:cursor-not-allowed"
+                class="w-full bg-surface-elevated border border-border hover:border-border-strong rounded-control px-3.5 h-10 text-xs text-text font-bold flex items-center justify-between cursor-pointer outline-none transition-all select-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <span>{{ getSelectedBoardName() }}</span>
                 <span class="material-symbols-outlined text-base leading-none">keyboard_arrow_down</span>
@@ -361,7 +355,7 @@
 
               <div
                 *ngIf="showBoardDropdown()"
-                class="absolute left-0 top-[70px] w-full glass-elevated rounded-panel shadow-card py-1.5 z-50 text-left"
+                class="absolute left-0 top-[62px] w-full glass-elevated rounded-panel shadow-card py-1.5 z-50 text-left"
                 role="listbox"
               >
                 <span class="text-xs font-semibold text-text-muted px-4 py-1 block">Danh sách bộ sưu tập của bạn</span>
@@ -383,12 +377,12 @@
           </div>
 
           <!-- Submit Action -->
-          <div class="pt-6 border-t border-border flex flex-col gap-3">
+          <div class="pt-3.5 border-t border-border flex flex-col gap-2">
             <!-- Inline form validation error -->
             <div
               *ngIf="formError()"
               role="alert"
-              class="flex items-start gap-2 p-3 rounded-control bg-error/10 border border-error/30 text-error text-xs font-semibold"
+              class="flex items-start gap-2 p-2.5 rounded-control bg-error/10 border border-error/30 text-error text-xs font-semibold"
             >
               <span class="material-symbols-outlined text-base leading-none shrink-0">error</span>
               <span>{{ formError() }}</span>
@@ -408,7 +402,7 @@
                 (click)="onSubmit()"
                 [disabled]="isSubmitting() || !title.trim() || (activeTab() === 'upload' && !selectedFile) || (activeTab() === 'ai' && !aiImagePreviewUrl()) || (activeTab() === 'upload' && imageModerationStatus() !== 'safe')"
                 [attr.title]="submitDisabledReason()"
-                class="w-full h-12 bg-gradient-brand cta-shape text-text-on-accent font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                class="w-full h-10.5 bg-gradient-brand cta-shape text-text-on-accent font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <div *ngIf="isSubmitting()" class="w-4 h-4 border-2 border-text-on-accent border-t-transparent rounded-full animate-spin"></div>
                 <span>{{ isSubmitting() ? 'Đang xử lý...' : 'Tạo tác phẩm ngay' }}</span>
