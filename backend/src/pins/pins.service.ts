@@ -485,7 +485,7 @@ export class PinsService {
       where: {
         userId_pinId: { userId, pinId },
       },
-      select: { id: true },
+      select: { userId: true },
     });
 
     if (existingLike) {
