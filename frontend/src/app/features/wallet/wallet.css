@@ -48,50 +48,8 @@
   box-shadow: 0 20px 44px -14px rgba(177, 92, 170, 0.55);
 }
 .bankcard-front {
+  background: linear-gradient(135deg, #f94083 0%, #b15caa 58%, #7e3b9a 100%);
   padding: 18px 20px;
-  background: linear-gradient(115deg, #f94083, #d64d9e, #b15caa, #8f4bbd, #b15caa, #e0559b, #f94083);
-  background-size: 280% 280%;
-  animation: card-hue 11s ease infinite;
-}
-@keyframes card-hue {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-/* Hoa văn guilloché (vân bảo an) */
-.bc-guilloche {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.55;
-  background:
-    repeating-radial-gradient(circle at 28% 118%, transparent 0 8px, rgba(255, 255, 255, 0.05) 8px 9px),
-    repeating-radial-gradient(circle at 92% -18%, transparent 0 10px, rgba(255, 255, 255, 0.045) 10px 11px);
-}
-/* Ánh iridescent (hologram) quét chậm */
-.bc-holo {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  mix-blend-mode: overlay;
-  opacity: 0.4;
-  background: conic-gradient(
-    from 0deg at 68% 32%,
-    rgba(255, 255, 255, 0),
-    rgba(180, 120, 255, 0.5),
-    rgba(255, 140, 190, 0.5),
-    rgba(120, 220, 255, 0.45),
-    rgba(255, 255, 255, 0)
-  );
-  animation: holo-spin 13s linear infinite;
-}
-@keyframes holo-spin {
-  to { transform: rotate(1turn); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .bankcard-front { animation: none; }
-  .bc-holo { animation: none; }
 }
 .bankcard-back {
   background: linear-gradient(135deg, #b6437e 0%, #8a4497 60%, #6c3486 100%);
