@@ -186,7 +186,6 @@
               />
               <span *ngIf="!previewImage()" class="material-symbols-outlined text-3xl text-gray-400">image</span>
             </div>
-            </div>
             <div class="p-3 flex flex-col gap-2">
               <p class="text-xs font-bold text-black dark:text-white truncate">{{ title.trim() || 'Tiêu đề ghim của bạn' }}</p>
               <div class="flex items-center gap-1.5 min-w-0" *ngIf="supabaseService.user() as user">
