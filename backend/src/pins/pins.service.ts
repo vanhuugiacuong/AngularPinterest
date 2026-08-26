@@ -5,6 +5,14 @@ import { AiGeneratorService } from '../ai-generator/ai-generator.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ModerationService } from '../moderation/moderation.service';
 import { PREMIUM_PRICE_MAX, PREMIUM_PRICE_MIN } from '../billing/billing.config';
+import {
+  VISUAL_CATEGORY_PROMPTS,
+  classifyEmbedding,
+  MIN_CATEGORY_POOL,
+  FLAT_REGION_STD,
+  type Classification,
+  type VisualCategory,
+} from './visual-search';
 
 @Injectable()
 export class PinsService {
@@ -26,11 +34,26 @@ export class PinsService {
     private readonly moderationService: ModerationService,
   ) {}
 
-  private async getImageEmbedding(buffer: Buffer, filename: string, mimetype: string): Promise<number[] | null> {
+  /**
+   * CLIP embedding + mean RGB colour of an image. When `box` ({x,y,width,height}
+   * as 0..1 fractions) is given, clip-service crops the image to that region
+   * first and returns data for only the crop — used by crop / "Pinterest Lens"
+   * style search. `avgColor` is an explicit colour signal for flat-region crops
+   * (CLIP alone barely distinguishes solid colours).
+   */
+  private async getImageEmbedding(
+    buffer: Buffer,
+    filename: string,
+    mimetype: string,
+    box?: { x: number; y: number; width: number; height: number },
+  ): Promise<{ embedding: number[]; avgColor: [number, number, number]; colorStd: number } | null> {
     try {
       const formData = new FormData();
       const blob = new Blob([new Uint8Array(buffer)], { type: mimetype });
       formData.append('file', blob, filename);
+      if (box) {
+        formData.append('box', `${box.x},${box.y},${box.width},${box.height}`);
+      }
 
       const response = await fetch(`${this.clipServiceUrl}/embed/image`, {
         method: 'POST',
@@ -44,7 +67,13 @@ export class PinsService {
       }
 
       const result = await response.json();
-      return result.embedding;
+      if (!result?.embedding) return null;
+      const c = Array.isArray(result.avg_color) ? result.avg_color : [128, 128, 128];
+      return {
+        embedding: result.embedding,
+        avgColor: [c[0], c[1], c[2]],
+        colorStd: typeof result.color_std === 'number' ? result.color_std : 999,
+      };
     } catch (error) {
       console.error('CLIP image embedding network error:', error);
       return null;
@@ -68,6 +97,58 @@ export class PinsService {
     } catch (error) {
       console.error('CLIP text embedding network error:', error);
       return null;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // "Search by image" — CLIP text prompt vectors for the visual-category
+  // classifier (step 1 of the pipeline). Fetched from clip-service once and
+  // cached for the process lifetime. See src/pins/visual-search.ts.
+  // ---------------------------------------------------------------------------
+  private categoryPromptVectorsCache:
+    | { category: VisualCategory; vector: number[] }[]
+    | null = null;
+
+  private async getCategoryPromptVectors(): Promise<
+    { category: VisualCategory; vector: number[] }[] | null
+  > {
+    if (this.categoryPromptVectorsCache) return this.categoryPromptVectorsCache;
+    const vectors: { category: VisualCategory; vector: number[] }[] = [];
+    for (const p of VISUAL_CATEGORY_PROMPTS) {
+      const vector = await this.getTextEmbedding(p.prompt);
+      if (!vector) return null; // clip-service unavailable — caller degrades gracefully
+      vectors.push({ category: p.category, vector });
+    }
+    this.categoryPromptVectorsCache = vectors;
+    return vectors;
+  }
+
+  /**
+   * Best-effort image signals for a freshly-created pin, stored in the
+   * (Prisma-external) "visualCategory" and "avgColor" columns so "search by
+   * image" can filter/rank on them later.
+   */
+  private async storePinImageSignals(
+    pinId: string,
+    embedding: number[],
+    avgColor: [number, number, number],
+  ) {
+    try {
+      await this.prisma.$executeRawUnsafe(
+        'UPDATE "Pin" SET "avgColor" = $1::vector WHERE id = $2',
+        JSON.stringify(avgColor),
+        pinId,
+      );
+      const promptVectors = await this.getCategoryPromptVectors();
+      if (!promptVectors) return;
+      const { category } = classifyEmbedding(embedding, promptVectors);
+      await this.prisma.$executeRawUnsafe(
+        'UPDATE "Pin" SET "visualCategory" = $1 WHERE id = $2',
+        category,
+        pinId,
+      );
+    } catch (e) {
+      console.error(`Failed to store image signals for Pin ${pinId}:`, e);
     }
   }
 
@@ -246,10 +327,10 @@ export class PinsService {
 
     const category = this.classifyCategory(title, description);
 
-    // 1. Fetch CLIP embedding (gracefully handled)
-    let embedding: number[] | null = null;
+    // 1. Fetch CLIP embedding + avg colour (gracefully handled)
+    let imgData: { embedding: number[]; avgColor: [number, number, number] } | null = null;
     try {
-      embedding = await this.getImageEmbedding(file.buffer, file.originalname, file.mimetype);
+      imgData = await this.getImageEmbedding(file.buffer, file.originalname, file.mimetype);
     } catch (e) {
       console.error('Error fetching CLIP embedding for uploaded pin:', e);
     }
@@ -267,18 +348,19 @@ export class PinsService {
       },
     });
 
-    // 2. If embedding exists, store it using Raw SQL
-    if (embedding) {
+    // 2. If embedding exists, store it (+ visual category + avg colour) using Raw SQL
+    if (imgData) {
       try {
         await this.prisma.$executeRawUnsafe(
           'UPDATE "Pin" SET "embedding" = $1::vector WHERE "id" = $2',
-          JSON.stringify(embedding),
+          JSON.stringify(imgData.embedding),
           pin.id
         );
         console.log(`Successfully stored vector embedding for Pin: ${pin.id}`);
       } catch (err) {
         console.error(`Failed to store vector embedding for Pin: ${pin.id}`, err);
       }
+      await this.storePinImageSignals(pin.id, imgData.embedding, imgData.avgColor);
     }
 
     if (boardId) {
@@ -325,15 +407,15 @@ export class PinsService {
 
     const category = this.classifyCategory(title, description);
 
-    // 3. Fetch embedding for AI generated image (gracefully handled)
-    let embedding: number[] | null = null;
+    // 3. Fetch embedding + avg colour for AI generated image (gracefully handled)
+    let imgData: { embedding: number[]; avgColor: [number, number, number] } | null = null;
     try {
       const response = await fetch(imageUrl);
       if (response.ok) {
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         const contentType = response.headers.get('Content-Type') || 'image/png';
-        embedding = await this.getImageEmbedding(buffer, 'ai_pin.png', contentType);
+        imgData = await this.getImageEmbedding(buffer, 'ai_pin.png', contentType);
       }
     } catch (e) {
       console.error('Error fetching CLIP embedding for AI pin:', e);
@@ -357,18 +439,19 @@ export class PinsService {
       },
     });
 
-    // 5. If embedding exists, store it using Raw SQL
-    if (embedding) {
+    // 5. If embedding exists, store it (+ visual category + avg colour) using Raw SQL
+    if (imgData) {
       try {
         await this.prisma.$executeRawUnsafe(
           'UPDATE "Pin" SET "embedding" = $1::vector WHERE "id" = $2',
-          JSON.stringify(embedding),
+          JSON.stringify(imgData.embedding),
           pin.id
         );
         console.log(`Successfully stored vector embedding for AI Pin: ${pin.id}`);
       } catch (err) {
         console.error(`Failed to store vector embedding for AI Pin: ${pin.id}`, err);
       }
+      await this.storePinImageSignals(pin.id, imgData.embedding, imgData.avgColor);
     }
 
     // 6. Connect to board if provided
@@ -627,6 +710,248 @@ export class PinsService {
         likes: p.likesCount || 0
       },
       similarity: p.similarity
+    }));
+  }
+
+  /**
+   * Reverse image search, mirroring Pinterest's visual search but scaled down to
+   * the seed dataset. Pipeline:
+   *   1. classify the query image into a visual category (CLIP zero-shot)
+   *   2. embed the query image (CLIP image embedding)
+   *   3. filter pins to that category, score by cosine similarity
+   *   4. blend a small popularity signal into the ranking
+   *   5. if the category pool is tiny, log it — never pad with other categories
+   */
+  async searchByImage(file: Express.Multer.File, page: number = 1, limit: number = 30) {
+    if (!file) {
+      throw new BadRequestException('Thiếu ảnh để tìm kiếm.');
+    }
+
+    // Step 2: embed the whole uploaded image
+    const query = await this.getImageEmbedding(file.buffer, file.originalname, file.mimetype);
+    if (!query) {
+      throw new BadRequestException('Không thể xử lý ảnh, vui lòng thử lại.');
+    }
+
+    // Whole-image search always filters by category (even low-confidence) so the
+    // result set never mixes object types.
+    return this.matchByEmbedding(query, {
+      page,
+      limit,
+      categoryFilter: 'always',
+      logTag: 'searchByImage',
+    });
+  }
+
+  /**
+   * Crop / "Pinterest Lens" style search: embed only the selected region of an
+   * existing pin's image and match against it.
+   *
+   * `box` is {x,y,width,height} as 0..1 fractions of the pin image. A vague crop
+   * (small patch of colour/texture) is classified with low confidence, so we
+   * skip category filtering and let colour/texture similarity drive the ranking.
+   */
+  async searchByImageRegion(
+    pinId: string,
+    box: { x: number; y: number; width: number; height: number },
+    page: number = 1,
+    limit: number = 30,
+  ) {
+    const norm = (v: unknown) => {
+      const n = typeof v === 'number' ? v : Number(v);
+      return Number.isFinite(n) ? Math.min(Math.max(n, 0), 1) : NaN;
+    };
+    const b = { x: norm(box?.x), y: norm(box?.y), width: norm(box?.width), height: norm(box?.height) };
+    if ([b.x, b.y, b.width, b.height].some((n) => Number.isNaN(n)) || b.width <= 0 || b.height <= 0) {
+      throw new BadRequestException('Vùng chọn không hợp lệ.');
+    }
+
+    const pin = await this.prisma.pin.findUnique({ where: { id: pinId }, select: { id: true, imageUrl: true } });
+    if (!pin) {
+      throw new NotFoundException('Không tìm thấy ảnh.');
+    }
+
+    let imageBytes: Buffer;
+    try {
+      const res = await fetch(pin.imageUrl);
+      if (!res.ok) throw new Error(`download ${res.status}`);
+      imageBytes = Buffer.from(await res.arrayBuffer());
+    } catch (e) {
+      console.error(`[searchByImageRegion] could not fetch source image for pin ${pinId}:`, e);
+      throw new BadRequestException('Không thể tải ảnh gốc để cắt vùng.');
+    }
+
+    // Step 2: embed ONLY the cropped region (clip-service does the crop) + its avg colour
+    const query = await this.getImageEmbedding(imageBytes, 'region.jpg', 'image/jpeg', b);
+    if (!query) {
+      throw new BadRequestException('Không thể xử lý vùng ảnh đã chọn, vui lòng thử lại.');
+    }
+
+    return this.matchByEmbedding(query, {
+      page,
+      limit,
+      categoryFilter: 'confident-only',
+      excludeImageUrl: pin.imageUrl,
+      logTag: `searchByImageRegion(${b.x.toFixed(2)},${b.y.toFixed(2)},${b.width.toFixed(2)},${b.height.toFixed(2)})`,
+    });
+  }
+
+  /**
+   * Shared matching pipeline for both whole-image and crop search.
+   *  - Step 1: classify the query embedding into a visual category.
+   *  - Step 3: filter pins to that category (see `categoryFilter`), score by cosine.
+   *  - Step 4: rank = similarity + a capped popularity bonus. For a crop that has
+   *    no recognisable object (flat colour / texture), rank is instead driven by
+   *    average-colour proximity — CLIP alone barely distinguishes solid colours.
+   *  - Step 5: if the category pool is tiny, log it and return the short set.
+   */
+  private async matchByEmbedding(
+    query: { embedding: number[]; avgColor: [number, number, number]; colorStd?: number },
+    opts: {
+      page: number;
+      limit: number;
+      /** 'always' = filter even when low-confidence; 'confident-only' = only filter a clearly-recognised query. */
+      categoryFilter: 'always' | 'confident-only';
+      /** drop the query's own image (and its duplicates) from the results */
+      excludeImageUrl?: string;
+      logTag: string;
+    },
+  ) {
+    const { embedding, avgColor } = query;
+    const { page, limit, categoryFilter, excludeImageUrl, logTag } = opts;
+    const skip = (page - 1) * limit;
+
+    // A near-solid patch: CLIP is blind to hue here, so however the (weak) CLIP
+    // signal classifies it, ignore that and rank by colour.
+    const isFlatRegion =
+      categoryFilter === 'confident-only' &&
+      typeof query.colorStd === 'number' &&
+      query.colorStd < FLAT_REGION_STD;
+
+    // --- Step 1: classify --------------------------------------------------
+    let queryCategory: VisualCategory | null = null;
+    let recognisedObject = true;
+    const promptVectors = await this.getCategoryPromptVectors();
+    if (promptVectors) {
+      const c: Classification = classifyEmbedding(embedding, promptVectors);
+      const top2 = c.perCategory.slice(0, 2).map(p => `${p.category} ${p.score.toFixed(3)}`).join(', ');
+      const shouldFilter = categoryFilter === 'always' ? true : (c.confident && !isFlatRegion);
+      queryCategory = shouldFilter ? c.category : null;
+      recognisedObject = c.confident && !isFlatRegion;
+      console.log(
+        `[${logTag}] category=${c.category} margin=${c.margin.toFixed(3)} score=${c.score.toFixed(3)} ` +
+        `confident=${c.confident} std=${query.colorStd ?? 'n/a'} -> ${queryCategory ? `filter "${queryCategory}"` : 'NO filter (colour/texture match)'} (${top2})`,
+      );
+    } else {
+      console.warn(`[${logTag}] clip-service unavailable for classification — ranking by similarity only`);
+    }
+
+    // A crop with no recognisable object → rank by colour proximity, not CLIP
+    // (which treats every flat colour as roughly the same).
+    const colourMode = categoryFilter === 'confident-only' && !recognisedObject;
+    if (colourMode) {
+      console.log(
+        `[${logTag}] ${isFlatRegion ? 'flat colour patch' : 'texture crop'} — ranking by average colour (query rgb ${avgColor.join(',')})`,
+      );
+    }
+
+    // --- Step 5 (pre-check): category pool size ---------------------------
+    if (queryCategory) {
+      const poolRows: { n: number }[] = await this.prisma.$queryRawUnsafe(
+        `SELECT COUNT(*)::int AS n FROM "Pin" WHERE embedding IS NOT NULL AND "visualCategory" = $1`,
+        queryCategory,
+      );
+      const pool = poolRows[0]?.n ?? 0;
+      if (pool < MIN_CATEGORY_POOL) {
+        console.warn(
+          `[${logTag}] category "${queryCategory}" only has ${pool} embedded pin(s) (< ${MIN_CATEGORY_POOL}). ` +
+          `Returning a short result set — NOT padding with other categories.`,
+        );
+      }
+    }
+
+    // --- Steps 3 + 4: filter + rank --------------------------------------
+    const params: any[] = [JSON.stringify(embedding)];
+    const conds = ['p.embedding IS NOT NULL'];
+    if (queryCategory) {
+      conds.push(`p."visualCategory" = $${params.push(queryCategory)}`);
+    }
+    if (excludeImageUrl) {
+      conds.push(`p."imageUrl" <> $${params.push(excludeImageUrl)}`);
+    }
+
+    // clipSim in [0,1]; popularity bonus up to +0.03; colourSim in [0,1]
+    const clipSim = `(1 - (p.embedding <=> $1::vector))`;
+    const popBonus = `LEAST(COUNT(l."pinId"), 20) * 0.0015`;
+    let orderBy: string;
+    if (colourMode) {
+      // 441.673 = max euclidean distance in 0-255 RGB space (sqrt(3 * 255^2))
+      const colourParam = params.push(JSON.stringify(avgColor));
+      conds.push(`p."avgColor" IS NOT NULL`);
+      const colourSim = `(1 - LEAST((p."avgColor" <-> $${colourParam}::vector) / 441.673, 1))`;
+      // flat patch: CLIP is useless, lean hard on colour. texture crop: CLIP
+      // still carries pattern info, so give it a bit more weight.
+      const [wColour, wClip] = isFlatRegion ? [0.85, 0.15] : [0.6, 0.4];
+      orderBy = `${colourSim} * ${wColour} + ${clipSim} * ${wClip} + ${popBonus}`;
+    } else {
+      orderBy = `${clipSim} + ${popBonus}`;
+    }
+
+    const limitParam = params.push(limit * 2);
+    const skipParam = params.push(skip);
+
+    const pins: any[] = await this.prisma.$queryRawUnsafe(`
+      SELECT
+        p.id, p.title, p.description, p."imageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category", p."visualCategory",
+        (p."avgColor"::text) AS "avgColorText",
+        u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl",
+        COUNT(l."pinId")::int AS "likesCount",
+        1 - (p.embedding <=> $1::vector) AS similarity
+      FROM "Pin" p
+      LEFT JOIN "User" u ON p."userId" = u.id
+      LEFT JOIN "Like" l ON p.id = l."pinId"
+      WHERE ${conds.join(' AND ')}
+      GROUP BY p.id, u.username, u."avatarUrl"
+      ORDER BY ${orderBy} DESC
+      LIMIT $${limitParam} OFFSET $${skipParam}
+    `, ...params);
+
+    const seenUrls = new Set<string>();
+    const uniquePins: any[] = [];
+    for (const p of pins) {
+      if (!seenUrls.has(p.imageUrl)) {
+        seenUrls.add(p.imageUrl);
+        uniquePins.push(p);
+      }
+    }
+
+    if (queryCategory && uniquePins.length < MIN_CATEGORY_POOL) {
+      console.warn(`[${logTag}] only ${uniquePins.length} result(s) for category "${queryCategory}".`);
+    }
+
+    return uniquePins.slice(0, limit).map(p => ({
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      imageUrl: p.imageUrl,
+      sourceUrl: p.sourceUrl,
+      userId: p.userId,
+      createdAt: p.createdAt,
+      isAiGenerated: p.isAiGenerated,
+      category: p.category,
+      visualCategory: p.visualCategory,
+      user: {
+        id: p.userId,
+        username: p.authorUsername || 'Pinterest AI',
+        avatarUrl: p.authorAvatarUrl,
+      },
+      _count: {
+        likes: p.likesCount || 0
+      },
+      similarity: p.similarity,
+      avgColor: p.avgColorText
+        ? (p.avgColorText.replace(/[[\]]/g, '').split(',').map(Number))
+        : null,
     }));
   }
 

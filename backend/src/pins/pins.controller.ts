@@ -67,6 +67,34 @@ export class PinsController {
     return this.pinsService.searchPins(searchQuery, pageNum, limitNum);
   }
 
+  @Post('search-by-image')
+  @UseInterceptors(FileInterceptor('image', {
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  }))
+  async searchByImage(
+    @UploadedFile() file: Express.Multer.File,
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 30;
+    return this.pinsService.searchByImage(file, pageNum, limitNum);
+  }
+
+  // Crop / "Pinterest Lens" style search: match against a selected region of an
+  // existing pin's image. `box` values are 0..1 fractions of the pin image.
+  @Post(':id/search-by-region')
+  async searchByRegion(
+    @Param('id') id: string,
+    @Body() body: { box: { x: number; y: number; width: number; height: number } },
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 30;
+    return this.pinsService.searchByImageRegion(id, body?.box, pageNum, limitNum);
+  }
+
   @Get(':id/similar')
   async getSimilarPins(
     @Param('id') id: string,

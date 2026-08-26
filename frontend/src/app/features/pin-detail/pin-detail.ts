@@ -9,12 +9,13 @@ import { ToastService } from '../../core/services/toast';
 import { ConfirmService } from '../../core/services/confirm';
 import { ChatService, ConversationSummary } from '../../core/services/chat';
 import { BillingService } from '../../core/services/billing';
+import { ImageCropper, CropBox } from '../../components/image-cropper/image-cropper';
 import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-pin-detail',
   standalone: true,
-  imports: [CommonModule, Navbar, FormsModule],
+  imports: [CommonModule, Navbar, FormsModule, ImageCropper],
   templateUrl: './pin-detail.html',
   styleUrl: './pin-detail.css'
 })
@@ -63,6 +64,18 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   public newCommentText = '';
   public isSubmittingComment = false;
   public showOptionsMenu = signal<boolean>(false);
+
+  // --- Crop / "Pinterest Lens" region search (inline on the image) ----------
+  private static readonly DEFAULT_CROP: CropBox = { x: 0.15, y: 0.15, width: 0.7, height: 0.7 };
+  public cropMode = signal<boolean>(false);
+  public cropBox = signal<CropBox>({ ...PinDetail.DEFAULT_CROP });
+  public regionResults = signal<any[] | null>(null);
+  public regionLoading = signal<boolean>(false);
+  private cropDebounce: any = null;
+  private cropInFlight: AbortController | null = null;
+
+  // Full-size image lightbox (the "phóng to" button next to the crop toggle)
+  public showFullImage = signal<boolean>(false);
 
   @HostListener('window:resize')
   onResize() {
@@ -200,10 +213,30 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
         this.currentPage = 1;
         this.hasMore = true;
         this.relatedPins.set([]);
+        this.exitCropMode({ updateUrl: false });
         this.loadPinDetail(id);
       }
     });
+    // Restore crop state from the URL (?cx&cy&cw&ch) so a shared/refreshed link
+    // reopens the same selection.
+    this.route.queryParamMap.subscribe(q => {
+      const box = this.parseCropParams(q.get('cx'), q.get('cy'), q.get('cw'), q.get('ch'));
+      if (box && !this.cropMode()) {
+        this.cropBox.set(box);
+        this.cropMode.set(true);
+        // wait until the pin (and its image) is loaded before searching
+        if (this.pin()) this.runRegionSearch();
+      }
+    });
     await this.loadBoards();
+  }
+
+  private parseCropParams(cx: string | null, cy: string | null, cw: string | null, ch: string | null): CropBox | null {
+    const nums = [cx, cy, cw, ch].map(v => (v === null ? NaN : Number(v)));
+    if (nums.some(n => !Number.isFinite(n) || n < 0 || n > 1)) return null;
+    const [x, y, width, height] = nums;
+    if (width <= 0 || height <= 0) return null;
+    return { x, y, width, height };
   }
 
   async loadBoards() {
@@ -242,6 +275,11 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
       this.isLoading.set(false);
 
+      // If the URL asked for crop mode, run the region search now that we have the pin
+      if (this.cropMode() && detailPin?.id) {
+        this.runRegionSearch();
+      }
+
       // 2. Fetch related feed by category (excluding this one)
       try {
         const related = await this.pinService.getRelatedPins(id, 1, 30);
@@ -268,6 +306,109 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
   goBack() {
     this.router.navigate(['/feed']);
+  }
+
+  openFullImage() {
+    this.showFullImage.set(true);
+  }
+
+  closeFullImage() {
+    this.showFullImage.set(false);
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape() {
+    if (this.showFullImage()) this.closeFullImage();
+  }
+
+  // --- Crop / region search --------------------------------------------------
+
+  toggleCropMode() {
+    if (this.cropMode()) {
+      this.exitCropMode({ updateUrl: true });
+    } else {
+      this.cropBox.set({ ...PinDetail.DEFAULT_CROP });
+      this.cropMode.set(true);
+      this.syncCropUrl();
+      this.runRegionSearch();
+    }
+  }
+
+  private exitCropMode(opts: { updateUrl: boolean }) {
+    if (this.cropDebounce) { clearTimeout(this.cropDebounce); this.cropDebounce = null; }
+    if (this.cropInFlight) { this.cropInFlight.abort(); this.cropInFlight = null; }
+    this.cropMode.set(false);
+    this.regionResults.set(null);
+    this.regionLoading.set(false);
+    if (opts.updateUrl) {
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { cx: null, cy: null, cw: null, ch: null },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
+      });
+    }
+  }
+
+  /** live box updates while dragging — just re-render, don't search */
+  onCropBoxChange(box: CropBox) {
+    this.cropBox.set(box);
+  }
+
+  /** pointer released after a drag/resize — debounce, then search + sync URL */
+  onCropCommit() {
+    if (this.cropDebounce) clearTimeout(this.cropDebounce);
+    this.cropDebounce = setTimeout(() => {
+      this.syncCropUrl();
+      this.runRegionSearch();
+    }, 400);
+  }
+
+  private syncCropUrl() {
+    const b = this.cropBox();
+    const r = (n: number) => Math.round(n * 1000) / 1000;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { cx: r(b.x), cy: r(b.y), cw: r(b.width), ch: r(b.height) },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  private async runRegionSearch() {
+    const p = this.pin();
+    if (!p?.id) return;
+    if (this.cropInFlight) this.cropInFlight.abort();
+    const controller = new AbortController();
+    this.cropInFlight = controller;
+    this.regionLoading.set(true);
+    try {
+      const raw = await this.pinService.searchByRegion(p.id, this.cropBox(), controller.signal);
+      if (controller.signal.aborted) return;
+      this.regionResults.set(raw.map((rp: any) => ({
+        id: rp.id,
+        title: rp.title,
+        image: rp.imageUrl,
+        author: rp.user?.username || 'Pinterest AI',
+        likes: rp._count?.likes ?? 0,
+      })));
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      console.error('Region search failed:', err);
+      this.toastService.error(err?.message || 'Không thể tìm kiếm theo vùng ảnh.');
+      this.regionResults.set([]);
+    } finally {
+      if (this.cropInFlight === controller) {
+        this.cropInFlight = null;
+        this.regionLoading.set(false);
+      }
+    }
+  }
+
+  /** Pins shown in the masonry grid: region-search results when cropping, else related pins. */
+  displayPins(): any[] {
+    if (this.cropMode() && this.regionResults()) return this.regionResults()!;
+    return this.relatedPins();
   }
 
   async copyLink() {
@@ -496,12 +637,12 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     }
     const totalCols = this.numBottomColumns() + this.numSideColumns();
     const targetModulo = this.numBottomColumns() + colIndex;
-    return this.relatedPins().filter((_, index) => index % totalCols === targetModulo);
+    return this.displayPins().filter((_, index) => index % totalCols === targetModulo);
   }
 
   getBottomRelatedPinsForColumn(colIndex: number): any[] {
     const totalCols = this.isDesktop() ? (this.numBottomColumns() + this.numSideColumns()) : this.numBottomColumns();
-    return this.relatedPins().filter((_, index) => index % totalCols === colIndex);
+    return this.displayPins().filter((_, index) => index % totalCols === colIndex);
   }
   getSideSkeletonsForColumn(colIndex: number): number[] {
     const dummy = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -524,6 +665,8 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     if (this.observer) {
       this.observer.disconnect();
     }
+    if (this.cropDebounce) clearTimeout(this.cropDebounce);
+    if (this.cropInFlight) this.cropInFlight.abort();
   }
 
   setupIntersectionObserver() {
@@ -543,7 +686,8 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
   async loadMoreRelatedPins() {
     const currentPin = this.pin();
-    if (!currentPin || this.isScrollingLoad() || !this.hasMore) return;
+    // in crop mode the grid shows region-search results — don't append related pins to it
+    if (!currentPin || this.cropMode() || this.isScrollingLoad() || !this.hasMore) return;
     this.isScrollingLoad.set(true);
     this.currentPage++;
     try {

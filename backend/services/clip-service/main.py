@@ -1,12 +1,42 @@
 # pyrefly: ignore [missing-import]
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 # pyrefly: ignore [missing-import]
 from transformers import CLIPProcessor, CLIPModel
-from PIL import Image
+from PIL import Image, ImageStat
 # pyrefly: ignore [missing-import]
 import torch
 import io
 import os
+
+
+def _color_stats(image: "Image.Image"):
+    """Mean RGB (0-255) + how flat the region is (max per-channel stddev).
+    A low `color_std` means a near-solid patch, where CLIP is blind to hue and
+    crop search should rank by colour instead."""
+    stat = ImageStat.Stat(image)
+    mean = [int(round(c)) for c in stat.mean[:3]]
+    color_std = round(max(stat.stddev[:3]), 1)
+    return mean, color_std
+
+
+def _crop_to_box(image: "Image.Image", box: str) -> "Image.Image":
+    """Crop `image` to a sub-region for crop / "Pinterest Lens" style search.
+
+    `box` is "x,y,w,h" where each value is a fraction (0..1) of the image's own
+    width/height. Values are clamped and a minimum 8px box is enforced so a tiny
+    or inverted selection still yields a valid image to embed.
+    """
+    try:
+        x, y, w, h = (float(v) for v in box.split(","))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="box must be 'x,y,w,h' fractions")
+
+    W, H = image.size
+    left = max(0, min(int(round(x * W)), W - 1))
+    top = max(0, min(int(round(y * H)), H - 1))
+    right = max(left + 8, min(int(round((x + w) * W)), W))
+    bottom = max(top + 8, min(int(round((y + h) * H)), H))
+    return image.crop((left, top, right, bottom))
 
 app = FastAPI(title="Pinterest Clone CLIP Embedding Service")
 
@@ -27,21 +57,28 @@ def health_check():
     return {"status": "healthy", "model": MODEL_NAME}
 
 @app.post("/embed/image")
-async def embed_image(file: UploadFile = File(...)):
+async def embed_image(file: UploadFile = File(...), box: str | None = Form(default=None)):
     try:
         image_bytes = await file.read()
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        
+
+        # Optional crop: embed only the selected sub-region (crop search)
+        if box:
+            image = _crop_to_box(image, box)
+
         # Process image through CLIP model
         inputs = processor(images=image, return_tensors="pt")
         with torch.no_grad():
             features = model.get_image_features(**inputs)
-            
+
         # Normalize vector to unit length
         features = features / features.norm(p=2, dim=-1, keepdim=True)
         vector = features[0].tolist()  # 512-dimensional array
-        
-        return {"embedding": vector}
+
+        avg_color, color_std = _color_stats(image)
+        return {"embedding": vector, "avg_color": avg_color, "color_std": color_std}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Image embedding failed: {str(e)}")
 

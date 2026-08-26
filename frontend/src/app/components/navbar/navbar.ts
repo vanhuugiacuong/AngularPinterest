@@ -1,4 +1,4 @@
-import { Component, inject, signal, ElementRef, HostListener, Output, EventEmitter, effect } from '@angular/core';
+import { Component, inject, signal, ElementRef, HostListener, Output, EventEmitter, ViewChild, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, NavigationEnd } from '@angular/router';
 import { SupabaseService } from '../../core/services/supabase';
@@ -10,6 +10,7 @@ import { Icon } from '../../shared/icon/icon';
 import { PinService, Pin } from '../../core/services/pin';
 import { ChatService, PublicUserSummary } from '../../core/services/chat';
 import { BillingService } from '../../core/services/billing';
+import { VisualSearchService } from '../../core/services/visual-search';
 
 // Lowercases and strips Vietnamese diacritics so "meo" matches "mèo" — same normalizer
 // used by the /search results page, kept in sync so typing and submitting agree.
@@ -40,8 +41,10 @@ export class Navbar {
   private pinService = inject(PinService);
   private chatService = inject(ChatService);
   public billing = inject(BillingService);
+  private visualSearchService = inject(VisualSearchService);
 
   @Output() loginClick = new EventEmitter<void>();
+  @ViewChild('searchInputEl') searchInputEl?: ElementRef<HTMLInputElement>;
 
   public showProfilePopup = signal(false);
 
@@ -223,15 +226,83 @@ export class Navbar {
     if (!this.elementRef.nativeElement.contains(target)) {
       this.showProfilePopup.set(false);
       this.showNotifPopup.set(false);
-      this.showSearchDropdown.set(false);
+      if (this.showSearchDropdown()) {
+        this.closeSearchDropdown();
+      }
       if (this.showNavMenu()) {
         this.closeNavMenu();
       }
     }
   }
 
+  // Clicking away without actually submitting a new search (e.g. after tapping the X to
+  // clear, then changing your mind) reverts the box to whatever's really being viewed —
+  // matches Pinterest, which treats an in-progress edit as provisional. Also used by the
+  // dropdown's own backdrop, which otherwise closes it before document-click sees it.
+  closeSearchDropdown() {
+    this.showSearchDropdown.set(false);
+    this.revertSearchQueryToCurrentRoute();
+  }
+
+  onVisualSearchClick(event: Event) {
+    event.stopPropagation();
+    this.showSearchDropdown.set(false);
+    this.visualSearchService.open();
+  }
+
+  private revertSearchQueryToCurrentRoute() {
+    const [path, queryString] = this.router.url.split('?');
+    if (path.startsWith('/search')) {
+      const params = new URLSearchParams(queryString || '');
+      this.searchQuery.set(params.get('q') || '');
+    } else {
+      this.searchQuery.set('');
+    }
+  }
+
   onLoginClick() {
     this.loginClick.emit();
+  }
+
+  // Set of URLs that failed even after a retry — deliberately NOT written back into the
+  // <img> src imperatively, so displayAvatarUrl (and therefore Angular's own binding)
+  // stays the source of truth. That matters because a raw `img.src = fallback` write
+  // permanently wedges the avatar on the placeholder with no way back: once Angular's
+  // change detection sees a component-level failure signal instead, a later real avatar
+  // change (new upload, dbUser resolving) naturally overrides it again on its own.
+  private avatarLoadFailures = signal<ReadonlySet<string>>(new Set());
+  private avatarRetried = new Set<string>();
+
+  // A URL can fail to load once from a purely transient blip (flaky network, or in dev
+  // a hot-reload tearing down the <img> mid-request) even though it's actually fine —
+  // retry the exact same URL once (cache-busted, since an unchanged src won't re-fetch)
+  // before treating it as truly broken.
+  onAvatarError(event: Event) {
+    const img = event.target as HTMLImageElement;
+    const originalUrl = img.src.split('#__avatar_retry=')[0];
+    if (!this.avatarRetried.has(originalUrl)) {
+      this.avatarRetried.add(originalUrl);
+      img.src = `${originalUrl}#__avatar_retry=${Date.now()}`;
+      return;
+    }
+    this.avatarLoadFailures.update((prev) => new Set(prev).add(originalUrl));
+  }
+
+  // dbUser().avatarUrl reflects avatars uploaded in Settings; Supabase's own
+  // user_metadata only ever holds what the OAuth provider (Google) handed us at
+  // sign-in. Prefer the DB copy so an in-app avatar change shows up here too,
+  // instead of navbar staying stuck on the Google photo (or lack thereof).
+  get displayAvatarUrl(): string {
+    const placeholder = 'https://api.dicebear.com/7.x/bottts/svg';
+    const primary =
+      this.supabaseService.dbUser()?.avatarUrl ||
+      this.supabaseService.user()?.user_metadata?.['avatar_url'] ||
+      this.supabaseService.user()?.user_metadata?.['picture'] ||
+      null;
+    if (!primary || this.avatarLoadFailures().has(primary)) {
+      return placeholder;
+    }
+    return primary;
   }
 
   onLogoClick() {
@@ -356,11 +427,18 @@ export class Navbar {
     }
   }
 
-  private saveRecentSearch(query: string) {
+  // Prefers a matching person's avatar over a pin thumbnail — searching a name should
+  // show that person's face in "Tìm kiếm gần đây", not a random pin that happens to
+  // mention them.
+  private saveRecentSearch(query: string, avatarUrl?: string | null) {
     if (!query) return;
+    const matchedUser = this.userSuggestions().find((u) => u.username.toLowerCase() === query.toLowerCase());
     const thumbnail =
+      avatarUrl ??
+      matchedUser?.avatarUrl ??
       [...this.ideaPins(), ...this.popularPins()].find((p) => p.title?.toLowerCase().includes(query.toLowerCase()))
-        ?.imageUrl ?? null;
+        ?.imageUrl ??
+      null;
     const existing = this.recentSearches().filter((s) => s.query.toLowerCase() !== query.toLowerCase());
     const updated = [{ query, thumbnail }, ...existing].slice(0, 8);
     this.recentSearches.set(updated);
@@ -396,6 +474,14 @@ export class Navbar {
     this.fetchUserSuggestions(input.value.trim());
   }
 
+  clearSearchInput(event: Event) {
+    event.stopPropagation();
+    this.searchQuery.set('');
+    this.userSuggestions.set([]);
+    this.onSearchFocus();
+    this.searchInputEl?.nativeElement.focus();
+  }
+
   goToSearch(query: string) {
     this.showSearchDropdown.set(false);
     this.searchQuery.set(query);
@@ -404,11 +490,12 @@ export class Navbar {
     this.router.navigate(['/search'], { queryParams: query ? { q: query } : {} });
   }
 
-  goToUserProfile(username: string) {
+  goToUserProfile(user: PublicUserSummary) {
     this.showSearchDropdown.set(false);
     this.searchQuery.set('');
+    this.saveRecentSearch(user.username, user.avatarUrl);
     this.userSuggestions.set([]);
-    this.router.navigate(['/profile', username]);
+    this.router.navigate(['/profile', user.username]);
   }
 
   onSearchSubmit(event: Event) {

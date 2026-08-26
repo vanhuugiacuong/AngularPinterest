@@ -66,6 +66,17 @@
   outline-offset: 2px;
 }
 
+/* Same light hover/focus fill as the icon buttons above it, so the chevron reads as a
+   real button instead of decoration. */
+.nav-chevron-btn {
+  transition: background-color 0.15s ease;
+}
+
+.nav-chevron-btn:hover,
+.nav-chevron-btn:focus-visible {
+  background: var(--nav-hover-bg);
+}
+
 /* Panel: CSS grid-rows 0fr -> 1fr instead of max-height, so the height animation is
    based on the real content size (no jank/overshoot) and needs no fixed px guess. */
 .nav-panel-grid {
@@ -126,7 +137,9 @@
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
 }
 
-.nav-icon-btn.group:hover .nav-tooltip {
+.nav-icon-btn.group:hover .nav-tooltip,
+.nav-chevron-btn.group:hover .nav-tooltip,
+.nav-chevron-btn.group:focus-visible .nav-tooltip {
   opacity: 1;
   transform: translate(0, -50%);
 }
