@@ -155,48 +155,36 @@ export class PinsService {
   async getAllPins(page: number = 1, limit: number = 20, userId?: string, seed?: string) {
     const skip = (page - 1) * limit;
 
-    // Pins this user hid via "Ẩn bớt" never enter their feed again
+    // 1 & 2. Fetch hidden pins and preferred categories concurrently with Promise.all
     let hiddenPinIds: string[] = [];
-    if (userId) {
-      const hidden = await this.prisma.hiddenPin.findMany({
-        where: { userId },
-        select: { pinId: true },
-      });
-      hiddenPinIds = hidden.map(h => h.pinId);
-    }
-
-    // 1. Fetch only the fields needed to rank pins (id/category/createdAt) —
-    // ranking has to see every pin to sort them, but loading the full
-    // user/likes relations for all of them (only ~`limit` are ever kept)
-    // makes every scroll page slower as the table grows. That heavier
-    // fetch happens below, scoped to just this page's pins.
-    const pins = await this.prisma.pin.findMany({
-      where: hiddenPinIds.length > 0 ? { id: { notIn: hiddenPinIds } } : undefined,
-      select: { id: true, category: true, createdAt: true },
-    });
-
-    // 2. Fetch user's preferred categories based on likes, board saves, and
-    // explicit "Xem thêm" interest signals
     let preferredCategories: string[] = [];
+
     if (userId) {
       try {
-        const likes = await this.prisma.like.findMany({
-          where: { userId },
-          include: { pin: { select: { category: true } } }
-        });
-        const boardPins = await this.prisma.boardPin.findMany({
-          where: { board: { userId } },
-          include: { pin: { select: { category: true } } }
-        });
-        const interestSignals = await this.prisma.interestSignal.findMany({
-          where: { userId },
-          select: { category: true },
-        });
+        const [hidden, likes, boardPins, interestSignals] = await Promise.all([
+          this.prisma.hiddenPin.findMany({
+            where: { userId },
+            select: { pinId: true },
+          }),
+          this.prisma.like.findMany({
+            where: { userId },
+            select: { pin: { select: { category: true } } },
+          }),
+          this.prisma.boardPin.findMany({
+            where: { board: { userId } },
+            select: { pin: { select: { category: true } } },
+          }),
+          this.prisma.interestSignal.findMany({
+            where: { userId },
+            select: { category: true },
+          }),
+        ]);
+
+        hiddenPinIds = hidden.map(h => h.pinId);
+
         const categories = [
           ...likes.map(l => l.pin?.category),
           ...boardPins.map(b => b.pin?.category),
-          // Weighted higher: an explicit "more like this" click is a
-          // stronger signal than the side effect of liking/saving one pin
           ...interestSignals.flatMap(s => [s.category, s.category, s.category]),
         ].filter(Boolean);
 
@@ -209,9 +197,14 @@ export class PinsService {
           .sort((a, b) => b[1] - a[1])
           .map(e => e[0]);
       } catch (err) {
-        console.error('Error fetching preferred categories:', err);
+        console.error('Error fetching user feed signals:', err);
       }
     }
+
+    const pins = await this.prisma.pin.findMany({
+      where: hiddenPinIds.length > 0 ? { id: { notIn: hiddenPinIds } } : undefined,
+      select: { id: true, category: true, createdAt: true },
+    });
 
     // 3. Sort pins using a score combining preferences, recency, and seeded random noise
     const noiseSeed = seed || 'default-seed';
@@ -492,6 +485,7 @@ export class PinsService {
       where: {
         userId_pinId: { userId, pinId },
       },
+      select: { id: true },
     });
 
     if (existingLike) {
@@ -509,10 +503,12 @@ export class PinsService {
         },
       });
 
-      const pin = await this.prisma.pin.findUnique({ where: { id: pinId } });
-      if (pin) {
-        await this.notificationsService.create(pin.userId, userId, 'like', pinId);
-      }
+      // Fire notification in background asynchronously so API response returns instantly
+      this.prisma.pin.findUnique({ where: { id: pinId }, select: { userId: true } }).then(pin => {
+        if (pin && pin.userId !== userId) {
+          this.notificationsService.create(pin.userId, userId, 'like', pinId).catch(() => {});
+        }
+      }).catch(() => {});
 
       return { liked: true };
     }
