@@ -52,6 +52,17 @@ except Exception as e:
     print(f"Error loading model: {e}")
     raise e
 
+def _to_tensor(features):
+    if hasattr(features, "pooler_output") and features.pooler_output is not None:
+        return features.pooler_output
+    if hasattr(features, "image_embeds") and features.image_embeds is not None:
+        return features.image_embeds
+    if hasattr(features, "text_embeds") and features.text_embeds is not None:
+        return features.text_embeds
+    if isinstance(features, torch.Tensor):
+        return features
+    return features[0]
+
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "model": MODEL_NAME}
@@ -70,6 +81,7 @@ async def embed_image(file: UploadFile = File(...), box: str | None = Form(defau
         inputs = processor(images=image, return_tensors="pt")
         with torch.no_grad():
             features = model.get_image_features(**inputs)
+            features = _to_tensor(features)
 
         # Normalize vector to unit length
         features = features / features.norm(p=2, dim=-1, keepdim=True)
@@ -91,6 +103,7 @@ async def embed_text(query: str):
         inputs = processor(text=[query], return_tensors="pt", padding=True)
         with torch.no_grad():
             features = model.get_text_features(**inputs)
+            features = _to_tensor(features)
             
         # Normalize vector to unit length
         features = features / features.norm(p=2, dim=-1, keepdim=True)
