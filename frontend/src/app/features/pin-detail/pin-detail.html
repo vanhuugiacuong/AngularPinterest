@@ -152,32 +152,12 @@
                 >
                   <div class="flex items-center gap-2.5">
                     <!-- Like -->
-                    <button
-                      (click)="toggleLike()"
-                      class="h-10 px-4 bg-surface-elevated hover:bg-surface-high rounded-control flex items-center gap-1.5 cursor-pointer transition-colors duration-200 active:scale-95 border-none outline-none select-none text-text focus-visible:ring-2 focus-visible:ring-accent"
-                      [title]="isLikedByUser() ? 'Bỏ thích' : 'Thích'"
-                      [attr.aria-label]="(isLikedByUser() ? 'Bỏ thích ' : 'Thích ') + p.title"
-                      [attr.aria-pressed]="isLikedByUser()"
-                    >
-                      <span class="relative inline-flex items-center justify-center">
-                        <span
-                          class="material-symbols-outlined text-lg leading-none font-bold"
-                          [class.text-accent]="isLikedByUser()"
-                          [class.text-text-muted]="!isLikedByUser()"
-                        >
-                          favorite
-                        </span>
-                        <span
-                          class="material-symbols-outlined icon-fill text-accent text-lg leading-none font-bold absolute inset-0 flex items-center justify-center"
-                          [style.opacity]="isLikedByUser() ? 1 : 0"
-                        >
-                          favorite
-                        </span>
-                      </span>
-                      <span class="mono-label text-xs font-bold">{{
-                        p.likeCount ?? p._count?.likes ?? 0
-                      }}</span>
-                    </button>
+                    <app-like-button
+                      [liked]="isLikedByUser()"
+                      [count]="p.likeCount ?? p._count?.likes ?? 0"
+                      [ariaLabel]="(isLikedByUser() ? 'Bỏ thích ' : 'Thích ') + p.title"
+                      (toggled)="toggleLike()"
+                    ></app-like-button>
 
                     <!-- Share -->
                     <select *ngIf="membership.status()?.customWatermark && watermarkService.presets().length > 0"
@@ -611,19 +591,12 @@
                               </div>
 
                               <div class="flex items-center gap-1.5 shrink-0">
-                                <button
-                                  (click)="toggleRelatedLike(rel, $event)"
-                                  class="w-8 h-8 rounded-control bg-surface-high/95 border border-border-strong flex items-center justify-center hover:text-accent transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                                  [class.text-accent]="rel.isLiked"
-                                  [class.text-text-muted]="!rel.isLiked"
-                                  [attr.aria-pressed]="!!rel.isLiked"
-                                  [attr.aria-label]="(rel.isLiked ? 'Bỏ thích ' : 'Thích ') + rel.title"
-                                >
-                                  <span class="relative inline-flex items-center justify-center">
-                                    <span class="material-symbols-outlined text-[16px] leading-none">favorite</span>
-                                    <span class="material-symbols-outlined icon-fill text-[16px] leading-none absolute inset-0 flex items-center justify-center" [style.opacity]="rel.isLiked ? 1 : 0">favorite</span>
-                                  </span>
-                                </button>
+                                <app-like-button
+                                  size="compact"
+                                  [liked]="rel.isLiked === true"
+                                  [ariaLabel]="(rel.isLiked ? 'Bỏ thích ' : 'Thích ') + rel.title"
+                                  (toggled)="toggleRelatedLike(rel, $event)"
+                                ></app-like-button>
                                 <button
                                   (click)="saveRelatedPinToBoard(rel.id, $event)"
                                   class="h-8 px-3.5 bg-gradient-brand cta-shape text-text-on-accent font-bold text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"

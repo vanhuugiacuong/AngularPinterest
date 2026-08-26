@@ -93,6 +93,90 @@ describe('Home — save to board toast feedback', () => {
   });
 });
 
+describe('Home — optimistic like feedback', () => {
+  it('accepts repeated clicks immediately and syncs them to the API in order', async () => {
+    const toggleResolvers: Array<
+      (value: { liked: boolean; likeCount: number }) => void
+    > = [];
+    const pinService = {
+      toggleLike: vi.fn().mockImplementation(
+        () =>
+          new Promise<{ liked: boolean; likeCount: number }>((resolve) => {
+            toggleResolvers.push(resolve);
+          }),
+      ),
+    };
+
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: ActivatedRoute, useValue: { queryParamMap: of() } },
+        { provide: Router, useValue: { navigate: vi.fn() } },
+        { provide: PinService, useValue: pinService },
+        { provide: BoardService, useValue: {} },
+        { provide: UserService, useValue: {} },
+        {
+          provide: SupabaseService,
+          useValue: {
+            dbUser: () => null,
+            user: () => ({ id: 'user-1' }),
+            getSessionToken: vi.fn().mockResolvedValue('token'),
+          },
+        },
+        {
+          provide: ImageSearchStore,
+          useValue: {
+            previewUrl: () => null,
+            isLoading: () => false,
+            error: () => null,
+            results: () => [],
+          },
+        },
+      ],
+    });
+
+    const component = TestBed.runInInjectionContext(() => new Home());
+    const pin: {
+      id: string;
+      isLiked: boolean;
+      likes: number;
+      likeQueuedToggles?: number;
+      likeSyncing?: boolean;
+    } = {
+      id: 'pin-1',
+      isLiked: false,
+      likes: 2,
+    };
+    component.pins.set([pin]);
+
+    const firstRequest = component.toggleLike(pin, new MouseEvent('click'));
+
+    expect(pin.isLiked).toBe(true);
+    expect(pin.likes).toBe(3);
+    expect(pin.likeSyncing).toBe(true);
+
+    const secondRequest = component.toggleLike(pin, new MouseEvent('click'));
+
+    expect(pin.isLiked).toBe(false);
+    expect(pin.likes).toBe(2);
+
+    await Promise.resolve();
+    expect(toggleResolvers).toHaveLength(1);
+    toggleResolvers[0]({ liked: true, likeCount: 3 });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(toggleResolvers).toHaveLength(2);
+    toggleResolvers[1]({ liked: false, likeCount: 2 });
+
+    await Promise.all([firstRequest, secondRequest]);
+
+    expect(pin.isLiked).toBe(false);
+    expect(pin.likes).toBe(2);
+    expect(pin.likeSyncing).toBe(false);
+    expect(pinService.toggleLike).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('Home — tác phẩm có giá trị (badge & gating trên feed)', () => {
   let component: Home;
   let router: { navigate: ReturnType<typeof vi.fn> };

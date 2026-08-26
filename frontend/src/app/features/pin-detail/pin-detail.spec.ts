@@ -154,6 +154,81 @@ describe('PinDetail — save to board toast feedback', () => {
   });
 });
 
+describe('PinDetail — optimistic like feedback', () => {
+  let component: PinDetail;
+  let resolveToggle: (value: { liked: boolean; likeCount: number }) => void = () => {};
+
+  beforeEach(() => {
+    const pinService = {
+      toggleLike: vi.fn().mockReturnValue(
+        new Promise<{ liked: boolean; likeCount: number }>((resolve) => {
+          resolveToggle = resolve;
+        }),
+      ),
+    };
+
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: ActivatedRoute, useValue: { paramMap: of() } },
+        { provide: Router, useValue: { navigate: vi.fn() } },
+        { provide: PinService, useValue: pinService },
+        { provide: BoardService, useValue: {} },
+        {
+          provide: SupabaseService,
+          useValue: {
+            dbUser: () => null,
+            user: () => ({ id: 'user-1' }),
+            getSessionToken: vi.fn().mockResolvedValue('token'),
+          },
+        },
+        { provide: MembershipService, useValue: { status: () => null } },
+        { provide: AuctionService, useValue: {} },
+        { provide: UserService, useValue: {} },
+        { provide: MessagingService, useValue: {} },
+      ],
+    });
+
+    component = TestBed.runInInjectionContext(() => new PinDetail());
+  });
+
+  it('updates the main pin before the API responds', async () => {
+    component.pin.set({ ...makePin('pin-1'), isLiked: false, likeCount: 2 });
+
+    const request = component.toggleLike();
+
+    expect(component.pin()?.isLiked).toBe(true);
+    expect(component.pin()?.likeCount).toBe(3);
+    expect(component.likePending()).toBe(true);
+
+    resolveToggle({ liked: true, likeCount: 3 });
+    await request;
+
+    expect(component.likePending()).toBe(false);
+  });
+
+  it('updates a related pin before the API responds', async () => {
+    const relatedPin: {
+      id: string;
+      likes: number;
+      isLiked: boolean;
+      likeQueuedToggles?: number;
+      likeSyncing?: boolean;
+    } = { id: 'related-1', likes: 4, isLiked: false };
+    component.relatedPins.set([relatedPin]);
+
+    const request = component.toggleRelatedLike(relatedPin, new MouseEvent('click'));
+
+    expect(relatedPin.isLiked).toBe(true);
+    expect(relatedPin.likes).toBe(5);
+    expect(relatedPin.likeSyncing).toBe(true);
+
+    resolveToggle({ liked: true, likeCount: 5 });
+    await request;
+
+    expect(relatedPin.likeSyncing).toBe(false);
+  });
+});
+
 describe('PinDetail — nâng cấp gói khi mở tác phẩm có giá trị', () => {
   let component: PinDetail;
   let router: { navigate: ReturnType<typeof vi.fn> };

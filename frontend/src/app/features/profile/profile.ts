@@ -13,6 +13,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, combineLatest } from 'rxjs';
 import { Navbar } from '../../components/navbar/navbar';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
+import { LikeButton } from '../../shared/like-button/like-button';
 import { BoardService } from '../../core/services/board';
 import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
@@ -40,7 +41,7 @@ interface TabState<T> {
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, Navbar, FormsModule, UserAvatar, FollowListDialog],
+  imports: [CommonModule, Navbar, FormsModule, UserAvatar, FollowListDialog, LikeButton],
   templateUrl: './profile.html',
   styleUrl: './profile.css',
 })

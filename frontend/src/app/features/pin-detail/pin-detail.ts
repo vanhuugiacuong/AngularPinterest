@@ -17,6 +17,7 @@ import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
 import { FormsModule } from '@angular/forms';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
+import { LikeButton } from '../../shared/like-button/like-button';
 import { MembershipService } from '../../core/services/membership';
 import type { MembershipPlan } from '../../core/models/membership-plan';
 import { ImageRegionSearch } from './image-region-search/image-region-search';
@@ -40,7 +41,7 @@ const FIXED_PRICE_REQUIRED_MESSAGE = 'Chỉ thành viên Plus hoặc Pro mới c
 @Component({
   selector: 'app-pin-detail',
   standalone: true,
-  imports: [CommonModule, Navbar, FormsModule, UserAvatar, ImageRegionSearch],
+  imports: [CommonModule, Navbar, FormsModule, UserAvatar, ImageRegionSearch, LikeButton],
   templateUrl: './pin-detail.html',
   styleUrl: './pin-detail.css',
 })
@@ -102,6 +103,8 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   public isLoading = signal<boolean>(true);
   public isRelatedLoading = signal<boolean>(true);
   public isScrollingLoad = signal<boolean>(false);
+  public likePending = signal(false);
+  private likeQueuedToggles = 0;
   public isLandscape = signal<boolean>(false);
   public numRelatedColumns = signal<number>(2);
   public showImageSearch = signal<boolean>(false);
@@ -414,41 +417,68 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     const currentUser = this.supabaseService.user();
     if (!currentPin || !currentUser) return;
 
-    const previousLiked = (currentPin as any).isLiked === true;
-    const previousCount = currentPin.likeCount ?? currentPin._count?.likes ?? 0;
-    const optimisticLiked = !previousLiked;
-    const optimisticCount = optimisticLiked ? previousCount + 1 : Math.max(0, previousCount - 1);
+    const previousLiked = currentPin.isLiked === true;
+    const previousLikeCount = currentPin.likeCount ?? currentPin._count?.likes ?? 0;
+    const optimisticLikeCount = Math.max(
+      0,
+      previousLikeCount + (previousLiked ? -1 : 1),
+    );
 
-    // Optimistic update - phản hồi ngay trên UI, gọi API ở nền, hoàn tác nếu lỗi.
     this.pin.set({
       ...currentPin,
-      isLiked: optimisticLiked,
-      likeCount: optimisticCount,
-      _count: { ...currentPin._count, likes: optimisticCount },
+      isLiked: !previousLiked,
+      likeCount: optimisticLikeCount,
+      _count: { ...currentPin._count, likes: optimisticLikeCount },
     });
+    this.likeQueuedToggles++;
+
+    await this.flushLikeQueue(currentPin.id);
+  }
+
+  private async flushLikeQueue(pinId: string): Promise<void> {
+    if (this.likePending()) return;
+    this.likePending.set(true);
 
     try {
-      const token = await this.supabaseService.getSessionToken();
-      if (!token) throw new Error('no session token');
-      const result = await this.pinService.toggleLike(currentPin.id, token);
-      const latest = this.pin();
-      if (!latest || latest.id !== currentPin.id) return;
-      this.pin.set({
-        ...latest,
-        isLiked: result.liked,
-        likeCount: result.likeCount,
-        _count: { ...latest._count, likes: result.likeCount },
-      });
-    } catch (error) {
-      console.error('Error toggling like:', error);
-      const latest = this.pin();
-      if (!latest || latest.id !== currentPin.id) return;
-      this.pin.set({
-        ...latest,
-        isLiked: previousLiked,
-        likeCount: previousCount,
-        _count: { ...latest._count, likes: previousCount },
-      });
+      while (this.likeQueuedToggles > 0) {
+        this.likeQueuedToggles--;
+
+        try {
+          const token = await this.supabaseService.getSessionToken();
+          if (!token) throw new Error('Không tìm thấy phiên đăng nhập.');
+
+          const result = await this.pinService.toggleLike(pinId, token);
+          const latestPin = this.pin();
+          if (latestPin?.id === pinId && this.likeQueuedToggles === 0) {
+            this.pin.set({
+              ...latestPin,
+              isLiked: result.liked,
+              likeCount: result.likeCount,
+              _count: { ...latestPin._count, likes: result.likeCount },
+            });
+          }
+        } catch (error) {
+          const latestPin = this.pin();
+          if (latestPin?.id === pinId) {
+            const currentLiked = latestPin.isLiked === true;
+            const rolledBackLiked = !currentLiked;
+            const currentLikeCount = latestPin.likeCount ?? latestPin._count?.likes ?? 0;
+            const rolledBackLikeCount = Math.max(
+              0,
+              currentLikeCount + (rolledBackLiked ? 1 : -1),
+            );
+            this.pin.set({
+              ...latestPin,
+              isLiked: rolledBackLiked,
+              likeCount: rolledBackLikeCount,
+              _count: { ...latestPin._count, likes: rolledBackLikeCount },
+            });
+          }
+          console.error('Error toggling like:', error);
+        }
+      }
+    } finally {
+      this.likePending.set(false);
     }
   }
 
@@ -549,28 +579,64 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   public relatedActiveDropdownPinId = signal<string | null>(null);
   public relatedSelectedBoardMap = signal<Record<string, Board>>({});
 
-  async toggleRelatedLike(rel: { id: string; likes: number; isLiked?: boolean }, event: MouseEvent) {
+  async toggleRelatedLike(
+    rel: {
+      id: string;
+      likes: number;
+      isLiked?: boolean;
+      likeQueuedToggles?: number;
+      likeSyncing?: boolean;
+    },
+    event: MouseEvent,
+  ) {
     event.stopPropagation();
     const currentUser = this.supabaseService.user();
     if (!currentUser) return;
 
-    const previousLiked = !!rel.isLiked;
-    const previousLikes = rel.likes ?? 0;
+    const previousLiked = rel.isLiked === true;
+    const previousLikes = rel.likes || 0;
     rel.isLiked = !previousLiked;
-    rel.likes = rel.isLiked ? previousLikes + 1 : Math.max(0, previousLikes - 1);
+    rel.likes = Math.max(0, previousLikes + (previousLiked ? -1 : 1));
+    rel.likeQueuedToggles = (rel.likeQueuedToggles || 0) + 1;
     this.relatedPins.update((current) => [...current]);
 
+    await this.flushRelatedLikeQueue(rel);
+  }
+
+  private async flushRelatedLikeQueue(rel: {
+    id: string;
+    likes: number;
+    isLiked?: boolean;
+    likeQueuedToggles?: number;
+    likeSyncing?: boolean;
+  }): Promise<void> {
+    if (rel.likeSyncing) return;
+    rel.likeSyncing = true;
+
     try {
-      const token = await this.supabaseService.getSessionToken();
-      if (!token) throw new Error('no session token');
-      const result = await this.pinService.toggleLike(rel.id, token);
-      rel.isLiked = result.liked;
-      rel.likes = result.likeCount;
-      this.relatedPins.update((current) => [...current]);
-    } catch (error) {
-      console.error('Error toggling like:', error);
-      rel.isLiked = previousLiked;
-      rel.likes = previousLikes;
+      while ((rel.likeQueuedToggles || 0) > 0) {
+        rel.likeQueuedToggles = (rel.likeQueuedToggles || 0) - 1;
+
+        try {
+          const token = await this.supabaseService.getSessionToken();
+          if (!token) throw new Error('Không tìm thấy phiên đăng nhập.');
+
+          const result = await this.pinService.toggleLike(rel.id, token);
+          if (rel.likeQueuedToggles === 0) {
+            rel.isLiked = result.liked;
+            rel.likes = result.likeCount;
+          }
+        } catch (error) {
+          const currentLiked = rel.isLiked === true;
+          rel.isLiked = !currentLiked;
+          rel.likes = Math.max(0, rel.likes + (currentLiked ? -1 : 1));
+          console.error('Error toggling like:', error);
+        }
+
+        this.relatedPins.update((current) => [...current]);
+      }
+    } finally {
+      rel.likeSyncing = false;
       this.relatedPins.update((current) => [...current]);
     }
   }
@@ -665,7 +731,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
         authorAvatarUrl: p.user?.avatarUrl || null,
         authorPlan: p.user?.plan || 'FREE',
         likes: p._count?.likes ?? 0,
-        isLiked: (p as any).isLiked ?? false,
+        isLiked: p.isLiked === true,
         isAiGenerated: p.isAiGenerated,
         aspectRatio,
         listingType: p.listingType ?? 'NONE',

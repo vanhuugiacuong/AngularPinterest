@@ -130,73 +130,6 @@
 }
 
 /* ====================================================================== */
-/* Buttons                                                                */
-/* ====================================================================== */
-
-.nf-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 56px;
-  padding: 0 30px;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  font: inherit;
-  font-weight: 700;
-  font-size: 15px;
-  transition: transform 0.25s var(--ease-out), box-shadow 0.3s ease, background-color 0.3s ease,
-    color 0.3s ease, border-color 0.3s ease;
-}
-
-.nf-btn:focus-visible {
-  outline: 2px solid var(--electric);
-  outline-offset: 4px;
-}
-
-.nf-btn--solid {
-  color: var(--color-text-on-accent);
-  background: linear-gradient(120deg, var(--electric), var(--blue) 45%, var(--purple));
-  box-shadow: 0 16px 34px -16px color-mix(in srgb, var(--electric) 75%, transparent);
-}
-
-.nf-btn--solid:hover {
-  box-shadow: 0 22px 44px -16px color-mix(in srgb, var(--purple) 80%, transparent);
-}
-
-.nf-btn--outline {
-  color: var(--ink);
-  border-color: var(--edge);
-  background: color-mix(in srgb, var(--paper) 60%, transparent);
-}
-
-.nf-btn--outline:hover {
-  background: var(--paper-lift);
-  border-color: var(--electric);
-  color: var(--electric);
-}
-
-.nf-btn--ghost {
-  color: var(--ink-soft);
-  background: none;
-  padding-inline: 12px;
-}
-
-.nf-btn--ghost:hover {
-  color: var(--electric);
-}
-
-.nf-btn--ghost .material-symbols-outlined {
-  font-size: 20px;
-  transition: transform 0.3s var(--ease-out);
-}
-
-.nf-btn--ghost:hover .material-symbols-outlined {
-  transform: translateY(3px);
-}
-
-/* ====================================================================== */
 /* SCENE 01 — Hero: the 3D ring object                                    */
 /* ====================================================================== */
 
@@ -426,7 +359,7 @@
   font-size: clamp(15px, 1.5vw, 19px);
   line-height: 1.6;
   color: var(--ink-soft);
-  margin-bottom: 26px;
+  margin-bottom: 0;
   max-width: 38ch;
 }
 
@@ -439,55 +372,54 @@
 
 .nf-hero__cue {
   position: absolute;
-  right: clamp(20px, 6vw, 80px);
-  bottom: clamp(48px, 9vh, 96px);
+  top: calc(50% + min(29vh, 264px));
+  left: 0;
+  right: 0;
   z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  width: max-content;
+  margin-inline: auto;
+  gap: 7px;
   font-family: var(--font-sans);
   font-weight: 700;
   font-size: 12px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-faint);
   opacity: calc(1 - var(--p) * 3);
 }
 
-.nf-hero__cue-line {
-  width: 1px;
-  height: 62px;
-  background: linear-gradient(180deg, var(--ink-faint), transparent);
-  overflow: hidden;
-  position: relative;
+.nf-hero__cue-arrow {
+  font-size: 25px;
+  line-height: 1;
+  color: var(--electric);
+  animation: nf-cue-arrow 1.6s ease-in-out infinite;
 }
 
-.nf-hero__cue-line::after {
-  content: "";
-  position: absolute;
-  inset-inline: 0;
-  height: 22px;
-  background: var(--electric);
-  animation: nf-cue 2s ease-in-out infinite;
-}
-
-@keyframes nf-cue {
-  0% {
-    transform: translateY(-100%);
-  }
+@keyframes nf-cue-arrow {
+  0%,
   100% {
-    transform: translateY(300%);
+    opacity: 0.45;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(7px);
   }
 }
 
 @media (max-width: 860px) {
-  .nf-hero__cue {
-    display: none;
-  }
-
   .nf-hero__foot {
     right: clamp(20px, 6vw, 80px);
+  }
+}
+
+@media (max-width: 640px) {
+  .nf-hero__cue {
+    top: 65vh;
+    font-size: 11px;
   }
 }
 
@@ -1064,7 +996,7 @@
     opacity: 1;
   }
 
-  .nf-hero__cue-line::after {
+  .nf-hero__cue-arrow {
     animation: none;
   }
 
