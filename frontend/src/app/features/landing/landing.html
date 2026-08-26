@@ -1,6 +1,11 @@
 <app-nf-loader (finished)="onLoaderFinished($event)"></app-nf-loader>
 
 <div class="nf" [class.nf--ready]="loaderDone()">
+  <div class="nf-atmosphere" aria-hidden="true">
+    <span></span>
+    <span></span>
+  </div>
+
   <app-public-header (loginClick)="openLoginModal()"></app-public-header>
 
   <!-- ================================================================== -->
@@ -69,29 +74,68 @@
 
   <!-- ================================================================== -->
   <!-- SCENE 02 — KHÁM PHÁ                                                 -->
-  <!-- The exhibition: artworks travel horizontally through the pinned     -->
-  <!-- viewport as the user scrolls vertically, each one scaling as it     -->
-  <!-- crosses centre. Not a masonry grid — a moving gallery wall.         -->
+  <!-- A pinned, cylindrical exhibition inspired by the supplied reference -->
+  <!-- video. Vertical scroll rotates the local NovaFrame works through a   -->
+  <!-- bowed horizontal orbit; the final work then opens into a full-width  -->
+  <!-- feature before the story continues.                                 -->
   <!-- ================================================================== -->
   <section #exploreScene class="nf-scene nf-scene--explore" id="nf-explore">
     <div class="nf-scene__pin">
-      <header class="nf-scene__head">
-        <span class="nf-scene__index">01</span>
-        <h2 class="nf-scene__title">Khám phá</h2>
-        <p class="nf-scene__lede">
-          Không gian khám phá — nơi tác phẩm thật và ảnh do AI tạo ra cùng xuất hiện, sắp xếp theo
-          danh mục bạn quan tâm.
+      <svg class="nf-explore__defs" aria-hidden="true" focusable="false">
+        <defs>
+          <clipPath id="nf-explore-arc" clipPathUnits="objectBoundingBox">
+            <path d="M 0 0.065 Q 0.5 0 1 0.065 L 1 0.935 Q 0.5 1 0 0.935 Z"></path>
+          </clipPath>
+        </defs>
+      </svg>
+
+      <header class="nf-explore__head">
+        <span class="nf-explore__index">01 · Không gian hình ảnh</span>
+        <h2 class="nf-explore__title" id="nf-explore-title" aria-label="Khám phá">
+          <span>Khám</span>
+          <strong>PHÁ</strong>
+        </h2>
+        <p class="nf-explore__lede">
+          Tác phẩm thật và hình ảnh do AI tạo ra chuyển động trong cùng một không gian khám phá.
         </p>
       </header>
 
-      <div class="nf-gallery">
-        <figure class="nf-gallery__item" *ngFor="let art of artworks; let i = index" [style.--i]="i">
-          <img [src]="art.src" [alt]="art.title" loading="lazy" decoding="async" width="800" height="1000" />
+      <div class="nf-gallery" role="list" aria-labelledby="nf-explore-title">
+        <figure
+          class="nf-gallery__item"
+          *ngFor="let art of orbitArtworks; let i = index"
+          [class.nf-gallery__item--focus]="i === orbitArtworks.length - 2"
+          [class.nf-gallery__item--clone]="i === 0 || i === orbitArtworks.length - 1"
+          [style.--i]="i"
+          role="listitem"
+          [attr.aria-hidden]="i === 0 || i === orbitArtworks.length - 1 ? 'true' : null"
+        >
+          <div class="nf-gallery__media">
+            <img
+              [src]="art.src"
+              [alt]="i === 0 || i === orbitArtworks.length - 1 ? '' : art.title"
+              loading="lazy"
+              decoding="async"
+              width="800"
+              height="520"
+            />
+          </div>
           <figcaption>
-            <span class="nf-gallery__title">{{ art.title }}</span>
             <span class="nf-gallery__meta">{{ art.meta }}</span>
+            <span class="nf-gallery__title">{{ art.title }}</span>
           </figcaption>
         </figure>
+      </div>
+
+      <div class="nf-explore__focus-copy" aria-hidden="true">
+        <span>{{ artworks[artworks.length - 1].meta }}</span>
+        <strong>{{ artworks[artworks.length - 1].title }}</strong>
+      </div>
+
+      <div class="nf-explore__progress" aria-hidden="true">
+        <span>Cuộn</span>
+        <i></i>
+        <strong>01 — 06</strong>
       </div>
     </div>
   </section>

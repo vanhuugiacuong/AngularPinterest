@@ -82,6 +82,17 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
     { src: '/landing/work-12.jpg', title: 'Họa sĩ sáng tác tranh khổ lớn', meta: 'NF-012 · Drawing' }
   ];
 
+  /**
+   * The first and last entries are repeated as silent edge frames. They keep
+   * a neighbouring artwork visible on both sides while the six real works
+   * travel through the centre of the curved exhibition.
+   */
+  public readonly orbitArtworks: Artwork[] = [
+    this.artworks[this.artworks.length - 1],
+    ...this.artworks,
+    this.artworks[0]
+  ];
+
   // Keep the showcase choreography enabled in desktop preview browsers.
   // VS Code's embedded Chromium can report `prefers-reduced-motion: reduce`
   // even when Windows animations are enabled, which previously collapsed

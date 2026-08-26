@@ -9,9 +9,10 @@ import {
   OnDestroy,
   SimpleChanges,
   ViewChild,
-  signal
+  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 
 /** How long the closing animation runs before the dialog leaves the DOM.
  *  Must stay in step with the .nf-auth--leaving transitions in the stylesheet. */
@@ -34,9 +35,9 @@ const EXIT_MS = 420;
 @Component({
   selector: 'app-auth-modal',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './auth-modal.html',
-  styleUrl: './auth-modal.css'
+  styleUrl: './auth-modal.css',
 })
 export class AuthModal implements OnChanges, OnDestroy {
   @Input() open = false;
@@ -91,7 +92,7 @@ export class AuthModal implements OnChanges, OnDestroy {
           this.leaving.set(false);
           this.releaseBodyScroll();
         },
-        this.reducedMotion ? 0 : EXIT_MS
+        this.reducedMotion ? 0 : EXIT_MS,
       );
     }
   }
@@ -115,7 +116,9 @@ export class AuthModal implements OnChanges, OnDestroy {
       const panel = this.panel?.nativeElement;
       if (!panel) return;
       const focusable = Array.from(
-        panel.querySelectorAll<HTMLElement>('button:not([disabled]), [tabindex]:not([tabindex="-1"])'),
+        panel.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+        ),
       );
       if (!focusable.length) return;
       const first = focusable[0];

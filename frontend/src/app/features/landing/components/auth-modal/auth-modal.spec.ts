@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { AuthModal } from './auth-modal';
 
 describe('AuthModal scroll locking', () => {
@@ -23,7 +24,10 @@ describe('AuthModal scroll locking', () => {
     originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'auto';
 
-    await TestBed.configureTestingModule({ imports: [AuthModal] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [AuthModal],
+      providers: [provideRouter([])],
+    }).compileComponents();
     fixture = TestBed.createComponent(AuthModal);
     fixture.componentRef.setInput('open', true);
     fixture.detectChanges();
@@ -58,5 +62,16 @@ describe('AuthModal scroll locking', () => {
     vi.advanceTimersByTime(500);
 
     expect(document.body.style.overflow).toBe('hidden');
+  });
+
+  it('routes each legal link to its matching public page', () => {
+    const host = fixture!.nativeElement as HTMLElement;
+    const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('.nf-auth__fine a'));
+
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/terms', '/privacy']);
+    expect(links.map((link) => link.textContent?.trim())).toEqual([
+      'Điều khoản Dịch vụ',
+      'Chính sách Bảo mật',
+    ]);
   });
 });
