@@ -130,3 +130,8 @@
   opacity: 1;
   transform: translate(0, -50%);
 }
+
+/* Gradient thương hiệu cho mục Pro trong menu */
+.grad-pill {
+  background-image: linear-gradient(135deg, #f94083 0%, #b15caa 100%);
+}

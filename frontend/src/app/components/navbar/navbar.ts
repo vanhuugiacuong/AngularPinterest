@@ -6,6 +6,7 @@ import { ThemeService } from '../../core/services/theme';
 import { NotificationService, AppNotification } from '../../core/services/notification';
 import { NotificationSocketService } from '../../core/services/notification-socket';
 import { NotificationItem } from '../notification-item/notification-item';
+import { Icon } from '../../shared/icon/icon';
 import { PinService, Pin } from '../../core/services/pin';
 import { ChatService, PublicUserSummary } from '../../core/services/chat';
 import { BillingService } from '../../core/services/billing';
@@ -25,7 +26,7 @@ function normalizeForSearch(value: string | null | undefined): string {
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, NotificationItem],
+  imports: [CommonModule, NotificationItem, Icon],
   templateUrl: './navbar.html',
   styleUrl: './navbar.css'
 })

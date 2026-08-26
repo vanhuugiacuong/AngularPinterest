@@ -77,7 +77,7 @@ export type PaymentStatus = 'PENDING' | 'PAID' | 'EXPIRED';
  */
 export const BANK = {
   bin: '970418', // BIDV (mã Napas)
-  accountNo: '8883473334',
+  accountNo: '96247LIEM', // VA của SePay (tiền vào VA thì SePay mới bắt được)
   accountName: 'NGUYEN THANH LIEM',
   shortName: 'BIDV',
 };

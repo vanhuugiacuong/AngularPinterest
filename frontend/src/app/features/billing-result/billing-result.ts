@@ -2,6 +2,7 @@ import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
+import { Icon } from '../../shared/icon/icon';
 import { BillingService, QR_EXPIRE_MS } from '../../core/services/billing';
 import { ToastService } from '../../core/services/toast';
 
@@ -10,7 +11,7 @@ type Phase = 'qr' | 'success' | 'failed' | 'expired';
 @Component({
   selector: 'app-billing-result',
   standalone: true,
-  imports: [CommonModule, Navbar],
+  imports: [CommonModule, Navbar, Icon],
   templateUrl: './billing-result.html',
   styleUrl: './billing-result.css',
 })
@@ -59,18 +60,30 @@ export class BillingResult implements OnInit, OnDestroy {
     this.countdownTimer = null;
   }
 
+  private polling = false;
+
   private async poll() {
-    const status = await this.billing.checkPaymentStatus(this.ref);
-    if (status === 'PAID') {
-      this.stopTimers();
-      this.phase.set('success');
-    } else if (status === 'EXPIRED') {
-      this.stopTimers();
-      this.phase.set('expired');
+    // Chỉ dò khi còn ở màn QR + không để 2 lần poll chạy chồng nhau (tránh lần poll
+    // sau đọc "pending" vừa bị xoá sau khi PAID -> tưởng hết hạn -> nhá "QR hết hạn").
+    if (this.phase() !== 'qr' || this.polling) return;
+    this.polling = true;
+    try {
+      const status = await this.billing.checkPaymentStatus(this.ref);
+      if (this.phase() !== 'qr') return; // trạng thái đã đổi trong lúc chờ
+      if (status === 'PAID') {
+        this.stopTimers();
+        this.phase.set('success');
+      } else if (status === 'EXPIRED') {
+        this.stopTimers();
+        this.phase.set('expired');
+      }
+    } finally {
+      this.polling = false;
     }
   }
 
   private tickCountdown() {
+    if (this.phase() !== 'qr') return;
     const p = this.pending();
     if (!p) return;
     const left = p.createdAtMs + QR_EXPIRE_MS - Date.now();
