@@ -72,12 +72,6 @@ export class BillingController {
     return this.billingService.getPinAccess(user.id, id);
   }
 
-  /**
-   * Webhook SePay — đối soát tiền vào tự động. KHÔNG dùng SupabaseAuthGuard.
-   * SePay gửi header: Authorization: Apikey <SEPAY_API_KEY>.
-   * Cấu hình URL này trong dashboard SePay: https://my.sepay.vn (Webhooks).
-   * Với PayOS: đổi sang verify chữ ký HMAC theo payos-node SDK rồi gọi cùng service.
-   */
   @Post('webhook/sepay')
   async sepayWebhook(@Headers('authorization') auth: string, @Body() body: SepayWebhookDto) {
     const apiKey = getSepayApiKey();
