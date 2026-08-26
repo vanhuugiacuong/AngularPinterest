@@ -10,9 +10,12 @@ import { Settings } from './features/settings/settings';
 import { authGuard } from './core/guards/auth';
 import { Pricing } from './features/pricing/pricing';
 import { NovaTokenWalletPage } from './features/novatoken-wallet/novatoken-wallet';
+import { LegalPage } from './features/legal/legal-page';
 
 export const routes: Routes = [
   { path: '', component: Landing },
+  { path: 'terms', component: LegalPage, data: { document: 'terms' } },
+  { path: 'privacy', component: LegalPage, data: { document: 'privacy' } },
   { path: 'feed', component: Home, canActivate: [authGuard] },
   { path: 'pin/:id', component: PinDetail, canActivate: [authGuard] },
   { path: 'profile/:username', component: Profile, canActivate: [authGuard] },
@@ -28,5 +31,5 @@ export const routes: Routes = [
   { path: 'messages', component: Messages, canActivate: [authGuard] },
   { path: 'messages/:conversationId', component: Messages, canActivate: [authGuard] },
   { path: 'settings', component: Settings, canActivate: [authGuard] },
-  { path: '**', redirectTo: '' }
+  { path: '**', redirectTo: '' },
 ];
