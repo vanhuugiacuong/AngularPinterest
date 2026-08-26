@@ -48,12 +48,21 @@
   box-shadow: 0 20px 44px -14px rgba(177, 92, 170, 0.55);
 }
 .bankcard-front {
-  background: linear-gradient(135deg, #f94083 0%, #b15caa 58%, #7e3b9a 100%);
   padding: 18px 20px;
+  background: linear-gradient(
+    135deg,
+    #ff5f9e 0%,
+    #f94083 18%,
+    #ec4f95 34%,
+    #d857a6 50%,
+    #c25fb2 66%,
+    #a860bd 82%,
+    #8a4bb0 100%
+  );
 }
 .bankcard-back {
-  background: linear-gradient(135deg, #b6437e 0%, #8a4497 60%, #6c3486 100%);
   transform: rotateY(180deg);
+  background: linear-gradient(135deg, #c94b88 0%, #ac4e9e 45%, #8a4aa5 72%, #6c3486 100%);
 }
 
 /* Chip EMV (kim loại bạc, không dùng vàng) */

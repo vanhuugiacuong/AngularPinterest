@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
 import { Icon } from '../../shared/icon/icon';
+import { SupabaseService } from '../../core/services/supabase';
 import { BillingService, PlanCode } from '../../core/services/billing';
 
 interface Benefit {
@@ -22,7 +23,15 @@ interface Benefit {
 })
 export class Pro implements OnInit {
   public billing = inject(BillingService);
+  private supabase = inject(SupabaseService);
   private router = inject(Router);
+
+  get holderName(): string {
+    const u = this.supabase.dbUser();
+    const meta = this.supabase.user()?.user_metadata;
+    const name = u?.username || meta?.['full_name'] || meta?.['name'] || 'PINHUB MEMBER';
+    return String(name).toUpperCase();
+  }
 
   public selected = signal<PlanCode>('YEARLY');
   public plans = this.billing.plans;
