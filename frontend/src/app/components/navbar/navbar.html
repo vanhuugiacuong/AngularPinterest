@@ -219,15 +219,11 @@
         class="flex items-center gap-1 p-1 hover:bg-[#f6f6f3] rounded-full transition-all duration-200 cursor-pointer select-none border-none outline-none focus:outline-none"
         aria-label="Menu tài khoản"
       >
-<<<<<<< HEAD
         <span class="relative">
           <img
-            [src]="
-              user.user_metadata['avatar_url'] ||
-              user.user_metadata['picture'] ||
-              'https://api.dicebear.com/7.x/bottts/svg'
-            "
+            [src]="displayAvatarUrl"
             alt="Avatar"
+            (error)="onAvatarError($event)"
             class="w-8 h-8 rounded-full border border-[#dadad3] dark:border-[#444] object-cover"
             [class.ring-2]="billing.isPro()"
             [class.ring-[#F94083]]="billing.isPro()"
@@ -240,14 +236,6 @@
             <app-icon name="crown" class="w-[9px] h-[9px] text-white"></app-icon>
           </span>
         </span>
-=======
-        <img
-          [src]="displayAvatarUrl"
-          alt="Avatar"
-          (error)="onAvatarError($event)"
-          class="w-8 h-8 rounded-full border border-[#dadad3] dark:border-[#444] object-cover"
-        />
->>>>>>> origin/letuyen
         <span
           class="material-symbols-outlined text-[20px] text-[#211922] dark:text-white font-semibold leading-none select-none"
           >keyboard_arrow_down</span
