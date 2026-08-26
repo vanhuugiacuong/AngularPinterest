@@ -307,31 +307,52 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     const currentUser = this.supabaseService.user();
     if (!currentUser) return;
 
+    // 1. Optimistic UI update (0ms instant response)
+    const currentlyLiked = this.likedPinIds().has(pin.id);
+    const nextLiked = !currentlyLiked;
+
+    if (nextLiked) {
+      pin.likes = (pin.likes || 0) + 1;
+    } else {
+      pin.likes = Math.max(0, (pin.likes || 0) - 1);
+    }
+
+    this.likedPinIds.update(current => {
+      const next = new Set(current);
+      if (nextLiked) next.add(pin.id);
+      else next.delete(pin.id);
+      return next;
+    });
+    this.pins.update(current => [...current]);
+
+    // 2. Perform network call asynchronously
     try {
       const token = await this.supabaseService.getSessionToken();
       if (token) {
         const result = await this.pinService.toggleLike(pin.id, token);
-        if (result.liked) {
-          pin.likes = (pin.likes || 0) + 1;
-        } else {
-          if (pin.likes !== undefined) {
-            pin.likes = Math.max(0, pin.likes - 1);
-          }
+        if (result.liked !== nextLiked) {
+          // Revert if server mismatch
+          this.likedPinIds.update(current => {
+            const next = new Set(current);
+            if (result.liked) next.add(pin.id);
+            else next.delete(pin.id);
+            return next;
+          });
+          this.pins.update(current => [...current]);
         }
-        this.likedPinIds.update(current => {
-          const next = new Set(current);
-          if (result.liked) {
-            next.add(pin.id);
-          } else {
-            next.delete(pin.id);
-          }
-          return next;
-        });
-        // Force Signal updates on template
-        this.pins.update(current => [...current]);
       }
     } catch (error) {
       console.error('Error toggling like:', error);
+      // Revert on error
+      this.likedPinIds.update(current => {
+        const next = new Set(current);
+        if (currentlyLiked) next.add(pin.id);
+        else next.delete(pin.id);
+        return next;
+      });
+      if (currentlyLiked) pin.likes = (pin.likes || 0) + 1;
+      else pin.likes = Math.max(0, (pin.likes || 0) - 1);
+      this.pins.update(current => [...current]);
     }
   }
 

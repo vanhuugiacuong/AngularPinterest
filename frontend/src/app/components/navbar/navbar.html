@@ -19,8 +19,12 @@
        (it already has its own "Tìm kiếm ý tưởng để ghép" search) -->
   <div *ngIf="supabaseService.user() && !isCollagePage()" class="relative flex-1 mx-4">
     <div
-      class="relative z-50 flex items-center gap-2 px-4 h-11 bg-[#e9e9e9] dark:bg-[#3a3a3a] rounded-full text-[#62625b] dark:text-[#a0a0a0] border border-transparent hover:border-[#dadad3] dark:hover:border-[#444] transition-colors"
+      class="relative z-50 flex items-center gap-2 px-4 h-11 bg-[#e9e9e9] dark:bg-[#3a3a3a] rounded-full text-[#62625b] dark:text-[#a0a0a0] border border-transparent transition-all duration-150"
+      [class.!bg-white]="showSearchDropdown()"
+      [class.dark:!bg-[#1e1e1e]]="showSearchDropdown()"
       [class.!rounded-b-none]="showSearchDropdown()"
+      [class.!rounded-t-3xl]="showSearchDropdown()"
+      [class.shadow-lg]="showSearchDropdown()"
     >
       <span class="material-symbols-outlined text-xl">search</span>
       <input
@@ -65,7 +69,7 @@
     <!-- Search suggestions dropdown -->
     <div
       *ngIf="showSearchDropdown()"
-      class="absolute top-full left-0 right-0 bg-white dark:bg-[#1e1e1e] rounded-b-3xl shadow-[0_16px_40px_rgba(0,0,0,0.15)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.5)] border border-t-0 border-[#dadad3] dark:border-[#333] max-h-[70vh] overflow-y-auto py-4 z-50"
+      class="absolute top-full left-0 right-0 bg-white dark:bg-[#1e1e1e] rounded-b-3xl shadow-[0_16px_40px_rgba(0,0,0,0.15)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.5)] border-t-0 border-x border-b border-gray-100 dark:border-[#333] max-h-[70vh] overflow-y-auto py-4 z-50 -mt-[1px]"
       (click)="$event.stopPropagation()"
     >
       <!-- Live "as you type" suggestions -->

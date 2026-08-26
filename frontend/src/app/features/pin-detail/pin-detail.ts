@@ -517,21 +517,27 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     const currentUser = this.supabaseService.user();
     if (!currentPin || !currentUser) return;
 
+    // 1. Optimistic UI update (0ms instant response)
+    const currentlyLiked = this.isLikedByUser();
+    const nextLikes = [...(currentPin.likes || [])];
+    if (currentlyLiked) {
+      const idx = nextLikes.findIndex(l => l.userId === currentUser.id);
+      if (idx !== -1) nextLikes.splice(idx, 1);
+    } else {
+      nextLikes.push({ userId: currentUser.id, pinId: currentPin.id });
+    }
+    this.pin.set({ ...currentPin, likes: nextLikes });
+
+    // 2. Perform network call asynchronously
     try {
       const token = await this.supabaseService.getSessionToken();
       if (token) {
-        const result = await this.pinService.toggleLike(currentPin.id, token);
-        const updatedLikes = [...(currentPin.likes || [])];
-        if (result.liked) {
-          updatedLikes.push({ userId: currentUser.id, pinId: currentPin.id });
-        } else {
-          const idx = updatedLikes.findIndex(l => l.userId === currentUser.id);
-          if (idx !== -1) updatedLikes.splice(idx, 1);
-        }
-        this.pin.set({ ...currentPin, likes: updatedLikes });
+        await this.pinService.toggleLike(currentPin.id, token);
       }
     } catch (error) {
       console.error('Error toggling like:', error);
+      // Revert state on error
+      this.pin.set(currentPin);
     }
   }
 
