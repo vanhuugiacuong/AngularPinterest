@@ -4,10 +4,19 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { AiGeneratorService } from '../ai-generator/ai-generator.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ModerationService } from '../moderation/moderation.service';
+import { PREMIUM_PRICE_MAX, PREMIUM_PRICE_MIN } from '../billing/billing.config';
 
 @Injectable()
 export class PinsService {
   private readonly clipServiceUrl = process.env.CLIP_SERVICE_URL || 'http://localhost:8001';
+
+  /** Giá Premium hợp lệ (credit), null nếu không bán. */
+  private normalizePremium(isPremium?: boolean, priceCredits?: number): { isPremium: boolean; priceCredits: number | null } {
+    if (!isPremium) return { isPremium: false, priceCredits: null };
+    const n = Math.round(Number(priceCredits) || 0);
+    const price = Math.max(PREMIUM_PRICE_MIN, Math.min(PREMIUM_PRICE_MAX, n));
+    return { isPremium: true, priceCredits: price };
+  }
 
   constructor(
     private readonly prisma: PrismaService,
@@ -225,6 +234,8 @@ export class PinsService {
     title: string,
     description?: string,
     boardId?: string,
+    isPremium?: boolean,
+    priceCredits?: number,
   ) {
     this.moderationService.checkTextIsSafe(title, description);
     await this.moderationService.checkImageIsSafe(file.buffer, file.originalname, file.mimetype);
@@ -243,6 +254,7 @@ export class PinsService {
       console.error('Error fetching CLIP embedding for uploaded pin:', e);
     }
 
+    const premium = this.normalizePremium(isPremium, priceCredits);
     const pin = await this.prisma.pin.create({
       data: {
         title,
@@ -250,6 +262,8 @@ export class PinsService {
         imageUrl,
         userId,
         category,
+        isPremium: premium.isPremium,
+        priceCredits: premium.priceCredits,
       },
     });
 
@@ -294,6 +308,8 @@ export class PinsService {
     promptUsed?: string,
     negativePrompt?: string,
     generationModel?: string,
+    isPremium?: boolean,
+    priceCredits?: number,
   ) {
     // 1. Moderate the AI-generated image before it's persisted anywhere permanent
     this.moderationService.checkTextIsSafe(title, description, promptUsed);
@@ -324,6 +340,7 @@ export class PinsService {
     }
 
     // 4. Save to database
+    const premium = this.normalizePremium(isPremium, priceCredits);
     const pin = await this.prisma.pin.create({
       data: {
         title,
@@ -335,6 +352,8 @@ export class PinsService {
         negativePrompt,
         generationModel,
         category,
+        isPremium: premium.isPremium,
+        priceCredits: premium.priceCredits,
       },
     });
 

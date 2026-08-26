@@ -11,6 +11,9 @@ import { Notifications } from './features/notifications/notifications';
 import { Settings } from './features/settings/settings';
 import { NotFound } from './features/not-found/not-found';
 import { Chat } from './features/chat/chat';
+import { Pro } from './features/pro/pro';
+import { Wallet } from './features/wallet/wallet';
+import { BillingResult } from './features/billing-result/billing-result';
 import { authGuard } from './core/guards/auth';
 
 export const routes: Routes = [
@@ -25,6 +28,9 @@ export const routes: Routes = [
   { path: 'search', component: Search },
   { path: 'notifications', component: Notifications },
   { path: 'settings', component: Settings },
+  { path: 'pro', component: Pro },
+  { path: 'wallet', component: Wallet },
+  { path: 'billing/result', component: BillingResult },
   { path: 'chat', component: Chat },
   { path: 'chat/:conversationId', component: Chat },
   { path: '**', component: NotFound }

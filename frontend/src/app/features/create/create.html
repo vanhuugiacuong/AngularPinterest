@@ -231,6 +231,57 @@
                   </div>
                 </div>
               </div>
+              <!-- Premium (bán ảnh — trả credit để tải HD) -->
+              <div class="rounded-2xl border overflow-hidden transition-all"
+                [class.border-[#F1D488]]="isPremium()"
+                [class.bg-gradient-to-br]="isPremium()"
+                [class.from-[#FFF9EC]]="isPremium()"
+                [class.to-[#FDF1D6]]="isPremium()"
+                [class.dark:from-[#221d0e]]="isPremium()"
+                [class.dark:to-[#1a160a]]="isPremium()"
+                [class.border-[#dadad3]]="!isPremium()"
+                [class.dark:border-[#333]]="!isPremium()"
+              >
+                <button
+                  type="button"
+                  (click)="togglePremium()"
+                  [disabled]="isSubmitting()"
+                  class="w-full flex items-center gap-3 p-4 cursor-pointer border-none outline-none bg-transparent text-left"
+                >
+                  <span class="w-9 h-9 rounded-full bg-[#FDE8B8] flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-[19px] text-[#B8860B] premium-fill">workspace_premium</span>
+                  </span>
+                  <span class="flex-1 min-w-0">
+                    <span class="block text-xs font-extrabold text-black dark:text-white">Bán ảnh này (Premium)</span>
+                    <span class="block text-[11px] text-gray-500 dark:text-[#999] mt-0.5">Người khác trả credit để tải bản HD không watermark</span>
+                  </span>
+                  <!-- Toggle -->
+                  <span class="w-10 h-6 rounded-full relative transition-colors shrink-0"
+                    [class.bg-[#B8860B]]="isPremium()" [class.bg-[#c8c8c1]]="!isPremium()" [class.dark:bg-[#444]]="!isPremium()">
+                    <span class="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
+                      [class.left-[18px]]="isPremium()" [class.left-0.5]="!isPremium()"></span>
+                  </span>
+                </button>
+
+                <div *ngIf="isPremium()" class="px-4 pb-4 pt-1">
+                  <label class="text-[11px] font-bold text-gray-600 dark:text-[#aaa] block mb-1.5">Giá tải HD (credit)</label>
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[20px] text-[#B8860B] premium-fill">toll</span>
+                    <input
+                      type="number"
+                      [(ngModel)]="premiumPrice"
+                      [min]="priceMin"
+                      [max]="priceMax"
+                      [disabled]="isSubmitting()"
+                      class="w-24 bg-white dark:bg-[#2a2a2a] border border-[#F1D488] dark:border-[#4a3f18] outline-none rounded-full px-3 h-10 text-sm font-extrabold text-black dark:text-white text-center"
+                    />
+                    <span class="text-[11px] text-gray-500 dark:text-[#999]">credit &nbsp;·&nbsp; từ {{ priceMin }} đến {{ priceMax }}</span>
+                  </div>
+                  <p class="text-[11px] text-[#96721a] dark:text-[#c9b268] mt-2 leading-snug">
+                    Bạn nhận 70% mỗi lượt bán. Feed chỉ hiện bản preview có watermark — bản gốc HD được bảo vệ, không lộ qua DevTools.
+                  </p>
+                </div>
+              </div>
             </div>
 
             <!-- Submit Action -->

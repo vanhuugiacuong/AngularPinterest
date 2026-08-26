@@ -105,8 +105,13 @@ export class PinsController {
     @Body('title') title: string,
     @Body('description') description?: string,
     @Body('boardId') boardId?: string,
+    @Body('isPremium') isPremium?: string,
+    @Body('priceCredits') priceCredits?: string,
   ) {
-    return this.pinsService.createUploadPin(user.id, file, title, description, boardId);
+    // multipart -> giá trị là chuỗi
+    const premium = isPremium === 'true' || isPremium === '1';
+    const price = priceCredits ? parseInt(priceCredits, 10) : undefined;
+    return this.pinsService.createUploadPin(user.id, file, title, description, boardId, premium, price);
   }
 
   @Post('ai-save')
@@ -120,6 +125,8 @@ export class PinsController {
     @Body('promptUsed') promptUsed?: string,
     @Body('negativePrompt') negativePrompt?: string,
     @Body('generationModel') generationModel?: string,
+    @Body('isPremium') isPremium?: boolean,
+    @Body('priceCredits') priceCredits?: number,
   ) {
     return this.pinsService.saveAiPin(
       user.id,
@@ -130,6 +137,8 @@ export class PinsController {
       promptUsed,
       negativePrompt,
       generationModel,
+      !!isPremium,
+      priceCredits,
     );
   }
 

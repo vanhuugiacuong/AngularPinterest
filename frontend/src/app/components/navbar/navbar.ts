@@ -6,8 +6,10 @@ import { ThemeService } from '../../core/services/theme';
 import { NotificationService, AppNotification } from '../../core/services/notification';
 import { NotificationSocketService } from '../../core/services/notification-socket';
 import { NotificationItem } from '../notification-item/notification-item';
+import { Icon } from '../../shared/icon/icon';
 import { PinService, Pin } from '../../core/services/pin';
 import { ChatService, PublicUserSummary } from '../../core/services/chat';
+import { BillingService } from '../../core/services/billing';
 
 // Lowercases and strips Vietnamese diacritics so "meo" matches "mèo" — same normalizer
 // used by the /search results page, kept in sync so typing and submitting agree.
@@ -24,7 +26,7 @@ function normalizeForSearch(value: string | null | undefined): string {
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, NotificationItem],
+  imports: [CommonModule, NotificationItem, Icon],
   templateUrl: './navbar.html',
   styleUrl: './navbar.css'
 })
@@ -37,6 +39,7 @@ export class Navbar {
   private elementRef = inject(ElementRef);
   private pinService = inject(PinService);
   private chatService = inject(ChatService);
+  public billing = inject(BillingService);
 
   @Output() loginClick = new EventEmitter<void>();
 
@@ -74,6 +77,7 @@ export class Navbar {
       const user = this.supabaseService.user();
       if (user) {
         this.refreshUnreadCount();
+        void this.billing.refreshMe();
         this.notificationSocket.connect();
         if (!this.unreadPollTimer) {
           this.unreadPollTimer = setInterval(() => this.refreshUnreadCount(), 30000);
@@ -272,6 +276,16 @@ export class Navbar {
   navigateToSettings() {
     this.showProfilePopup.set(false);
     this.router.navigate(['/settings']);
+  }
+
+  navigateToPro() {
+    this.showProfilePopup.set(false);
+    this.router.navigate(['/pro']);
+  }
+
+  navigateToWallet() {
+    this.showProfilePopup.set(false);
+    this.router.navigate(['/wallet']);
   }
 
   // Search suggestions dropdown — recent searches (real, stored locally), plus "for

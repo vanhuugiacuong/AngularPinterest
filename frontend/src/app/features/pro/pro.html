@@ -1,0 +1,160 @@
+<div class="min-h-screen bg-white dark:bg-[#101014] text-[#1b1620] dark:text-white flex flex-col font-sans transition-colors">
+  <app-navbar></app-navbar>
+
+  <div class="flex-1 pt-16 pl-28 pb-24 flex flex-col min-w-0">
+    <main class="flex-1 w-full max-w-[980px] mx-auto px-6 py-8 flex flex-col">
+
+      @if (billing.isPro()) {
+        <!-- ══════════════ MÀN THÀNH VIÊN PRO ══════════════ -->
+        <div class="member-card relative overflow-hidden rounded-[30px] px-6 sm:px-11 py-11 text-white mb-8">
+          <div class="relative z-10 flex flex-col items-center text-center">
+            <span class="w-16 h-16 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center mb-5 ring-1 ring-white/25">
+              <app-icon name="crown" class="w-8 h-8"></app-icon>
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 text-[11px] font-extrabold tracking-wide mb-4">
+              <app-icon name="check" class="w-[13px] h-[13px]"></app-icon> ĐANG HOẠT ĐỘNG
+            </span>
+            <h1 class="text-[30px] sm:text-[42px] font-extrabold tracking-tight leading-tight">Bạn là thành viên PinHub Pro</h1>
+            <p class="text-white/85 text-base mt-3 max-w-lg">Cảm ơn bạn đã ủng hộ PinHub 💜 Toàn bộ quyền lợi Pro đang được mở khoá.</p>
+
+            <div class="flex flex-wrap items-center justify-center gap-2.5 mt-6">
+              <span class="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/15 text-sm font-semibold">
+                <app-icon name="clock" class="w-[15px] h-[15px]"></app-icon> Hiệu lực đến {{ billing.proExpiresAt() | date: 'dd/MM/yyyy' }}
+              </span>
+              <span class="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/15 text-sm font-semibold">
+                <app-icon name="coin" class="w-[15px] h-[15px]"></app-icon> +300 credit / tháng
+              </span>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-center gap-3 mt-7">
+              <button (click)="goWallet()" class="h-11 px-6 rounded-full bg-white text-[#B15CAA] font-bold text-sm hover:bg-white/90 transition-colors cursor-pointer border-none outline-none flex items-center gap-2">
+                <app-icon name="wallet" class="w-[17px] h-[17px]"></app-icon> Xem ví credit
+              </button>
+            </div>
+          </div>
+          <app-icon name="crown" class="absolute -right-8 -bottom-10 w-52 h-52 text-white/10"></app-icon>
+        </div>
+
+        <!-- Quyền lợi đang có -->
+        <h2 class="text-lg font-extrabold tracking-tight mb-4">Quyền lợi bạn đang mở khoá</h2>
+        <div class="grid sm:grid-cols-2 gap-3.5 mb-10">
+          @for (b of benefits; track b.title) {
+            <div class="flex items-start gap-3.5 p-4 rounded-[20px] border border-[#ececef] dark:border-[#26262c] bg-[#faf9fb] dark:bg-[#17171c]">
+              <span class="w-10 h-10 rounded-xl bg-[#fdeef4] dark:bg-[#2a151f] text-[#F94083] flex items-center justify-center shrink-0">
+                <app-icon [name]="b.icon" class="w-5 h-5"></app-icon>
+              </span>
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-bold text-sm">{{ b.title }}</span>
+                  <app-icon name="check" class="w-4 h-4 text-[#1f9d55] shrink-0"></app-icon>
+                </div>
+                <div class="text-xs text-[#9a95a1] dark:text-[#7c7784] leading-snug mt-0.5">{{ b.desc }}</div>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Gia hạn (nhẹ nhàng, không ép) -->
+        <div class="rounded-[22px] border border-[#ececef] dark:border-[#26262c] p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
+          <div class="flex-1 min-w-0">
+            <div class="font-extrabold">Gia hạn để không gián đoạn</div>
+            <div class="text-sm text-[#9a95a1] dark:text-[#7c7784] mt-0.5">Thời hạn mới được cộng dồn vào ngày hết hạn hiện tại.</div>
+          </div>
+          <div class="flex items-center gap-2.5 shrink-0">
+            <button (click)="renew('MONTHLY')" [disabled]="isStarting()"
+              class="h-11 px-4 rounded-full bg-white dark:bg-[#22222a] border border-[#ececef] dark:border-[#2e2e36] text-[#1b1620] dark:text-white font-bold text-[13px] hover:bg-[#faf9fb] dark:hover:bg-[#26262e] transition-colors cursor-pointer disabled:opacity-60">
+              + 1 tháng · {{ billing.formatVnd(plans[0].priceVnd) }}
+            </button>
+            <button (click)="renew('YEARLY')" [disabled]="isStarting()"
+              class="grad-btn h-11 px-5 rounded-full text-white font-bold text-[13px] cursor-pointer border-none outline-none disabled:opacity-60">
+              {{ isStarting() ? 'Đang tạo QR…' : '+ 1 năm · ' + billing.formatVnd(plans[1].priceVnd) }}
+            </button>
+          </div>
+        </div>
+
+      } @else {
+        <!-- ══════════════ MÀN BÁN HÀNG (chưa Pro) ══════════════ -->
+        <div class="hero relative overflow-hidden rounded-[30px] px-6 sm:px-12 py-12 text-center mb-11 border border-[#f0eaf3] dark:border-[#232029]">
+          <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full grad-btn text-white text-[11px] font-extrabold tracking-wide mb-6">
+            <app-icon name="spark" class="w-[14px] h-[14px]"></app-icon> PINHUB PRO
+          </span>
+          <h1 class="text-[32px] sm:text-[52px] font-extrabold tracking-tight leading-[1.05] mb-4">
+            Sáng tạo không giới hạn,<br class="hidden sm:block" />
+            <span class="bg-gradient-to-r from-[#F94083] to-[#B15CAA] bg-clip-text text-transparent">nâng tầm với Pro</span>
+          </h1>
+          <p class="text-[#7c7784] dark:text-[#9b96a2] text-base sm:text-lg max-w-xl mx-auto">
+            Tạo ảnh AI thỏa thích, tải bản HD sạch không watermark và nhận credit hàng tháng để sưu tầm tác phẩm đẹp của cộng đồng.
+          </p>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-4 mb-5">
+          @for (plan of plans; track plan.code) {
+            <button type="button" (click)="selectPlan(plan.code)"
+              class="plan-card group relative text-left rounded-[24px] p-6 border-2 transition-all duration-200 cursor-pointer outline-none bg-white dark:bg-[#17171c]"
+              [class.selected]="selected() === plan.code"
+              [class.border-[#F94083]]="selected() === plan.code"
+              [class.border-[#ececef]]="selected() !== plan.code"
+              [class.dark:border-[#26262c]]="selected() !== plan.code">
+              @if (plan.badge) {
+                <span class="absolute top-5 right-5 px-2.5 py-1 rounded-full bg-[#fdeef4] dark:bg-[#2a151f] text-[#F94083] text-[11px] font-extrabold">{{ plan.badge }}</span>
+              }
+              <div class="flex items-center gap-2.5 mb-3.5">
+                <span class="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors"
+                  [class.border-[#F94083]]="selected() === plan.code" [class.border-[#cfc9d5]]="selected() !== plan.code">
+                  @if (selected() === plan.code) { <span class="w-2.5 h-2.5 rounded-full grad-btn"></span> }
+                </span>
+                <span class="font-extrabold text-lg">{{ plan.name }}</span>
+              </div>
+              <div class="flex items-end gap-1.5 mb-1">
+                <span class="text-[30px] leading-none font-extrabold tracking-tight">{{ billing.formatVnd(plan.priceVnd) }}</span>
+                <span class="text-[#9a95a1] dark:text-[#7c7784] text-sm mb-0.5">/ {{ plan.code === 'YEARLY' ? 'năm' : 'tháng' }}</span>
+              </div>
+              @if (plan.code === 'YEARLY') {
+                <p class="text-sm text-[#1f9d55] font-semibold">Chỉ ~{{ billing.formatVnd(monthlyEquivalent()) }}/tháng</p>
+              } @else {
+                <p class="text-sm text-[#9a95a1] dark:text-[#7c7784]">Linh hoạt, hủy bất cứ lúc nào</p>
+              }
+              <div class="mt-4 pt-4 border-t border-[#f2f0f5] dark:border-[#232329] flex items-center gap-2 text-sm text-[#7c7784] dark:text-[#9b96a2]">
+                <app-icon name="coin" class="w-[18px] h-[18px] text-[#F94083]"></app-icon> Tặng {{ plan.grantCredits }} credit mỗi tháng
+              </div>
+            </button>
+          }
+        </div>
+
+        <button (click)="subscribe()" [disabled]="isStarting()"
+          class="cta grad-btn w-full h-14 rounded-full text-white font-extrabold text-base transition-all duration-200 cursor-pointer border-none outline-none mb-2.5 disabled:opacity-70">
+          {{ isStarting() ? 'Đang tạo mã QR…' : 'Nâng cấp ' + selectedPlan.name + ' · ' + billing.formatVnd(selectedPlan.priceVnd) }}
+        </button>
+        <p class="flex items-center justify-center gap-1.5 text-xs text-[#9a95a1] dark:text-[#7c7784] mb-14">
+          <app-icon name="shield" class="w-4 h-4"></app-icon> Thanh toán bằng mã QR (VietQR) · tự động xác nhận
+        </p>
+
+        <h2 class="text-xl font-extrabold tracking-tight mb-5">Bạn nhận được gì với Pro?</h2>
+        <div class="rounded-[24px] overflow-hidden border border-[#ececef] dark:border-[#26262c]">
+          <div class="grid grid-cols-[1fr_84px_84px] sm:grid-cols-[1fr_120px_120px] bg-[#faf9fb] dark:bg-[#17171c] text-[11px] font-bold text-[#9a95a1] dark:text-[#7c7784] uppercase tracking-wide">
+            <div class="px-4 sm:px-5 py-3">Quyền lợi</div>
+            <div class="px-2 py-3 text-center">Free</div>
+            <div class="px-2 py-3 text-center text-[#B15CAA]">Pro</div>
+          </div>
+          @for (b of benefits; track b.title; let last = $last) {
+            <div class="grid grid-cols-[1fr_84px_84px] sm:grid-cols-[1fr_120px_120px] items-center" [class.border-b]="!last" [class.border-[#f2f0f5]]="!last" [class.dark:border-[#232329]]="!last">
+              <div class="px-4 sm:px-5 py-4 flex items-start gap-3 min-w-0">
+                <app-icon [name]="b.icon" class="w-5 h-5 text-[#B15CAA] shrink-0 mt-0.5"></app-icon>
+                <div class="min-w-0">
+                  <div class="font-bold text-sm">{{ b.title }}</div>
+                  <div class="text-xs text-[#9a95a1] dark:text-[#7c7784] leading-snug mt-0.5">{{ b.desc }}</div>
+                </div>
+              </div>
+              <div class="px-2 py-4 text-center text-xs text-[#9a95a1] dark:text-[#7c7784]">{{ b.free }}</div>
+              <div class="px-2 py-4 text-center text-xs font-extrabold text-[#B15CAA]">{{ b.pro }}</div>
+            </div>
+          }
+        </div>
+
+        <p class="text-center text-xs text-[#b8b3bf] dark:text-[#5a555f] mt-10">
+          Ảnh Premium của người khác vẫn cần trả credit để tải HD — Pro được tặng credit hàng tháng để dùng.
+        </p>
+      }
+    </main>
+  </div>
+</div>

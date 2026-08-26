@@ -8,6 +8,7 @@ import { BoardService, Board } from '../../core/services/board';
 import { ToastService } from '../../core/services/toast';
 import { ConfirmService } from '../../core/services/confirm';
 import { ChatService, ConversationSummary } from '../../core/services/chat';
+import { BillingService } from '../../core/services/billing';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -26,7 +27,17 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   private confirmService = inject(ConfirmService);
   private chatService = inject(ChatService);
   public supabaseService = inject(SupabaseService);
+  public billing = inject(BillingService);
   private elementRef = inject(ElementRef);
+
+  public isBuying = signal<boolean>(false);
+  public access = signal<{ isPremium: boolean; priceCredits: number | null; owned: boolean; purchased: boolean; canDownload: boolean } | null>(null);
+
+  private async loadAccess(pinId: string) {
+    this.access.set(null);
+    const a = await this.billing.getPinAccess(pinId);
+    if (a) this.access.set(a);
+  }
 
   @ViewChild('scrollSentinel') scrollSentinel!: ElementRef;
 
@@ -92,6 +103,90 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  // ── Ảnh Premium (ưu tiên dữ liệu server, fallback registry local) ────────────
+  get isPremiumPin(): boolean {
+    const a = this.access();
+    if (a) return a.isPremium;
+    const p = this.pin();
+    return !!p?.isPremium || (!!p?.id && this.billing.isPremium(p.id));
+  }
+
+  get premiumPriceValue(): number {
+    const a = this.access();
+    if (a && a.priceCredits != null) return a.priceCredits;
+    const p = this.pin();
+    if (p?.priceCredits != null) return p.priceCredits;
+    return (p?.id && this.billing.premiumPrice(p.id)) || 0;
+  }
+
+  get isOwnerOfPin(): boolean {
+    const uid = this.supabaseService.user()?.id || this.supabaseService.dbUser()?.id;
+    return !!uid && this.pin()?.userId === uid;
+  }
+
+  /** Đã có quyền tải HD: là chủ ảnh, hoặc đã mua entitlement. */
+  get canDownloadHd(): boolean {
+    const a = this.access();
+    if (a) return a.canDownload;
+    const id = this.pin()?.id;
+    return this.isOwnerOfPin || (!!id && this.billing.hasEntitlement(id));
+  }
+
+  /** Cần khoá (hiện preview watermark + nút mua). */
+  get isLocked(): boolean {
+    return this.isPremiumPin && !this.canDownloadHd;
+  }
+
+  async buyDownload() {
+    const id = this.pin()?.id;
+    if (!id) return;
+    this.isBuying.set(true);
+    try {
+      // Đường thật: gọi API backend (trừ credit + chia doanh thu + tạo entitlement)
+      const res = await this.billing.purchasePinApi(id);
+      if (res.ok) {
+        this.toastService.success('Đã mua quyền tải HD! Bạn có thể tải bản gốc ngay.');
+        await this.loadAccess(id);
+        return;
+      }
+      // Backend chưa chạy (preview) -> fallback mô phỏng cục bộ
+      if (res.reason === 'no_token' || res.reason === 'network') {
+        const price = this.premiumPriceValue;
+        if (this.billing.spendable() < price) {
+          this.toastService.error('Bạn không đủ credit. Hãy nạp thêm trong Ví.');
+          this.router.navigate(['/wallet']);
+          return;
+        }
+        if (this.billing.purchasePin(id, price)) {
+          this.toastService.success('Đã mua quyền tải HD! Bạn có thể tải bản gốc ngay.');
+        }
+        return;
+      }
+      // Backend trả lỗi nghiệp vụ (không đủ credit...)
+      const msg = res.reason || 'Không mua được.';
+      this.toastService.error(msg);
+      if (/credit/i.test(msg)) this.router.navigate(['/wallet']);
+    } finally {
+      this.isBuying.set(false);
+    }
+  }
+
+  /**
+   * Tải bản HD. Ở bản thật: gọi GET /api/pins/:id/download (guard kiểm entitlement,
+   * trả signed URL 1 lần + watermark ẩn). Ở bản demo: mở ảnh gốc để tải xuống.
+   */
+  downloadHd() {
+    const p = this.pin();
+    if (!p || !this.canDownloadHd) return;
+    const a = document.createElement('a');
+    a.href = p.imageUrl;
+    a.download = (p.title || 'pinhub') + '.jpg';
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.click();
+    this.toastService.success('Đang tải bản HD...');
+  }
+
   private currentPage = 1;
   private limit = 20;
   private hasMore = true;
@@ -134,6 +229,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       // 1. Fetch details
       const detailPin = await this.pinService.getPinById(id);
       this.pin.set(detailPin);
+      void this.loadAccess(id);
 
       // Check if image is horizontal landscape
       if (detailPin && detailPin.imageUrl) {

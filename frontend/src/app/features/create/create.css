@@ -7,3 +7,7 @@
   border-color: #8b8b83;
   background-color: #fcfcf9;
 }
+
+.premium-fill {
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+}

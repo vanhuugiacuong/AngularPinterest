@@ -199,15 +199,26 @@
         class="flex items-center gap-1 p-1 hover:bg-[#f6f6f3] rounded-full transition-all duration-200 cursor-pointer select-none border-none outline-none focus:outline-none"
         aria-label="Menu tài khoản"
       >
-        <img
-          [src]="
-            user.user_metadata['avatar_url'] ||
-            user.user_metadata['picture'] ||
-            'https://api.dicebear.com/7.x/bottts/svg'
-          "
-          alt="Avatar"
-          class="w-8 h-8 rounded-full border border-[#dadad3] dark:border-[#444] object-cover"
-        />
+        <span class="relative">
+          <img
+            [src]="
+              user.user_metadata['avatar_url'] ||
+              user.user_metadata['picture'] ||
+              'https://api.dicebear.com/7.x/bottts/svg'
+            "
+            alt="Avatar"
+            class="w-8 h-8 rounded-full border border-[#dadad3] dark:border-[#444] object-cover"
+            [class.ring-2]="billing.isPro()"
+            [class.ring-[#F94083]]="billing.isPro()"
+          />
+          <span
+            *ngIf="billing.isPro()"
+            class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full grad-pill flex items-center justify-center border-2 border-white dark:border-[#1a1a1a]"
+            title="Thành viên Pro"
+          >
+            <app-icon name="crown" class="w-[9px] h-[9px] text-white"></app-icon>
+          </span>
+        </span>
         <span
           class="material-symbols-outlined text-[20px] text-[#211922] dark:text-white font-semibold leading-none select-none"
           >keyboard_arrow_down</span
@@ -246,6 +257,38 @@
             </span>
           </div>
         </div>
+
+        <!-- Nâng cấp Pro / Thành viên Pro -->
+        <button
+          (click)="navigateToPro()"
+          class="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-200 cursor-pointer border-none outline-none select-none text-left"
+          [class.grad-pill]="!billing.isPro()"
+          [class.hover:bg-[#f6f6f3]]="billing.isPro()"
+          [class.dark:hover:bg-[#2a2a2a]]="billing.isPro()"
+        >
+          <span class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+            [class.bg-white/20]="!billing.isPro()" [class.text-white]="!billing.isPro()"
+            [class.bg-[#fdeef4]]="billing.isPro()" [class.dark:bg-[#2a151f]]="billing.isPro()" [class.text-[#B15CAA]]="billing.isPro()">
+            <app-icon name="crown" class="w-[18px] h-[18px]"></app-icon>
+          </span>
+          <span class="flex-1 min-w-0">
+            <span class="block text-sm font-extrabold" [class.text-white]="!billing.isPro()" [class.text-black]="billing.isPro()" [class.dark:text-white]="billing.isPro()">
+              {{ billing.isPro() ? 'Thành viên Pro' : 'Nâng cấp lên Pro' }}
+            </span>
+            <span class="block text-[11px]" [class.text-white/85]="!billing.isPro()" [class.text-[#91918c]]="billing.isPro()" [class.dark:text-[#777]]="billing.isPro()">
+              {{ billing.isPro() ? 'Đang hoạt động' : 'AI không giới hạn · tải HD' }}
+            </span>
+          </span>
+        </button>
+
+        <button
+          (click)="navigateToWallet()"
+          class="w-full flex items-center gap-3 px-3 py-1.5 rounded-xl hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] transition-all duration-200 cursor-pointer border-none outline-none select-none text-left"
+        >
+          <app-icon name="coin" class="w-[22px] h-[22px] shrink-0"></app-icon>
+          <span class="flex-1 text-sm font-bold text-black dark:text-white">Ví Credit</span>
+          <span class="text-sm font-extrabold text-[#B15CAA] tabular-nums">{{ billing.spendable() }}</span>
+        </button>
 
         <!-- Section: Tài khoản của bạn -->
         <span class="text-[12px] text-[#211922] dark:text-[#a0a0a0] font-normal px-2 select-none">

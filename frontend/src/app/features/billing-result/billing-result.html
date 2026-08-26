@@ -1,0 +1,143 @@
+<div class="min-h-screen bg-white dark:bg-[#101014] text-[#1b1620] dark:text-white flex flex-col font-sans transition-colors">
+  <app-navbar></app-navbar>
+
+  <div class="flex-1 pt-16 pl-28 pb-24 flex items-center justify-center min-w-0 px-6">
+    <div class="w-full max-w-[460px]">
+
+      <!-- ══════════════ QR THANH TOÁN ══════════════ -->
+      @if (phase() === 'qr' && pending(); as p) {
+        <div class="rounded-[28px] border border-[#ececef] dark:border-[#26262c] overflow-hidden bg-white dark:bg-[#17171c] shadow-[0_20px_50px_-16px_rgba(177,92,170,0.28)]">
+          <div class="px-6 py-4 flex items-center gap-2.5 grad-btn text-white">
+            <app-icon name="qr" class="w-5 h-5"></app-icon>
+            <span class="font-extrabold">Quét mã QR để thanh toán</span>
+            <span class="ml-auto flex items-center gap-1.5 text-xs bg-white/20 px-2.5 py-1 rounded-full font-bold">
+              <app-icon name="clock" class="w-[13px] h-[13px]"></app-icon>{{ countdown }}
+            </span>
+          </div>
+
+          <div class="p-6">
+            <div class="text-sm text-[#9a95a1] dark:text-[#7c7784] mb-1">Nội dung thanh toán</div>
+            <div class="text-lg font-extrabold mb-5">{{ title }}</div>
+
+            <div class="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
+              <!-- QR -->
+              <div class="shrink-0 text-center">
+                <div class="p-2.5 rounded-2xl bg-white border border-[#ececef] shadow-sm">
+                  <img [src]="qrUrl()" alt="Mã QR thanh toán" class="w-[188px] h-[188px] object-contain block" />
+                </div>
+                <div class="mt-2.5 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#9a95a1] dark:text-[#7c7784]">
+                  <app-icon name="qr" class="w-[14px] h-[14px]"></app-icon> Quét bằng app ngân hàng
+                </div>
+              </div>
+
+              <!-- Thông tin -->
+              <div class="flex-1 min-w-0 w-full space-y-3">
+                <div class="flex justify-between gap-3 text-sm">
+                  <span class="text-[#9a95a1] dark:text-[#7c7784] shrink-0">Ngân hàng</span>
+                  <span class="font-bold text-right">{{ billing.bank.shortName }}</span>
+                </div>
+                <div class="flex justify-between gap-3 text-sm">
+                  <span class="text-[#9a95a1] dark:text-[#7c7784] shrink-0">Chủ tài khoản</span>
+                  <span class="font-bold text-right truncate">{{ billing.bank.accountName }}</span>
+                </div>
+                <div class="flex justify-between gap-3 text-sm">
+                  <span class="text-[#9a95a1] dark:text-[#7c7784] shrink-0">Số tài khoản</span>
+                  <span class="font-bold font-mono text-right">{{ billing.bank.accountNo }}</span>
+                </div>
+                <div class="flex justify-between gap-3 items-center">
+                  <span class="text-[#9a95a1] dark:text-[#7c7784] text-sm shrink-0">Số tiền</span>
+                  <span class="text-xl font-extrabold text-[#F94083]">{{ billing.formatVnd(p.amountVnd) }}</span>
+                </div>
+
+                <div class="rounded-xl bg-[#faf9fb] dark:bg-[#101014] border border-[#ececef] dark:border-[#26262c] p-3">
+                  <div class="text-[11px] font-bold text-[#9a95a1] dark:text-[#7c7784] uppercase tracking-wide mb-1">Nội dung chuyển khoản (bắt buộc)</div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono font-extrabold text-sm text-[#B15CAA] truncate">{{ p.memo }}</span>
+                    <button (click)="copyMemo()" class="ml-auto shrink-0 w-7 h-7 rounded-full bg-white dark:bg-[#22222a] flex items-center justify-center cursor-pointer border border-[#ececef] dark:border-[#2e2e36] hover:bg-[#faf9fb] dark:hover:bg-[#26262e] text-[#B15CAA]" title="Sao chép">
+                      <app-icon name="copy" class="w-[15px] h-[15px]"></app-icon>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Banner chế độ demo -->
+            @if (isDemo) {
+              <div class="mt-5 flex items-start gap-2.5 rounded-xl bg-[#fff6ed] dark:bg-[#241a10] border border-[#ffd9a8] dark:border-[#4a3418] px-4 py-3">
+                <app-icon name="spark" class="w-[18px] h-[18px] text-[#c77700] shrink-0 mt-0.5"></app-icon>
+                <span class="text-sm text-[#9a6100] dark:text-[#e0a94a] leading-snug">
+                  <b>Chế độ demo</b> — backend chưa chạy nên đây là thanh toán giả lập (không có tiền thật). Bấm "Tôi đã chuyển khoản" để xem luồng.
+                </span>
+              </div>
+            } @else {
+              <div class="mt-5 flex items-center gap-2.5 rounded-xl bg-[#faf9fb] dark:bg-[#101014] px-4 py-3">
+                <span class="relative flex h-2.5 w-2.5 shrink-0">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1f9d55] opacity-70"></span>
+                  <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#1f9d55]"></span>
+                </span>
+                <span class="text-sm text-[#7c7784] dark:text-[#9b96a2] leading-snug">Đang chờ nhận tiền — hệ thống tự xác nhận sau khi bạn chuyển khoản, không cần thao tác thêm.</span>
+              </div>
+            }
+
+            <!-- Chỉ giữ nút xác nhận thủ công ở chế độ demo; luồng thật để hệ thống tự dò -->
+            @if (isDemo) {
+              <button (click)="confirmNow()" [disabled]="checking()"
+                class="w-full h-12 mt-4 rounded-full bg-[#1b1620] dark:bg-white text-white dark:text-[#1b1620] font-extrabold cursor-pointer border-none outline-none hover:opacity-90 transition-opacity disabled:opacity-70">
+                {{ checking() ? 'Đang kiểm tra…' : 'Tôi đã chuyển khoản (demo)' }}
+              </button>
+            }
+            <button (click)="cancel()" class="w-full h-11 rounded-full bg-transparent text-[#9a95a1] dark:text-[#7c7784] font-bold text-sm cursor-pointer border-none outline-none hover:bg-[#faf9fb] dark:hover:bg-[#17171c] transition-colors"
+              [class.mt-1]="isDemo" [class.mt-4]="!isDemo">
+              Hủy giao dịch
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- ══════════════ THÀNH CÔNG ══════════════ -->
+      @if (phase() === 'success') {
+        <div class="rounded-[28px] border border-[#ececef] dark:border-[#26262c] p-9 flex flex-col items-center text-center bg-white dark:bg-[#17171c] shadow-[0_20px_50px_-16px_rgba(31,157,85,0.22)] success-pop">
+          <span class="w-[68px] h-[68px] rounded-full bg-[#eafaf1] dark:bg-[#12271c] flex items-center justify-center mb-5 ring-4 ring-[#eafaf1]/60 dark:ring-[#12271c]/60">
+            <app-icon name="check" class="w-9 h-9 text-[#1f9d55]"></app-icon>
+          </span>
+          <h2 class="text-[22px] font-extrabold tracking-tight mb-1.5">Đã nhận thanh toán!</h2>
+          <p class="text-sm text-[#7c7784] dark:text-[#9b96a2] mb-7 max-w-xs">
+            {{ isPro ? 'Chào mừng bạn đến với PinHub Pro. Credit tặng đã được cộng vào ví.' : 'Credit đã được cộng vào ví của bạn.' }}
+          </p>
+          <button (click)="goWallet()" class="w-full h-12 rounded-full grad-btn text-white font-extrabold cursor-pointer border-none outline-none mb-2 flex items-center justify-center gap-2">
+            <app-icon name="wallet" class="w-[18px] h-[18px]"></app-icon> Xem ví credit
+          </button>
+          <button (click)="goFeed()" class="w-full h-11 rounded-full text-[#9a95a1] dark:text-[#7c7784] font-bold text-sm cursor-pointer border-none outline-none hover:bg-[#faf9fb] dark:hover:bg-[#101014] transition-colors">
+            Về trang chủ
+          </button>
+        </div>
+      }
+
+      <!-- ══════════════ HỦY / THẤT BẠI ══════════════ -->
+      @if (phase() === 'failed') {
+        <div class="rounded-[28px] border border-[#ececef] dark:border-[#26262c] p-9 flex flex-col items-center text-center bg-white dark:bg-[#17171c]">
+          <span class="w-[68px] h-[68px] rounded-full bg-[#fdeef4] dark:bg-[#2a151f] flex items-center justify-center mb-5">
+            <app-icon name="x" class="w-9 h-9 text-[#F94083]"></app-icon>
+          </span>
+          <h2 class="text-[22px] font-extrabold tracking-tight mb-1.5">Đã hủy giao dịch</h2>
+          <p class="text-sm text-[#7c7784] dark:text-[#9b96a2] mb-7">Chưa có khoản nào bị trừ. Bạn có thể thử lại bất cứ lúc nào.</p>
+          <button (click)="goPro()" class="w-full h-12 rounded-full bg-[#1b1620] dark:bg-white text-white dark:text-[#1b1620] font-extrabold cursor-pointer border-none outline-none mb-2">Thử lại</button>
+          <button (click)="goFeed()" class="w-full h-11 rounded-full text-[#9a95a1] dark:text-[#7c7784] font-bold text-sm cursor-pointer border-none outline-none hover:bg-[#faf9fb] dark:hover:bg-[#101014] transition-colors">Về trang chủ</button>
+        </div>
+      }
+
+      <!-- ══════════════ HẾT HẠN ══════════════ -->
+      @if (phase() === 'expired') {
+        <div class="rounded-[28px] border border-[#ececef] dark:border-[#26262c] p-9 flex flex-col items-center text-center bg-white dark:bg-[#17171c]">
+          <span class="w-[68px] h-[68px] rounded-full bg-[#f2f0f5] dark:bg-[#212127] flex items-center justify-center mb-5">
+            <app-icon name="clock" class="w-9 h-9 text-[#b8b3bf] dark:text-[#5a555f]"></app-icon>
+          </span>
+          <h2 class="text-lg font-extrabold tracking-tight mb-1.5">Mã QR đã hết hạn</h2>
+          <p class="text-sm text-[#7c7784] dark:text-[#9b96a2] mb-7">Giao dịch không tồn tại hoặc đã quá thời gian chờ. Vui lòng tạo lại.</p>
+          <button (click)="goPro()" class="w-full h-12 rounded-full grad-btn text-white font-extrabold cursor-pointer border-none outline-none">Quay lại nâng cấp Pro</button>
+        </div>
+      }
+
+    </div>
+  </div>
+</div>

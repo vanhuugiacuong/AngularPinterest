@@ -1,1 +1,25 @@
 /* Styles for PinDetail page */
+
+/* ── Ảnh Premium: preview bị làm mờ + lớp phủ watermark ─────────────────────── */
+.premium-fill {
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+}
+
+.premium-locked {
+  filter: blur(14px) saturate(0.9);
+  transform: scale(1.03); /* che mép mờ */
+}
+
+/* Lớp phủ tối nhẹ + hoa văn watermark chéo lặp lại (chống chụp preview để tái sử dụng) */
+.premium-scrim {
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.10) 0px,
+      rgba(255, 255, 255, 0.10) 2px,
+      transparent 2px,
+      transparent 26px
+    ),
+    linear-gradient(rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.52));
+  backdrop-filter: blur(2px);
+}

@@ -7,6 +7,7 @@ import { BoardService, Board } from '../../core/services/board';
 import { SupabaseService } from '../../core/services/supabase';
 import { ToastService } from '../../core/services/toast';
 import { ModerationService } from '../../core/services/moderation';
+import { BillingService, PREMIUM_PRICE_MIN, PREMIUM_PRICE_MAX } from '../../core/services/billing';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -23,11 +24,27 @@ export class Create implements OnInit {
   private toastService = inject(ToastService);
   private moderationService = inject(ModerationService);
   public supabaseService = inject(SupabaseService);
+  public billing = inject(BillingService);
 
   // Form Fields
   public title = '';
   public description = '';
   public activeTab = signal<'upload' | 'ai'>('upload');
+
+  // Premium (bán ảnh — trả credit để tải HD)
+  public isPremium = signal<boolean>(false);
+  public premiumPrice = 50;
+  public readonly priceMin = PREMIUM_PRICE_MIN;
+  public readonly priceMax = PREMIUM_PRICE_MAX;
+
+  togglePremium() {
+    this.isPremium.update((v) => !v);
+  }
+
+  private clampPrice(): number {
+    const n = Math.round(Number(this.premiumPrice) || 0);
+    return Math.max(this.priceMin, Math.min(this.priceMax, n));
+  }
   
   // Boards selector fields
   public boards = signal<Board[]>([]);
@@ -83,6 +100,8 @@ export class Create implements OnInit {
     this.aiPrompt = '';
     this.title = '';
     this.description = '';
+    this.isPremium.set(false);
+    this.premiumPrice = 50;
   }
 
   toggleBoardDropdown(event: MouseEvent) {
@@ -232,8 +251,15 @@ export class Create implements OnInit {
         if (boardId) {
           formData.append('boardId', boardId);
         }
+        if (this.isPremium()) {
+          formData.append('isPremium', 'true');
+          formData.append('priceCredits', String(this.clampPrice()));
+        }
 
-        await this.pinService.createUploadPin(formData, token);
+        const created = await this.pinService.createUploadPin(formData, token);
+        if (this.isPremium() && created?.id) {
+          this.billing.markPremium(created.id, this.clampPrice());
+        }
         this.toastService.success('Tạo ghim thành công!');
         this.router.navigate(['/feed']);
       } catch (error) {
@@ -261,10 +287,15 @@ export class Create implements OnInit {
           description: this.description.trim(),
           boardId: boardId || undefined,
           promptUsed: this.aiPrompt.trim(),
-          generationModel: this.aiModel
+          generationModel: this.aiModel,
+          isPremium: this.isPremium(),
+          priceCredits: this.isPremium() ? this.clampPrice() : undefined,
         };
 
-        await this.pinService.saveAiPin(body, token);
+        const created = await this.pinService.saveAiPin(body, token);
+        if (this.isPremium() && created?.id) {
+          this.billing.markPremium(created.id, this.clampPrice());
+        }
         this.toastService.success('Tạo ghim AI thành công!');
         this.router.navigate(['/feed']);
       } catch (error) {
