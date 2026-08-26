@@ -205,6 +205,10 @@ export class Create implements OnInit {
         if (boardId) {
           formData.append('boardId', boardId);
         }
+        if (this.isPremium()) {
+          formData.append('isPremium', 'true');
+          formData.append('priceCredits', String(this.clampPrice()));
+        }
 
         const created = await this.pinService.createUploadPin(formData, token);
         if (this.isPremium() && created?.id) {
@@ -237,7 +241,9 @@ export class Create implements OnInit {
           description: this.description.trim(),
           boardId: boardId || undefined,
           promptUsed: this.aiPrompt.trim(),
-          generationModel: this.aiModel
+          generationModel: this.aiModel,
+          isPremium: this.isPremium(),
+          priceCredits: this.isPremium() ? this.clampPrice() : undefined,
         };
 
         const created = await this.pinService.saveAiPin(body, token);

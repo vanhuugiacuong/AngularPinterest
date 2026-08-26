@@ -406,9 +406,44 @@ export class BillingService {
     return true;
   }
 
-  // ── Ảnh Premium (registry client-side) ─────────────────────────────────────
-  // Ghi chú: khi nối backend thật, thông tin premium/giá sẽ nằm trên bản ghi Pin
-  // (cột isPremium, priceCredits — §6.1 đặc tả) chứ không cần registry cục bộ này.
+  // ── Ảnh Premium qua API thật ────────────────────────────────────────────────
+  /** GET /api/billing/pins/:id/access — trạng thái quyền tải. null nếu backend chưa chạy. */
+  async getPinAccess(pinId: string): Promise<
+    { isPremium: boolean; priceCredits: number | null; owned: boolean; purchased: boolean; canDownload: boolean } | null
+  > {
+    const token = await this.token();
+    if (!token) return null;
+    try {
+      const res = await fetch(`${this.api}/pins/${pinId}/access`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return null;
+      this.online.set(true);
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }
+
+  /** POST /api/billing/pins/:id/purchase — trả credit mua quyền tải. */
+  async purchasePinApi(pinId: string): Promise<{ ok: boolean; reason?: string }> {
+    const token = await this.token();
+    if (!token) return { ok: false, reason: 'no_token' };
+    try {
+      const res = await fetch(`${this.api}/pins/${pinId}/purchase`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        await this.refreshMe();
+        return { ok: true };
+      }
+      const body = await res.json().catch(() => ({}));
+      return { ok: false, reason: body?.message || 'error' };
+    } catch {
+      return { ok: false, reason: 'network' };
+    }
+  }
+
+  // ── Ảnh Premium (registry client-side — FALLBACK khi backend chưa chạy) ──────
   private premium = signal<Record<string, number>>(this.loadPremium());
 
   /** Đánh dấu một pin là Premium với giá credit (dùng ngay sau khi tạo pin). */

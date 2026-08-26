@@ -31,6 +31,13 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   private elementRef = inject(ElementRef);
 
   public isBuying = signal<boolean>(false);
+  public access = signal<{ isPremium: boolean; priceCredits: number | null; owned: boolean; purchased: boolean; canDownload: boolean } | null>(null);
+
+  private async loadAccess(pinId: string) {
+    this.access.set(null);
+    const a = await this.billing.getPinAccess(pinId);
+    if (a) this.access.set(a);
+  }
 
   @ViewChild('scrollSentinel') scrollSentinel!: ElementRef;
 
@@ -96,15 +103,20 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  // ── Ảnh Premium ────────────────────────────────────────────────────────────
+  // ── Ảnh Premium (ưu tiên dữ liệu server, fallback registry local) ────────────
   get isPremiumPin(): boolean {
-    const id = this.pin()?.id;
-    return !!id && this.billing.isPremium(id);
+    const a = this.access();
+    if (a) return a.isPremium;
+    const p = this.pin();
+    return !!p?.isPremium || (!!p?.id && this.billing.isPremium(p.id));
   }
 
   get premiumPriceValue(): number {
-    const id = this.pin()?.id;
-    return (id && this.billing.premiumPrice(id)) || 0;
+    const a = this.access();
+    if (a && a.priceCredits != null) return a.priceCredits;
+    const p = this.pin();
+    if (p?.priceCredits != null) return p.priceCredits;
+    return (p?.id && this.billing.premiumPrice(p.id)) || 0;
   }
 
   get isOwnerOfPin(): boolean {
@@ -114,6 +126,8 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
   /** Đã có quyền tải HD: là chủ ảnh, hoặc đã mua entitlement. */
   get canDownloadHd(): boolean {
+    const a = this.access();
+    if (a) return a.canDownload;
     const id = this.pin()?.id;
     return this.isOwnerOfPin || (!!id && this.billing.hasEntitlement(id));
   }
@@ -126,21 +140,32 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   async buyDownload() {
     const id = this.pin()?.id;
     if (!id) return;
-    const price = this.premiumPriceValue;
-    if (this.billing.spendable() < price) {
-      this.toastService.error('Bạn không đủ credit. Hãy nạp thêm trong Ví.');
-      this.router.navigate(['/wallet']);
-      return;
-    }
     this.isBuying.set(true);
     try {
-      // TODO(api): POST /api/pins/:id/purchase (server trừ credit + chia doanh thu + entitlement)
-      const ok = this.billing.purchasePin(id, price);
-      if (ok) {
+      // Đường thật: gọi API backend (trừ credit + chia doanh thu + tạo entitlement)
+      const res = await this.billing.purchasePinApi(id);
+      if (res.ok) {
         this.toastService.success('Đã mua quyền tải HD! Bạn có thể tải bản gốc ngay.');
-      } else {
-        this.toastService.error('Không đủ credit để mua.');
+        await this.loadAccess(id);
+        return;
       }
+      // Backend chưa chạy (preview) -> fallback mô phỏng cục bộ
+      if (res.reason === 'no_token' || res.reason === 'network') {
+        const price = this.premiumPriceValue;
+        if (this.billing.spendable() < price) {
+          this.toastService.error('Bạn không đủ credit. Hãy nạp thêm trong Ví.');
+          this.router.navigate(['/wallet']);
+          return;
+        }
+        if (this.billing.purchasePin(id, price)) {
+          this.toastService.success('Đã mua quyền tải HD! Bạn có thể tải bản gốc ngay.');
+        }
+        return;
+      }
+      // Backend trả lỗi nghiệp vụ (không đủ credit...)
+      const msg = res.reason || 'Không mua được.';
+      this.toastService.error(msg);
+      if (/credit/i.test(msg)) this.router.navigate(['/wallet']);
     } finally {
       this.isBuying.set(false);
     }
@@ -204,6 +229,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       // 1. Fetch details
       const detailPin = await this.pinService.getPinById(id);
       this.pin.set(detailPin);
+      void this.loadAccess(id);
 
       // Check if image is horizontal landscape
       if (detailPin && detailPin.imageUrl) {
