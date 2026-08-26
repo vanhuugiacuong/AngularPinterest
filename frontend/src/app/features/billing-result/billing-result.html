@@ -79,11 +79,15 @@
               </div>
             }
 
-            <button (click)="confirmNow()" [disabled]="checking()"
-              class="w-full h-12 mt-4 rounded-full bg-[#1b1620] dark:bg-white text-white dark:text-[#1b1620] font-extrabold cursor-pointer border-none outline-none hover:opacity-90 transition-opacity disabled:opacity-70">
-              {{ checking() ? 'Đang kiểm tra…' : 'Tôi đã chuyển khoản' }}
-            </button>
-            <button (click)="cancel()" class="w-full h-11 mt-1 rounded-full bg-transparent text-[#9a95a1] dark:text-[#7c7784] font-bold text-sm cursor-pointer border-none outline-none hover:bg-[#faf9fb] dark:hover:bg-[#17171c] transition-colors">
+            <!-- Chỉ giữ nút xác nhận thủ công ở chế độ demo; luồng thật để hệ thống tự dò -->
+            @if (isDemo) {
+              <button (click)="confirmNow()" [disabled]="checking()"
+                class="w-full h-12 mt-4 rounded-full bg-[#1b1620] dark:bg-white text-white dark:text-[#1b1620] font-extrabold cursor-pointer border-none outline-none hover:opacity-90 transition-opacity disabled:opacity-70">
+                {{ checking() ? 'Đang kiểm tra…' : 'Tôi đã chuyển khoản (demo)' }}
+              </button>
+            }
+            <button (click)="cancel()" class="w-full h-11 rounded-full bg-transparent text-[#9a95a1] dark:text-[#7c7784] font-bold text-sm cursor-pointer border-none outline-none hover:bg-[#faf9fb] dark:hover:bg-[#17171c] transition-colors"
+              [class.mt-1]="isDemo" [class.mt-4]="!isDemo">
               Hủy giao dịch
             </button>
           </div>

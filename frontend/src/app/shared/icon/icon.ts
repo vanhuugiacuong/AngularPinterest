@@ -24,22 +24,26 @@ import { Component, Input } from '@angular/core';
         </svg>
       }
       @case ('crown') {
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="w-full h-full">
-          <path d="M3 8l3.2 3.2L12 5l5.8 6.2L21 8l-1.5 10.5A1.5 1.5 0 0 1 18 20H6a1.5 1.5 0 0 1-1.5-1.5L3 8Z" />
-          <path d="M8 20h8" opacity="0.6" />
+        <!-- Vương miện filled (đính ngọc) — theo currentColor để đồng bộ màu -->
+        <svg viewBox="0 0 24 24" fill="currentColor" class="w-full h-full">
+          <path d="M2.9 8.05c-.53-.33-1.16.2-.98.8l1.98 6.9c.13.44.53.75.99.75h14.22c.46 0 .86-.31.99-.75l1.98-6.9c.18-.6-.45-1.13-.98-.8l-3.9 2.44c-.42.26-.97.12-1.2-.32L12.9 4.9c-.4-.75-1.47-.75-1.87 0L8.99 10.17c-.24.44-.79.58-1.2.32L2.9 8.05Z" />
+          <path fill-rule="evenodd" d="M5 17.4h14c.6 0 1.05.5 1 1.1-.06.62-.28 1.13-.98 1.4-1.5.57-4.02.9-7.02.9s-5.52-.33-7.02-.9c-.7-.27-.92-.78-.98-1.4-.05-.6.4-1.1 1-1.1Zm7 .95a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm-4.2.35a.72.72 0 1 0 0 1.44.72.72 0 0 0 0-1.44Zm8.4 0a.72.72 0 1 0 0 1.44.72.72 0 0 0 0-1.44Z" clip-rule="evenodd" />
         </svg>
       }
       @case ('spark') {
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="w-full h-full">
-          <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z" />
-          <path d="M19 15l.7 1.9L21.6 17l-1.9.7L19 19.6l-.7-1.9L16.4 17l1.9-.7L19 15Z" opacity="0.7" />
+        <!-- Tia sáng (✨) filled, 3 ngôi sao 4 cánh -->
+        <svg viewBox="0 0 24 24" fill="currentColor" class="w-full h-full">
+          <path d="M9 3.2c.2 0 .38.13.44.32l1.06 3.34a1 1 0 0 0 .64.64l3.34 1.06c.4.13.4.7 0 .82l-3.34 1.06a1 1 0 0 0-.64.64L9.44 14.5a.46.46 0 0 1-.88 0L7.5 11.16a1 1 0 0 0-.64-.64L3.52 9.46c-.4-.12-.4-.69 0-.82l3.34-1.06a1 1 0 0 0 .64-.64l1.06-3.4A.46.46 0 0 1 9 3.2Z" />
+          <path d="M17.6 4.4c.16 0 .3.1.35.25l.63 1.86a.7.7 0 0 0 .44.44l1.86.63c.3.1.3.52 0 .62l-1.86.63a.7.7 0 0 0-.44.44l-.63 1.86a.37.37 0 0 1-.7 0l-.63-1.86a.7.7 0 0 0-.44-.44l-1.86-.63c-.3-.1-.3-.52 0-.62l1.86-.63a.7.7 0 0 0 .44-.44l.63-1.86a.37.37 0 0 1 .35-.25Z" opacity="0.85" />
+          <path d="M17 14.2c.15 0 .28.1.33.24l.53 1.6a.7.7 0 0 0 .44.44l1.6.53c.28.1.28.5 0 .6l-1.6.53a.7.7 0 0 0-.44.44l-.53 1.6a.35.35 0 0 1-.66 0l-.53-1.6a.7.7 0 0 0-.44-.44l-1.6-.53c-.28-.1-.28-.5 0-.6l1.6-.53a.7.7 0 0 0 .44-.44l.53-1.6a.35.35 0 0 1 .33-.24Z" opacity="0.85" />
         </svg>
       }
       @case ('hd') {
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="w-full h-full">
-          <rect x="3" y="5" width="18" height="14" rx="3" />
-          <path d="M7.5 9.5v5M7.5 12H10M10 9.5v5" />
-          <path d="M13 9.5v5h1.6a2 2 0 0 0 2-2v-1a2 2 0 0 0-2-2H13Z" />
+        <!-- Badge HD / 4K filled -->
+        <svg viewBox="0 0 24 24" fill="currentColor" class="w-full h-full">
+          <rect x="2.3" y="4.6" width="19.4" height="14.8" rx="3" />
+          <text x="12" y="13.2" text-anchor="middle" font-size="6.4" font-weight="800" letter-spacing="0.2" fill="#fff" style="font-family:inherit">HD</text>
+          <text x="12" y="18.1" text-anchor="middle" font-size="3.9" font-weight="800" letter-spacing="0.4" fill="#fff" style="font-family:inherit">4K</text>
         </svg>
       }
       @case ('download') {
@@ -49,10 +53,10 @@ import { Component, Input } from '@angular/core';
         </svg>
       }
       @case ('lock') {
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="w-full h-full">
-          <rect x="4.5" y="10.5" width="15" height="10" rx="2.5" />
-          <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" />
-          <circle cx="12" cy="15.3" r="1.3" fill="currentColor" stroke="none" />
+        <!-- Ổ khoá filled (quai + thân + lỗ khoá) -->
+        <svg viewBox="0 0 24 24" fill="currentColor" class="w-full h-full">
+          <path d="M8.4 10.2V8a3.6 3.6 0 0 1 7.2 0v2.2h-2V8a1.6 1.6 0 0 0-3.2 0v2.2H8.4Z" />
+          <path fill-rule="evenodd" d="M6.2 10.2h11.6c1.16 0 2.1.94 2.1 2.1v6.4c0 1.16-.94 2.1-2.1 2.1H6.2a2.1 2.1 0 0 1-2.1-2.1v-6.4c0-1.16.94-2.1 2.1-2.1Zm5.8 3.6a1.7 1.7 0 0 0-.95 3.11v1.44a.95.95 0 0 0 1.9 0v-1.44A1.7 1.7 0 0 0 12 13.8Z" clip-rule="evenodd" />
         </svg>
       }
       @case ('infinity') {

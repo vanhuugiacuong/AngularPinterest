@@ -88,3 +88,21 @@
   border-radius: 4px;
   background: repeating-linear-gradient(45deg, #f2eef7, #f2eef7 6px, #e4dcee 6px, #e4dcee 12px);
 }
+
+/* Bóng lướt qua mặt trước thẻ (giống nút nâng cấp) */
+.bankcard-front::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 32%, rgba(255, 255, 255, 0.3) 48%, transparent 64%);
+  transform: translateX(-120%);
+  animation: card-sweep 4.8s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes card-sweep {
+  0%, 100% { transform: translateX(-120%); }
+  54%, 70% { transform: translateX(120%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bankcard-front::after { animation: none; display: none; }
+}
