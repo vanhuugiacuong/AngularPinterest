@@ -235,7 +235,7 @@ textarea:disabled {
    .following-action state override below still wins on specificity. */
 .primary-action {
   color: var(--color-text-on-accent);
-  background: var(--color-nova-blue);
+  background: linear-gradient(135deg, var(--color-nova-blue) 0%, var(--color-iris-violet) 100%);
   border-radius: var(--radius-cta);
   box-shadow: 0 6px 20px -10px color-mix(in srgb, var(--color-nova-blue) 45%, transparent);
   transition:

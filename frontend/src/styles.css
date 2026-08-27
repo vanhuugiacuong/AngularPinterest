@@ -264,13 +264,14 @@
 }
 
 @utility bg-gradient-brand {
-  background-image: none;
-  background-color: var(--color-nova-blue);
+  background-image: linear-gradient(135deg, var(--color-nova-blue) 0%, var(--color-iris-violet) 100%);
 }
 
 @utility text-gradient-brand {
-  background-image: none;
-  color: var(--color-nova-blue);
+  background-image: linear-gradient(135deg, var(--color-nova-blue) 0%, var(--color-iris-violet) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 @utility glass {
