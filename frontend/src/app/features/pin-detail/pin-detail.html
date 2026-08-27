@@ -47,13 +47,12 @@
       <!-- Artwork Inspection Space: full-bleed stage + hairline info dock -->
       @if (!isLoading() && !loadError() && pin(); as p) {
         <div class="w-full flex flex-col gap-10 mt-2">
-          <!-- Stage + Dock -->
-          <div class="w-full min-w-0">
-            <div class="w-full flex flex-col" [class.lg:flex-row]="!isLandscape()">
-              <!-- Stage: image is the priority, no enclosing split-card -->
+          <!-- Stage + Dock Card -->
+          <div class="w-full min-w-0 bg-surface border border-border rounded-panel shadow-card p-6 lg:p-8">
+            <div class="w-full flex flex-col lg:flex-row gap-8 items-start">
+              <!-- Stage: image container -->
               <div
-                class="relative bg-[var(--color-ink)] rounded-frame frame-trace frame-trace-active overflow-hidden flex items-center justify-center min-h-[320px]"
-                [class.lg:w-[58%]]="!isLandscape()"
+                class="relative bg-[var(--color-ink)] rounded-2xl overflow-hidden flex items-center justify-center min-h-[360px] max-h-[75vh] w-full lg:w-[55%] shrink-0 lg:sticky lg:top-20"
               >
                 <!-- Back button on stage -->
                 <button
@@ -69,7 +68,7 @@
                   <img
                     [src]="p.imageUrl"
                     [alt]="p.title"
-                    class="w-full h-auto max-h-[720px] object-contain block select-none"
+                    class="w-full h-auto max-h-[75vh] object-contain block select-none"
                   />
 
                   <!-- Real action: enters region-select mode to search NovaFrame's
@@ -97,95 +96,14 @@
                 }
               </div>
 
-              <!-- Dock: info panel — hairline seam, not a boxed card -->
+              <!-- Dock: info panel -->
               <div
-                class="flex-1 min-w-0 flex flex-col gap-6 border-t lg:border-t-0 lg:border-l border-border pt-6 lg:pt-1 lg:pl-8 mt-6 lg:mt-0 text-left"
+                class="flex-1 min-w-0 flex flex-col gap-6 text-left"
               >
-                <!-- Author profile info -->
-                <button
-                  type="button"
-                  (click)="navigateToProfile(p.user?.username)"
-                  class="flex items-center gap-3 bg-transparent border-none p-0 cursor-pointer text-left select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
-                  [attr.aria-label]="'Xem trang cá nhân của ' + p.user?.username"
-                >
-                  <app-user-avatar [src]="p.user?.avatarUrl" [name]="p.user?.username" [size]="44" [plan]="p.user?.plan"></app-user-avatar>
-                  <div class="flex flex-col text-left">
-                    <span class="text-sm font-bold text-text hover:underline">{{ p.user?.username }}</span>
-                    <span class="text-xs text-text-muted">Người đăng tải</span>
-                  </div>
-                </button>
-
-                <!-- Title & Description -->
-                <div class="flex flex-col gap-1.5">
-                  <h2 class="text-xl font-bold text-text text-balance">{{ p.title }}</h2>
-                  <p
-                    class="text-sm text-text-muted leading-relaxed break-words whitespace-pre-line"
-                  >
-                    {{ p.description || 'Chưa có mô tả cho tác phẩm này.' }}
-                  </p>
-                </div>
-
-                <!-- AI prompt info if generated -->
-                @if (p.isAiGenerated) {
-                  <div
-                    class="p-4 rounded-control bg-surface-elevated border border-border flex flex-col gap-2"
-                  >
-                    <div
-                      class="mono-label flex items-center gap-1.5 text-xs uppercase text-text font-bold"
-                    >
-                      <span class="material-symbols-outlined text-sm leading-none text-accent" aria-hidden="true"
-                        >auto_awesome</span
-                      >
-                      <span>AI · {{ p.generationModel || 'Model' }}</span>
-                    </div>
-                    <p
-                      class="text-xs text-text-muted leading-normal italic font-medium break-words select-all"
-                    >
-                      "{{ p.promptUsed }}"
-                    </p>
-                  </div>
-                }
-
-                <!-- Action row -->
-                <div
-                  class="flex items-center justify-between gap-3 py-4 border-y border-border flex-wrap"
-                >
-                  <div class="flex items-center gap-2.5">
-                    <!-- Like -->
-                    <app-like-button
-                      [liked]="isLikedByUser()"
-                      [count]="p.likeCount ?? p._count?.likes ?? 0"
-                      [ariaLabel]="(isLikedByUser() ? 'Bỏ thích ' : 'Thích ') + p.title"
-                      (toggled)="toggleLike()"
-                    ></app-like-button>
-
-                    <!-- Share -->
-                    <select *ngIf="membership.status()?.customWatermark && watermarkService.presets().length > 0"
-                      [(ngModel)]="selectedWatermarkPresetId" name="downloadWatermark"
-                      class="h-10 px-2 rounded-control bg-surface border border-border text-xs text-text">
-                      <option [ngValue]="null">Tải ảnh sạch (không watermark)</option>
-                      <option *ngFor="let preset of watermarkService.presets()" [ngValue]="preset.id">Watermark: {{ preset.name }}</option>
-                    </select>
-                    <button type="button" (click)="downloadPin()" [disabled]="downloading()" class="h-10 px-4 rounded-control bg-gradient-brand text-text-on-accent font-bold text-xs border-none cursor-pointer disabled:opacity-50">
-                      {{ p.isForSale && p.user?.id !== supabaseService.user()?.id ? ('Mua & tải · ' + formatNovaToken(vndToNovaToken(p.price))) : 'Tải ảnh' }}
-                    </button>
-                    <span *ngIf="downloadMessage()" class="text-[10px] text-text-muted">{{ downloadMessage() }}</span>
-
-                    <!-- Trao đổi với chủ sở hữu — chỉ hiện với tác phẩm có
-                         giá trị và không phải chính chủ; tái sử dụng luồng
-                         message request/conversation hiện có. -->
-                    @if (showContactButton()) {
-                      <button
-                        type="button"
-                        (click)="onContactOwner()"
-                        [disabled]="contactButtonDisabled()"
-                        class="h-10 px-4 rounded-control bg-surface-elevated hover:bg-surface-high border border-border text-text font-bold text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                      >
-                        {{ contactButtonLabel() }}
-                      </button>
-                    }
-
-                    <!-- Share -->
+                <!-- Top Header Bar: Actions (left) + Collection Save (right) -->
+                <div class="flex items-center justify-between gap-3 pb-3 border-b border-border flex-wrap">
+                  <!-- Action icons: Share & More Options -->
+                  <div class="flex items-center gap-2">
                     <button
                       type="button"
                       (click)="share()"
@@ -216,7 +134,7 @@
                           role="menu"
                           aria-label="Thêm tùy chọn"
                           (click)="$event.stopPropagation()"
-                          class="absolute right-0 top-11 z-[110] w-56 rounded-panel border border-border-strong bg-surface-elevated shadow-card p-1.5 flex flex-col gap-0.5"
+                          class="absolute left-0 top-11 z-[110] w-56 rounded-panel border border-border-strong bg-surface-elevated shadow-card p-1.5 flex flex-col gap-0.5"
                         >
                           <button
                             type="button"
@@ -241,7 +159,7 @@
                     </div>
                   </div>
 
-                  <!-- Collection save -->
+                  <!-- Collection save dropdown + button -->
                   <div class="flex items-center gap-2 select-none relative">
                     <button
                       (click)="toggleBoardDropdown($event)"
@@ -283,6 +201,90 @@
                     >
                       Lưu
                     </button>
+                  </div>
+                </div>
+
+                <!-- Author profile info -->
+                <button
+                  type="button"
+                  (click)="navigateToProfile(p.user?.username)"
+                  class="flex items-center gap-3 bg-transparent border-none p-0 cursor-pointer text-left select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
+                  [attr.aria-label]="'Xem trang cá nhân của ' + p.user?.username"
+                >
+                  <app-user-avatar [src]="p.user?.avatarUrl" [name]="p.user?.username" [size]="44" [plan]="p.user?.plan"></app-user-avatar>
+                  <div class="flex flex-col text-left">
+                    <span class="text-sm font-bold text-text hover:underline">{{ p.user?.username }}</span>
+                    <span class="text-xs text-text-muted">Người đăng tải</span>
+                  </div>
+                </button>
+
+                <!-- Title & Description -->
+                <div class="flex flex-col gap-1.5">
+                  <h1 class="text-2xl font-bold text-text font-display text-balance">{{ p.title }}</h1>
+                  <p
+                    class="text-sm text-text-muted leading-relaxed break-words whitespace-pre-line"
+                  >
+                    {{ p.description || 'Chưa có mô tả cho tác phẩm này.' }}
+                  </p>
+                </div>
+
+                <!-- AI prompt info if generated -->
+                @if (p.isAiGenerated) {
+                  <div
+                    class="p-4 rounded-control bg-surface-elevated border border-border flex flex-col gap-2"
+                  >
+                    <div
+                      class="mono-label flex items-center gap-1.5 text-xs uppercase text-text font-bold"
+                    >
+                      <span class="material-symbols-outlined text-sm leading-none text-accent" aria-hidden="true"
+                        >auto_awesome</span
+                      >
+                      <span>AI · {{ p.generationModel || 'Model' }}</span>
+                    </div>
+                    <p
+                      class="text-xs text-text-muted leading-normal italic font-medium break-words select-all"
+                    >
+                      "{{ p.promptUsed }}"
+                    </p>
+                  </div>
+                }
+
+                <!-- Main Action Row: Like + Download + Contact -->
+                <div
+                  class="flex items-center justify-between gap-3 py-4 border-y border-border flex-wrap"
+                >
+                  <div class="flex items-center gap-2.5 flex-wrap">
+                    <!-- Like -->
+                    <app-like-button
+                      [liked]="isLikedByUser()"
+                      [count]="p.likeCount ?? p._count?.likes ?? 0"
+                      [ariaLabel]="(isLikedByUser() ? 'Bỏ thích ' : 'Thích ') + p.title"
+                      (toggled)="toggleLike()"
+                    ></app-like-button>
+
+                    <!-- Watermark & Download -->
+                    <select *ngIf="membership.status()?.customWatermark && watermarkService.presets().length > 0"
+                      [(ngModel)]="selectedWatermarkPresetId" name="downloadWatermark"
+                      class="h-10 px-2 rounded-control bg-surface border border-border text-xs text-text">
+                      <option [ngValue]="null">Tải ảnh sạch (không watermark)</option>
+                      <option *ngFor="let preset of watermarkService.presets()" [ngValue]="preset.id">Watermark: {{ preset.name }}</option>
+                    </select>
+                    <button type="button" (click)="downloadPin()" [disabled]="downloading()" class="h-10 px-4 rounded-control bg-gradient-brand text-text-on-accent font-bold text-xs border-none cursor-pointer disabled:opacity-50">
+                      {{ p.isForSale && p.user?.id !== supabaseService.user()?.id ? ('Mua & tải · ' + formatNovaToken(vndToNovaToken(p.price))) : 'Tải ảnh' }}
+                    </button>
+                    <span *ngIf="downloadMessage()" class="text-[10px] text-text-muted">{{ downloadMessage() }}</span>
+
+                    <!-- Contact Owner -->
+                    @if (showContactButton()) {
+                      <button
+                        type="button"
+                        (click)="onContactOwner()"
+                        [disabled]="contactButtonDisabled()"
+                        class="h-10 px-4 rounded-control bg-surface-elevated hover:bg-surface-high border border-border text-text font-bold text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      >
+                        {{ contactButtonLabel() }}
+                      </button>
+                    }
                   </div>
                 </div>
 
