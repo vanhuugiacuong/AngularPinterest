@@ -15,14 +15,13 @@ export class PrismaService
     if (!connectionString) {
       console.warn('DATABASE_URL is not set in environment variables.');
     }
-    // keepAlive + idleTimeout keep pooled connections warm without exceeding
-    // Supabase's session-pooler limit. max is increased to 10 and connectionTimeoutMillis
-    // raised to 15s to handle parallel frontend API requests gracefully.
+    // Keep enough headroom for other app instances that share the Supabase
+    // session-pooler limit. Override only after accounting for every replica.
     const pool = new Pool({
       connectionString,
-      max: Number(process.env.PG_POOL_MAX) || 10,
+      max: Number(process.env.PG_POOL_MAX) || 2,
       keepAlive: true,
-      idleTimeoutMillis: 30_000,
+      idleTimeoutMillis: 10_000,
       connectionTimeoutMillis: 15_000,
     });
     pool.on('error', (err) => {

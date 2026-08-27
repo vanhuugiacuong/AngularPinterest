@@ -39,10 +39,11 @@ COPY --from=backend /be/node_modules ./node_modules
 COPY --from=backend /be/dist ./dist
 COPY --from=backend /be/package.json ./package.json
 COPY --from=backend /be/prisma ./prisma
+COPY --from=backend /be/prisma.config.ts ./prisma.config.ts
 
 # The compiled SPA — ServeStaticModule serves this at <cwd>/client == /app/client.
 COPY --from=frontend /fe/dist/frontend/browser ./client
 
 # Railway injects PORT at runtime; main.ts reads process.env.PORT.
 EXPOSE 3000
-CMD ["node", "dist/src/main"]
+CMD ["npm", "run", "start:prod"]

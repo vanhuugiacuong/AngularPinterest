@@ -122,13 +122,17 @@ export class ConversationsService {
     const conversation = await this.getConversationForParticipant(conversationId, userId);
     const otherUserId = conversation.userOneId === userId ? conversation.userTwoId : conversation.userOneId;
 
-    if (await this.blocksService.isBlockedEitherWay(userId, otherUserId)) {
+    const [blockedEitherWay, mutualFollow, acceptedMessageRequest] = await Promise.all([
+      this.blocksService.isBlockedEitherWay(userId, otherUserId),
+      isMutualFollow(this.prisma, userId, otherUserId),
+      hasAcceptedMessageRequest(this.prisma, userId, otherUserId),
+    ]);
+
+    if (blockedEitherWay) {
       throw new ForbiddenException('Không thể gửi tin nhắn vì một trong hai người đã chặn người còn lại');
     }
 
-    const permitted =
-      (await isMutualFollow(this.prisma, userId, otherUserId)) ||
-      (await hasAcceptedMessageRequest(this.prisma, userId, otherUserId));
+    const permitted = mutualFollow || acceptedMessageRequest;
     if (!permitted) {
       throw new ForbiddenException('Bạn không còn quyền nhắn tin trong cuộc trò chuyện này');
     }
@@ -144,12 +148,20 @@ export class ConversationsService {
       return message;
     });
 
-    const sender = await this.prisma.user.findUnique({ where: { id: userId }, select: PUBLIC_USER_SELECT });
-    void this.supabase.broadcast(`user:${otherUserId}`, 'message', {
-      conversationId: conversation.id,
-      message,
-      sender,
-    });
+    // The sender already has the persisted message. Resolve their request
+    // immediately; fetching sender metadata + notifying the recipient can
+    // continue off the critical response path.
+    void Promise.resolve(
+      this.prisma.user.findUnique({ where: { id: userId }, select: PUBLIC_USER_SELECT }),
+    )
+      .then((sender) =>
+        this.supabase.broadcast(`user:${otherUserId}`, 'message', {
+          conversationId: conversation.id,
+          message,
+          sender,
+        }),
+      )
+      .catch((error) => console.error('[ConversationsService] Failed to broadcast message', error));
 
     return message;
   }

@@ -341,15 +341,13 @@ export class Navbar implements OnInit, OnDestroy {
 
   navigateToMyProfile() {
     const dbUser = this.supabaseService.dbUser();
-    if (dbUser && dbUser.username) {
-      this.router.navigate(['/profile', dbUser.username]);
-    } else {
-      const user = this.supabaseService.user();
-      if (user) {
-        const email = user.email || '';
-        const username = user.user_metadata?.['full_name'] || user.user_metadata?.['name'] || email.split('@')[0];
-        this.router.navigate(['/profile', username]);
-      }
+    // Never put the OAuth display name in the profile route. While backend
+    // sync is still in flight, the authenticated Supabase UUID is the only
+    // unambiguous fallback; the profile API resolves both UUID and username.
+    const profileIdentifier =
+      dbUser?.username || this.supabaseService.user()?.id;
+    if (profileIdentifier) {
+      this.router.navigate(['/profile', profileIdentifier]);
     }
     this.showProfilePopup.set(false);
   }

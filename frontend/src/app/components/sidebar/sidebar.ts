@@ -57,17 +57,14 @@ export class Sidebar implements OnInit, OnDestroy {
   unreadCount$: Observable<number> = this.notificationService.unreadCount$;
   notifications$: Observable<Notification[]> = this.notificationService.notifications$;
   unreadMessageCount$: Observable<number> = this.messagingService.unreadCount$;
+  private notificationItems: Notification[] = [];
+  private readonly notificationItemsSubscription = this.notifications$.subscribe((items) => {
+    this.notificationItems = items;
+  });
 
-  /** Follow requests the viewer has just accepted/rejected inline from the
-   * notification list — hides the Accept/Reject row for that item without
-   * needing a full reload. Keyed by requester id (== notification.senderId). */
-  private respondingFollowRequests = new Set<string>();
-  private handledFollowRequests = new Map<string, 'accepted' | 'rejected'>();
-
-  /** Local, session-only bookkeeping for inline follow-request actions in
-   * the notification list - keyed by the requester's user id (senderId),
-   * since a Notification row has no follow-request id to key off of and the
-   * backend's accept/reject endpoints are themselves keyed by sender. */
+  /** Local, session-only bookkeeping for inline follow-request actions.
+   * UI state is keyed by notification id so a later request from the same
+   * sender is a fresh actionable item. The API still uses senderId. */
   private followRequestPendingIds = signal<Set<string>>(new Set());
   private followRequestOutcomes = signal<Map<string, 'accepted' | 'rejected'>>(new Map());
 
@@ -77,6 +74,7 @@ export class Sidebar implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.notificationItemsSubscription.unsubscribe();
     document.body.classList.remove(BODY_DOCK_CLASS);
     document.body.classList.remove(BODY_EXPANDED_CLASS);
   }
@@ -176,40 +174,50 @@ export class Sidebar implements OnInit, OnDestroy {
     }
   }
 
-  isFollowRequestPending(requesterId: string): boolean {
-    return this.followRequestPendingIds().has(requesterId) || this.respondingFollowRequests.has(requesterId);
+  isFollowRequestPending(notificationId: string): boolean {
+    return this.followRequestPendingIds().has(notificationId);
   }
 
-  isFollowRequestHandled(requesterId: string): boolean {
-    return this.followRequestOutcomes().has(requesterId) || this.handledFollowRequests.has(requesterId);
-  }
-
-  followRequestOutcome(requesterId: string): string {
-    const outcome = this.followRequestOutcomes().get(requesterId) || this.handledFollowRequests.get(requesterId);
-    return outcome === 'accepted' ? 'Đã chấp nhận' : 'Đã từ chối';
+  isFollowRequestHandled(notificationId: string): boolean {
+    return this.followRequestOutcomes().has(notificationId);
   }
 
   isPendingFollowRequest(item: Notification): boolean {
-    return item.type === 'FOLLOW_REQUEST' && !!item.senderId && !this.isFollowRequestHandled(item.senderId);
+    return (
+      item.type === 'FOLLOW_REQUEST' &&
+      !!item.senderId &&
+      this.isLatestFollowRequestFromSender(item) &&
+      !this.isFollowRequestHandled(item.id)
+    );
+  }
+
+  private isLatestFollowRequestFromSender(item: Notification): boolean {
+    // Notifications arrive newest-first from both the API and realtime push.
+    // Older duplicate rows must never become actionable after the latest row
+    // is handled; a later retry gets a new id and naturally becomes first.
+    const latest = this.notificationItems.find(
+      (candidate) => candidate.type === 'FOLLOW_REQUEST' && candidate.senderId === item.senderId,
+    );
+    return !latest || latest.id === item.id;
   }
 
   getFollowRequestResult(item: Notification): 'accepted' | 'rejected' | null {
-    return item.senderId ? this.handledFollowRequests.get(item.senderId) ?? this.followRequestOutcomes().get(item.senderId) ?? null : null;
+    return this.followRequestOutcomes().get(item.id) ?? null;
   }
 
   isRespondingToFollowRequest(item: Notification): boolean {
-    return !!item.senderId && this.isFollowRequestPending(item.senderId);
+    return this.isFollowRequestPending(item.id);
   }
 
   async acceptFollowRequest(item: Notification, event?: Event): Promise<void> {
     event?.stopPropagation();
-    if (!item.senderId || this.isFollowRequestPending(item.senderId)) return;
+    if (!item.senderId || this.isFollowRequestPending(item.id)) return;
     await this.resolveFollowRequest(item, 'accepted');
   }
 
   async rejectFollowRequest(item: Notification, event?: Event): Promise<void> {
     event?.stopPropagation();
-    if (!item.senderId || this.isFollowRequestPending(item.senderId)) return;
+    if (!item.senderId || this.isFollowRequestPending(item.id)) return;
     await this.resolveFollowRequest(item, 'rejected');
   }
 
@@ -220,8 +228,7 @@ export class Sidebar implements OnInit, OnDestroy {
     const requesterId = item.senderId;
     if (!requesterId) return;
 
-    this.respondingFollowRequests.add(requesterId);
-    this.followRequestPendingIds.update((ids) => new Set(ids).add(requesterId));
+    this.followRequestPendingIds.update((ids) => new Set(ids).add(item.id));
 
     try {
       const token = await this.supabaseService.getSessionToken();
@@ -233,8 +240,7 @@ export class Sidebar implements OnInit, OnDestroy {
         await this.userService.rejectFollowRequest(requesterId, token);
       }
 
-      this.handledFollowRequests.set(requesterId, outcome);
-      this.followRequestOutcomes.update((map) => new Map(map).set(requesterId, outcome));
+      this.followRequestOutcomes.update((map) => new Map(map).set(item.id, outcome));
 
       if (!item.isRead) {
         this.notificationService.markAsRead(item.id).subscribe();
@@ -243,10 +249,9 @@ export class Sidebar implements OnInit, OnDestroy {
     } catch (error) {
       this.toastService.error(toUserMessage(error, 'Không thể xử lý yêu cầu theo dõi.'));
     } finally {
-      this.respondingFollowRequests.delete(requesterId);
       this.followRequestPendingIds.update((ids) => {
         const next = new Set(ids);
-        next.delete(requesterId);
+        next.delete(item.id);
         return next;
       });
     }
@@ -320,12 +325,10 @@ export class Sidebar implements OnInit, OnDestroy {
     this.closeNotifications();
     const dbUser = this.supabaseService.dbUser();
     const user = this.supabaseService.user();
-    const username =
-      dbUser?.username ||
-      user?.user_metadata?.['full_name'] ||
-      user?.user_metadata?.['name'] ||
-      user?.email?.split('@')[0];
-    if (username) this.router.navigate(['/profile', username]);
+    const profileIdentifier = dbUser?.username || user?.id;
+    if (profileIdentifier) {
+      this.router.navigate(['/profile', profileIdentifier]);
+    }
   }
 
   isFeedPage(): boolean {

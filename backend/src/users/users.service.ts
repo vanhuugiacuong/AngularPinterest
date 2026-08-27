@@ -30,6 +30,9 @@ export type MessageRequestRelationshipStatus =
 // 3-20 ký tự, chỉ chữ/số/dấu chấm/gạch dưới - khớp với cách username hiện
 // dùng làm định danh trong URL (/u/:username) nên không cho ký tự cần encode.
 const USERNAME_PATTERN = /^[a-zA-Z0-9_.]{3,20}$/;
+const SUPABASE_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const MAX_PROFILE_IDENTIFIER_LENGTH = 100;
 const MAX_BIO_LENGTH = 280;
 const MAX_DISPLAY_NAME_LENGTH = 50;
 
@@ -62,13 +65,35 @@ export class UsersService {
   private slugifyUsername(raw: string): string {
     const slug = raw
       .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
+      .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
       .replace(/[^a-z0-9_.]+/g, '')
       .slice(0, 20);
     return slug.length >= 3
       ? slug
       : `user${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  private async findAvailableUsername(
+    raw: string,
+    excludeUserId?: string,
+  ): Promise<string> {
+    const baseUsername = this.slugifyUsername(raw);
+    let count = 0;
+
+    while (true) {
+      const suffix = count === 0 ? '' : String(count);
+      const candidate = `${baseUsername.slice(0, 20 - suffix.length)}${suffix}`;
+      const existing = await this.prisma.user.findFirst({
+        where: {
+          username: { equals: candidate, mode: 'insensitive' },
+          ...(excludeUserId ? { NOT: { id: excludeUserId } } : {}),
+        },
+        select: { id: true },
+      });
+      if (!existing) return candidate;
+      count += 1;
+    }
   }
 
   async syncUser(
@@ -88,26 +113,39 @@ export class UsersService {
       // picture the very next reload. The OAuth avatar should only ever
       // seed a user who has no avatar at all yet — once any avatar is set
       // (OAuth-seeded or custom-uploaded), only updateProfile() may change it.
+      const data: {
+        email: string;
+        avatarUrl?: string;
+        username?: string;
+        displayName?: string | null;
+      } = {
+        email,
+        avatarUrl: existingUser.avatarUrl || avatarUrl,
+      };
+
+      // Older rows used the OAuth display name directly as `username`.
+      // Repair them during authenticated sync and preserve the readable
+      // value in displayName, so later profile URLs always use a safe slug.
+      const legacyUsername =
+        typeof existingUser.username === 'string'
+          ? existingUser.username.trim()
+          : '';
+      if (legacyUsername && !USERNAME_PATTERN.test(legacyUsername)) {
+        data.username = await this.findAvailableUsername(legacyUsername, id);
+        if (!existingUser.displayName) {
+          data.displayName = legacyUsername || displayName?.trim() || null;
+        }
+      }
+
       return this.prisma.user.update({
         where: { id },
-        data: {
-          email,
-          avatarUrl: existingUser.avatarUrl || avatarUrl,
-        },
+        data,
       });
     }
 
-    const baseUsername = this.slugifyUsername(
+    const uniqueUsername = await this.findAvailableUsername(
       displayName || email.split('@')[0],
     );
-    let uniqueUsername = baseUsername;
-    let count = 0;
-    while (
-      await this.prisma.user.findUnique({ where: { username: uniqueUsername } })
-    ) {
-      count += 1;
-      uniqueUsername = `${baseUsername}${count}`;
-    }
 
     return this.prisma.user.create({
       data: {
@@ -278,9 +316,10 @@ export class UsersService {
     throw new ForbiddenException('Tài khoản này ở chế độ riêng tư.');
   }
 
-  async getUserProfile(username: string, viewerId?: string) {
+  async getUserProfile(identifier: string, viewerId?: string) {
+    const identity = await this.findUserByIdentifier(identifier, viewerId);
     const user = await this.prisma.user.findUnique({
-      where: { username },
+      where: { id: identity.id },
       select: {
         id: true,
         username: true,
@@ -456,7 +495,9 @@ export class UsersService {
         messageRequestStatus = outgoing
           ? 'PENDING_OUTGOING'
           : 'PENDING_INCOMING';
-      } else {
+      } else if (request.status !== 'REJECTED') {
+        // A rejected attempt does not permanently close messaging between
+        // the pair. Expose it as NONE so a fresh request can be sent.
         messageRequestStatus = request.status;
       }
     }
@@ -484,7 +525,7 @@ export class UsersService {
     rawLimit?: string,
   ) {
     const { page, limit, skip } = this.getPagination(rawPage, rawLimit);
-    const user = await this.findUserByUsername(username);
+    const user = await this.findUserByIdentifier(username, viewerId);
     await this.assertCanViewContent(user, viewerId);
 
     const where = { userId: user.id };
@@ -547,7 +588,7 @@ export class UsersService {
     rawLimit?: string,
   ) {
     const { page, limit, skip } = this.getPagination(rawPage, rawLimit);
-    const user = await this.findUserByUsername(username);
+    const user = await this.findUserByIdentifier(username, viewerId);
     await this.assertCanViewContent(user, viewerId);
     const isOwner = viewerId === user.id;
     const where = {
@@ -780,7 +821,7 @@ export class UsersService {
     rawPage?: string,
     rawLimit?: string,
   ) {
-    const user = await this.findUserByUsername(username);
+    const user = await this.findUserByIdentifier(username, viewerId);
     const { page, limit, skip } = this.getPagination(rawPage, rawLimit);
     const where = { followingId: user.id, status: 'ACCEPTED' as const };
 
@@ -810,7 +851,7 @@ export class UsersService {
     rawPage?: string,
     rawLimit?: string,
   ) {
-    const user = await this.findUserByUsername(username);
+    const user = await this.findUserByIdentifier(username, viewerId);
     const { page, limit, skip } = this.getPagination(rawPage, rawLimit);
     const where = { followerId: user.id, status: 'ACCEPTED' as const };
 
@@ -981,11 +1022,50 @@ export class UsersService {
     return { items: [...startsWith, ...contains].slice(0, limit) };
   }
 
-  private async findUserByUsername(username: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { username },
-      select: { id: true, username: true, isPrivate: true },
+  /** Resolve a public profile identifier without coercing it to a Mongo
+   * ObjectId (this project uses PostgreSQL and Supabase UUID strings).
+   * Nest/Express has already URL-decoded values such as `%20` here.
+   *
+   * Canonical URLs use username. UUID is supported as a safe fallback while
+   * `/sync` is loading. A displayName fallback is restricted to the signed-in
+   * user's own row because display names are intentionally not unique. */
+  private async findUserByIdentifier(identifier: string, viewerId?: string) {
+    const normalized =
+      typeof identifier === 'string' ? identifier.trim() : '';
+    if (!normalized || normalized.length > MAX_PROFILE_IDENTIFIER_LENGTH) {
+      throw new BadRequestException('Profile identifier is invalid');
+    }
+
+    const select = { id: true, username: true, isPrivate: true } as const;
+    let user = await this.prisma.user.findUnique({
+      where: { username: normalized },
+      select,
     });
+
+    if (!user && SUPABASE_UUID_PATTERN.test(normalized)) {
+      user = await this.prisma.user.findUnique({
+        where: { id: normalized },
+        select,
+      });
+    }
+
+    if (!user && USERNAME_PATTERN.test(normalized)) {
+      user = await this.prisma.user.findFirst({
+        where: { username: { equals: normalized, mode: 'insensitive' } },
+        select,
+      });
+    }
+
+    if (!user && viewerId && !USERNAME_PATTERN.test(normalized)) {
+      user = await this.prisma.user.findFirst({
+        where: {
+          id: viewerId,
+          displayName: { equals: normalized, mode: 'insensitive' },
+        },
+        select,
+      });
+    }
+
     if (!user) {
       throw new NotFoundException('User not found');
     }

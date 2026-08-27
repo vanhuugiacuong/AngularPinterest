@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { ReplaySubject } from 'rxjs';
 import { API_BASE_URL } from '../api-base';
 import { safeFetch } from '../utils/http-error';
 import type { MembershipPlan } from '../models/membership-plan';
@@ -54,6 +55,10 @@ export interface Pin {
   currency?: 'VND';
   listingType?: PinListingType;
   auction?: PinAuctionSummary | null;
+  category?: string;
+  promptUsed?: string | null;
+  negativePrompt?: string | null;
+  generationModel?: string | null;
 }
 
 @Injectable({
@@ -61,6 +66,15 @@ export interface Pin {
 })
 export class PinService {
   private baseUrl = `${API_BASE_URL}/api/pins`;
+  private readonly createdPinsSubject = new ReplaySubject<Pin>(20);
+  readonly createdPins$ = this.createdPinsSubject.asObservable();
+
+  /** Shares successful creates with profile views, including views created
+   * only after the router leaves /create. Replay keeps recent session
+   * creates available across that component boundary. */
+  notifyPinCreated(pin: Pin): void {
+    this.createdPinsSubject.next(pin);
+  }
 
   private async request<T>(url: string, token: string | undefined, init: RequestInit, fallback: string): Promise<T> {
     const headers = new Headers(init.headers);
