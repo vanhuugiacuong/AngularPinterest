@@ -315,6 +315,20 @@ export class UserService {
       }
       throw new Error(message);
     }
-    return response.json() as Promise<T>;
+    const payload = await response.json();
+    const normalizeImageUrls = (value: unknown): void => {
+      if (!value || typeof value !== 'object') return;
+      if (Array.isArray(value)) {
+        value.forEach(normalizeImageUrls);
+        return;
+      }
+      const record = value as Record<string, unknown>;
+      if (typeof record['imageUrl'] === 'string' && record['imageUrl'].startsWith('/api/')) {
+        record['imageUrl'] = `${API_BASE_URL}${record['imageUrl']}`;
+      }
+      Object.values(record).forEach(normalizeImageUrls);
+    };
+    normalizeImageUrls(payload);
+    return payload as T;
   }
 }

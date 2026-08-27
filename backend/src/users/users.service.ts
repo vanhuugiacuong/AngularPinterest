@@ -17,6 +17,8 @@ import {
 import { BlocksService } from '../blocks/blocks.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { MembershipPlan } from '@prisma/client';
+import { MembershipsService } from '../memberships/memberships.service';
 
 export type MessageRequestRelationshipStatus =
   | 'NONE'
@@ -49,7 +51,36 @@ export class UsersService {
     private readonly blocksService: BlocksService,
     private readonly notificationsService: NotificationsService,
     private readonly supabaseService: SupabaseService,
+    private readonly membershipsService: MembershipsService,
   ) {}
+
+  /** Replaces clear CDN URLs before profile/board/favorites responses leave
+   * the backend. A CSS blur is not security: the browser would still expose
+   * the clear file through F12 and "Save image as". */
+  private async protectMarketPinImages<
+    T extends { id: string; userId: string; imageUrl: string; isForSale: boolean },
+  >(pins: T[], viewerId?: string): Promise<T[]> {
+    if (pins.length === 0) return pins;
+    const [auctions, viewerPlan] = await Promise.all([
+      this.prisma.auction.findMany({
+        where: { pinId: { in: [...new Set(pins.map((pin) => pin.id))] }, status: { not: 'CANCELLED' } },
+        select: { pinId: true },
+      }),
+      viewerId
+        ? this.membershipsService.status(viewerId).then((status) => status.plan)
+        : Promise.resolve<MembershipPlan>('FREE'),
+    ]);
+    const auctionPinIds = new Set(auctions.map((auction) => auction.pinId));
+    return pins.map((pin) => {
+      if (viewerId === pin.userId) return pin;
+      const restricted = auctionPinIds.has(pin.id)
+        ? viewerPlan !== 'PRO'
+        : pin.isForSale && viewerPlan !== 'PLUS' && viewerPlan !== 'PRO';
+      return restricted
+        ? { ...pin, imageUrl: `/api/pins/${pin.id}/locked-preview` }
+        : pin;
+    });
+  }
 
   /** Turns an OAuth display name (spaces, accents, any script) into a
    * username-pattern-safe slug — the raw name was previously stored
@@ -498,6 +529,7 @@ export class UsersService {
           title: true,
           description: true,
           imageUrl: true,
+          isForSale: true,
           sourceUrl: true,
           userId: true,
           createdAt: true,
@@ -520,11 +552,14 @@ export class UsersService {
       this.prisma.pin.count({ where }),
     ]);
 
-    return this.pageResult(
+    const protectedItems = await this.protectMarketPinImages(
       items.map(({ likes, ...pin }) => ({
         ...pin,
         isLiked: likes.length > 0,
-      })),
+      })), viewerId,
+    );
+    return this.pageResult(
+      protectedItems,
       total,
       page,
       limit,
@@ -569,6 +604,8 @@ export class UsersService {
                   id: true,
                   title: true,
                   imageUrl: true,
+                  userId: true,
+                  isForSale: true,
                   isAiGenerated: true,
                 },
               },
@@ -579,10 +616,13 @@ export class UsersService {
       this.prisma.board.count({ where }),
     ]);
 
+    const flatPins = boards.flatMap((board) => board.boardPins.map(({ pin }) => pin));
+    const protectedPins = await this.protectMarketPinImages(flatPins, viewerId);
+    const protectedById = new Map(protectedPins.map((pin) => [pin.id, pin]));
     const items = boards.map(({ boardPins, _count, ...board }) => ({
       ...board,
       pinCount: _count.boardPins,
-      thumbnails: boardPins.map(({ pin }) => pin),
+      thumbnails: boardPins.map(({ pin }) => protectedById.get(pin.id) ?? pin),
     }));
 
     return this.pageResult(items, total, page, limit);
@@ -606,6 +646,7 @@ export class UsersService {
               title: true,
               description: true,
               imageUrl: true,
+              isForSale: true,
               sourceUrl: true,
               userId: true,
               createdAt: true,
@@ -636,7 +677,9 @@ export class UsersService {
       isLiked: true,
     }));
 
-    return this.pageResult(items, total, page, limit);
+    const protectedItems = await this.protectMarketPinImages(items, userId);
+
+    return this.pageResult(protectedItems, total, page, limit);
   }
 
   /** Toggles the follow relationship. Every account now requires approval —
@@ -886,6 +929,8 @@ export class UsersService {
                   id: true,
                   title: true,
                   imageUrl: true,
+                  userId: true,
+                  isForSale: true,
                   isAiGenerated: true,
                 },
               },
@@ -896,10 +941,13 @@ export class UsersService {
       this.prisma.board.count({ where }),
     ]);
 
+    const flatPins = boards.flatMap((board) => board.boardPins.map(({ pin }) => pin));
+    const protectedPins = await this.protectMarketPinImages(flatPins, userId);
+    const protectedById = new Map(protectedPins.map((pin) => [pin.id, pin]));
     const items = boards.map(({ boardPins, _count, ...board }) => ({
       ...board,
       pinCount: _count.boardPins,
-      thumbnails: boardPins.map(({ pin }) => pin),
+      thumbnails: boardPins.map(({ pin }) => protectedById.get(pin.id) ?? pin),
     }));
 
     return this.pageResult(items, total, page, limit);

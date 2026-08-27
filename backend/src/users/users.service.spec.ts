@@ -13,23 +13,28 @@ describe('UsersService profile data', () => {
     follow: { count: jest.fn(), findUnique: jest.fn() },
     followRequest: { findUnique: jest.fn() },
     like: { count: jest.fn(), findMany: jest.fn() },
+    auction: { findMany: jest.fn() },
     messageRequest: { findFirst: jest.fn() },
     conversation: { findUnique: jest.fn() },
   };
   const blocksService = { isBlocked: jest.fn(), isBlockedEitherWay: jest.fn() };
   const notificationsService = { createNotification: jest.fn() };
   const supabaseService = { uploadImage: jest.fn() };
+  const membershipsService = { status: jest.fn() };
   let service: UsersService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     blocksService.isBlocked.mockResolvedValue(false);
     blocksService.isBlockedEitherWay.mockResolvedValue(false);
+    prisma.auction.findMany.mockResolvedValue([]);
+    membershipsService.status.mockResolvedValue({ plan: 'FREE' });
     service = new UsersService(
       prisma as never,
       blocksService as never,
       notificationsService as never,
       supabaseService as never,
+      membershipsService as never,
     );
   });
 
