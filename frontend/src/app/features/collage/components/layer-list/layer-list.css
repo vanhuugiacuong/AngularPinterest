@@ -198,3 +198,9 @@
     max-height: none;
   }
 }
+
+/* Text and drawing rows have no picture, so the thumb shows the kind's glyph. */
+.kind-glyph {
+  font-size: 22px;
+  color: var(--color-text-muted);
+}

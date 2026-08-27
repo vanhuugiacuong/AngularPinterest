@@ -5,6 +5,7 @@ import { CollageStoreService } from './collage-store.service';
 function layer(id: string, zIndex: number): CollageLayer {
   return {
     id,
+    kind: 'image',
     sourceImageUrl: `https://example.com/${id}.jpg`,
     cutoutImageUrl: `blob:${id}`,
     cutoutBlob: new Blob(['png'], { type: 'image/png' }),

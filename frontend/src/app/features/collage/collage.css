@@ -316,3 +316,11 @@
     order: 3;
   }
 }
+
+/* Lit while that tool owns the canvas — the draw tool in particular changes what
+   a press on the artboard does, so it must be visible that it is armed. */
+.insert-tools__btn.active {
+  color: var(--color-nova-blue);
+  background: color-mix(in srgb, var(--color-nova-blue) 14%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-nova-blue) 45%, transparent);
+}

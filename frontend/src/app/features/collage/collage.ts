@@ -5,6 +5,7 @@ import {
   OnDestroy,
   OnInit,
   ViewChild,
+  computed,
   effect,
   inject,
   signal,
@@ -21,10 +22,15 @@ import {
   COLLAGE_WIDTH,
   CollageImageLayer,
   CollageImageSource,
+  DEFAULT_BRUSH,
   DEFAULT_LAYER_CROP,
+  DEFAULT_TEXT_STYLE,
   SegmentationResult,
   isImageLayer,
+  isTextLayer,
 } from './collage.types';
+import { DrawingSettings } from './components/collage-canvas/collage-canvas';
+import { ToolPanelComponent, ToolPanelMode } from './components/tool-panel/tool-panel';
 import { CollageDraftService } from './services/collage-draft.service';
 import { CollageStoreService } from './services/collage-store.service';
 import { CollageTransferService } from './services/collage-transfer.service';
@@ -45,6 +51,7 @@ import { ToastService } from '../../core/services/toast';
     ImagePickerComponent,
     SubjectSelectorComponent,
     LayerCropComponent,
+    ToolPanelComponent,
   ],
   providers: [
     CollageStoreService,
@@ -67,6 +74,21 @@ export class Collage implements OnInit, OnDestroy {
   readonly collageHeight = COLLAGE_HEIGHT;
 
   readonly showOverflow = signal(false);
+
+  /** Which insert tool owns the right-hand column, if any. null = the image
+   * picker / cutout step is showing. */
+  readonly activeTool = signal<ToolPanelMode | null>(null);
+
+  /** Brush settings for the NEXT stroke. Held here rather than on a layer
+   * because no layer exists yet when the user picks a colour or size. */
+  readonly brush = signal<DrawingSettings>({ ...DEFAULT_BRUSH });
+
+  /** Passed to the canvas: non-null turns on Fabric free-drawing. Drawing stops
+   * while the cutout step is open, so a stroke cannot land on a canvas the user
+   * is not looking at. */
+  readonly canvasDrawing = computed(() =>
+    this.activeTool() === 'draw' && !this.selectedSource() ? this.brush() : null,
+  );
 
   readonly store = inject(CollageStoreService);
   private readonly draftService = inject(CollageDraftService);
@@ -182,7 +204,78 @@ export class Collage implements OnInit, OnDestroy {
   /** Mở hộp thoại chọn tệp của panel ảnh — không tự dựng lại phần kiểm tra
    * kiểu/kích cỡ tệp, vốn đã nằm trong ImagePickerComponent.selectFile. */
   addImage(): void {
+    this.activeTool.set(null);
     this.picker?.openFileDialog();
+  }
+
+  /** Bấm lại tool đang mở thì đóng bảng — cùng kiểu toggle với nút thông báo ở
+   * sidebar, và là cách duy nhất để quay lại panel chọn ảnh bằng một cú bấm. */
+  toggleTool(tool: ToolPanelMode): void {
+    this.activeTool.update((current) => (current === tool ? null : tool));
+    if (this.activeTool() === 'text') this.addTextLayer();
+  }
+
+  closeTool(): void {
+    this.activeTool.set(null);
+  }
+
+  patchBrush(patch: Partial<DrawingSettings>): void {
+    this.brush.update((current) => ({ ...current, ...patch }));
+  }
+
+  /** Chỉ thêm một lớp chữ mới khi chưa có lớp chữ nào đang được chọn — mở lại
+   * bảng để sửa lớp cũ thì không nên sinh thêm lớp rỗng. */
+  private addTextLayer(): void {
+    const selected = this.store.selectedLayer();
+    if (selected && isTextLayer(selected)) return;
+
+    // Chiều rộng khung = 62% khổ ảnh, và Textbox của Fabric ngắt dòng theo đúng
+    // con số này — đó là thứ giữ chữ nằm trong khung thay vì tràn ra ngoài.
+    const width = Math.round(COLLAGE_WIDTH * 0.62);
+    this.store.add({
+      id: crypto.randomUUID(),
+      kind: 'text',
+      text: 'Nhập văn bản',
+      ...DEFAULT_TEXT_STYLE,
+      x: COLLAGE_WIDTH / 2,
+      y: COLLAGE_HEIGHT / 2,
+      width,
+      height: DEFAULT_TEXT_STYLE.fontSize * 1.4,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      zIndex: this.store.layers().length,
+    });
+  }
+
+  /** Một nét vẽ hoàn tất → một lớp. Canvas đã bỏ path thô của Fabric đi, nên
+   * lớp này là bản duy nhất và store vẫn là nguồn sự thật cho những gì đang
+   * hiển thị. */
+  addStroke(stroke: {
+    pathData: string;
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  }): void {
+    const settings = this.brush();
+    this.store.add({
+      id: crypto.randomUUID(),
+      kind: 'drawing',
+      pathData: stroke.pathData,
+      stroke: settings.stroke,
+      strokeWidth: settings.strokeWidth,
+      strokeOpacity: settings.strokeOpacity,
+      brush: settings.brush,
+      x: stroke.left,
+      y: stroke.top,
+      width: stroke.width,
+      height: stroke.height,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      zIndex: this.store.layers().length,
+    });
   }
 
   openSubjectSelector(source: CollageImageSource): void {
