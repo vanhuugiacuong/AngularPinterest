@@ -108,7 +108,6 @@
 .nf:not(.nf--ready) .nf-ring-stage,
 .nf:not(.nf--ready) .nf-hero__line > span,
 .nf:not(.nf--ready) .nf-hero__lede,
-.nf:not(.nf--ready) .nf-hero__actions,
 .nf:not(.nf--ready) .nf-hero__cue {
   opacity: 0;
   visibility: hidden;
@@ -185,73 +184,6 @@
   line-height: 1.65;
   color: var(--ink-soft);
   max-width: 46ch;
-}
-
-/* ====================================================================== */
-/* Buttons                                                                */
-/* ====================================================================== */
-
-.nf-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 56px;
-  padding: 0 30px;
-  border-radius: var(--radius-cta);
-  border: 1px solid transparent;
-  cursor: pointer;
-  font: inherit;
-  font-weight: 700;
-  font-size: 15px;
-  transition: transform 0.25s var(--ease-out), box-shadow 0.3s ease, background-color 0.3s ease,
-    color 0.3s ease, border-color 0.3s ease;
-}
-
-.nf-btn:focus-visible {
-  outline: 2px solid var(--electric);
-  outline-offset: 4px;
-}
-
-.nf-btn--solid {
-  color: var(--color-text-on-accent);
-  background: linear-gradient(120deg, var(--electric), var(--blue) 45%, var(--purple));
-  box-shadow: 0 16px 34px -16px color-mix(in srgb, var(--electric) 75%, transparent);
-}
-
-.nf-btn--solid:hover {
-  box-shadow: 0 22px 44px -16px color-mix(in srgb, var(--purple) 80%, transparent);
-}
-
-.nf-btn--outline {
-  color: var(--ink);
-  border-color: var(--edge);
-  background: color-mix(in srgb, var(--paper) 60%, transparent);
-}
-
-.nf-btn--outline:hover {
-  background: var(--paper-lift);
-  border-color: var(--electric);
-  color: var(--electric);
-}
-
-.nf-btn--ghost {
-  color: var(--ink-soft);
-  background: none;
-  padding-inline: 12px;
-}
-
-.nf-btn--ghost:hover {
-  color: var(--electric);
-}
-
-.nf-btn--ghost .material-symbols-outlined {
-  font-size: 20px;
-  transition: transform 0.3s var(--ease-out);
-}
-
-.nf-btn--ghost:hover .material-symbols-outlined {
-  transform: translateY(3px);
 }
 
 /* ====================================================================== */
@@ -486,13 +418,6 @@
   color: var(--ink-soft);
   margin-bottom: 0;
   max-width: 38ch;
-}
-
-.nf-hero__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
 }
 
 .nf-hero__cue {
