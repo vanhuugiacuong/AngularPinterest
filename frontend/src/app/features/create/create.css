@@ -9,12 +9,12 @@
 }
 
 .grad-btn {
-  background-image: linear-gradient(120deg, #ff6f9c 0%, #f94083 32%, #d454a8 62%, #b15caa 100%);
+  background-image: var(--grad-brand);
 }
 
 /* ── Vùng thả ảnh sinh động: icon nổi bồng bềnh + glow + tia lấp lánh ────── */
 .drag-drop-icon {
-  background: linear-gradient(120deg, #ff6f9c 0%, #f94083 32%, #d454a8 62%, #b15caa 100%);
+  background: var(--grad-brand);
   box-shadow: 0 10px 26px -8px rgba(249, 64, 131, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.25);
   animation: drag-drop-bob 3.2s ease-in-out infinite;
 }
@@ -170,19 +170,123 @@
   background-color: rgba(249, 64, 131, 0.06);
 }
 :host-context(.dark) .panel-box {
-  background: #17131c;
+  background: #1a1a1a;
   border-color: rgba(255, 255, 255, 0.08);
 }
 :host-context(.dark) .field-input {
-  background: #100d15;
+  background: #161616;
   border-color: rgba(255, 255, 255, 0.08);
 }
 :host-context(.dark) .field-input:focus,
 :host-context(.dark) .field-input:focus-within {
   border-color: #f94083;
-  background: #100d15;
+  background: #161616;
 }
 :host-context(.dark) .segmented-btn-active {
   background: #f94083;
   color: #ffffff;
 }
+
+/* ── Panel "Bán ảnh Premium" — tông vàng gold sang, tách hẳn khỏi tông hồng
+   thương hiệu để người dùng thấy ngay đây là khu vực kiếm tiền. ─────────── */
+.premium-box {
+  transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+}
+.premium-box-on {
+  border-color: rgba(241, 212, 136, 0.45);
+  background:
+    radial-gradient(120% 130% at 100% -10%, rgba(232, 196, 104, 0.16), transparent 58%),
+    linear-gradient(180deg, #241d0d 0%, #191408 70%);
+  box-shadow: 0 16px 40px -18px rgba(232, 196, 104, 0.4), inset 0 0 0 1px rgba(241, 212, 136, 0.08);
+}
+.premium-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.premium-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 36%, rgba(255, 240, 200, 0.16) 50%, transparent 64%);
+  transform: translateX(-140%);
+  animation: premium-sweep 5.2s ease-in-out infinite;
+}
+@keyframes premium-sweep {
+  0%, 100% { transform: translateX(-140%); }
+  55%, 75% { transform: translateX(140%); }
+}
+
+/* Huy hiệu vương miện: xám khi tắt, gradient vàng có glow khi bật */
+.premium-crest {
+  background: rgba(255, 255, 255, 0.06);
+  color: #8d8878;
+  transition: background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+}
+.premium-crest-on {
+  background: linear-gradient(135deg, #f6dfa0 0%, #e8c468 45%, #c99b2f 100%);
+  color: #3a2c07;
+  box-shadow: 0 8px 20px -6px rgba(232, 196, 104, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+/* Công tắc */
+.premium-toggle {
+  background: #4a4a52;
+  transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+.premium-toggle-on {
+  background: linear-gradient(120deg, #e8c468, #c99b2f);
+  box-shadow: 0 4px 14px -4px rgba(232, 196, 104, 0.7);
+}
+.premium-knob {
+  transition: left 0.25s cubic-bezier(0.2, 1.4, 0.4, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.premium-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #a89566;
+}
+
+.premium-coin {
+  background: rgba(232, 196, 104, 0.12);
+  color: #E8C468;
+  border: 1px solid rgba(232, 196, 104, 0.28);
+}
+
+.premium-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(241, 212, 136, 0.35);
+  color: #fff;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  /* Bỏ mũi tên tăng/giảm cho gọn */
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.premium-input::-webkit-outer-spin-button,
+.premium-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.premium-input:focus {
+  border-color: #E8C468;
+  background: rgba(232, 196, 104, 0.1);
+}
+
+/* Dải "bạn nhận bao nhiêu" */
+/* Hai thẻ thông tin trong panel Premium dùng CHUNG một kiểu để không bị lệch
+   tông — phân cấp đã nằm ở màu chữ/độ đậm bên trong, không cần khác nền. */
+.premium-earn,
+.premium-note {
+  background: rgba(232, 196, 104, 0.08);
+  border: 1px solid rgba(232, 196, 104, 0.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-glow::after { animation: none; display: none; }
+}
+

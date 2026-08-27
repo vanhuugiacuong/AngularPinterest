@@ -66,7 +66,7 @@
                 (click)="navigateToUser(user.username)"
                 class="shrink-0 w-32 flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-[#f6f6f3] dark:hover:bg-[#1e1e1e] cursor-pointer text-center"
               >
-                <app-pro-avatar [src]="user.avatarUrl" [isPro]="!!$any(user).isPro" [size]="64" [alt]="user.username"></app-pro-avatar>
+                <app-pro-avatar [src]="user.avatarUrl" [isPro]="!!$any(user).isPro" [isYearly]="$any(user).pinhubProPlan === 'YEARLY'" [size]="64" [alt]="user.username"></app-pro-avatar>
                 <span class="text-xs font-bold truncate w-full">{{ user.username }}</span>
               </div>
             }

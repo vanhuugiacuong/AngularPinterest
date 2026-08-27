@@ -10,6 +10,7 @@ import {
   CREDIT_PACKS,
   PLANS,
   PLATFORM_FEE_PERCENT,
+  PLATFORM_FEE_PERCENT_YEARLY,
   QR_EXPIRE_MS,
   buildQrUrl,
   findPack,
@@ -39,14 +40,36 @@ export class BillingService {
 
     // Pro hết hạn thì coi như Free (không auto-renew ở bản này).
     const isPro = !!user.proExpiresAt && user.proExpiresAt.getTime() > Date.now();
+    // Gói năm có quyền lợi riêng (80/20, trần giá 1000, huy hiệu chrome).
+    const isYearly = isPro && (await this.isOnYearlyPlan(userId));
 
     return {
       isPro,
+      isYearly,
       proExpiresAt: user.proExpiresAt,
       spendable: wallet.spendable,
       earnings: wallet.earnings,
       grantExpiresAt: wallet.grantExpiresAt,
     };
+  }
+
+  /**
+   * true khi người dùng đang có gói NĂM còn hiệu lực.
+   *
+   * Quyền lợi riêng của gói năm (chia doanh thu 80/20, trần giá bán 1000 credit)
+   * đều dựa vào hàm này. Xét theo bản ghi Subscription gói YEARLY chưa hết hạn,
+   * chứ không chỉ nhìn `proExpiresAt` — cột đó không phân biệt tháng hay năm.
+   */
+  async isOnYearlyPlan(userId: string): Promise<boolean> {
+    const sub = await this.prisma.subscription.findFirst({
+      where: {
+        userId,
+        plan: 'YEARLY',
+        expiresAt: { gt: new Date() },
+      },
+      select: { id: true },
+    });
+    return !!sub;
   }
 
   async getTransactions(userId: string) {
@@ -212,6 +235,41 @@ export class BillingService {
     return { status: 'FAILED' as const };
   }
 
+  /**
+   * Ghi nhận báo cáo sự cố chuyển khoản để admin xử lý thủ công.
+   *
+   * KHÔNG tự động cộng tiền/credit — chỉ tạo phiếu chờ admin xem xét, tránh
+   * việc ai cũng báo cáo là được cộng. Lưu kèm `memo` để admin đối chiếu với
+   * sao kê ngân hàng.
+   */
+  async reportPayment(userId: string, ref: string, reason?: string, note?: string) {
+    const payment = await this.prisma.payment.findUnique({ where: { id: ref } });
+    if (!payment || payment.userId !== userId) throw new NotFoundException('Không tìm thấy đơn.');
+
+    const cleanReason = (reason || '').trim().slice(0, 200) || 'Không rõ lý do';
+    const cleanNote = (note || '').trim().slice(0, 500) || null;
+
+    // Một đơn chỉ cần một phiếu đang mở — báo lại nhiều lần không tạo trùng.
+    const existing = await this.prisma.paymentReport.findFirst({
+      where: { paymentId: payment.id, status: 'OPEN' },
+      select: { id: true },
+    });
+    if (existing) {
+      return { reported: true, duplicated: true };
+    }
+
+    await this.prisma.paymentReport.create({
+      data: {
+        userId,
+        paymentId: payment.id,
+        memo: payment.memo,
+        reason: cleanReason,
+        note: cleanNote,
+      },
+    });
+    return { reported: true, duplicated: false };
+  }
+
   // ── Webhook đối soát tự động (SePay/PayOS) ───────────────────────────────────
   /**
    * Xử lý một giao dịch tiền-vào: tìm đơn PENDING theo nội dung CK, đối chiếu số
@@ -263,7 +321,16 @@ export class BillingService {
 
         await tx.user.update({
           where: { id: payment.userId },
-          data: { isPro: true, proExpiresAt: expires },
+          // Ghi luôn cấp gói lên User để hiển thị huy hiệu chrome ở mọi nơi mà
+          // không phải join Subscription. Mua gói năm thì luôn ghi đè lên
+          // MONTHLY; mua tháng khi đang có năm thì giữ nguyên cấp năm.
+          data: {
+            isPro: true,
+            proExpiresAt: expires,
+            ...(payment.planCode === 'YEARLY' || user?.pinhubProPlan !== 'YEARLY'
+              ? { pinhubProPlan: payment.planCode ?? 'MONTHLY' }
+              : {}),
+          },
         });
         await tx.subscription.create({
           data: {
@@ -313,8 +380,11 @@ export class BillingService {
         refPinId: pinId,
       });
 
-      // Chia doanh thu cho creator (earnings) + phí nền tảng
-      const fee = Math.round((price * PLATFORM_FEE_PERCENT) / 100);
+      // Chia doanh thu cho creator (earnings) + phí nền tảng.
+      // Người bán đang dùng gói NĂM được chia tốt hơn (80/20 thay vì 70/30).
+      const sellerOnYearly = await this.isOnYearlyPlan(pin.userId);
+      const feePercent = sellerOnYearly ? PLATFORM_FEE_PERCENT_YEARLY : PLATFORM_FEE_PERCENT;
+      const fee = Math.round((price * feePercent) / 100);
       const creatorGain = price - fee;
       await this.ensureWalletTx(tx, pin.userId);
       await tx.wallet.update({

@@ -4,7 +4,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { AiGeneratorService } from '../ai-generator/ai-generator.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ModerationService } from '../moderation/moderation.service';
-import { PREMIUM_PRICE_MAX, PREMIUM_PRICE_MIN } from '../billing/billing.config';
+import { PREMIUM_PRICE_MAX, PREMIUM_PRICE_MAX_YEARLY, PREMIUM_PRICE_MIN } from '../billing/billing.config';
 import {
   VISUAL_CATEGORY_PROMPTS,
   classifyEmbedding,
@@ -26,11 +26,43 @@ const SEED_CONTENT_USER_IDS = new Set<string>([
 export class PinsService {
   private readonly clipServiceUrl = (process.env.CLIP_SERVICE_URL || 'http://127.0.0.1:8001').replace('localhost', '127.0.0.1');
 
-  /** Giá Premium hợp lệ (credit), null nếu không bán. */
-  private normalizePremium(isPremium?: boolean, priceCredits?: number): { isPremium: boolean; priceCredits: number | null } {
+  /**
+   * Giá Premium hợp lệ (credit), null nếu không bán.
+   *
+   * Bán ảnh Premium là quyền lợi riêng của gói Pro — người thường bật cờ này
+   * (kể cả gọi thẳng API, bỏ qua giao diện) đều bị từ chối. Tư cách Pro tính
+   * theo `proExpiresAt` còn hạn, GIỐNG billing.service.ts, chứ không đọc cột
+   * `isPro` vì cột đó không tự tắt khi hết hạn.
+   */
+  private async normalizePremium(
+    userId: string,
+    isPremium?: boolean,
+    priceCredits?: number,
+  ): Promise<{ isPremium: boolean; priceCredits: number | null }> {
     if (!isPremium) return { isPremium: false, priceCredits: null };
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { proExpiresAt: true },
+    });
+    const isProActive = !!user?.proExpiresAt && user.proExpiresAt.getTime() > Date.now();
+    if (!isProActive) {
+      throw new ForbiddenException(
+        'Chỉ thành viên Pro mới được bán ảnh Premium. Vui lòng nâng cấp gói Pro.',
+      );
+    }
+
+    // Gói năm được đặt giá cao hơn (1000 credit thay vì 500) — quyền lợi riêng.
+    // Query thẳng thay vì gọi BillingService để hai module không phụ thuộc vòng;
+    // điều kiện phải khớp BillingService.isOnYearlyPlan().
+    const yearlySub = await this.prisma.subscription.findFirst({
+      where: { userId, plan: 'YEARLY', expiresAt: { gt: new Date() } },
+      select: { id: true },
+    });
+    const maxPrice = yearlySub ? PREMIUM_PRICE_MAX_YEARLY : PREMIUM_PRICE_MAX;
+
     const n = Math.round(Number(priceCredits) || 0);
-    const price = Math.max(PREMIUM_PRICE_MIN, Math.min(PREMIUM_PRICE_MAX, n));
+    const price = Math.max(PREMIUM_PRICE_MIN, Math.min(maxPrice, n));
     return { isPremium: true, priceCredits: price };
   }
 
@@ -258,7 +290,7 @@ export class PinsService {
       where: { id: { in: pageIds } },
       include: {
         user: {
-          select: { id: true, username: true, avatarUrl: true, isPro: true },
+          select: { id: true, username: true, avatarUrl: true, isPro: true, pinhubProPlan: true },
         },
         _count: {
           select: { likes: true }
@@ -289,7 +321,7 @@ export class PinsService {
       take: limit,
       orderBy: { createdAt: 'desc' },
       include: {
-        user: { select: { id: true, username: true, avatarUrl: true, isPro: true } },
+        user: { select: { id: true, username: true, avatarUrl: true, isPro: true, pinhubProPlan: true } },
         _count: { select: { likes: true } }
       }
     });
@@ -300,12 +332,12 @@ export class PinsService {
       where: { id },
       include: {
         user: {
-          select: { id: true, username: true, avatarUrl: true, isPro: true, bio: true },
+          select: { id: true, username: true, avatarUrl: true, isPro: true, pinhubProPlan: true, bio: true },
         },
         likes: true,
         comments: {
           include: {
-            user: { select: { id: true, username: true, avatarUrl: true, isPro: true } }
+            user: { select: { id: true, username: true, avatarUrl: true, isPro: true, pinhubProPlan: true } }
           },
           orderBy: { createdAt: 'asc' }
         }
@@ -330,6 +362,10 @@ export class PinsService {
     this.moderationService.checkTextIsSafe(title, description);
     await this.moderationService.checkImageIsSafe(file.buffer, file.originalname, file.mimetype);
 
+    // Chốt quyền bán Premium TRƯỚC khi upload — nếu từ chối sau bước upload thì
+    // file đã nằm lại trong storage thành rác không ai tham chiếu.
+    const premium = await this.normalizePremium(userId, isPremium, priceCredits);
+
     const extension = file.originalname.split('.').pop() || 'png';
     const filename = `${userId}/pin_${Date.now()}_${Math.floor(Math.random() * 1000)}.${extension}`;
     const imageUrl = await this.supabaseService.uploadImage('pins', filename, file.buffer, file.mimetype);
@@ -344,7 +380,6 @@ export class PinsService {
       console.error('Error fetching CLIP embedding for uploaded pin:', e);
     }
 
-    const premium = this.normalizePremium(isPremium, priceCredits);
     const pin = await this.prisma.pin.create({
       data: {
         title,
@@ -412,6 +447,10 @@ export class PinsService {
       await this.moderationService.checkImageIsSafe(previewBuffer, 'ai_pin.png', contentType);
     }
 
+    // Chốt quyền bán Premium TRƯỚC khi lưu vào bucket vĩnh viễn — từ chối sau
+    // bước đó sẽ để lại file rác không ai tham chiếu.
+    const premium = await this.normalizePremium(userId, isPremium, priceCredits);
+
     // 2. Download image from temporary url and upload to permanent pins bucket
     const imageUrl = await this.aiGeneratorService.saveAiImageToStorage(previewUrl, userId);
 
@@ -432,7 +471,6 @@ export class PinsService {
     }
 
     // 4. Save to database
-    const premium = this.normalizePremium(isPremium, priceCredits);
     const pin = await this.prisma.pin.create({
       data: {
         title,
@@ -546,7 +584,7 @@ export class PinsService {
         userId,
       },
       include: {
-        user: { select: { id: true, username: true, avatarUrl: true, isPro: true } }
+        user: { select: { id: true, username: true, avatarUrl: true, isPro: true, pinhubProPlan: true } }
       }
     });
 
@@ -671,7 +709,7 @@ export class PinsService {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          user: { select: { id: true, username: true, avatarUrl: true, isPro: true } },
+          user: { select: { id: true, username: true, avatarUrl: true, isPro: true, pinhubProPlan: true } },
           _count: { select: { likes: true } }
         }
       });

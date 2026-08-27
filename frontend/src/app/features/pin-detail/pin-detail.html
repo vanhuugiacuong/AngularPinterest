@@ -6,11 +6,47 @@
   <div class="flex-1 pt-16 pl-28 pb-24 flex flex-col min-w-0">
     <main class="flex-1 w-full mx-auto px-6 py-6 flex flex-col max-w-none">
       
-      <!-- Loading State -->
+      <!-- Loading State — skeleton dựng đúng khung thẻ chi tiết (ảnh trái +
+           thông tin phải) để lúc dữ liệu về không bị nhảy layout. -->
       @if (isLoading()) {
-        <div class="flex-1 flex flex-col items-center justify-center py-20">
-          <div class="w-10 h-10 border-4 border-[#F94083] border-t-transparent rounded-full animate-spin"></div>
-          <p class="text-xs text-[#62625b] dark:text-[#999] mt-4 font-semibold">Đang tải chi tiết ảnh...</p>
+        <div class="w-full flex flex-col lg:flex-row gap-6 mt-2 items-start">
+          <div class="w-full lg:w-[63%] min-w-0">
+            <div class="bg-white dark:bg-[#1a1a1a] rounded-[32px] border border-[#dadad3] dark:border-[#333] flex flex-col md:flex-row w-full min-h-[500px]">
+              <!-- Khung ảnh -->
+              <div class="md:w-[50%] p-5 flex items-center justify-center">
+                <div class="w-full h-[440px] rounded-[24px] bg-[#e9e9e9] dark:bg-[#2a2a2a] animate-pulse"></div>
+              </div>
+              <!-- Khung thông tin -->
+              <div class="md:flex-1 min-w-0 p-8 flex flex-col gap-6">
+                <div class="flex items-center justify-between gap-2 pb-6 border-b border-[#dadad3] dark:border-[#333]">
+                  <div class="flex items-center gap-2">
+                    <div class="h-10 w-16 rounded-full bg-[#e9e9e9] dark:bg-[#2a2a2a] animate-pulse"></div>
+                    <div class="h-9 w-9 rounded-full bg-[#e9e9e9] dark:bg-[#2a2a2a] animate-pulse"></div>
+                    <div class="h-9 w-9 rounded-full bg-[#e9e9e9] dark:bg-[#2a2a2a] animate-pulse"></div>
+                  </div>
+                  <div class="h-10 w-24 rounded-full bg-[#e9e9e9] dark:bg-[#2a2a2a] animate-pulse"></div>
+                </div>
+                <div class="flex flex-col gap-3">
+                  <div class="h-7 w-3/4 rounded-lg bg-[#e9e9e9] dark:bg-[#2a2a2a] animate-pulse"></div>
+                  <div class="h-4 w-full rounded bg-[#e9e9e9] dark:bg-[#2a2a2a] animate-pulse"></div>
+                  <div class="h-4 w-2/3 rounded bg-[#e9e9e9] dark:bg-[#2a2a2a] animate-pulse"></div>
+                </div>
+                <div class="flex items-center gap-3 mt-2">
+                  <div class="h-11 w-11 rounded-full bg-[#e9e9e9] dark:bg-[#2a2a2a] animate-pulse shrink-0"></div>
+                  <div class="flex flex-col gap-2 flex-1 min-w-0">
+                    <div class="h-4 w-32 rounded bg-[#e9e9e9] dark:bg-[#2a2a2a] animate-pulse"></div>
+                    <div class="h-3 w-20 rounded bg-[#e9e9e9] dark:bg-[#2a2a2a] animate-pulse"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Cột ảnh liên quan bên phải -->
+          <div class="hidden lg:flex w-[37%] flex-col gap-3.5">
+            @for (dummy of [1, 2, 3]; track dummy) {
+              <div class="w-full rounded-[24px] bg-[#e9e9e9] dark:bg-[#2a2a2a] animate-pulse" [ngStyle]="{'height': (dummy % 3 === 0 ? '240px' : dummy % 3 === 1 ? '320px' : '280px')}"></div>
+            }
+          </div>
         </div>
       }
 
@@ -113,11 +149,14 @@
                   <button
                     *ngIf="canDownloadHd && isPremiumPin"
                     (click)="downloadHd()"
-                    class="flex items-center gap-1 bg-[#211922] hover:bg-black text-white px-3.5 py-2 rounded-full text-xs font-bold shadow-md cursor-pointer transition-colors select-none border-none outline-none"
+                    [disabled]="isDownloading()"
+                    class="flex items-center gap-1 bg-[#211922] hover:bg-black text-white px-3.5 py-2 rounded-full text-xs font-bold shadow-md cursor-pointer transition-colors select-none border-none outline-none disabled:opacity-70"
                     title="Tải bản HD"
                   >
-                    <span class="material-symbols-outlined text-sm leading-none font-bold">download</span>
-                    <span>Tải HD</span>
+                    <span class="material-symbols-outlined text-sm leading-none font-bold" [class.animate-spin]="isDownloading()">
+                      {{ isDownloading() ? 'progress_activity' : 'download' }}
+                    </span>
+                    <span>{{ isDownloading() ? 'Đang tải...' : 'Tải HD' }}</span>
                   </button>
                   <!-- Crop / visual search toggle -->
                   <button
@@ -144,7 +183,9 @@
               <!-- Right Side: Details & Interaction -->
               <div class="md:flex-1 min-w-0 p-8 flex flex-col justify-between bg-white dark:bg-[#1a1a1a] rounded-bl-[32px] rounded-br-[32px] md:rounded-bl-none md:rounded-tr-[32px]">
                 
-                <!-- Top Row actions -->
+                <!-- Top Row actions — hai nhóm nút đều shrink-0 nên khi cột hẹp
+                     tổng bề rộng vượt khung và tràn ra ngoài; cho xuống dòng
+                     (flex-wrap) để luôn nằm gọn trong thẻ. -->
                 <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-3 pb-6 border-b border-[#dadad3] dark:border-[#333]">
                   <div class="flex items-center gap-2 shrink-0">
                     <!-- Hearts / Likes count -->
@@ -153,14 +194,21 @@
                       class="h-10 px-3 bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] rounded-full flex items-center gap-1 cursor-pointer transition-colors active:scale-95 border-none outline-none select-none text-black dark:text-white shrink-0"
                       [title]="isLikedByUser() ? 'Bỏ thích' : 'Thích'"
                     >
-                      <span
-                        class="material-symbols-outlined text-lg leading-none font-bold"
-                        [class.text-[#F94083]]="isLikedByUser()"
-                        [class.text-black]="!isLikedByUser()"
-                        [class.dark:text-white]="!isLikedByUser()"
-                        [style.font-variation-settings]="isLikedByUser() ? &quot;'FILL' 1&quot; : &quot;'FILL' 0&quot;"
-                      >
-                        favorite
+                      <span class="relative flex items-center justify-center">
+                        <!-- Vòng loang toả ra khi vừa bấm thích -->
+                        @if (likeBurst()) {
+                          <span class="like-burst" aria-hidden="true"></span>
+                        }
+                        <span
+                          class="material-symbols-outlined text-lg leading-none font-bold relative z-10"
+                          [class.text-[#F94083]]="isLikedByUser()"
+                          [class.text-black]="!isLikedByUser()"
+                          [class.dark:text-white]="!isLikedByUser()"
+                          [class.like-pop]="likeBurst()"
+                          [style.font-variation-settings]="isLikedByUser() ? &quot;'FILL' 1&quot; : &quot;'FILL' 0&quot;"
+                        >
+                          favorite
+                        </span>
                       </span>
                       <span class="text-xs font-bold">{{ p.likes?.length || 0 }}</span>
                     </button>
@@ -178,7 +226,7 @@
                       @if (showSharePopover()) {
                         <div class="fixed inset-0 z-40" (click)="closeSharePopover()"></div>
                         <div
-                          class="absolute left-0 top-11 w-64 bg-white dark:bg-[#242424] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-50 text-left"
+                          class="absolute left-0 top-11 w-64 bg-white dark:bg-[#242424] rounded-2xl overflow-hidden shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-50 text-left"
                           (click)="$event.stopPropagation()"
                         >
                           <button
@@ -208,7 +256,7 @@
                                   [disabled]="!!shareSendingId()"
                                   class="w-full flex items-center gap-2.5 px-4 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#2a2a2a] border-none bg-transparent disabled:opacity-60"
                                 >
-                                  <app-pro-avatar class="shrink-0" [src]="conversation.otherUser.avatarUrl" [isPro]="!!conversation.otherUser.isPro" [size]="28" [alt]="conversation.otherUser.username"></app-pro-avatar>
+                                  <app-pro-avatar class="shrink-0" [src]="conversation.otherUser.avatarUrl" [isPro]="!!conversation.otherUser.isPro" [isYearly]="$any(conversation.otherUser).pinhubProPlan === 'YEARLY'" [size]="28" [alt]="conversation.otherUser.username"></app-pro-avatar>
                                   <span class="text-sm font-bold text-black dark:text-white truncate flex-1">{{ conversation.otherUser.username }}</span>
                                   @if (shareSentToId() === conversation.id) {
                                     <span class="material-symbols-outlined text-base text-[#22c55e] leading-none">check_circle</span>
@@ -236,7 +284,7 @@
                       </button>
 
                       @if (showOptionsMenu()) {
-                        <div class="absolute left-0 top-11 w-48 bg-white dark:bg-[#242424] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-50 text-left">
+                        <div class="absolute left-0 top-11 w-48 bg-white dark:bg-[#242424] rounded-2xl overflow-hidden shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-50 text-left">
                           @if (isOwner()) {
                             <button
                               (click)="deleteCurrentPin()"
@@ -246,10 +294,11 @@
                             </button>
                           } @else {
                             <button
-                              (click)="showOptionsMenu.set(false)"
-                              class="w-full text-left px-4 py-2 text-xs font-bold text-gray-500 dark:text-[#999] hover:bg-gray-50 dark:hover:bg-[#333] cursor-pointer border-none outline-none bg-transparent"
+                              (click)="reportCurrentPin()"
+                              [disabled]="isReporting()"
+                              class="w-full text-left px-4 py-2 text-xs font-bold text-gray-500 dark:text-[#999] hover:bg-gray-50 dark:hover:bg-[#333] cursor-pointer border-none outline-none bg-transparent disabled:opacity-60"
                             >
-                              Báo cáo ảnh
+                              {{ isReporting() ? 'Đang gửi...' : 'Báo cáo ảnh' }}
                             </button>
                           }
                         </div>
@@ -270,7 +319,7 @@
                     
                     <!-- Dropdown options list -->
                     @if (showBoardDropdown()) {
-                      <div class="absolute left-0 top-11 w-48 bg-white dark:bg-[#242424] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-50 text-left">
+                      <div class="absolute left-0 top-11 w-48 bg-white dark:bg-[#242424] rounded-2xl overflow-hidden shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-50 text-left">
                         <span class="text-[9px] uppercase tracking-wider text-gray-400 dark:text-[#777] font-bold px-4 py-1 block">Lưu vào bảng</span>
                         <div class="max-h-[140px] overflow-y-auto">
                           @for (b of boards(); track b.id) {
@@ -295,14 +344,9 @@
                       (click)="savePinToBoard()"
                       title="Lưu vào bộ sưu tập"
                       aria-label="Lưu vào bộ sưu tập"
-                      class="h-10 px-4 bg-[#F94083] hover:bg-[#dc2f6d] text-white rounded-full text-sm font-bold cursor-pointer active:scale-95 border-none outline-none shrink-0 flex items-center gap-1.5 whitespace-nowrap"
+                      class="h-10 px-6 bg-[#F94083] hover:bg-[#dc2f6d] text-white rounded-full text-sm font-bold cursor-pointer active:scale-95 border-none outline-none shrink-0 inline-flex items-center gap-1.5"
                     >
-                      <span
-                        class="material-symbols-outlined text-lg leading-none"
-                        style="font-variation-settings: 'FILL' 1"
-                        aria-hidden="true"
-                        >bookmark</span
-                      >
+                      <span class="material-symbols-outlined text-[17px] leading-none save-icon">bookmark</span>
                       Lưu
                     </button>
                   </div>
@@ -317,7 +361,7 @@
                     (click)="navigateToAuthorProfile()"
                     class="flex items-center gap-3 text-left cursor-pointer border-none bg-transparent p-0 outline-none"
                   >
-                    <app-pro-avatar [src]="p.user?.avatarUrl" [isPro]="!!p.user?.isPro" [size]="44" alt="Avatar"></app-pro-avatar>
+                    <app-pro-avatar [src]="p.user?.avatarUrl" [isPro]="!!p.user?.isPro" [isYearly]="$any(p.user)?.pinhubProPlan === 'YEARLY'" [size]="44" alt="Avatar"></app-pro-avatar>
                     <div class="flex flex-col text-left">
                       <span class="flex items-center gap-1.5">
                         <span class="text-sm font-bold text-black dark:text-white hover:underline">{{ p.user?.username }}</span>
@@ -337,12 +381,15 @@
 
                   <!-- AI prompt info if generated -->
                   @if (p.isAiGenerated) {
-                    <div class="p-4 rounded-2xl bg-[#f6f6f3] border border-[#dadad3] dark:border-[#333] flex flex-col gap-2 text-left">
+                    <!-- Nền trước đây là bg-[#f6f6f3] KHÔNG có biến thể dark:,
+                         nên trên nền tối thành ô sáng chói + chữ trắng trên
+                         trắng, gần như không đọc được. -->
+                    <div class="p-4 rounded-2xl bg-[#f6f6f3] dark:bg-white/[0.05] border border-[#dadad3] dark:border-white/10 flex flex-col gap-2 text-left">
                       <div class="flex items-center gap-1.5 text-xs text-[#211922] dark:text-white font-bold">
-                        <span class="material-symbols-outlined text-sm leading-none">auto_awesome</span>
+                        <span class="material-symbols-outlined text-sm leading-none text-[#F94083]">auto_awesome</span>
                         <span>Ảnh được tạo bởi AI ({{ p.generationModel || 'AI Model' }})</span>
                       </div>
-                      <p class="text-xs text-[#62625b] dark:text-[#999] leading-normal italic font-medium break-words select-all">
+                      <p class="text-xs text-[#62625b] dark:text-[#a29aac] leading-normal italic font-medium break-words select-all">
                         "{{ p.promptUsed }}"
                       </p>
                     </div>
@@ -365,7 +412,7 @@
                       <!-- Comment items -->
                       @for (comment of p.comments; track comment.id) {
                         <div class="flex gap-2.5 items-start text-left">
-                          <app-pro-avatar class="shrink-0" [src]="comment.user?.avatarUrl" [isPro]="!!comment.user?.isPro" [size]="32" alt="Avatar"></app-pro-avatar>
+                          <app-pro-avatar class="shrink-0" [src]="comment.user?.avatarUrl" [isPro]="!!comment.user?.isPro" [isYearly]="$any(comment.user)?.pinhubProPlan === 'YEARLY'" [size]="32" alt="Avatar"></app-pro-avatar>
                           <div class="flex flex-col bg-gray-50 dark:bg-[#2a2a2a] rounded-2xl px-3 py-2 flex-1 min-w-0">
                             <span class="flex items-center gap-1.5">
                               <span class="text-xs font-bold text-black dark:text-white truncate">{{ comment.user?.username }}</span>
@@ -465,7 +512,8 @@
                             <!-- Hover overlay -->
                             <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3.5 text-white z-10">
                               <div class="flex justify-end">
-                                <button class="bg-[#F94083] hover:bg-[#dc2f6d] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none">
+                                <button class="bg-[#F94083] hover:bg-[#dc2f6d] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none inline-flex items-center gap-1">
+                                  <span class="material-symbols-outlined text-[15px] leading-none save-icon">bookmark</span>
                                   Lưu
                                 </button>
                               </div>
@@ -545,7 +593,8 @@
                           <!-- Hover overlay -->
                           <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3.5 text-white z-10">
                             <div class="flex justify-end">
-                              <button class="bg-[#F94083] hover:bg-[#dc2f6d] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none">
+                              <button class="bg-[#F94083] hover:bg-[#dc2f6d] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none inline-flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[15px] leading-none save-icon">bookmark</span>
                                 Lưu
                               </button>
                             </div>

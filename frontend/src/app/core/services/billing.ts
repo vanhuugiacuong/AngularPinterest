@@ -87,6 +87,8 @@ export const QR_EXPIRE_MS = 10 * 60 * 1000;
 
 interface BillingState {
   isPro: boolean;
+  /** Đang dùng gói NĂM — quyền lợi riêng + huy hiệu chrome. */
+  isYearly: boolean;
   proExpiresAt: string | null;
   spendable: number; // credit dùng để tải (grant + mua)
   earnings: number; // credit thu nhập từ bán ảnh
@@ -97,7 +99,9 @@ interface BillingState {
 // ── Cấu hình (Phụ lục A đặc tả) — chỉnh ở đây, không cần sửa UI ────────────────
 export const PLANS: Plan[] = [
   { code: 'MONTHLY', name: 'Pro tháng', priceVnd: 79000, months: 1, grantCredits: 300 },
-  { code: 'YEARLY', name: 'Pro năm', priceVnd: 790000, months: 12, grantCredits: 300, badge: 'Tiết kiệm 17%' },
+  // Đồng bộ với backend billing.config.ts — gói năm tặng trọn 12 kỳ credit
+  // (12 × 300) cộng 400 thưởng, vì credit chỉ cấp MỘT LẦN lúc thanh toán.
+  { code: 'YEARLY', name: 'Pro năm', priceVnd: 690000, months: 12, grantCredits: 4000, badge: 'Tiết kiệm 27%' },
 ];
 
 export const CREDIT_PACKS: CreditPack[] = [
@@ -131,6 +135,8 @@ export class BillingService {
     if (!s.isPro || !s.proExpiresAt) return false;
     return new Date(s.proExpiresAt).getTime() > Date.now();
   });
+  /** Đang là Pro NĂM còn hạn — dùng cho huy hiệu chrome và quyền lợi riêng. */
+  readonly isYearly = computed(() => this.isPro() && this.state().isYearly);
   readonly proExpiresAt = computed(() => this.state().proExpiresAt);
   readonly spendable = computed(() => this.state().spendable);
   readonly earnings = computed(() => this.state().earnings);
@@ -151,6 +157,25 @@ export class BillingService {
     }
   }
 
+  /**
+   * Gửi báo cáo sự cố chuyển khoản để admin xử lý thủ công.
+   * Không tự cộng tiền — chỉ tạo phiếu chờ xem xét (xem billing.service.ts).
+   */
+  async reportPayment(ref: string, reason: string, note?: string): Promise<boolean> {
+    const token = await this.token();
+    if (!token) return false;
+    try {
+      const res = await fetch(`${this.api}/payments/${ref}/report`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason, note }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
   // ── Đồng bộ trạng thái từ backend (nếu có) ───────────────────────────────────
   /** Kéo trạng thái Pro + số dư ví từ server. Thất bại thì giữ nguyên state cục bộ. */
   async refreshMe(): Promise<void> {
@@ -164,6 +189,7 @@ export class BillingService {
       this.state.update((s) => ({
         ...s,
         isPro: !!me.isPro,
+        isYearly: !!me.isYearly,
         proExpiresAt: me.proExpiresAt ?? null,
         spendable: me.spendable ?? s.spendable,
         earnings: me.earnings ?? s.earnings,
@@ -519,7 +545,7 @@ export class BillingService {
     } catch {
       // localStorage không dùng được (private mode) — dùng mặc định.
     }
-    return { isPro: false, proExpiresAt: null, spendable: 0, earnings: 0, transactions: [], entitlements: [] };
+    return { isPro: false, isYearly: false, proExpiresAt: null, spendable: 0, earnings: 0, transactions: [], entitlements: [] };
   }
 
   private persist() {

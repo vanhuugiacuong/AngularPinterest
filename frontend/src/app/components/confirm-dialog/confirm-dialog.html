@@ -1,10 +1,10 @@
 <div
   *ngIf="confirmService.current() as dialog"
-  class="fixed inset-0 bg-black/60 backdrop-blur-md z-[80] flex items-center justify-center p-4 animate-fade-in"
+  class="fixed inset-0 bg-black/60 backdrop-blur-md z-[90] flex items-center justify-center p-4 animate-fade-in"
   (click)="confirmService.respond(false)"
 >
   <div
-    class="bg-[#1b1622] w-full max-w-[400px] rounded-[28px] p-6 shadow-[0_30px_70px_rgba(0,0,0,0.6)] flex flex-col gap-4 text-left border border-white/10"
+    class="bg-[#1e1e1e] w-full max-w-[400px] rounded-[28px] p-6 shadow-[0_30px_70px_rgba(0,0,0,0.6)] flex flex-col gap-4 text-left border border-white/10"
     (click)="$event.stopPropagation()"
   >
     <div class="flex items-start gap-3.5">
@@ -34,12 +34,12 @@
       </button>
       <button
         (click)="confirmService.respond(true)"
-        class="h-10 px-5 rounded-full font-bold text-sm text-white transition-all hover:-translate-y-0.5 cursor-pointer border-none outline-none bg-gradient-to-r"
+        class="h-10 px-5 rounded-full font-bold text-sm text-white transition-all hover:-translate-y-0.5 cursor-pointer border-none outline-none"
+        [class.bg-gradient-to-r]="dialog.danger"
         [class.from-[#ff5c7a]]="dialog.danger"
         [class.to-[#e11d48]]="dialog.danger"
         [class.shadow-[0_10px_24px_-8px_rgba(225,29,72,0.6)]]="dialog.danger"
-        [class.from-[#f94083]]="!dialog.danger"
-        [class.to-[#b15caa]]="!dialog.danger"
+        [class.grad-brand]="!dialog.danger"
         [class.shadow-[0_10px_24px_-8px_rgba(249,64,131,0.6)]]="!dialog.danger"
       >
         {{ dialog.confirmLabel }}

@@ -71,7 +71,7 @@
           <div class="flex items-center gap-4 shrink-0 ml-auto md:ml-0">
             <!-- User Info: Avatar next to Name and followers -->
             <div class="flex items-center gap-3 select-none">
-              <app-pro-avatar [src]="p.avatarUrl" [isPro]="!!p.isPro" [size]="64" alt="Avatar"></app-pro-avatar>
+              <app-pro-avatar [src]="p.avatarUrl" [isPro]="!!p.isPro" [isYearly]="$any(p).pinhubProPlan === 'YEARLY'" [size]="64" alt="Avatar"></app-pro-avatar>
               <div class="flex flex-col text-left justify-center gap-0.5">
                 <span class="flex items-center gap-2">
                   <span class="text-xl font-extrabold text-black dark:text-white leading-tight">{{ p.username }}</span>

@@ -23,3 +23,38 @@
     linear-gradient(rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.52));
   backdrop-filter: blur(2px);
 }
+
+/* ── Micro-interaction nút thích: tim nảy + vòng hồng loang ra ──────────────
+   Chỉ chạy khi VỪA thích (không chạy lúc bỏ thích) — xem likeBurst trong
+   pin-detail.ts. Trước đây bấm thích chỉ đổi màu phẳng, thiếu phản hồi. */
+.like-pop {
+  animation: like-pop 0.42s cubic-bezier(0.2, 1.6, 0.35, 1);
+}
+@keyframes like-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.45); }
+  60% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+
+.like-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border-radius: 9999px;
+  border: 2px solid #f94083;
+  animation: like-burst 0.5s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes like-burst {
+  0% { transform: scale(0.4); opacity: 0.85; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .like-pop { animation: none; }
+  .like-burst { display: none; }
+}

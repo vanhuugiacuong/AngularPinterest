@@ -49,13 +49,34 @@ export class Create implements OnInit {
   public readonly priceMin = PREMIUM_PRICE_MIN;
   public readonly priceMax = PREMIUM_PRICE_MAX;
 
+  /**
+   * Bán ảnh Premium là quyền lợi gói Pro. Backend cũng chặn độc lập
+   * (pins.service.ts normalizePremium) nên đây chỉ là lớp hướng dẫn người dùng,
+   * không phải lớp bảo mật.
+   */
   togglePremium() {
+    if (!this.billing.isPro()) {
+      this.toastService.info('Chỉ thành viên Pro mới bán được ảnh Premium. Nâng cấp để mở khoá.');
+      this.router.navigate(['/pro']);
+      return;
+    }
     this.isPremium.update((v) => !v);
   }
 
   private clampPrice(): number {
     const n = Math.round(Number(this.premiumPrice) || 0);
     return Math.max(this.priceMin, Math.min(this.priceMax, n));
+  }
+
+  /** Phần trăm nền tảng giữ lại — khớp PLATFORM_FEE_PERCENT ở backend. */
+  public readonly platformFeePercent = 30;
+  public get sellerSharePercent(): number {
+    return 100 - this.platformFeePercent;
+  }
+  /** Số credit người bán thực nhận mỗi lượt — tính y hệt backend (làm tròn phí). */
+  public get sellerEarnPerSale(): number {
+    const price = this.clampPrice();
+    return price - Math.round((price * this.platformFeePercent) / 100);
   }
   
   // Boards selector fields

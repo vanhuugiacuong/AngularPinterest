@@ -8,12 +8,12 @@
 
 /* Nút gradient thương hiệu dùng chung */
 .grad-btn {
-  background-image: linear-gradient(120deg, #ff6f9c 0%, #f94083 32%, #d454a8 62%, #b15caa 100%);
+  background-image: var(--grad-brand);
 }
 
 /* Thẻ số dư — điểm nhấn gradient duy nhất, bóng nhuốm màu thương hiệu */
 .balance-card {
-  background-image: linear-gradient(120deg, #ff6f9c 0%, #f94083 32%, #d454a8 62%, #b15caa 100%);
+  background-image: var(--grad-brand);
   box-shadow: 0 16px 40px -8px rgba(249, 64, 131, 0.45);
 }
 
@@ -61,7 +61,7 @@
   .plan-card-glow::after { animation: none; display: none; }
 }
 .plan-crest {
-  background: linear-gradient(120deg, #ff6f9c 0%, #f94083 32%, #d454a8 62%, #b15caa 100%);
+  background: var(--grad-brand);
   box-shadow: 0 8px 20px -6px rgba(249, 64, 131, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.25);
 }
 .plan-tag {
@@ -69,7 +69,7 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   color: #fff;
-  background: linear-gradient(120deg, #ff6f9c 0%, #f94083 32%, #d454a8 62%, #b15caa 100%);
+  background: var(--grad-brand);
   padding: 3px 8px;
   border-radius: 999px;
   box-shadow: 0 4px 10px -3px rgba(249, 64, 131, 0.55);

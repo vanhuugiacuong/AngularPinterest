@@ -1,0 +1,54 @@
+:host {
+  display: block;
+}
+
+/* Hàng chọn lý do — nền nhấn nhẹ khi rê/chọn, đồng bộ tông dialog tối */
+.reason-row {
+  transition: background-color 0.15s ease;
+}
+.reason-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+/* Dùng CÙNG tông đỏ với nút "Gửi báo cáo" (và với ConfirmDialog ở chế độ
+   danger) — trước đây chấm chọn để hồng thương hiệu nên lệch hẳn với nút. */
+.reason-row-on {
+  background: rgba(255, 92, 122, 0.1);
+}
+
+/* Nút chọn tròn tự vẽ (giữ đúng tông hồng thương hiệu thay vì radio mặc định) */
+.reason-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  position: relative;
+  transition: border-color 0.15s ease;
+}
+.reason-row:hover .reason-radio {
+  border-color: rgba(255, 255, 255, 0.45);
+}
+.reason-radio-on {
+  border-color: #ff5c7a;
+}
+.reason-radio-on::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 9999px;
+  background: #ff5c7a;
+}
+
+/* Ô mô tả thêm */
+.report-note {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.report-note::placeholder {
+  color: #6c6674;
+}
+.report-note:focus {
+  border-color: #ff5c7a;
+  background: rgba(255, 92, 122, 0.06);
+}

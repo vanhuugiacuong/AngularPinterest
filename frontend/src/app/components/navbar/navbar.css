@@ -4,9 +4,12 @@
   font-variation-settings: 'FILL' 1, 'wght' 500;
 }
 
-/* ── Sidebar rail: cao full chiều, cố định trái ────────────────────────────── */
+/* ── Sidebar rail: cao full chiều, cố định trái ──────────────────────────────
+   Đen sâu hơn nền trang (#121212) để phần khung ứng dụng (rail + header) lùi
+   xuống, vùng nội dung ảnh nổi hẳn lên — thay cho tông tím than cũ vốn lạc
+   lõng sau khi toàn bộ giao diện chuyển sang xám thuần. */
 .nav-rail {
-  background: rgba(20, 16, 25, 0.8);
+  background: rgba(13, 13, 13, 0.8);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
   border-right: 1px solid rgba(255, 255, 255, 0.07);
@@ -75,7 +78,7 @@
 
 /* Gradient thương hiệu cho mục Pro trong menu tài khoản (không phải sidebar) */
 .grad-pill {
-  background-image: linear-gradient(120deg, #ff6f9c 0%, #f94083 32%, #d454a8 62%, #b15caa 100%);
+  background-image: var(--grad-brand);
 }
 
 /* Thẻ "Thành viên Pro" (đã mua) trong menu tài khoản — kính mờ nhuốm hồng +
@@ -105,7 +108,7 @@
   .pro-chip::after { animation: none; display: none; }
 }
 .pro-chip-crest {
-  background: linear-gradient(120deg, #ff6f9c 0%, #f94083 32%, #d454a8 62%, #b15caa 100%);
+  background: var(--grad-brand);
   box-shadow: 0 8px 20px -6px rgba(249, 64, 131, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.25);
 }
 .pro-chip-status {
@@ -131,8 +134,65 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   color: #fff;
-  background: linear-gradient(120deg, #ff6f9c 0%, #f94083 32%, #d454a8 62%, #b15caa 100%);
+  background: var(--grad-brand);
   padding: 3px 7px;
   border-radius: 999px;
   box-shadow: 0 4px 10px -3px rgba(249, 64, 131, 0.55);
+}
+
+/* ── CTA "Nâng cấp lên Pro" (chưa mua) ─────────────────────────────────────
+   Trước đây chỉ là khối gradient phẳng, nhìn thô so với thẻ Pro bên dưới.
+   Thêm: viền sáng inset, bóng đổ nhuốm hồng, crest có highlight, bóng lướt
+   qua và mũi tên nhích khi rê chuột. */
+.upgrade-cta {
+  background-image: var(--grad-brand);
+  box-shadow:
+    0 10px 26px -10px rgba(249, 64, 131, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.upgrade-cta:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 14px 32px -10px rgba(249, 64, 131, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+.upgrade-cta:active {
+  transform: translateY(0);
+}
+.upgrade-cta::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.28) 50%, transparent 65%);
+  transform: translateX(-130%);
+  animation: upgrade-sweep 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes upgrade-sweep {
+  0%, 100% { transform: translateX(-130%); }
+  55%, 75% { transform: translateX(130%); }
+}
+
+/* Huy hiệu vương miện: kính mờ trắng có viền sáng, nổi trên nền gradient */
+.upgrade-crest {
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+    0 4px 10px -4px rgba(0, 0, 0, 0.35);
+}
+
+/* Mũi tên nhích sang phải khi rê chuột — gợi ý "bấm để đi tiếp" */
+.upgrade-arrow {
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+.upgrade-cta:hover .upgrade-arrow {
+  transform: translateX(3px);
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .upgrade-cta::after { animation: none; display: none; }
+  .upgrade-cta:hover { transform: none; }
+  .upgrade-cta:hover .upgrade-arrow { transform: none; }
 }

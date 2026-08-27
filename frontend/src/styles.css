@@ -14,6 +14,63 @@ html.dark {
   color-scheme: dark;
 }
 
+/* ── Design tokens (dark-only, hồng là màu chính) ──────────────────────────
+   Dùng như utility: bg-surface, text-brand, border-hairline, text-muted... */
+@theme {
+  --color-brand: #f94083;
+  --color-brand-2: #b15caa;
+  --color-brand-soft: #ff6fa1;
+
+  --color-bg: #121212;
+  --color-surface: #1a1a1a;
+  --color-surface-2: #242424;
+  --color-elevated: #2a2a2a;
+
+  --color-hairline: rgba(255, 255, 255, 0.08);
+  --color-hairline-strong: rgba(255, 255, 255, 0.14);
+
+  --color-ink: #ffffff;
+  --color-muted: #a29aac;
+  --color-faint: #6c6674;
+}
+
+/* ── Gradient thương hiệu dùng chung ───────────────────────────────────────
+   MỘT nguồn sự thật duy nhất cho mọi nút/thẻ gradient. Trước đây `.grad-btn`
+   bị chép lại ở 4 file CSS component riêng lẻ, nên có file quên định nghĩa →
+   nút render trong suốt (billing-result đã dính lỗi này). Component nào cần
+   thì dùng thẳng class `grad-brand`, đổi màu chỉ sửa 1 chỗ ở đây. */
+:root {
+  --grad-brand: linear-gradient(120deg, #ff6f9c 0%, #f94083 32%, #d454a8 62%, #b15caa 100%);
+}
+.grad-brand {
+  background-image: var(--grad-brand);
+}
+/* Icon bookmark trên nút "Lưu" — tô đặc cho rõ trên nền hồng. Dùng global vì
+   nút Lưu nằm rải ở nhiều component (home, pin-detail, profile). */
+.save-icon {
+  font-variation-settings: 'FILL' 1, 'wght' 600;
+}
+
+/* Cùng gradient nhưng tô cho CHỮ (tên gói Pro, số liệu nổi bật...) */
+.grad-brand-text {
+  background-image: var(--grad-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Nền tối toàn site (dark-only). Có ánh sáng hồng/tím rất nhẹ ở 2 góc cho sang. */
+html,
+body {
+  background-color: #121212;
+  color: #ffffff;
+}
+body {
+  background-image:
+    radial-gradient(60% 55% at 100% 0%, rgba(249, 64, 131, 0.08), transparent 60%),
+    radial-gradient(55% 55% at 0% 100%, rgba(177, 92, 170, 0.08), transparent 60%);
+  background-attachment: fixed;
+}
 
 @theme {
   --animate-fade-in: fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -54,4 +111,57 @@ img {
   -webkit-user-drag: none;
   user-select: none;
   -webkit-touch-callout: none;
+}
+
+/* ── Chrome ánh cầu vồng — dấu hiệu nhận diện gói Pro NĂM ──────────────────
+   VIP hơn vàng gold (vốn đã dùng cho ảnh Premium) và khớp thẩm mỹ Y2K/chrome
+   của app. Dùng cho chữ (.chrome-text) và huy hiệu (.chrome-badge). */
+:root {
+  --grad-chrome: linear-gradient(
+    115deg,
+    #e8f4ff 0%, #b8c6ff 16%, #d9b8ff 32%,
+    #ffc2e8 48%, #ffe0b8 62%, #b8ffe4 78%,
+    #c6d4ff 90%, #eaf4ff 100%
+  );
+}
+
+.chrome-text {
+  background-image: var(--grad-chrome);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: chrome-shift 7s ease-in-out infinite;
+}
+
+.chrome-badge {
+  background-image: var(--grad-chrome);
+  background-size: 220% 100%;
+  color: #241d2b;
+  animation: chrome-shift 7s ease-in-out infinite;
+  box-shadow: 0 4px 14px -4px rgba(184, 198, 255, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+@keyframes chrome-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chrome-text, .chrome-badge { animation: none; }
+}
+
+/* ── Căn giữa icon Material theo dòng chữ ─────────────────────────────────
+   Mặc định glyph thừa hưởng line-height của body (1.5+), nên hộp icon cao
+   hơn glyph và icon trông thấp hơn chữ bên cạnh. Ép line-height về 1 một
+   lần ở đây thay vì rải `leading-none` lên ~90 chỗ gọi. */
+.material-symbols-outlined {
+  line-height: 1;
+}
+
+/* Viền avatar cấp chrome (gói năm) — dùng ring của Tailwind không tô gradient
+   được, nên vẽ bằng box-shadow nhiều lớp cho ra ánh kim. */
+.avatar-ring-chrome {
+  box-shadow: 0 0 0 2px #121212, 0 0 0 4px #cdd8ff, 0 0 12px -1px rgba(184, 198, 255, 0.85);
+  border-color: transparent !important;
 }

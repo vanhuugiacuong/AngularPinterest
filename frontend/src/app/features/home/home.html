@@ -112,14 +112,15 @@
                         <div class="relative shrink-0">
                           <button
                             (click)="onSaveClick(pin.id, $event)"
-                            class="bg-[#F94083] hover:bg-[#dc2f6d] text-white font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer transition-colors active:scale-95 border-none outline-none"
+                            class="bg-[#F94083] hover:bg-[#dc2f6d] text-white font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer transition-colors active:scale-95 border-none outline-none inline-flex items-center gap-1"
                           >
+                            <span class="material-symbols-outlined text-[14px] leading-none save-icon">bookmark</span>
                             Lưu
                           </button>
 
                           <!-- Board picker: appears after clicking Lưu -->
                           @if (activeDropdownPinId() === pin.id) {
-                            <div class="absolute right-0 top-9 w-44 bg-white dark:bg-[#242424] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-[100] text-left">
+                            <div class="absolute right-0 top-9 w-44 bg-white dark:bg-[#242424] rounded-2xl overflow-hidden shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-[100] text-left">
                               <span class="text-[9px] uppercase tracking-wider text-gray-400 font-bold px-3.5 py-1 block">Chọn bảng để lưu</span>
                               <div class="max-h-[140px] overflow-y-auto">
                                 @for (b of boards(); track b.id) {
