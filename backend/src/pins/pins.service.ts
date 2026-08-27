@@ -243,7 +243,7 @@ export class PinsService {
       where: { id: { in: pageIds } },
       include: {
         user: {
-          select: { id: true, username: true, avatarUrl: true },
+          select: { id: true, username: true, avatarUrl: true, isPro: true },
         },
         _count: {
           select: { likes: true }
@@ -274,7 +274,7 @@ export class PinsService {
       take: limit,
       orderBy: { createdAt: 'desc' },
       include: {
-        user: { select: { id: true, username: true, avatarUrl: true } },
+        user: { select: { id: true, username: true, avatarUrl: true, isPro: true } },
         _count: { select: { likes: true } }
       }
     });
@@ -285,12 +285,12 @@ export class PinsService {
       where: { id },
       include: {
         user: {
-          select: { id: true, username: true, avatarUrl: true, bio: true },
+          select: { id: true, username: true, avatarUrl: true, isPro: true, bio: true },
         },
         likes: true,
         comments: {
           include: {
-            user: { select: { id: true, username: true, avatarUrl: true } }
+            user: { select: { id: true, username: true, avatarUrl: true, isPro: true } }
           },
           orderBy: { createdAt: 'asc' }
         }
@@ -529,7 +529,7 @@ export class PinsService {
         userId,
       },
       include: {
-        user: { select: { id: true, username: true, avatarUrl: true } }
+        user: { select: { id: true, username: true, avatarUrl: true, isPro: true } }
       }
     });
 
@@ -654,7 +654,7 @@ export class PinsService {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          user: { select: { id: true, username: true, avatarUrl: true } },
+          user: { select: { id: true, username: true, avatarUrl: true, isPro: true } },
           _count: { select: { likes: true } }
         }
       });

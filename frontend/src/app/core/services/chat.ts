@@ -7,6 +7,7 @@ export interface PublicUserSummary {
   id: string;
   username: string;
   avatarUrl?: string | null;
+  isPro?: boolean;
 }
 
 export interface MessagePinPreview {

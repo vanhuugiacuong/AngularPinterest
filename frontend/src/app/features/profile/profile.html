@@ -9,7 +9,7 @@
       
       <!-- Loading State -->
       <div *ngIf="isLoading()" class="flex-1 flex flex-col items-center justify-center py-20">
-        <div class="w-10 h-10 border-4 border-[#B15CAA] border-t-transparent rounded-full animate-spin"></div>
+        <div class="w-10 h-10 border-4 border-[#F94083] border-t-transparent rounded-full animate-spin"></div>
         <p class="text-xs text-[#62625b] dark:text-[#999] mt-4 font-semibold">Đang tải trang cá nhân...</p>
       </div>
 
@@ -56,13 +56,14 @@
           <div class="flex items-center gap-4 shrink-0 ml-auto md:ml-0">
             <!-- User Info: Avatar next to Name and followers -->
             <div class="flex items-center gap-3 select-none">
-              <img 
-                [src]="p.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'" 
-                alt="Avatar" 
-                class="w-16 h-16 rounded-full border border-[#dadad3] dark:border-[#333] object-cover shadow-sm"
-              />
+              <app-pro-avatar [src]="p.avatarUrl" [isPro]="!!p.isPro" [size]="64" alt="Avatar"></app-pro-avatar>
               <div class="flex flex-col text-left justify-center gap-0.5">
-                <span class="text-xl font-extrabold text-black dark:text-white leading-tight">{{ p.username }}</span>
+                <span class="flex items-center gap-2">
+                  <span class="text-xl font-extrabold text-black dark:text-white leading-tight">{{ p.username }}</span>
+                  <span *ngIf="p.isPro" class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F94083]/15 text-[#F94083] text-[10px] font-extrabold tracking-wide">
+                    <span class="material-symbols-outlined text-[13px] leading-none" style="font-variation-settings:'FILL' 1">workspace_premium</span> PRO
+                  </span>
+                </span>
                 <span class="text-xs text-[#62625b] dark:text-[#999] font-medium">
                   {{ p._count?.followers || 0 }} người đang theo dõi
                 </span>
@@ -75,8 +76,8 @@
                 *ngIf="!isMyProfile()"
                 (click)="toggleFollow()"
                 class="h-10 px-4 rounded-full text-xs font-bold cursor-pointer transition-colors"
-                [class.bg-[#B15CAA]]="!isFollowing()"
-                [class.hover:bg-[#8F4A8B]]="!isFollowing()"
+                [class.bg-[#F94083]]="!isFollowing()"
+                [class.hover:bg-[#dc2f6d]]="!isFollowing()"
                 [class.text-white]="!isFollowing()"
                 [class.bg-[#f0f0f0]]="isFollowing()"
                 [class.dark:bg-[#2a2a2a]]="isFollowing()"
@@ -135,7 +136,7 @@
             <div *ngIf="isMyProfile()" class="relative">
               <button 
                 (click)="openCreateBoardModal()"
-                class="h-10 px-5 rounded-full bg-[#B15CAA] hover:bg-[#8F4A8B] text-white font-extrabold text-xs cursor-pointer transition-all active:scale-95 border-none outline-none shadow-sm flex items-center justify-center"
+                class="h-10 px-5 rounded-full bg-[#F94083] hover:bg-[#dc2f6d] text-white font-extrabold text-xs cursor-pointer transition-all active:scale-95 border-none outline-none shadow-sm flex items-center justify-center"
                 title="Tạo bảng mới"
               >
                 Tạo
@@ -271,7 +272,7 @@
                     <div class="flex justify-end">
                       <button
                         (click)="$event.stopPropagation()"
-                        class="pointer-events-auto bg-[#B15CAA] hover:bg-[#8F4A8B] text-white font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer border-none outline-none"
+                        class="pointer-events-auto bg-[#F94083] hover:bg-[#dc2f6d] text-white font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer border-none outline-none"
                       >
                         Lưu
                       </button>
@@ -385,7 +386,7 @@
             <div *ngIf="isMyProfile()" class="relative">
               <button 
                 (click)="openCreateBoardModal()"
-                class="h-10 px-5 rounded-full bg-[#B15CAA] hover:bg-[#8F4A8B] text-white font-extrabold text-xs cursor-pointer transition-all active:scale-95 border-none outline-none shadow-sm flex items-center justify-center"
+                class="h-10 px-5 rounded-full bg-[#F94083] hover:bg-[#dc2f6d] text-white font-extrabold text-xs cursor-pointer transition-all active:scale-95 border-none outline-none shadow-sm flex items-center justify-center"
                 title="Tạo bảng mới"
               >
                 Tạo
@@ -502,7 +503,7 @@
               <button
                 type="button"
                 (click)="openCreateBoardModal()"
-                class="mt-2 h-11 px-6 rounded-full bg-[#B15CAA] hover:bg-[#8F4A8B] text-white font-bold text-sm cursor-pointer transition-all active:scale-95 border-none outline-none shadow-[0_6px_16px_rgba(177,92,170,0.35)] flex items-center gap-2"
+                class="mt-2 h-11 px-6 rounded-full bg-[#F94083] hover:bg-[#dc2f6d] text-white font-bold text-sm cursor-pointer transition-all active:scale-95 border-none outline-none shadow-[0_6px_16px_rgba(177,92,170,0.35)] flex items-center gap-2"
               >
                 Tạo bảng đầu tiên
               </button>
@@ -716,7 +717,7 @@
           </button>
           <button 
             type="submit" 
-            class="h-11 px-6 rounded-full text-sm font-bold bg-[#B15CAA] hover:bg-[#8F4A8B] text-white cursor-pointer transition-all active:scale-95 border-none outline-none"
+            class="h-11 px-6 rounded-full text-sm font-bold bg-[#F94083] hover:bg-[#dc2f6d] text-white cursor-pointer transition-all active:scale-95 border-none outline-none"
             [disabled]="isSubmittingBoard || !newBoardName.trim()"
           >
             Tạo

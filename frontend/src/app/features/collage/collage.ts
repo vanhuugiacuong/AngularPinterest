@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
+import { ProAvatar } from '../../shared/pro-avatar/pro-avatar';
 import { CollageService } from '../../core/services/collage';
 import { PinService, Pin } from '../../core/services/pin';
 import { BoardService, Board } from '../../core/services/board';
@@ -114,7 +115,7 @@ export type ResizeCorner = 'nw' | 'ne' | 'sw' | 'se';
 @Component({
   selector: 'app-collage',
   standalone: true,
-  imports: [CommonModule, FormsModule, Navbar],
+  imports: [CommonModule, FormsModule, Navbar, ProAvatar],
   templateUrl: './collage.html',
   styleUrl: './collage.css',
 })

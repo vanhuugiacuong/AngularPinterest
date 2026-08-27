@@ -61,6 +61,13 @@ export class Create implements OnInit {
   public aiImagePreviewUrl = signal<string | null>(null);
   public isGenerating = signal<boolean>(false);
 
+  /** Đã có ảnh chưa? -> quyết định hiện cột chi tiết + xem trước (progressive). */
+  get hasContent(): boolean {
+    if (this.activeTab() === 'upload') return !!this.imagePreviewUrl();
+    if (this.activeTab() === 'ai') return !!this.aiImagePreviewUrl();
+    return false;
+  }
+
   // Submit status
   public isSubmitting = signal<boolean>(false);
   public isCheckingImage = signal<boolean>(false);

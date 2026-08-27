@@ -4,7 +4,7 @@ import { PrismaService } from '../database/prisma.service';
 import { NotificationsGateway } from './notifications.gateway';
 
 const NOTIFICATION_INCLUDE = {
-  sender: { select: { id: true, username: true, avatarUrl: true } },
+  sender: { select: { id: true, username: true, avatarUrl: true, isPro: true } },
   pin: { select: { id: true, imageUrl: true, title: true } },
 } as const;
 

@@ -127,6 +127,7 @@ export class Navbar {
   async toggleNotifPopup(event: MouseEvent) {
     event.stopPropagation();
     this.showProfilePopup.set(false);
+    this.showSearchDropdown.set(false);
     const opening = !this.showNotifPopup();
     this.showNotifPopup.set(opening);
     if (!opening) return;
@@ -180,6 +181,7 @@ export class Navbar {
   toggleProfilePopup(event: MouseEvent) {
     event.stopPropagation();
     this.showNotifPopup.set(false);
+    this.showSearchDropdown.set(false);
     this.showProfilePopup.update(val => !val);
   }
 
@@ -453,6 +455,8 @@ export class Navbar {
   }
 
   async onSearchFocus() {
+    this.showNotifPopup.set(false);
+    this.showProfilePopup.set(false);
     this.showSearchDropdown.set(true);
     this.loadRecentSearches();
     if (this.suggestionPool().length === 0) {

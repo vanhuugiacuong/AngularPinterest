@@ -23,7 +23,7 @@
             draggable="true"
             [class.bg-[#f0f0ed]]="selectedLayerId() === layer.id"
             [class.dark:bg-[#242424]]="selectedLayerId() === layer.id"
-            [class.border-[#B15CAA]]="dragOverLayerId() === layer.id"
+            [class.border-[#F94083]]="dragOverLayerId() === layer.id"
             [class.border-transparent]="dragOverLayerId() !== layer.id"
             (click)="selectLayer(layer.id, $event)"
             (dragstart)="onLayerRowDragStart(layer.id, $event)"
@@ -77,7 +77,7 @@
             class="w-6 h-6 rounded-full border border-[#e0e0da] dark:border-[#333]"
             [style.background]="c"
             [class.ring-2]="backgroundColor() === c"
-            [class.ring-[#B15CAA]]="backgroundColor() === c"
+            [class.ring-[#F94083]]="backgroundColor() === c"
             (click)="setBackgroundColor(c)"
           ></button>
         }
@@ -105,7 +105,7 @@
             class="w-6 h-6 rounded-full border border-[#e0e0da] dark:border-[#333]"
             [style.background]="c"
             [class.ring-2]="selectedLayer.color === c"
-            [class.ring-[#B15CAA]]="selectedLayer.color === c"
+            [class.ring-[#F94083]]="selectedLayer.color === c"
             (click)="setTextColor(c)"
           ></button>
         }
@@ -163,7 +163,7 @@
             class="w-6 h-6 rounded-full border border-[#e0e0da] dark:border-[#333]"
             [style.background]="c"
             [class.ring-2]="selectedLayer.highlightColor === c"
-            [class.ring-[#B15CAA]]="selectedLayer.highlightColor === c"
+            [class.ring-[#F94083]]="selectedLayer.highlightColor === c"
             (click)="setTextHighlightColor(c)"
           ></button>
         }
@@ -191,7 +191,7 @@
             class="w-6 h-6 rounded-full border border-[#e0e0da] dark:border-[#333]"
             [style.background]="c"
             [class.ring-2]="drawStrokeColor() === c"
-            [class.ring-[#B15CAA]]="drawStrokeColor() === c"
+            [class.ring-[#F94083]]="drawStrokeColor() === c"
             (click)="setDrawStrokeColor(c)"
           ></button>
         }
@@ -391,17 +391,17 @@
               }
 
               @if (selectedLayerId() === layer.id && editingTextLayerId() !== layer.id && !isDrawMode() && !showPublishStep()) {
-                <div class="absolute inset-0 border-2 border-[#B15CAA] pointer-events-none"></div>
+                <div class="absolute inset-0 border-2 border-[#F94083] pointer-events-none"></div>
 
                 <!-- corner resize handles: dragging any corner outward grows the layer -->
-                <div class="absolute -top-2 -left-2 w-4 h-4 rounded-full bg-white border-2 border-[#B15CAA] cursor-nwse-resize" (pointerdown)="startResize(layer, 'nw', $event)"></div>
-                <div class="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-white border-2 border-[#B15CAA] cursor-nesw-resize" (pointerdown)="startResize(layer, 'ne', $event)"></div>
-                <div class="absolute -bottom-2 -left-2 w-4 h-4 rounded-full bg-white border-2 border-[#B15CAA] cursor-nesw-resize" (pointerdown)="startResize(layer, 'sw', $event)"></div>
-                <div class="absolute -bottom-2 -right-2 w-4 h-4 rounded-full bg-white border-2 border-[#B15CAA] cursor-nwse-resize" (pointerdown)="startResize(layer, 'se', $event)"></div>
+                <div class="absolute -top-2 -left-2 w-4 h-4 rounded-full bg-white border-2 border-[#F94083] cursor-nwse-resize" (pointerdown)="startResize(layer, 'nw', $event)"></div>
+                <div class="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-white border-2 border-[#F94083] cursor-nesw-resize" (pointerdown)="startResize(layer, 'ne', $event)"></div>
+                <div class="absolute -bottom-2 -left-2 w-4 h-4 rounded-full bg-white border-2 border-[#F94083] cursor-nesw-resize" (pointerdown)="startResize(layer, 'sw', $event)"></div>
+                <div class="absolute -bottom-2 -right-2 w-4 h-4 rounded-full bg-white border-2 border-[#F94083] cursor-nwse-resize" (pointerdown)="startResize(layer, 'se', $event)"></div>
 
                 <!-- rotate handle, connected to the top edge by a thin stem -->
-                <div class="absolute left-1/2 -top-8 -translate-x-1/2 w-px h-6 bg-[#B15CAA] pointer-events-none"></div>
-                <div class="absolute left-1/2 -top-10 -translate-x-1/2 w-4 h-4 rounded-full bg-white border-2 border-[#B15CAA] cursor-alias" (pointerdown)="startRotate(layer, $event)"></div>
+                <div class="absolute left-1/2 -top-8 -translate-x-1/2 w-px h-6 bg-[#F94083] pointer-events-none"></div>
+                <div class="absolute left-1/2 -top-10 -translate-x-1/2 w-4 h-4 rounded-full bg-white border-2 border-[#F94083] cursor-alias" (pointerdown)="startRotate(layer, $event)"></div>
 
                 <!-- floating action toolbar below the layer -->
                 <div
@@ -495,13 +495,7 @@
         <img [src]="pin.imageUrl" [alt]="pin.title" class="w-full rounded-2xl object-contain" />
 
         <div class="flex items-center gap-2 mt-4 mb-5">
-          @if (pin.user.avatarUrl) {
-            <img [src]="pin.user.avatarUrl" [alt]="pin.user.username" class="w-8 h-8 rounded-full object-cover" />
-          } @else {
-            <div class="w-8 h-8 rounded-full bg-[#211922] dark:bg-white text-white dark:text-[#211922] flex items-center justify-center text-xs font-bold">
-              {{ (pin.user.username || '?')[0] | uppercase }}
-            </div>
-          }
+          <app-pro-avatar [src]="pin.user.avatarUrl" [isPro]="!!$any(pin.user).isPro" [size]="32" [alt]="pin.user.username"></app-pro-avatar>
           <span class="text-sm font-bold">{{ pin.user.username }}</span>
         </div>
 
@@ -729,7 +723,7 @@
             >A</button>
             <button
               class="w-10 h-10 rounded-xl flex items-center justify-center font-bold bg-gradient-to-r from-[#F94083] to-[#B15CAA] text-white border-2"
-              [class.border-[#B15CAA]]="selectedLayer.highlight"
+              [class.border-[#F94083]]="selectedLayer.highlight"
               [class.border-transparent]="!selectedLayer.highlight"
               (click)="setTextHighlight(true)"
               title="Chữ có nền"

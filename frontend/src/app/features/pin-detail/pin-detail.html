@@ -9,7 +9,7 @@
       <!-- Loading State -->
       @if (isLoading()) {
         <div class="flex-1 flex flex-col items-center justify-center py-20">
-          <div class="w-10 h-10 border-4 border-[#B15CAA] border-t-transparent rounded-full animate-spin"></div>
+          <div class="w-10 h-10 border-4 border-[#F94083] border-t-transparent rounded-full animate-spin"></div>
           <p class="text-xs text-[#62625b] dark:text-[#999] mt-4 font-semibold">Đang tải chi tiết ảnh...</p>
         </div>
       }
@@ -123,7 +123,7 @@
                     (click)="toggleCropMode()"
                     [title]="cropMode() ? 'Thoát chế độ chọn vùng' : 'Chọn một vùng trên ảnh để tìm ảnh tương đồng'"
                     class="w-8 h-8 rounded-full flex items-center justify-center shadow-md cursor-pointer transition-colors active:scale-90 border-none outline-none select-none"
-                    [ngClass]="cropMode() ? 'bg-[#B15CAA] text-white' : 'bg-white text-black hover:bg-gray-100'"
+                    [ngClass]="cropMode() ? 'bg-[#F94083] text-white' : 'bg-white text-black hover:bg-gray-100'"
                   >
                     <span class="material-symbols-outlined text-base font-bold">{{ cropMode() ? 'close' : 'crop' }}</span>
                   </button>
@@ -153,7 +153,7 @@
                     >
                       <span
                         class="material-symbols-outlined text-lg leading-none font-bold"
-                        [class.text-[#B15CAA]]="isLikedByUser()"
+                        [class.text-[#F94083]]="isLikedByUser()"
                         [class.text-black]="!isLikedByUser()"
                         [class.dark:text-white]="!isLikedByUser()"
                         [style.font-variation-settings]="isLikedByUser() ? &quot;'FILL' 1&quot; : &quot;'FILL' 0&quot;"
@@ -206,11 +206,7 @@
                                   [disabled]="!!shareSendingId()"
                                   class="w-full flex items-center gap-2.5 px-4 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#2a2a2a] border-none bg-transparent disabled:opacity-60"
                                 >
-                                  <img
-                                    [src]="conversation.otherUser.avatarUrl || ('https://api.dicebear.com/7.x/bottts/svg?seed=' + conversation.otherUser.username)"
-                                    alt=""
-                                    class="w-7 h-7 rounded-full object-cover border border-gray-100 dark:border-[#444]"
-                                  />
+                                  <app-pro-avatar class="shrink-0" [src]="conversation.otherUser.avatarUrl" [isPro]="!!conversation.otherUser.isPro" [size]="28" [alt]="conversation.otherUser.username"></app-pro-avatar>
                                   <span class="text-sm font-bold text-black dark:text-white truncate flex-1">{{ conversation.otherUser.username }}</span>
                                   @if (shareSentToId() === conversation.id) {
                                     <span class="material-symbols-outlined text-base text-[#22c55e] leading-none">check_circle</span>
@@ -242,7 +238,7 @@
                           @if (isOwner()) {
                             <button
                               (click)="deleteCurrentPin()"
-                              class="w-full text-left px-4 py-2 text-xs font-bold text-[#B15CAA] hover:bg-gray-50 dark:hover:bg-[#333] cursor-pointer border-none outline-none bg-transparent"
+                              class="w-full text-left px-4 py-2 text-xs font-bold text-[#F94083] hover:bg-gray-50 dark:hover:bg-[#333] cursor-pointer border-none outline-none bg-transparent"
                             >
                               Xóa ảnh
                             </button>
@@ -290,7 +286,7 @@
                     <!-- Save button -->
                     <button
                       (click)="savePinToBoard()"
-                      class="h-10 px-6 bg-[#B15CAA] hover:bg-[#8F4A8B] text-white rounded-full text-sm font-bold cursor-pointer active:scale-95 border-none outline-none shrink-0"
+                      class="h-10 px-6 bg-[#F94083] hover:bg-[#dc2f6d] text-white rounded-full text-sm font-bold cursor-pointer active:scale-95 border-none outline-none shrink-0"
                     >
                       Lưu
                     </button>
@@ -306,13 +302,12 @@
                     (click)="navigateToAuthorProfile()"
                     class="flex items-center gap-3 text-left cursor-pointer border-none bg-transparent p-0 outline-none"
                   >
-                    <img
-                      [src]="p.user?.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'"
-                      alt="Avatar"
-                      class="w-11 h-11 rounded-full border border-gray-200 object-cover"
-                    />
+                    <app-pro-avatar [src]="p.user?.avatarUrl" [isPro]="!!p.user?.isPro" [size]="44" alt="Avatar"></app-pro-avatar>
                     <div class="flex flex-col text-left">
-                      <span class="text-sm font-bold text-black dark:text-white hover:underline">{{ p.user?.username }}</span>
+                      <span class="flex items-center gap-1.5">
+                        <span class="text-sm font-bold text-black dark:text-white hover:underline">{{ p.user?.username }}</span>
+                        <span *ngIf="p.user?.isPro" class="px-1.5 py-0.5 rounded bg-[#F94083]/15 text-[#F94083] text-[9px] font-extrabold tracking-wider leading-none">PRO</span>
+                      </span>
                       <span class="text-[11px] text-[#62625b] dark:text-[#999] font-medium">Người đăng tải</span>
                     </div>
                   </button>
@@ -355,13 +350,12 @@
                       <!-- Comment items -->
                       @for (comment of p.comments; track comment.id) {
                         <div class="flex gap-2.5 items-start text-left">
-                          <img 
-                            [src]="comment.user?.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'" 
-                            alt="Avatar" 
-                            class="w-8 h-8 rounded-full border border-gray-200 object-cover shrink-0"
-                          />
+                          <app-pro-avatar class="shrink-0" [src]="comment.user?.avatarUrl" [isPro]="!!comment.user?.isPro" [size]="32" alt="Avatar"></app-pro-avatar>
                           <div class="flex flex-col bg-gray-50 dark:bg-[#2a2a2a] rounded-2xl px-3 py-2 flex-1 min-w-0">
-                            <span class="text-xs font-bold text-black dark:text-white truncate">{{ comment.user?.username }}</span>
+                            <span class="flex items-center gap-1.5">
+                              <span class="text-xs font-bold text-black dark:text-white truncate">{{ comment.user?.username }}</span>
+                              <span *ngIf="comment.user?.isPro" class="px-1 py-0.5 rounded bg-[#F94083]/15 text-[#F94083] text-[8px] font-extrabold tracking-wider leading-none shrink-0">PRO</span>
+                            </span>
                             <p class="text-xs text-[#211922] dark:text-white mt-0.5 leading-relaxed break-words whitespace-pre-line">{{ comment.content }}</p>
                           </div>
                         </div>
@@ -408,7 +402,7 @@
                 @if (cropMode()) {
                   Kết quả cho vùng đã chọn
                   @if (regionLoading()) {
-                    <span class="w-4 h-4 border-2 border-[#B15CAA] border-t-transparent rounded-full animate-spin inline-block"></span>
+                    <span class="w-4 h-4 border-2 border-[#F94083] border-t-transparent rounded-full animate-spin inline-block"></span>
                   }
                 } @else {
                   Khám phá thêm các hình ảnh tương tự
@@ -456,7 +450,7 @@
                             <!-- Hover overlay -->
                             <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3.5 text-white z-10">
                               <div class="flex justify-end">
-                                <button class="bg-[#B15CAA] hover:bg-[#8F4A8B] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none">
+                                <button class="bg-[#F94083] hover:bg-[#dc2f6d] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none">
                                   Lưu
                                 </button>
                               </div>
@@ -536,7 +530,7 @@
                           <!-- Hover overlay -->
                           <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3.5 text-white z-10">
                             <div class="flex justify-end">
-                              <button class="bg-[#B15CAA] hover:bg-[#8F4A8B] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none">
+                              <button class="bg-[#F94083] hover:bg-[#dc2f6d] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none">
                                 Lưu
                               </button>
                             </div>

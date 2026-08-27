@@ -109,3 +109,29 @@
   background: #333;
   color: #e6a8d4;
 }
+
+/* ── Đồng bộ dark + hồng cho trang Tạo ─────────────────────────────────────── */
+:host-context(.dark) .drag-drop-area {
+  border-color: #3a3444;
+}
+:host-context(.dark) .drag-drop-area:hover {
+  border-color: #f94083;
+  background-color: rgba(249, 64, 131, 0.06);
+}
+:host-context(.dark) .panel-box {
+  background: #17131c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:host-context(.dark) .field-input {
+  background: #100d15;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:host-context(.dark) .field-input:focus,
+:host-context(.dark) .field-input:focus-within {
+  border-color: #f94083;
+  background: #100d15;
+}
+:host-context(.dark) .segmented-btn-active {
+  background: #f94083;
+  color: #ffffff;
+}

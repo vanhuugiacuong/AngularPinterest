@@ -7,12 +7,13 @@ import { BoardService } from '../../core/services/board';
 import { SupabaseService } from '../../core/services/supabase';
 import { ToastService } from '../../core/services/toast';
 import { ChatService } from '../../core/services/chat';
+import { ProAvatar } from '../../shared/pro-avatar/pro-avatar';
 import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, Navbar, FormsModule],
+  imports: [CommonModule, Navbar, FormsModule, ProAvatar],
   templateUrl: './profile.html',
   styleUrl: './profile.css'
 })

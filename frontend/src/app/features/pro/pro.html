@@ -18,7 +18,7 @@
                   <app-icon name="crown" class="w-6 h-6 text-white"></app-icon>
                 </span>
                 <div class="leading-tight">
-                  <div class="text-[10px] font-extrabold tracking-[0.28em] text-[#B15CAA]">PINHUB PRO</div>
+                  <div class="text-[10px] font-extrabold tracking-[0.28em] text-[#F94083]">PINHUB PRO</div>
                   <div class="text-[#1b1620] dark:text-white font-bold text-sm">Thẻ hội viên</div>
                 </div>
               </div>
@@ -50,7 +50,7 @@
                 <div class="ph-tile-val">+300 / tháng</div>
               </div>
               <div class="ph-tile">
-                <app-icon name="hd" class="w-[18px] h-[18px] text-[#B15CAA]"></app-icon>
+                <app-icon name="hd" class="w-[18px] h-[18px] text-[#F94083]"></app-icon>
                 <div class="ph-tile-label">Chất lượng tải</div>
                 <div class="ph-tile-val">HD sạch</div>
               </div>
@@ -172,19 +172,19 @@
           <div class="grid grid-cols-[1fr_84px_84px] sm:grid-cols-[1fr_120px_120px] bg-[#faf9fb] dark:bg-[#17171c] text-[11px] font-bold text-[#9a95a1] dark:text-[#7c7784] uppercase tracking-wide">
             <div class="px-4 sm:px-5 py-3">Quyền lợi</div>
             <div class="px-2 py-3 text-center">Free</div>
-            <div class="px-2 py-3 text-center text-[#B15CAA]">Pro</div>
+            <div class="px-2 py-3 text-center text-[#F94083]">Pro</div>
           </div>
           @for (b of benefits; track b.title; let last = $last) {
             <div class="grid grid-cols-[1fr_84px_84px] sm:grid-cols-[1fr_120px_120px] items-center" [class.border-b]="!last" [class.border-[#f2f0f5]]="!last" [class.dark:border-[#232329]]="!last">
               <div class="px-4 sm:px-5 py-4 flex items-start gap-3 min-w-0">
-                <app-icon [name]="b.icon" class="w-5 h-5 text-[#B15CAA] shrink-0 mt-0.5"></app-icon>
+                <app-icon [name]="b.icon" class="w-5 h-5 text-[#F94083] shrink-0 mt-0.5"></app-icon>
                 <div class="min-w-0">
                   <div class="font-bold text-sm">{{ b.title }}</div>
                   <div class="text-xs text-[#9a95a1] dark:text-[#7c7784] leading-snug mt-0.5">{{ b.desc }}</div>
                 </div>
               </div>
               <div class="px-2 py-4 text-center text-xs text-[#9a95a1] dark:text-[#7c7784]">{{ b.free }}</div>
-              <div class="px-2 py-4 text-center text-xs font-extrabold text-[#B15CAA]">{{ b.pro }}</div>
+              <div class="px-2 py-4 text-center text-xs font-extrabold text-[#F94083]">{{ b.pro }}</div>
             </div>
           }
         </div>

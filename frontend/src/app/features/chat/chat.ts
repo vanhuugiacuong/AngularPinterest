@@ -6,6 +6,7 @@ import { Subscription } from 'rxjs';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { Navbar } from '../../components/navbar/navbar';
 import { EmojiPicker } from './emoji-picker/emoji-picker';
+import { ProAvatar } from '../../shared/pro-avatar/pro-avatar';
 import { SupabaseService } from '../../core/services/supabase';
 import { PresenceService } from '../../core/services/presence';
 import {
@@ -25,7 +26,7 @@ const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [CommonModule, FormsModule, Navbar, EmojiPicker],
+  imports: [CommonModule, FormsModule, Navbar, EmojiPicker, ProAvatar],
   templateUrl: './chat.html',
   styleUrl: './chat.css',
 })
