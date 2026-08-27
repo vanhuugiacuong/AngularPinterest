@@ -367,7 +367,7 @@
    a single line inside the page gutters — if it wraps, the headline grows
    back to three rows and starts colliding with the ring again. */
 .nf-hero__title {
-  font-size: clamp(34px, 8.2vw, 124px);
+  font-size: clamp(32px, 8vw, 120px);
   font-weight: 800;
   line-height: 0.92;
   letter-spacing: -0.05em;
@@ -379,6 +379,13 @@
 .nf-hero__line {
   display: block;
   overflow: hidden;
+  /* Vietnamese stacks a tone mark above a vowel that already carries its own
+     diacritic (ở, ẩ), so those glyphs reach higher than a 0.92 line box.
+     The clip window used to shave their tips off; the padding widens the
+     window while the matching negative margin keeps the two lines leaded
+     exactly as tightly as before. */
+  padding-block: 0.20em;
+  margin-block: -0.16em;
 }
 
 /* The travel exceeds 100% by a wide margin on purpose: line-height is 0.9,
@@ -387,6 +394,7 @@
 .nf-hero__line > span {
   display: block;
   transform: translateY(calc(var(--p) * -250%));
+  padding-top: 0.2rem;
   transition: transform 0.45s var(--ease-out);
 }
 
@@ -505,7 +513,7 @@
 
 .nf-explore__head {
   position: absolute;
-  top: clamp(66px, 9vh, 104px);
+  top: clamp(58px, 7.5vh, 92px);
   left: 50%;
   z-index: 40;
   width: min(92vw, 860px);
@@ -516,6 +524,25 @@
   transition:
     opacity 0.18s linear,
     transform 0.18s linear;
+}
+
+/* The orbit rises into the band this heading occupies, and the lede was
+   landing straight on top of dark artwork. Same answer as the hero's reading
+   veil: a soft pane of the scene's own background sitting between the frames
+   and the type, fading out at the edges so the artwork stays visible. */
+.nf-explore__head::before {
+  content: '';
+  position: absolute;
+  inset: -22% -14% -30%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    64% 56% at 50% 46%,
+    color-mix(in srgb, var(--color-bg) 92%, transparent) 0%,
+    color-mix(in srgb, var(--color-bg) 78%, transparent) 44%,
+    color-mix(in srgb, var(--color-bg) 34%, transparent) 68%,
+    transparent 84%
+  );
 }
 
 .nf-explore__index {
@@ -537,26 +564,29 @@
   color: var(--ink);
 }
 
+/* Line-heights are tight but no longer sub-glyph: at 0.62/0.75 the acute on
+   "PHÁ" drove straight through the word above it. The type sizes come down
+   just enough that the whole block still ends above the artwork band. */
 .nf-explore__title span {
   position: relative;
   z-index: 1;
-  font-size: clamp(50px, 7vw, 98px);
+  font-size: clamp(44px, 5.4vw, 74px);
   font-weight: 600;
   letter-spacing: -0.045em;
-  line-height: 0.62;
+  line-height: 0.95;
   transform: translateX(-0.12em);
 }
 
 .nf-explore__title strong {
-  font-size: clamp(82px, 12vw, 170px);
+  font-size: clamp(70px, 8.8vw, 126px);
   font-weight: 800;
   letter-spacing: -0.06em;
-  line-height: 0.75;
+  line-height: 0.86;
 }
 
 .nf-explore__lede {
-  max-width: 54ch;
-  margin: clamp(13px, 2vh, 20px) auto 0;
+  max-width: 46ch;
+  margin: clamp(10px, 1.6vh, 16px) auto 0;
   font-size: clamp(11px, 1vw, 14px);
   line-height: 1.55;
   color: var(--ink-soft);
