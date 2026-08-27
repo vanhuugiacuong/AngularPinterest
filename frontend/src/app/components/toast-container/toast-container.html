@@ -1,24 +1,44 @@
 <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] flex flex-col-reverse gap-3 items-center pointer-events-none w-full px-4">
   <div
     *ngFor="let toast of toastService.toasts()"
-    class="toast-pop pointer-events-auto relative max-w-[420px] w-full sm:w-auto"
+    class="toast-pop pointer-events-auto relative max-w-[440px] w-full sm:w-auto"
   >
     <div
-      class="rounded-full pl-4 pr-3 py-3 flex items-center gap-3 shadow-[0_10px_28px_rgba(0,0,0,0.35)] bg-[#211922]"
+      class="rounded-2xl pl-3 pr-2.5 py-2.5 flex items-center gap-3 shadow-[0_18px_44px_rgba(0,0,0,0.5)] bg-[#1b1622]/95 backdrop-blur-xl border border-white/10"
     >
-      <span class="flex-1 min-w-0 text-[14px] font-bold text-white leading-snug">{{ toast.message }}</span>
+      <span
+        class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+        [class.bg-[#12271c]]="toast.kind === 'success'"
+        [class.text-[#4ade80]]="toast.kind === 'success'"
+        [class.bg-[#2a151f]]="toast.kind === 'error'"
+        [class.text-[#ff5c8a]]="toast.kind === 'error'"
+        [class.bg-[#241a2e]]="toast.kind === 'info'"
+        [class.text-[#c98be0]]="toast.kind === 'info'"
+      >
+        <span class="material-symbols-outlined text-[19px] leading-none" style="font-variation-settings: 'FILL' 1, 'wght' 600;">
+          {{ toast.kind === 'success' ? 'check_circle' : toast.kind === 'error' ? 'error' : 'info' }}
+        </span>
+      </span>
+
+      <span class="flex-1 min-w-0 text-[14px] font-semibold text-white leading-snug pr-1">{{ toast.message }}</span>
 
       <button
         (click)="toastService.dismiss(toast.id)"
-        class="shrink-0 w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 text-white/60 border-none outline-none cursor-pointer"
+        class="shrink-0 w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors border-none outline-none cursor-pointer"
         title="Đóng"
       >
         <span class="material-symbols-outlined text-base leading-none select-none">close</span>
       </button>
     </div>
 
-    <div class="h-[3px] rounded-full overflow-hidden mt-1 mx-4 bg-white/10">
-      <div class="h-full toast-countdown bg-white/40" [style.animation-duration.ms]="toast.durationMs"></div>
+    <div class="h-[3px] rounded-full overflow-hidden mt-1.5 mx-3 bg-white/[0.08]">
+      <div
+        class="h-full toast-countdown"
+        [style.animation-duration.ms]="toast.durationMs"
+        [class.bg-[#4ade80]]="toast.kind === 'success'"
+        [class.bg-[#ff5c8a]]="toast.kind === 'error'"
+        [class.bg-[#c98be0]]="toast.kind === 'info'"
+      ></div>
     </div>
   </div>
 </div>
