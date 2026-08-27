@@ -2,6 +2,7 @@ import { Component, OnInit, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
+import { ProAvatar } from '../../shared/pro-avatar/pro-avatar';
 import { PinService } from '../../core/services/pin';
 import { ChatService, PublicUserSummary } from '../../core/services/chat';
 import { SupabaseService } from '../../core/services/supabase';
@@ -23,7 +24,7 @@ function normalizeForSearch(value: string | null | undefined): string {
 @Component({
   selector: 'app-search',
   standalone: true,
-  imports: [CommonModule, Navbar],
+  imports: [CommonModule, Navbar, ProAvatar],
   templateUrl: './search.html',
   styleUrl: './search.css'
 })

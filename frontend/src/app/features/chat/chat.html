@@ -52,8 +52,11 @@
                           (click)="startConversationWith(user)"
                           class="w-full flex items-center gap-2.5 px-2 py-2 text-left cursor-pointer hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] rounded-xl border-none bg-transparent outline-none"
                         >
-                          <img [src]="user.avatarUrl || ('https://api.dicebear.com/7.x/bottts/svg?seed=' + user.username)" alt="" class="w-8 h-8 rounded-full object-cover border border-[#dadad3] dark:border-[#333]" />
-                          <span class="text-sm font-bold text-black dark:text-white truncate">{{ user.username }}</span>
+                          <app-pro-avatar [src]="user.avatarUrl" [isPro]="!!user.isPro" [size]="32" [alt]="user.username"></app-pro-avatar>
+                          <span class="flex items-center gap-1.5 min-w-0">
+                            <span class="text-sm font-bold text-black dark:text-white truncate">{{ user.username }}</span>
+                            <span *ngIf="user.isPro" class="px-1 py-0.5 rounded bg-[#F94083]/15 text-[#F94083] text-[8px] font-extrabold tracking-wider leading-none shrink-0">PRO</span>
+                          </span>
                         </button>
                       }
                     }

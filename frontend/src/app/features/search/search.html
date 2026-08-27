@@ -66,16 +66,7 @@
                 (click)="navigateToUser(user.username)"
                 class="shrink-0 w-32 flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-[#f6f6f3] dark:hover:bg-[#1e1e1e] cursor-pointer text-center"
               >
-                <img
-                  *ngIf="user.avatarUrl; else noAvatar"
-                  [src]="user.avatarUrl"
-                  class="w-16 h-16 rounded-full object-cover"
-                />
-                <ng-template #noAvatar>
-                  <span class="w-16 h-16 rounded-full bg-[#e9e9e5] dark:bg-[#2a2a2a] flex items-center justify-center">
-                    <span class="material-symbols-outlined text-2xl text-[#767672] dark:text-[#999]">person</span>
-                  </span>
-                </ng-template>
+                <app-pro-avatar [src]="user.avatarUrl" [isPro]="!!$any(user).isPro" [size]="64" [alt]="user.username"></app-pro-avatar>
                 <span class="text-xs font-bold truncate w-full">{{ user.username }}</span>
               </div>
             }
