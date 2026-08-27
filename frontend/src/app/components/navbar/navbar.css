@@ -82,6 +82,13 @@
   color: var(--color-nova-blue);
 }
 
+.nf-search-camera-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
 /* Hairline between the text field and the image-search action, so the camera
    reads as a separate tool rather than another glyph inside the query. */
 .nf-search-divider {

@@ -11,6 +11,7 @@ import { Observable } from 'rxjs';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
 import { toUserMessage } from '../../core/utils/http-error';
 import { BadgeBumpDirective } from '../../shared/badge-bump.directive';
+import { SidebarIcon } from './sidebar-icon';
 
 /** Marks the authenticated app shell so global responsive spacing can reserve
  * the persistent desktop rail and the fixed mobile dock without per-route
@@ -35,7 +36,7 @@ const DOCK_MIN_WIDTH_PX = 768;
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, UserAvatar, BadgeBumpDirective],
+  imports: [CommonModule, UserAvatar, BadgeBumpDirective, SidebarIcon],
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.css'
 })
