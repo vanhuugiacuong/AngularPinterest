@@ -6,10 +6,21 @@
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/png" href="favicon-pinhub.png" />
-    <!-- Material Symbols Outlined -->
+    <!-- Material Symbols Outlined.
+         FILL is requested as the range 0..1, not the single value 0. With a
+         single value Google Fonts serves a STATIC instance pinned at FILL=0, so
+         the axis does not exist in the delivered font and every
+         `font-variation-settings: 'FILL' 1` in this app was silently inert —
+         .icon-filled, .save-icon and the like button's heart all rendered as
+         outlines no matter what they asked for. The range makes the axis real.
+         opsz, wght and GRAD stay pinned deliberately: widening them too would
+         make `font-bold` on an icon start changing its stroke weight, which is
+         a change to icons all over the app rather than to fill. The variable
+         file costs ~138 kB more than the static one (459 kB vs 321 kB) — it is
+         a gstatic asset, cached and outside the JS bundle. -->
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0"
     />
     <!-- Baloo 2: rounded playful font, used on the 404 page -->
     <link

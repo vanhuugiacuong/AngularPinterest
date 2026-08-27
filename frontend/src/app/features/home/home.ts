@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, inject, signal, computed, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, NgZone, inject, signal, computed, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
@@ -6,6 +6,7 @@ import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
 import { ToastService } from '../../core/services/toast';
+import { advanceMarqueePosition } from './interest-marquee';
 
 @Component({
   selector: 'app-home',
@@ -19,6 +20,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   private supabaseService = inject(SupabaseService);
   private boardService = inject(BoardService);
   private toastService = inject(ToastService);
+  private zone = inject(NgZone);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
@@ -40,13 +42,75 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
 
   // Once the user manually drags/touches the interest strip, pause the auto-scroll
   // animation so it doesn't fight their scroll position. Resumes after 10s of no interaction.
-  public isInterestMarqueePaused = signal<boolean>(false);
-  private marqueeResumeTimer: any = null;
+  /* --- Interest strip auto-scroll ------------------------------------------
+     Driven by scrollLeft in requestAnimationFrame, NOT by a CSS transform.
+
+     It was a `translateX(0 -> -50%)` keyframe animation before, and the strip is
+     also manually scrollable, so the two moved the content along two independent
+     offsets that simply added up -- the old comment in home.css admitted as much
+     and worked around it by pausing the animation on any interaction. Two things
+     followed from that. The animation also paused on :hover, and after a wheel
+     scroll the cursor is still sitting over the strip, so it stayed stopped for
+     as long as the pointer stayed there, well past the 10s resume timer -- which
+     is what reads as "it turns off and never comes back". And once resumed, the
+     transform carried on from its own position while the manual scrollLeft
+     offset stayed added on top.
+
+     Moving the auto-scroll onto scrollLeft removes the conflict rather than
+     scheduling around it: both now write the same value, so a manual scroll just
+     relocates the animation and it carries on from where the user left it. */
+  @ViewChild('interestMarquee') private interestMarqueeRef?: ElementRef<HTMLElement>;
+  private marqueeRaf: number | null = null;
+  private marqueeLastFrame = 0;
+  /** Auto-scroll is suppressed until this timestamp; each interaction pushes it
+   * out. 1.6s, not the old 10s: the point is to stay out of the user's way while
+   * they are actually dragging, not to stop for a quarter of a minute. */
+  private marqueeIdleUntil = 0;
+  /** The authoritative offset, as a float. Never read back from scrollLeft while
+   * animating -- see advanceMarqueePosition for why that mattered. */
+  private marqueePos = 0;
+
   pauseInterestMarquee() {
-    this.isInterestMarqueePaused.set(true);
-    clearTimeout(this.marqueeResumeTimer);
-    this.marqueeResumeTimer = setTimeout(() => this.isInterestMarqueePaused.set(false), 10000);
+    this.marqueeIdleUntil = performance.now() + 1600;
   }
+
+  private startInterestMarquee(): void {
+    // Honour the OS setting: a strip that slides on its own is exactly the kind
+    // of motion this asks to be spared, and the CSS version got this for free
+    // from a prefers-reduced-motion rule.
+    if (typeof window === 'undefined') return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    // Outside Angular: this fires 60 times a second and changes nothing the
+    // template reads, so inside the zone it would run change detection over the
+    // whole feed on every frame.
+    this.zone.runOutsideAngular(() => {
+      this.marqueeRaf = requestAnimationFrame(this.stepInterestMarquee);
+    });
+  }
+
+  private stepInterestMarquee = (now: number): void => {
+    this.marqueeRaf = requestAnimationFrame(this.stepInterestMarquee);
+
+    const dt = this.marqueeLastFrame ? (now - this.marqueeLastFrame) / 1000 : 0;
+    this.marqueeLastFrame = now;
+
+    // Only exists once the pins have loaded -- it is inside an @if.
+    const el = this.interestMarqueeRef?.nativeElement;
+    if (!el) return;
+
+    // While the user is in control, follow the DOM rather than write to it, so
+    // the strip carries on from wherever they left it instead of snapping back
+    // to where the animation had got to.
+    if (now < this.marqueeIdleUntil) {
+      this.marqueePos = el.scrollLeft;
+      return;
+    }
+
+    const next = advanceMarqueePosition(this.marqueePos, dt, el.scrollWidth / 2);
+    if (next === null) return;
+    this.marqueePos = next;
+    el.scrollLeft = next;
+  };
 
   // Pins the user likely has an interest in, derived from the (personalized) feed order
   public interestPins = computed(() => this.pins().slice(0, 15));
@@ -174,12 +238,20 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit() {
     this.setupIntersectionObserver();
+    // Safe to start before the strip exists: the loop skips frames while the
+    // @if has not produced the element yet.
+    this.startInterestMarquee();
   }
 
   ngOnDestroy() {
     if (this.observer) {
       this.observer.disconnect();
     }
+    // Otherwise the burst timer fires into a destroyed component after a fast
+    // like-then-navigate; pin-detail.ts clears its own the same way.
+    if (this.likeBurstTimer) clearTimeout(this.likeBurstTimer);
+    if (this.saveBurstTimer) clearTimeout(this.saveBurstTimer);
+    if (this.marqueeRaf !== null) cancelAnimationFrame(this.marqueeRaf);
   }
 
   setupIntersectionObserver() {
@@ -301,11 +373,26 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   // fills in as the user actually clicks hearts (good enough for the heart's black->pink
   // click feedback; it won't reflect likes from a previous session until reloaded).
   public likedPinIds = signal<Set<string>>(new Set());
+  /* Burst keyed by pin id, not a boolean: a whole grid of cards is on screen and
+     only the heart that was clicked may animate. Mirrors likeBurst in
+     pin-detail.ts, which has a single pin and so needs no key. */
+  public likeBurstPinId = signal<string | null>(null);
+  /* Session-scoped: no API reports whether a pin is already on one of my boards,
+     so this only remembers what was saved since the page loaded. Mirrors
+     savedPinIds in pin-detail.ts. */
+  public savedPinIds = signal<Set<string>>(new Set<string>());
+  public saveBurstPinId = signal<string | null>(null);
+  private saveBurstTimer: any = null;
+  private likeBurstTimer: any = null;
 
   async toggleLike(pin: any, event: MouseEvent) {
     event.stopPropagation();
     const currentUser = this.supabaseService.user();
-    if (!currentUser) return;
+    // Was a silent return, so the button did nothing and said nothing.
+    if (!currentUser) {
+      this.toastService.error('Bạn cần đăng nhập để thích ảnh.');
+      return;
+    }
 
     // 1. Optimistic UI update (0ms instant response)
     const currentlyLiked = this.likedPinIds().has(pin.id);
@@ -324,6 +411,19 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       return next;
     });
     this.pins.update(current => [...current]);
+
+    // Bounce + ring only on the way IN; unliking gets no celebration.
+    if (nextLiked) {
+      this.likeBurstPinId.set(pin.id);
+      if (this.likeBurstTimer) clearTimeout(this.likeBurstTimer);
+      this.likeBurstTimer = setTimeout(() => this.likeBurstPinId.set(null), 520);
+    }
+
+    // Rides with the optimistic update so it lands as the heart fills; the
+    // revert paths below correct both the state and this claim.
+    this.toastService.success(
+      nextLiked ? 'Đã thích ảnh này!' : 'Đã bỏ thích ảnh này.',
+    );
 
     // 2. Perform network call asynchronously
     try {
@@ -353,6 +453,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       if (currentlyLiked) pin.likes = (pin.likes || 0) + 1;
       else pin.likes = Math.max(0, (pin.likes || 0) - 1);
       this.pins.update(current => [...current]);
+      this.toastService.error('Không thể cập nhật lượt thích. Vui lòng thử lại.');
     }
   }
 
@@ -404,6 +505,13 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
 
       this.selectedBoardMap.update(current => ({ ...current, [pinId]: { id: boardId!, name: boardName! } as Board }));
       await this.boardService.addPinToBoard(boardId, pinId, token);
+      // After the save, not before: the bookmark must not fill for a save that
+      // then failed. (selectedBoardMap above is written but never read anywhere
+      // -- left as found rather than removed in passing.)
+      this.savedPinIds.update(current => new Set(current).add(pinId));
+      this.saveBurstPinId.set(pinId);
+      if (this.saveBurstTimer) clearTimeout(this.saveBurstTimer);
+      this.saveBurstTimer = setTimeout(() => this.saveBurstPinId.set(null), 520);
       this.toastService.success(`Đã lưu vào bảng "${boardName}"!`);
     } catch (error) {
       console.error('Error saving pin to board:', error);

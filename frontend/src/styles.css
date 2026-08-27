@@ -170,3 +170,70 @@ img {
   box-shadow: 0 0 0 2px #121212, 0 0 0 4px #cdd8ff, 0 0 12px -1px rgba(184, 198, 255, 0.85);
   border-color: transparent !important;
 }
+
+/* ── Nút thích: nền hồng khi đã thích + tim nảy + vòng loang ────────────────────
+   Global, cùng lý do như .save-icon ở trên: nút thích nằm ở cả pin-detail và
+   card feed, nên giữ một bản duy nhất thay vì copy sang từng component.
+   Lưu ý specificity: bản global là (0,1,0) nên nó KHÔNG thắng
+   `dark:bg-[#2a2a2a]` (= .dark .bg-..., (0,2,0)). Cả hai nơi dùng ngClass để
+   BỎ hẳn utility nền khi đã thích, nên không có tranh chấp nào để thua. */
+.icon-pop {
+  animation: icon-pop 0.42s cubic-bezier(0.2, 1.6, 0.35, 1);
+}
+@keyframes icon-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.45); }
+  60% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+
+.icon-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border-radius: 9999px;
+  /* currentColor, not a fixed pink: this ring fires on the heart (whose
+     colour is #f94083 at that moment) and on the save CTA (white text on
+     solid pink, where a pink ring would be invisible). */
+  border: 2px solid currentColor;
+  animation: icon-burst 0.5s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes icon-burst {
+  0% { transform: scale(0.4); opacity: 0.85; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon-pop { animation: none; }
+  .icon-burst { display: none; }
+}
+
+/* Liked state for the heart pill. Replaces the grey background utilities (see
+   the ngClass note in pin-detail.html) rather than layering over them.
+   A tint plus an inset ring, not solid #F94083: the "Lưu" CTA two controls away
+   is solid brand pink, and two saturated pinks in one row would read as two
+   primary actions. */
+.like-on {
+  color: #f94083;
+  background: color-mix(in srgb, #f94083 16%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, #f94083 40%, transparent);
+}
+/* Saved state for the "Lưu" CTA. It is already solid brand pink, so unlike the
+   heart it cannot go MORE pink to show state -- it steps back to neutral the way
+   Pinterest's own "Đã lưu" does, which also stops it competing for attention
+   once the action is done. */
+.save-on {
+  color: #ffffff;
+  background: #2a2a2a;
+}
+.save-on:hover {
+  background: #3a3a3a;
+}
+
+.like-on:hover {
+  background: color-mix(in srgb, #f94083 26%, transparent);
+}
