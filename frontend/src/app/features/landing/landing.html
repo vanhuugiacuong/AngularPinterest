@@ -69,6 +69,57 @@
         <span class="material-symbols-outlined text-lg leading-none font-semibold">close</span>
       </button>
 
+      <!-- ============================ STEP 1 ============================
+           Content notice. Ahead of sign-in, in the same panel — see the note on
+           authStep in landing.ts for why it is a step and not its own modal.
+           The close button above sits outside both steps, so this is skippable
+           by dismissing the dialog, exactly as sign-in is. -->
+      @if (authStep() === 'warning') {
+        <span
+          class="w-12 h-12 mx-auto mb-4 rounded-full bg-[#F94083]/12 border border-[#F94083]/25 flex items-center justify-center"
+        >
+          <span class="material-symbols-outlined text-[26px] leading-none text-[#F94083]" aria-hidden="true"
+            >shield_person</span
+          >
+        </span>
+
+        <span class="block text-[11px] font-bold uppercase tracking-[0.14em] text-[#a29aac] mb-2"
+          >Trước khi bắt đầu</span
+        >
+
+        <h2 class="text-[22px] font-semibold text-white tracking-tight mb-4">Lưu ý về nội dung</h2>
+
+        <div class="text-left text-[13px] text-[#a29aac] leading-relaxed flex flex-col gap-3 mb-8">
+          <p>
+            PinHub là nền tảng <strong class="text-white font-semibold">lưu trữ và chia sẻ hình
+            ảnh</strong>. Toàn bộ nội dung ở đây do người dùng tự đăng tải.
+          </p>
+          <p>
+            Vì vậy <strong class="text-white font-semibold">có thể xuất hiện một số nội dung không
+            phù hợp với độ tuổi của bạn</strong>. Hãy cân nhắc trước khi tiếp tục.
+          </p>
+          <p class="text-[12px] text-[#8b8494]">
+            Bạn có thể báo cáo bất kỳ ảnh hoặc tài khoản nào ngay trong ứng dụng.
+          </p>
+        </div>
+
+        <button
+          (click)="acknowledgeWarning()"
+          class="w-full h-11 flex items-center justify-center gap-2 px-4 bg-[#F94083] hover:bg-[#dc2f6d] text-white font-bold rounded-[16px] transition-colors duration-200 cursor-pointer active:scale-95 border-none outline-none"
+        >
+          <span class="material-symbols-outlined text-lg leading-none" aria-hidden="true">check</span>
+          Tôi hiểu, tiếp tục
+        </button>
+
+        <div class="mt-8 text-[12px] text-[#a29aac] leading-normal px-4">
+          Tiếp tục nghĩa là bạn đã đọc lưu ý trên và đồng ý với
+          <a href="#" class="font-semibold text-white hover:underline">Điều khoản Dịch vụ</a> của
+          chúng tôi.
+        </div>
+      }
+
+      <!-- ============================ STEP 2 ============================ -->
+      @if (authStep() === 'signin') {
       <!-- Title & Description inside modal -->
       <h2
         class="text-[22px] font-semibold text-white tracking-tight mb-2 flex items-center justify-center gap-2"
@@ -128,6 +179,7 @@
         <a href="#" class="font-semibold text-white hover:underline">Chính sách Bảo mật</a> của
         chúng tôi.
       </div>
+      }
     </div>
   </div>
 </div>

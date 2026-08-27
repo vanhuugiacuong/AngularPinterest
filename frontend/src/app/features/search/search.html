@@ -96,10 +96,82 @@
                   [alt]="pin.title"
                   class="w-full object-cover rounded-[24px] block transition-transform duration-300 group-hover:scale-102"
                 />
+
+                <!-- Hover overlay, same shape as the feed card: save, then pick a
+                     board. Stops the card's own (click)="navigateToPin" so saving
+                     does not also leave the page for the pin being saved. -->
+                <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 text-white z-10">
+                  <div class="flex justify-end items-center w-full min-w-0" (click)="$event.stopPropagation()">
+                    <div class="relative shrink-0">
+                      <button
+                        (click)="cardActions.onSaveClick(pin.id, $event)"
+                        class="font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer transition-colors active:scale-95 border-none outline-none inline-flex items-center gap-1"
+                        [ngClass]="cardActions.isSaved(pin.id)
+                          ? 'save-on'
+                          : 'bg-[#F94083] hover:bg-[#dc2f6d] text-white'"
+                      >
+                        <span class="relative flex items-center justify-center">
+                          @if (cardActions.saveBurstPinId() === pin.id) {
+                            <span class="icon-burst" aria-hidden="true"></span>
+                          }
+                          <span
+                            class="material-symbols-outlined text-[14px] leading-none relative z-10"
+                            [class.save-icon]="cardActions.isSaved(pin.id)"
+                            [class.icon-pop]="cardActions.saveBurstPinId() === pin.id"
+                          >bookmark</span>
+                        </span>
+                        {{ cardActions.isSaved(pin.id) ? 'Đã lưu' : 'Lưu' }}
+                      </button>
+
+                      @if (cardActions.activeDropdownPinId() === pin.id) {
+                        <div class="absolute right-0 top-9 w-44 bg-white dark:bg-[#242424] rounded-2xl overflow-hidden shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-[100] text-left">
+                          <span class="text-[9px] uppercase tracking-wider text-gray-400 dark:text-[#777] font-bold px-3.5 py-1 block">Chọn bảng để lưu</span>
+                          <div class="max-h-[140px] overflow-y-auto">
+                            @for (b of cardActions.boards(); track b.id) {
+                              <div
+                                (click)="cardActions.saveToBoard(pin.id, b, $event)"
+                                class="px-3.5 py-2 text-xs font-bold text-black dark:text-white hover:bg-gray-50 dark:hover:bg-[#333] cursor-pointer truncate"
+                              >
+                                {{ b.name }}
+                              </div>
+                            }
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </div>
               </div>
-              <span class="mt-2 px-1 text-xs font-bold text-[#211922] dark:text-white truncate block">
-                {{ pin.title }}
-              </span>
+
+              <!-- Bottom bar: title left, like toggle right — the feed card's row. -->
+              <div class="px-1 flex items-center justify-between w-full min-w-0 mt-2 gap-2">
+                <span class="text-xs font-bold text-[#211922] dark:text-white truncate">
+                  {{ pin.title }}
+                </span>
+                <button
+                  type="button"
+                  (click)="cardActions.toggleLike(pin, $event)"
+                  class="flex items-center gap-1 text-xs shrink-0 border-none cursor-pointer outline-none px-2 py-1 rounded-full transition-colors"
+                  [ngClass]="cardActions.isLiked(pin.id)
+                    ? 'like-on'
+                    : 'bg-transparent text-[#62625b] dark:text-[#999]'"
+                  [title]="cardActions.isLiked(pin.id) ? 'Bỏ thích' : 'Thích'"
+                >
+                  <span class="relative flex items-center justify-center">
+                    @if (cardActions.likeBurstPinId() === pin.id) {
+                      <span class="icon-burst" aria-hidden="true"></span>
+                    }
+                    <span
+                      class="material-symbols-outlined text-[14px] leading-none relative z-10"
+                      [class.text-black]="!cardActions.isLiked(pin.id)"
+                      [class.dark:text-white]="!cardActions.isLiked(pin.id)"
+                      [class.icon-pop]="cardActions.likeBurstPinId() === pin.id"
+                      [style.font-variation-settings]="cardActions.isLiked(pin.id) ? &quot;'FILL' 1&quot; : &quot;'FILL' 0&quot;"
+                    >favorite</span>
+                  </span>
+                  {{ cardActions.likeCount(pin) }}
+                </button>
+              </div>
             </div>
           }
         </div>

@@ -27,6 +27,39 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
 
   public showLoginModal = signal<boolean>(false);
   public errorMsg = signal<string | null>(null);
+
+  /* --- Content notice -------------------------------------------------------
+     Two steps in one panel rather than a modal of its own: a first-time visitor
+     is not stacked two dialogs deep, and the notice is read before the account
+     exists — the point at which agreeing to anything means something.
+
+     This is a WARNING, not age verification. It cannot establish anyone's age,
+     and anything that actually gates minors would be a separate feature. */
+  public authStep = signal<'warning' | 'signin'>('signin');
+
+  /** Acknowledged once, skipped for good in this browser — a returning user
+   * should not re-read it on every sign-in. */
+  private static readonly WARNING_ACK_KEY = 'pinhub:content-warning-ack';
+
+  /** Every localStorage touch is wrapped: a private window or blocked site data
+   * throws on read, and the notice must never be the thing that breaks sign-in.
+   * On failure it simply shows again next time. */
+  private hasAcknowledgedWarning(): boolean {
+    try {
+      return localStorage.getItem(Landing.WARNING_ACK_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  acknowledgeWarning() {
+    try {
+      localStorage.setItem(Landing.WARNING_ACK_KEY, '1');
+    } catch {
+      // Ghi không được thì lần sau hiện lại — chấp nhận được.
+    }
+    this.authStep.set('signin');
+  }
   public isSceneLoading = signal<boolean>(true);
 
   @ViewChild('heroCanvas') heroCanvasRef!: ElementRef<HTMLCanvasElement>;
@@ -80,6 +113,10 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
 
     if (errorDescription) {
       this.errorMsg.set(decodeURIComponent(errorDescription.replace(/\+/g, ' ')));
+      // Straight to sign-in, never the notice: this branch runs when Google
+      // bounced the user back with an error, so the message is the whole reason
+      // the modal is opening and must not be a step behind.
+      this.authStep.set('signin');
       this.showLoginModal.set(true); // Open the modal automatically to show the error
     }
   }
@@ -307,6 +344,7 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
 
   openLoginModal() {
     this.errorMsg.set(null);
+    this.authStep.set(this.hasAcknowledgedWarning() ? 'signin' : 'warning');
     this.showLoginModal.set(true);
   }
 

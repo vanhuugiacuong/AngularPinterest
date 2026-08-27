@@ -4,7 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
 import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
-import { BoardService, Board } from '../../core/services/board';
+import { PinCardActionsService } from '../../core/services/pin-card-actions';
 import { ToastService } from '../../core/services/toast';
 import { advanceMarqueePosition } from './interest-marquee';
 
@@ -18,7 +18,6 @@ import { advanceMarqueePosition } from './interest-marquee';
 export class Home implements OnInit, AfterViewInit, OnDestroy {
   private pinService = inject(PinService);
   private supabaseService = inject(SupabaseService);
-  private boardService = inject(BoardService);
   private toastService = inject(ToastService);
   private zone = inject(NgZone);
   private router = inject(Router);
@@ -29,9 +28,6 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('scrollSentinel') scrollSentinel!: ElementRef;
 
   public pins = signal<any[]>([]);
-  public boards = signal<Board[]>([]);
-  public activeDropdownPinId = signal<string | null>(null);
-  public selectedBoardMap = signal<Record<string, Board>>({});
   public isLoading = signal<boolean>(true);
   public isScrollingLoad = signal<boolean>(false);
   public numColumns = signal<number>(4);
@@ -249,8 +245,6 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     }
     // Otherwise the burst timer fires into a destroyed component after a fast
     // like-then-navigate; pin-detail.ts clears its own the same way.
-    if (this.likeBurstTimer) clearTimeout(this.likeBurstTimer);
-    if (this.saveBurstTimer) clearTimeout(this.saveBurstTimer);
     if (this.marqueeRaf !== null) cancelAnimationFrame(this.marqueeRaf);
   }
 
@@ -270,18 +264,9 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   }
 
   async loadBoards() {
-    const currentUser = this.supabaseService.user();
-    if (currentUser) {
-      try {
-        const token = await this.supabaseService.getSessionToken();
-        if (token) {
-          const list = await this.boardService.getBoards(token);
-          this.boards.set(list);
-        }
-      } catch (error) {
-        console.error('Error fetching user boards:', error);
-      }
-    }
+    // Delegated: the service loads once per session, and every page that
+    // shows a card shares the one result.
+    await this.cardActions.loadBoards();
   }
 
   async loadPins() {
@@ -368,154 +353,14 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     this.router.navigate(['/pin', pinId]);
   }
 
-  // Pins the current user has liked this session — the feed list endpoint only returns a
-  // like count, not a per-user "did I like this" flag, so this starts empty on load and
-  // fills in as the user actually clicks hearts (good enough for the heart's black->pink
-  // click feedback; it won't reflect likes from a previous session until reloaded).
-  public likedPinIds = signal<Set<string>>(new Set());
-  /* Burst keyed by pin id, not a boolean: a whole grid of cards is on screen and
-     only the heart that was clicked may animate. Mirrors likeBurst in
-     pin-detail.ts, which has a single pin and so needs no key. */
-  public likeBurstPinId = signal<string | null>(null);
-  /* Session-scoped: no API reports whether a pin is already on one of my boards,
-     so this only remembers what was saved since the page loaded. Mirrors
-     savedPinIds in pin-detail.ts. */
-  public savedPinIds = signal<Set<string>>(new Set<string>());
-  public saveBurstPinId = signal<string | null>(null);
-  private saveBurstTimer: any = null;
-  private likeBurstTimer: any = null;
+  /** Save/like live in a shared service — see PinCardActionsService for why
+   * this page no longer carries its own copy. Public so the template can
+   * bind straight to its signals. */
+  public readonly cardActions = inject(PinCardActionsService);
 
-  async toggleLike(pin: any, event: MouseEvent) {
-    event.stopPropagation();
-    const currentUser = this.supabaseService.user();
-    // Was a silent return, so the button did nothing and said nothing.
-    if (!currentUser) {
-      this.toastService.error('Bạn cần đăng nhập để thích ảnh.');
-      return;
-    }
-
-    // 1. Optimistic UI update (0ms instant response)
-    const currentlyLiked = this.likedPinIds().has(pin.id);
-    const nextLiked = !currentlyLiked;
-
-    if (nextLiked) {
-      pin.likes = (pin.likes || 0) + 1;
-    } else {
-      pin.likes = Math.max(0, (pin.likes || 0) - 1);
-    }
-
-    this.likedPinIds.update(current => {
-      const next = new Set(current);
-      if (nextLiked) next.add(pin.id);
-      else next.delete(pin.id);
-      return next;
-    });
-    this.pins.update(current => [...current]);
-
-    // Bounce + ring only on the way IN; unliking gets no celebration.
-    if (nextLiked) {
-      this.likeBurstPinId.set(pin.id);
-      if (this.likeBurstTimer) clearTimeout(this.likeBurstTimer);
-      this.likeBurstTimer = setTimeout(() => this.likeBurstPinId.set(null), 520);
-    }
-
-    // Rides with the optimistic update so it lands as the heart fills; the
-    // revert paths below correct both the state and this claim.
-    this.toastService.success(
-      nextLiked ? 'Đã thích ảnh này!' : 'Đã bỏ thích ảnh này.',
-    );
-
-    // 2. Perform network call asynchronously
-    try {
-      const token = await this.supabaseService.getSessionToken();
-      if (token) {
-        const result = await this.pinService.toggleLike(pin.id, token);
-        if (result.liked !== nextLiked) {
-          // Revert if server mismatch
-          this.likedPinIds.update(current => {
-            const next = new Set(current);
-            if (result.liked) next.add(pin.id);
-            else next.delete(pin.id);
-            return next;
-          });
-          this.pins.update(current => [...current]);
-        }
-      }
-    } catch (error) {
-      console.error('Error toggling like:', error);
-      // Revert on error
-      this.likedPinIds.update(current => {
-        const next = new Set(current);
-        if (currentlyLiked) next.add(pin.id);
-        else next.delete(pin.id);
-        return next;
-      });
-      if (currentlyLiked) pin.likes = (pin.likes || 0) + 1;
-      else pin.likes = Math.max(0, (pin.likes || 0) - 1);
-      this.pins.update(current => [...current]);
-      this.toastService.error('Không thể cập nhật lượt thích. Vui lòng thử lại.');
-    }
-  }
-
-  toggleBoardDropdown(pinId: string, event: MouseEvent) {
-    event.stopPropagation();
-    if (this.activeDropdownPinId() === pinId) {
-      this.activeDropdownPinId.set(null);
-    } else {
-      this.activeDropdownPinId.set(pinId);
-    }
-  }
-
-  // "Lưu" opens the board picker so the user chooses where to save — if they have
-  // no boards yet, there's nothing to pick from, so we fall back to saving into an
-  // auto-created default board immediately (same as before).
-  async onSaveClick(pinId: string, event: MouseEvent) {
-    event.stopPropagation();
-    if (this.boards().length > 0) {
-      this.activeDropdownPinId.set(this.activeDropdownPinId() === pinId ? null : pinId);
-      return;
-    }
-    await this.saveToBoard(pinId, null, event);
-  }
-
-  async saveToBoard(pinId: string, board: Board | null, event: MouseEvent) {
-    event.stopPropagation();
-    this.activeDropdownPinId.set(null);
-    const currentUser = this.supabaseService.user();
-    if (!currentUser) return;
-
-    try {
-      const token = await this.supabaseService.getSessionToken();
-      if (!token) return;
-
-      let boardId = board?.id;
-      let boardName = board?.name;
-
-      if (!boardId) {
-        const newBoard = await this.boardService.createBoard(
-          'Hồ sơ',
-          'Bảng lưu mặc định',
-          false,
-          token
-        );
-        this.boards.update(current => [newBoard, ...current]);
-        boardId = newBoard.id;
-        boardName = newBoard.name;
-      }
-
-      this.selectedBoardMap.update(current => ({ ...current, [pinId]: { id: boardId!, name: boardName! } as Board }));
-      await this.boardService.addPinToBoard(boardId, pinId, token);
-      // After the save, not before: the bookmark must not fill for a save that
-      // then failed. (selectedBoardMap above is written but never read anywhere
-      // -- left as found rather than removed in passing.)
-      this.savedPinIds.update(current => new Set(current).add(pinId));
-      this.saveBurstPinId.set(pinId);
-      if (this.saveBurstTimer) clearTimeout(this.saveBurstTimer);
-      this.saveBurstTimer = setTimeout(() => this.saveBurstPinId.set(null), 520);
-      this.toastService.success(`Đã lưu vào bảng "${boardName}"!`);
-    } catch (error) {
-      console.error('Error saving pin to board:', error);
-      this.toastService.error('Lỗi khi lưu ảnh vào bảng.');
-    }
-  }
+  /** Handed to cardActions.toggleLike: the pins list holds plain objects that
+   * the service mutates in place, so the signal needs poking for the new count
+   * to reach the template. Bound as a field, not a method, because it is passed
+   * by reference from the template. */
+  public readonly refreshPins = () => this.pins.update((current) => [...current]);
 }

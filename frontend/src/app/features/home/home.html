@@ -111,33 +111,33 @@
                       <div class="flex justify-end items-center w-full min-w-0" (click)="$event.stopPropagation()">
                         <div class="relative shrink-0">
                           <button
-                            (click)="onSaveClick(pin.id, $event)"
+                            (click)="cardActions.onSaveClick(pin.id, $event)"
                             class="font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer transition-colors active:scale-95 border-none outline-none inline-flex items-center gap-1"
-                            [ngClass]="savedPinIds().has(pin.id)
+                            [ngClass]="cardActions.isSaved(pin.id)
                               ? 'save-on'
                               : 'bg-[#F94083] hover:bg-[#dc2f6d] text-white'"
                           >
                             <span class="relative flex items-center justify-center">
-                              @if (saveBurstPinId() === pin.id) {
+                              @if (cardActions.saveBurstPinId() === pin.id) {
                                 <span class="icon-burst" aria-hidden="true"></span>
                               }
                               <span
                                 class="material-symbols-outlined text-[14px] leading-none relative z-10"
-                                [class.save-icon]="savedPinIds().has(pin.id)"
-                                [class.icon-pop]="saveBurstPinId() === pin.id"
+                                [class.save-icon]="cardActions.isSaved(pin.id)"
+                                [class.icon-pop]="cardActions.saveBurstPinId() === pin.id"
                               >bookmark</span>
                             </span>
-                            {{ savedPinIds().has(pin.id) ? 'Đã lưu' : 'Lưu' }}
+                            {{ cardActions.isSaved(pin.id) ? 'Đã lưu' : 'Lưu' }}
                           </button>
 
                           <!-- Board picker: appears after clicking Lưu -->
-                          @if (activeDropdownPinId() === pin.id) {
+                          @if (cardActions.activeDropdownPinId() === pin.id) {
                             <div class="absolute right-0 top-9 w-44 bg-white dark:bg-[#242424] rounded-2xl overflow-hidden shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-[100] text-left">
                               <span class="text-[9px] uppercase tracking-wider text-gray-400 font-bold px-3.5 py-1 block">Chọn bảng để lưu</span>
                               <div class="max-h-[140px] overflow-y-auto">
-                                @for (b of boards(); track b.id) {
+                                @for (b of cardActions.boards(); track b.id) {
                                   <div
-                                    (click)="saveToBoard(pin.id, b, $event)"
+                                    (click)="cardActions.saveToBoard(pin.id, b, $event)"
                                     class="px-3.5 py-2 text-xs font-bold text-black dark:text-white hover:bg-gray-50 dark:hover:bg-[#333] cursor-pointer truncate"
                                   >
                                     {{ b.name }}
@@ -161,27 +161,27 @@
                          global .like-on is a single class and would only tie). -->
                     <button
                       type="button"
-                      (click)="toggleLike(pin, $event)"
+                      (click)="cardActions.toggleLike(pin, $event, refreshPins)"
                       class="flex items-center gap-1 text-xs shrink-0 border-none cursor-pointer outline-none px-2 py-1 rounded-full transition-colors"
-                      [ngClass]="likedPinIds().has(pin.id)
+                      [ngClass]="cardActions.isLiked(pin.id)
                         ? 'like-on'
                         : 'bg-transparent text-[#62625b] dark:text-[#999]'"
-                      [title]="likedPinIds().has(pin.id) ? 'Bỏ thích' : 'Thích'"
+                      [title]="cardActions.isLiked(pin.id) ? 'Bỏ thích' : 'Thích'"
                     >
                       <span class="relative flex items-center justify-center">
                         <!-- Vòng loang toả ra khi vừa bấm thích -->
-                        @if (likeBurstPinId() === pin.id) {
+                        @if (cardActions.likeBurstPinId() === pin.id) {
                           <span class="icon-burst" aria-hidden="true"></span>
                         }
                         <span
                           class="material-symbols-outlined text-[14px] leading-none relative z-10"
-                          [class.text-black]="!likedPinIds().has(pin.id)"
-                          [class.dark:text-white]="!likedPinIds().has(pin.id)"
-                          [class.icon-pop]="likeBurstPinId() === pin.id"
-                          [style.font-variation-settings]="likedPinIds().has(pin.id) ? &quot;'FILL' 1&quot; : &quot;'FILL' 0&quot;"
+                          [class.text-black]="!cardActions.isLiked(pin.id)"
+                          [class.dark:text-white]="!cardActions.isLiked(pin.id)"
+                          [class.icon-pop]="cardActions.likeBurstPinId() === pin.id"
+                          [style.font-variation-settings]="cardActions.isLiked(pin.id) ? &quot;'FILL' 1&quot; : &quot;'FILL' 0&quot;"
                         >favorite</span>
                       </span>
-                      {{ pin.likes || 0 }}
+                      {{ cardActions.likeCount(pin) }}
                     </button>
                   </div>
                 </div>

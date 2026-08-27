@@ -6,6 +6,7 @@ import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
 import { ToastService } from '../../core/services/toast';
+import { PinCardActionsService } from '../../core/services/pin-card-actions';
 import { ConfirmService } from '../../core/services/confirm';
 import { ReportService } from '../../core/services/report';
 import { ChatService, ConversationSummary } from '../../core/services/chat';
@@ -55,15 +56,15 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
   /** Bật trong ~0.5s ngay sau khi bấm thích để chạy hiệu ứng nảy + vòng loang. */
   public likeBurst = signal<boolean>(false);
-  /* Which pins this session has saved. There is no API that answers "is this pin
-     already on one of my boards", so this is session-scoped by necessity: it
-     fills the bookmark right after a save, and a reload returns the button to
-     its unsaved look. Persisting it needs the backend to report saved state
-     alongside the pin. */
-  public savedPinIds = signal<Set<string>>(new Set<string>());
-  public saveBurstPinId = signal<string | null>(null);
-  private saveBurstTimer: any = null;
+  /* Stays local: the main pin's heart is driven by isLikedByUser(), which reads
+     the likes array the API sends for this pin — real server state, unlike the
+     session-scoped Set the cards share. Its burst is a plain boolean because
+     there is only ever one main pin. */
   private likeBurstTimer: any = null;
+  /** Card save/like state, shared with the feed and the search grid — see
+   * PinCardActionsService. The related cards on this page bind to it, and the
+   * top-row save button reports into it via markSaved(). */
+  public readonly cardActions = inject(PinCardActionsService);
   public isScrollingLoad = signal<boolean>(false);
   public isLandscape = signal<boolean>(false);
   public isDesktop = signal<boolean>(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
@@ -293,18 +294,10 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   }
 
   async loadBoards() {
-    const currentUser = this.supabaseService.user();
-    if (currentUser) {
-      try {
-        const token = await this.supabaseService.getSessionToken();
-        if (token) {
-          const list = await this.boardService.getBoards(token);
-          this.boards.set(list);
-        }
-      } catch (error) {
-        console.error('Error fetching user boards:', error);
-      }
-    }
+    // Delegated: the service holds the one list every card picker reads, and
+    // loads it once per session.
+    await this.cardActions.loadBoards();
+    this.boards.set(this.cardActions.boards());
   }
 
   async loadPinDetail(id: string) {
@@ -332,6 +325,10 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       if (this.cropMode() && detailPin?.id) {
         this.runRegionSearch();
       }
+
+      // The API sends the whole likes array for this pin, so unlike the cards
+      // we actually know whether the viewer liked it — hand that over.
+      if (this.isLikedByUser()) this.cardActions.seedLiked([id]);
 
       // 2. Fetch related feed by category (excluding this one)
       try {
@@ -607,79 +604,6 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  /* --- Related-card save --------------------------------------------------
-     savePinToBoard() above only ever saves this.pin(), so the related cards had
-     no way to reach it — their button carried no handler at all. These mirror
-     what the feed does (see onSaveClick/saveToBoard in home.ts) so a card
-     behaves the same wherever it appears.
-
-     Keyed by pin id, not a boolean: several related cards are on screen at once
-     and only the one that was clicked may open its picker. */
-  public activeRelatedPinId = signal<string | null>(null);
-
-  /** Every related card navigates on click, so each of these stops the event —
-   * otherwise saving would also leave the page for the pin being saved. */
-  async onRelatedSaveClick(pinId: string, event: MouseEvent) {
-    event.stopPropagation();
-    if (!this.supabaseService.user()) {
-      this.toastService.error('Bạn cần đăng nhập để lưu ảnh.');
-      return;
-    }
-    // With boards to choose from, ask; with none, saving creates the default
-    // board and completes in one click rather than opening an empty menu.
-    if (this.boards().length > 0) {
-      this.activeRelatedPinId.set(this.activeRelatedPinId() === pinId ? null : pinId);
-      return;
-    }
-    await this.saveRelatedToBoard(pinId, null, event);
-  }
-
-  async saveRelatedToBoard(pinId: string, board: Board | null, event: MouseEvent) {
-    event.stopPropagation();
-    this.activeRelatedPinId.set(null);
-    if (!this.supabaseService.user()) return;
-
-    try {
-      const token = await this.supabaseService.getSessionToken();
-      if (!token) return;
-
-      let boardId = board?.id;
-      let boardName = board?.name;
-
-      if (!boardId) {
-        const newBoard = await this.boardService.createBoard(
-          'Hồ sơ',
-          'Bảng lưu mặc định',
-          false,
-          token
-        );
-        this.boards.update(current => [newBoard, ...current]);
-        boardId = newBoard.id;
-        boardName = newBoard.name;
-      }
-
-      await this.boardService.addPinToBoard(boardId, pinId, token);
-      this.markSaved(pinId);
-      this.toastService.success(`Đã lưu vào bảng "${boardName}"!`);
-    } catch (error) {
-      console.error('Error saving related pin to board:', error);
-      this.toastService.error('Lỗi khi lưu ảnh vào bảng.');
-    }
-  }
-
-  isSaved(pinId: string): boolean {
-    return this.savedPinIds().has(pinId);
-  }
-
-  /** Fills the bookmark and fires the ring, same shape as the like button's
-   * burst. Called only after the save actually succeeded. */
-  private markSaved(pinId: string): void {
-    this.savedPinIds.update((current) => new Set(current).add(pinId));
-    this.saveBurstPinId.set(pinId);
-    if (this.saveBurstTimer) clearTimeout(this.saveBurstTimer);
-    this.saveBurstTimer = setTimeout(() => this.saveBurstPinId.set(null), 520);
-  }
-
   navigateToPin(pinId: string) {
     this.router.navigate(['/pin', pinId]);
   }
@@ -819,7 +743,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       }
 
       await this.boardService.addPinToBoard(boardId, currentPin.id, token);
-      this.markSaved(currentPin.id);
+      this.cardActions.markSaved(currentPin.id);
       this.toastService.success(`Đã lưu vào bảng "${boardName}"!`);
     } catch (error) {
       console.error('Error saving pin to board:', error);
@@ -872,7 +796,6 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     if (this.cropDebounce) clearTimeout(this.cropDebounce);
     if (this.cropInFlight) this.cropInFlight.abort();
     if (this.likeBurstTimer) clearTimeout(this.likeBurstTimer);
-    if (this.saveBurstTimer) clearTimeout(this.saveBurstTimer);
   }
 
   setupIntersectionObserver() {
