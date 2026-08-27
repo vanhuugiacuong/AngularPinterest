@@ -61,18 +61,34 @@
             <!-- File Drag Drop & Upload Box -->
             <div
               *ngIf="!imagePreviewUrl()"
-              class="drag-drop-area flex-1 min-h-[380px] rounded-2xl bg-[#f6f6f3] dark:bg-[#2a2a2a] flex flex-col items-center justify-center p-6 text-center cursor-pointer relative overflow-hidden"
+              class="drag-drop-area flex-1 min-h-[380px] rounded-2xl bg-[#f6f6f3] dark:bg-[#2a2a2a] flex flex-col items-center justify-center p-6 text-center cursor-pointer relative overflow-hidden transition-colors"
+              [class.pointer-events-none]="isCheckingImage()"
+              [class.!bg-[#ece4f5]]="isDraggingOverDropzone()"
+              [class.dark:!bg-[#3a2f45]]="isDraggingOverDropzone()"
               (click)="fileInput.click()"
+              (dragover)="onDropzoneDragOver($event)"
+              (dragleave)="onDropzoneDragLeave($event)"
+              (drop)="onDropzoneDrop($event)"
             >
-              <span class="material-symbols-outlined text-4xl text-gray-400 mb-3">cloud_upload</span>
-              <p class="text-xs font-bold text-gray-700 dark:text-[#ccc]">Kéo thả hoặc nhấp để chọn ảnh</p>
-              <span class="text-[10px] text-gray-500 dark:text-[#999] mt-2">Khuyên dùng: Ảnh JPG, PNG chất lượng cao có tỷ lệ dọc</span>
+              <ng-container *ngIf="!isCheckingImage()">
+                <span class="material-symbols-outlined text-4xl text-gray-400 mb-3">cloud_upload</span>
+                <p class="text-xs font-bold text-gray-700 dark:text-[#ccc]">{{ isDraggingOverDropzone() ? 'Thả ảnh vào đây' : 'Kéo thả hoặc nhấp để chọn ảnh' }}</p>
+                <span class="text-[10px] text-gray-500 dark:text-[#999] mt-2">Khuyên dùng: Ảnh JPG, PNG chất lượng cao có tỷ lệ dọc</span>
+                <span class="text-[10px] text-gray-400 dark:text-[#777] mt-3 px-4 leading-relaxed">
+                  Lưu ý: Hệ thống kiểm duyệt tự động đôi khi có thể nhầm lẫn ảnh nhạy cảm. Nếu bạn phát hiện sai sót, hãy liên hệ với chúng tôi để đưa ra đề xuất.
+                </span>
+              </ng-container>
+              <ng-container *ngIf="isCheckingImage()">
+                <span class="material-symbols-outlined text-4xl text-gray-400 mb-3 animate-spin">progress_activity</span>
+                <p class="text-xs font-bold text-gray-700 dark:text-[#ccc]">Đang kiểm duyệt ảnh...</p>
+              </ng-container>
 
               <input
                 #fileInput
                 type="file"
                 accept="image/*"
                 class="hidden"
+                [disabled]="isCheckingImage()"
                 (change)="onFileSelected($event)"
               />
             </div>

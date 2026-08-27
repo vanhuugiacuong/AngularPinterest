@@ -2,6 +2,18 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Tells the browser this page is intentionally light/dark, so it stops applying its own
+   forced-dark/autofill heuristics to form controls (inputs/textareas) — without this,
+   some browsers keep rendering black typed text in a custom-dark-styled textarea even
+   though `dark:text-white` is correctly applied, because the control's OWN native
+   rendering doesn't know the surrounding page has gone dark. */
+:root {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
 @theme {
   --animate-fade-in: fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 

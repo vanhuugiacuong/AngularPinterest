@@ -400,6 +400,12 @@
         [class.nav-icon-active]="isChatPage()"
       >
         <span class="material-symbols-outlined text-2xl leading-none" [class.icon-filled]="isChatPage()">chat_bubble</span>
+        <span
+          *ngIf="chatUnreadCount() > 0"
+          class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FF6FD8] text-white text-[10px] font-bold flex items-center justify-center leading-none border-2 border-white dark:border-[#1a1a1a]"
+        >
+          {{ chatUnreadCount() > 9 ? '9+' : chatUnreadCount() }}
+        </span>
         <span class="nav-tooltip">Nhắn tin</span>
       </button>
 

@@ -417,8 +417,13 @@
                     <span class="material-symbols-outlined text-[20px]">delete</span>
                   </button>
                   @if (layer.type === 'image') {
-                    <button class="w-8 h-8 rounded-full flex items-center justify-center text-white hover:bg-white/15" (click)="recutSelected()" title="Cắt lại vật thể">
-                      <span class="material-symbols-outlined text-[20px]">content_cut</span>
+                    <button
+                      class="w-8 h-8 rounded-full flex items-center justify-center text-white hover:bg-white/15 disabled:opacity-40"
+                      [disabled]="isAnyCutoutBusy()"
+                      (click)="recutSelected()"
+                      title="Cắt lại vật thể"
+                    >
+                      <span class="material-symbols-outlined text-[20px]" [class.animate-spin]="isCuttingOut()">content_cut</span>
                     </button>
                   }
                 </div>
@@ -484,7 +489,7 @@
           </button>
           <button
             class="px-3 py-2 rounded-full bg-[#211922] dark:bg-white text-white dark:text-[#211922] text-xs font-bold whitespace-nowrap disabled:opacity-50"
-            [disabled]="addingPinId() === pin.id"
+            [disabled]="isAnyCutoutBusy()"
             (click)="addPinAsCutout(pin)"
           >
             {{ addingPinId() === pin.id ? 'Đang cắt...' : 'Thêm phần cắt' }}

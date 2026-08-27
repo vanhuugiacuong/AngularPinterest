@@ -1,0 +1,209 @@
+<div class="min-h-screen bg-white dark:bg-[#121212] text-black dark:text-white flex flex-col font-sans">
+  <main class="flex-1 w-full max-w-[1400px] mx-auto px-8 py-8 flex flex-col">
+
+    <!-- Top bar -->
+    <div class="w-full flex items-center gap-4 mb-8">
+      <button
+        (click)="goBack()"
+        class="w-10 h-10 rounded-full hover:bg-gray-100 dark:hover:bg-[#2a2a2a] flex items-center justify-center border-none outline-none cursor-pointer text-black dark:text-white shrink-0"
+        title="Quay lại bảng"
+      >
+        <span class="material-symbols-outlined text-2xl">arrow_back</span>
+      </button>
+      <h1 class="text-2xl font-extrabold text-[#211922] dark:text-white tracking-tight mx-auto">
+        Chọn và sắp xếp lại
+      </h1>
+      <div class="w-10 shrink-0"></div>
+    </div>
+
+    <!-- Loading -->
+    <div *ngIf="isLoading()" class="flex-1 flex flex-col items-center justify-center py-20">
+      <div class="w-10 h-10 border-4 border-[#B15CAA] border-t-transparent rounded-full animate-spin"></div>
+    </div>
+
+    <ng-container *ngIf="!isLoading()">
+      <div class="w-full flex items-center justify-between mb-6">
+        <span class="text-sm font-bold text-[#211922] dark:text-white">Chọn Ghim để bắt đầu</span>
+        <button
+          *ngIf="pins().length > 0"
+          type="button"
+          (click)="toggleSelectAll()"
+          class="h-9 px-4 rounded-full bg-[#f0f0f0] dark:bg-[#2a2a2a] hover:bg-[#e1e1da] dark:hover:bg-[#333] text-black dark:text-white font-bold text-xs cursor-pointer border-none outline-none transition-colors"
+        >
+          {{ allSelected() ? 'Bỏ chọn tất cả' : 'Chọn tất cả' }}
+        </button>
+      </div>
+
+      <!-- Empty state -->
+      <div *ngIf="pins().length === 0" class="flex-1 flex flex-col items-center justify-center py-24 text-center gap-2">
+        <span class="material-symbols-outlined text-4xl text-gray-400">photo_library</span>
+        <p class="text-xs font-semibold text-gray-500 dark:text-[#999]">Bảng này chưa có Ghim nào để sắp xếp.</p>
+      </div>
+
+      <!-- Grid -->
+      <!-- Masonry (CSS columns), like the board page's own pins grid — each image keeps
+           its natural aspect ratio instead of being cropped into a uniform box. -->
+      <div class="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-6 w-full pb-32">
+        <div
+          *ngFor="let pin of pins()"
+          draggable="true"
+          (dragstart)="onDragStart(pin.id, $event)"
+          (dragover)="onDragOver(pin.id, $event)"
+          (dragleave)="onDragLeave(pin.id)"
+          (drop)="onDrop(pin.id, $event)"
+          (dragend)="onDragEnd()"
+          (click)="toggleSelect(pin.id, $event)"
+          class="relative break-inside-avoid mb-6 rounded-2xl overflow-hidden cursor-grab active:cursor-grabbing transition-all duration-150 bg-[#f6f6f3] dark:bg-[#1e1e1e]"
+          [class.opacity-40]="draggingId() === pin.id"
+          [class.ring-4]="dragOverId() === pin.id"
+          [class.ring-[#B15CAA]]="dragOverId() === pin.id"
+        >
+          <img [src]="pin.image" [alt]="pin.title" class="w-full block pointer-events-none select-none" />
+
+          <!-- Selected overlay -->
+          <div
+            *ngIf="isSelected(pin.id)"
+            class="absolute inset-0 bg-black/25 border-4 border-[#B15CAA] rounded-2xl pointer-events-none"
+          ></div>
+          <span
+            *ngIf="isSelected(pin.id)"
+            class="absolute top-2.5 left-2.5 w-6 h-6 rounded-full bg-[#B15CAA] text-white flex items-center justify-center shadow-md"
+          >
+            <span class="material-symbols-outlined text-[16px] font-bold">check</span>
+          </span>
+        </div>
+      </div>
+    </ng-container>
+  </main>
+
+  <!-- Backdrop for the "Chọn bảng" picker — rendered here, outside the toolbar below, because
+       that toolbar has a CSS transform (for centering) which would make a `fixed` backdrop
+       nested inside it scoped to the toolbar's own small box instead of the full viewport. -->
+  <div *ngIf="boardPickerMode()" class="fixed inset-0 z-40" (click)="closeBoardPicker()"></div>
+
+  <!-- Bottom toolbar -->
+  <div class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-white dark:bg-[#1e1e1e] rounded-full shadow-2xl border border-gray-100 dark:border-[#333] p-2">
+    <div class="relative">
+      <button
+        type="button"
+        (click)="openBoardPicker('move', $event)"
+        [disabled]="!hasSelection()"
+        class="w-14 h-14 rounded-full flex items-center justify-center bg-[#f0f0f0] dark:bg-[#2a2a2a] hover:bg-[#e1e1da] dark:hover:bg-[#333] text-black dark:text-white cursor-pointer border-none outline-none transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        title="Chuyển sang bảng khác"
+      >
+        <span class="material-symbols-outlined text-2xl">ios_share</span>
+      </button>
+
+      <ng-container *ngIf="boardPickerMode() === 'move'">
+        <ng-container *ngTemplateOutlet="boardPicker"></ng-container>
+      </ng-container>
+    </div>
+
+    <div class="relative">
+      <button
+        type="button"
+        (click)="openBoardPicker('add', $event)"
+        [disabled]="!hasSelection()"
+        class="w-14 h-14 rounded-full flex items-center justify-center bg-[#f0f0f0] dark:bg-[#2a2a2a] hover:bg-[#e1e1da] dark:hover:bg-[#333] text-black dark:text-white cursor-pointer border-none outline-none transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        title="Thêm vào bảng khác"
+      >
+        <span class="material-symbols-outlined text-2xl">create_new_folder</span>
+      </button>
+
+      <ng-container *ngIf="boardPickerMode() === 'add'">
+        <ng-container *ngTemplateOutlet="boardPicker"></ng-container>
+      </ng-container>
+    </div>
+
+    <button
+      type="button"
+      (click)="deleteSelected()"
+      [disabled]="!hasSelection()"
+      class="w-14 h-14 rounded-full flex items-center justify-center bg-[#f0f0f0] dark:bg-[#2a2a2a] hover:bg-red-50 dark:hover:bg-[#3a2222] text-[#DC2626] cursor-pointer border-none outline-none transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      title="Gỡ khỏi bảng"
+    >
+      <span class="material-symbols-outlined text-2xl">delete</span>
+    </button>
+  </div>
+
+  <!-- "Chọn bảng" picker — shared by both the move and add toolbar buttons -->
+  <ng-template #boardPicker>
+    <div
+      class="absolute bottom-[calc(100%+10px)] left-1/2 -translate-x-1/2 w-80 max-h-[420px] flex flex-col bg-white dark:bg-[#242424] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#333] z-50 text-left animate-fade-in overflow-hidden"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="px-4 pt-4 pb-3 shrink-0">
+        <h3 class="text-base font-extrabold text-black dark:text-white mb-3">
+          {{ boardPickerMode() === 'move' ? 'Chuyển sang bảng' : 'Thêm vào bảng' }}
+        </h3>
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-base text-[#62625b] dark:text-[#999] pointer-events-none">search</span>
+          <input
+            type="text"
+            [ngModel]="boardPickerQuery()"
+            (ngModelChange)="boardPickerQuery.set($event)"
+            placeholder="Tìm kiếm"
+            class="w-full bg-[#f6f6f3] dark:bg-[#2a2a2a] border border-transparent focus:border-gray-200 dark:focus:border-[#444] outline-none rounded-full pl-9 pr-3 h-10 text-sm text-black dark:text-white transition-all"
+          />
+        </div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto px-2 pb-2">
+        <button
+          *ngFor="let b of filteredBoards()"
+          type="button"
+          (click)="chooseBoard(b.id)"
+          class="w-full flex items-center gap-3 px-2 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333] rounded-xl border-none bg-transparent"
+        >
+          <div class="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-[#e5e5e0] dark:bg-[#2a2a2a] flex items-center justify-center">
+            <img
+              *ngIf="b.boardPins?.[0]?.pin?.imageUrl as thumb"
+              [src]="thumb"
+              alt=""
+              class="w-full h-full object-cover"
+            />
+            <span *ngIf="!b.boardPins?.[0]?.pin?.imageUrl" class="material-symbols-outlined text-lg text-gray-400">folder</span>
+          </div>
+          <span class="text-sm font-bold text-black dark:text-white truncate">{{ b.name }}</span>
+        </button>
+
+        <div *ngIf="filteredBoards().length === 0" class="px-3 py-4 text-xs font-semibold text-gray-400 dark:text-[#999] text-center">
+          Không tìm thấy bảng nào.
+        </div>
+      </div>
+
+      <!-- Create a new board inline -->
+      <div class="shrink-0 border-t border-gray-100 dark:border-[#333] p-2">
+        <form *ngIf="isCreatingBoard()" (submit)="createBoardAndChoose(); $event.preventDefault()" class="flex items-center gap-2 px-1 py-1">
+          <input
+            type="text"
+            name="newBoardName"
+            [(ngModel)]="newBoardName"
+            placeholder="Tên bảng mới"
+            autofocus
+            class="flex-1 min-w-0 bg-[#f6f6f3] dark:bg-[#2a2a2a] border border-transparent focus:border-gray-200 dark:focus:border-[#444] outline-none rounded-full px-3 h-9 text-sm text-black dark:text-white transition-all"
+            [disabled]="isSavingNewBoard()"
+          />
+          <button
+            type="submit"
+            class="h-9 px-3 shrink-0 rounded-full text-xs font-bold bg-[#B15CAA] hover:bg-[#8F4A8B] text-white cursor-pointer border-none outline-none disabled:opacity-60"
+            [disabled]="isSavingNewBoard() || !newBoardName.trim()"
+          >
+            {{ isSavingNewBoard() ? '...' : 'Tạo' }}
+          </button>
+        </form>
+        <button
+          *ngIf="!isCreatingBoard()"
+          type="button"
+          (click)="startCreatingBoard($event)"
+          class="w-full flex items-center gap-3 px-2 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333] rounded-xl border-none bg-transparent"
+        >
+          <span class="w-10 h-10 rounded-lg bg-[#f0f0f0] dark:bg-[#2a2a2a] flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-lg text-black dark:text-white">add</span>
+          </span>
+          <span class="text-sm font-bold text-black dark:text-white">Thêm phần bảng</span>
+        </button>
+      </div>
+    </div>
+  </ng-template>
+</div>

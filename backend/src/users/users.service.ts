@@ -65,7 +65,7 @@ export class UsersService {
               orderBy: { addedAt: 'desc' },
               include: {
                 pin: {
-                  select: { imageUrl: true },
+                  select: { id: true, title: true, imageUrl: true, isAiGenerated: true, userId: true },
                 },
               },
             },
@@ -124,9 +124,9 @@ export class UsersService {
 
   async updateProfile(
     id: string,
-    updates: { username?: string; bio?: string; avatarUrl?: string },
+    updates: { username?: string; bio?: string; avatarUrl?: string; showAllPins?: boolean },
   ) {
-    const data: { username?: string; bio?: string; avatarUrl?: string } = {};
+    const data: { username?: string; bio?: string; avatarUrl?: string; showAllPins?: boolean } = {};
 
     if (updates.username !== undefined) {
       const trimmed = updates.username.trim();
@@ -146,6 +146,10 @@ export class UsersService {
 
     if (updates.avatarUrl !== undefined) {
       data.avatarUrl = updates.avatarUrl;
+    }
+
+    if (updates.showAllPins !== undefined) {
+      data.showAllPins = updates.showAllPins;
     }
 
     return this.prisma.user.update({ where: { id }, data });

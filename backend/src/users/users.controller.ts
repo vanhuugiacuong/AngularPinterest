@@ -25,8 +25,9 @@ export class UsersController {
     @Body('username') username?: string,
     @Body('bio') bio?: string,
     @Body('avatarUrl') avatarUrl?: string,
+    @Body('showAllPins') showAllPins?: boolean,
   ) {
-    return this.usersService.updateProfile(user.id, { username, bio, avatarUrl });
+    return this.usersService.updateProfile(user.id, { username, bio, avatarUrl, showAllPins });
   }
 
   @Post('me/avatar')

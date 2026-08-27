@@ -1,7 +1,7 @@
-import { Component, OnInit, AfterViewInit, ElementRef, ViewChild, HostListener, inject, signal, effect } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ElementRef, ViewChild, HostListener, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
 import { CollageService } from '../../core/services/collage';
 import { PinService, Pin } from '../../core/services/pin';
@@ -120,6 +120,7 @@ export type ResizeCorner = 'nw' | 'ne' | 'sw' | 'se';
 })
 export class Collage implements OnInit, AfterViewInit {
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
   private collageService = inject(CollageService);
   private pinService = inject(PinService);
   private boardService = inject(BoardService);
@@ -139,6 +140,12 @@ export class Collage implements OnInit, AfterViewInit {
   public selectedLayerId = signal<number | null>(null);
   public backgroundColor = signal<string | null>(null);
   public isCuttingOut = signal(false);
+  // Object cutout is CPU-heavy on the segmentation service (no GPU) and it processes
+  // requests one at a time — starting a second cutout while one is still running just
+  // queues behind it and makes both crawl, which reads as "the page hung". This combines
+  // every cutout entry point (main upload, related-pin panel, re-cut on a layer) into one
+  // busy flag so all of them can be disabled together, not just the one currently spinning.
+  public isAnyCutoutBusy = computed(() => this.isCuttingOut() || this.addingPinId() !== null);
 
   // Auto-save: so work isn't lost to an accidental tab close or refresh, without
   // needing an explicit "Lưu nháp" button. Debounced (silent, no toast) rather than
@@ -326,6 +333,13 @@ export class Collage implements OnInit, AfterViewInit {
     this.loadDrafts();
     this.loadAllIdeaPins();
 
+    // Coming from the profile page's "Bản nháp" grid — open that specific draft.
+    const draftId = this.route.snapshot.queryParamMap.get('draft');
+    if (draftId) {
+      const draft = this.drafts().find((d) => d.id === draftId);
+      if (draft) this.openDraft(draft);
+    }
+
     const currentUser = this.supabaseService.user();
     if (currentUser) {
       const token = await this.supabaseService.getSessionToken();
@@ -427,6 +441,11 @@ export class Collage implements OnInit, AfterViewInit {
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
+
+    if (this.isAnyCutoutBusy()) {
+      this.toastService.error('Đang xử lý một ảnh khác, vui lòng chờ xong rồi thử lại.');
+      return;
+    }
 
     const token = await this.supabaseService.getSessionToken();
     if (!token) {
@@ -822,6 +841,10 @@ export class Collage implements OnInit, AfterViewInit {
   }
 
   async addPinAsCutout(pin: Pin) {
+    if (this.isAnyCutoutBusy()) {
+      this.toastService.error('Đang xử lý một ảnh khác, vui lòng chờ xong rồi thử lại.');
+      return;
+    }
     const token = await this.supabaseService.getSessionToken();
     if (!token) {
       this.toastService.error('Bạn cần đăng nhập để dùng tính năng này.');
@@ -1322,6 +1345,11 @@ export class Collage implements OnInit, AfterViewInit {
     const layer = this.selectedLayer;
     if (!layer || layer.type !== 'image' || !layer.src) return;
 
+    if (this.isAnyCutoutBusy()) {
+      this.toastService.error('Đang xử lý một ảnh khác, vui lòng chờ xong rồi thử lại.');
+      return;
+    }
+
     const token = await this.supabaseService.getSessionToken();
     if (!token) {
       this.toastService.error('Bạn cần đăng nhập để dùng tính năng này.');
@@ -1534,12 +1562,20 @@ export class Collage implements OnInit, AfterViewInit {
       formData.append('image', blob, 'collage.png');
       formData.append('title', this.title.trim());
       formData.append('description', this.description.trim());
+      formData.append('isCollage', 'true');
       const boardId = this.selectedBoard()?.id;
       if (boardId) {
         formData.append('boardId', boardId);
       }
 
       await this.pinService.createUploadPin(formData, token);
+
+      // The draft this collage came from is now published — remove it so it doesn't
+      // linger in "Bản nháp" alongside its now-published counterpart.
+      if (this.currentDraftId) {
+        this.persistDrafts(this.drafts().filter((d) => d.id !== this.currentDraftId));
+        this.currentDraftId = null;
+      }
       this.toastService.success('Đăng ảnh ghép thành công!');
       this.router.navigate(['/feed']);
     } catch (error) {

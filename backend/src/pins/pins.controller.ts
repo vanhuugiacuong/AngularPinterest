@@ -135,11 +135,13 @@ export class PinsController {
     @Body('boardId') boardId?: string,
     @Body('isPremium') isPremium?: string,
     @Body('priceCredits') priceCredits?: string,
+    @Body('isCollage') isCollage?: string,
   ) {
     // multipart -> giá trị là chuỗi
     const premium = isPremium === 'true' || isPremium === '1';
     const price = priceCredits ? parseInt(priceCredits, 10) : undefined;
-    return this.pinsService.createUploadPin(user.id, file, title, description, boardId, premium, price);
+    const collage = isCollage === 'true' || isCollage === '1';
+    return this.pinsService.createUploadPin(user.id, file, title, description, boardId, premium, price, collage);
   }
 
   @Post('ai-save')
