@@ -114,6 +114,7 @@ export class Chat implements OnInit, OnDestroy {
       const conversationId = params.get('conversationId');
       if (conversationId !== this.selectedConversationId()) {
         this.selectedConversationId.set(conversationId);
+        this.chatService.activeConversationId.set(conversationId);
         this.otherUserTyping.set(false);
         if (conversationId) {
           this.messagesPage = 1;
@@ -132,6 +133,7 @@ export class Chat implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.routeSubscription?.unsubscribe();
+    this.chatService.activeConversationId.set(null);
     void this.disconnectInbox();
     if (this.typingTimer) clearTimeout(this.typingTimer);
     if (this.gifSearchTimer) clearTimeout(this.gifSearchTimer);
@@ -513,7 +515,16 @@ export class Chat implements OnInit, OnDestroy {
       this.replyingTo.set(null);
       onSuccess?.();
       const otherUserId = this.otherUserFor(conversationId)?.id;
-      if (otherUserId) await this.sendToUser(otherUserId, 'message', message);
+      if (otherUserId) {
+        // Enrich with the sender's own profile info (not part of ChatMessage) so a
+        // recipient who isn't viewing this conversation can render a toast — name +
+        // avatar — without an extra round trip.
+        const me = this.supabaseService.dbUser();
+        await this.sendToUser(otherUserId, 'message', {
+          ...message,
+          sender: me ? { id: me.id, username: me.username, avatarUrl: me.avatarUrl } : undefined,
+        });
+      }
       await this.broadcastTyping(false);
       this.scheduleScrollToBottom();
       this.conversations.update((current) =>
