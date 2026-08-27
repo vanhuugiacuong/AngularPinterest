@@ -15,7 +15,7 @@
 
       <h1 class="text-2xl font-extrabold text-black dark:text-white mb-4">Tạo ghim mới</h1>
 
-      <!-- Tabs Selector: Đăng ảnh thường / Tạo ảnh nghệ thuật AI / Ảnh ghép -->
+      <!-- Tabs Selector: Đăng ảnh thường / Tạo ảnh nghệ thuật AI / Sửa ảnh -->
       <div class="flex items-center gap-5 border-b border-[#dadad3] dark:border-[#333] pb-3 mb-6 select-none">
         <div
           (click)="setTab('upload')"
@@ -40,11 +40,30 @@
           <div *ngIf="activeTab() === 'ai'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-[#F94083] dark:bg-[#FF6F9C] rounded-full"></div>
         </div>
 
-        <div (click)="goToCollage()" class="relative cursor-pointer transition-all pb-1 opacity-60 hover:opacity-100">
+        <div (click)="openCreatePostModal()" class="relative cursor-pointer transition-all pb-1 opacity-60 hover:opacity-100">
           <span class="text-[13px] font-bold text-black dark:text-white flex items-center gap-1">
-            <span class="material-symbols-outlined text-sm leading-none text-[#F94083] font-bold">content_cut</span>
-            Ảnh ghép
+            <span class="material-symbols-outlined text-sm leading-none text-[#F94083] font-bold">edit</span>
+            Sửa ảnh
           </span>
+        </div>
+      </div>
+
+      <app-create-post-modal
+        *ngIf="showCreatePostModal() && createPostStep() === 'select'"
+        (closeModal)="closeCreatePostModal()"
+        (filesSelected)="onCreatePostFilesSelected($event)"
+      ></app-create-post-modal>
+
+      <div
+        *ngIf="showCreatePostModal() && createPostStep() === 'edit'"
+        class="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/75"
+      >
+        <div class="w-[680px] max-w-full h-[640px] rounded-2xl border border-[#2a2a2e] shadow-[0_8px_32px_rgba(0,0,0,0.5)] bg-[#141416] overflow-hidden">
+          <app-edit-image
+            [files]="createPostFiles()"
+            (back)="onEditBack()"
+            (next)="onEditNext($event)"
+          ></app-edit-image>
         </div>
       </div>
 
@@ -61,7 +80,7 @@
             <!-- File Drag Drop & Upload Box -->
             <div
               *ngIf="!imagePreviewUrl()"
-              class="drag-drop-area flex-1 min-h-[380px] rounded-2xl bg-[#f6f6f3] dark:bg-[#2a2a2a] flex flex-col items-center justify-center p-6 text-center cursor-pointer relative overflow-hidden"
+              class="drag-drop-area flex-1 min-h-[380px] rounded-2xl bg-[#f6f6f3] dark:bg-[#2a2a2a] flex flex-col items-center justify-center p-6 text-center cursor-pointer relative overflow-hidden transition-colors"
               [class.drag-drop-area-active]="isDraggingOverDropzone()"
               (click)="fileInput.click()"
               (dragover)="onDropzoneDragOver($event)"
@@ -98,7 +117,7 @@
               />
               <!-- Replace file button -->
               <button
-                (click)="imagePreviewUrl.set(null); selectedFile = null;"
+                (click)="clearUploadImage()"
                 class="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 text-black flex items-center justify-center shadow-md hover:bg-white cursor-pointer transition-colors border-none outline-none"
                 title="Thay đổi ảnh khác"
               >

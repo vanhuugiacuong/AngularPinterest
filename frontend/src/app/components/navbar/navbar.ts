@@ -527,8 +527,4 @@ export class Navbar {
   isNotificationsPage(): boolean {
     return this.router.url.startsWith('/notifications');
   }
-
-  isCollagePage(): boolean {
-    return this.router.url.startsWith('/collage');
-  }
 }

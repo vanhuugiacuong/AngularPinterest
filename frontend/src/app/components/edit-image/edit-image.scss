@@ -1,0 +1,684 @@
+:host {
+  --pinhub-bg: #141416;
+  --pinhub-surface: #1a1a1e;
+  --pinhub-accent: #ff2e8e;
+  --pinhub-text-primary: #ffffff;
+  --pinhub-text-secondary: #9c9ca3;
+  --pinhub-border: #2a2a2e;
+
+  display: block;
+  height: 100%;
+}
+
+.eim-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--pinhub-bg);
+}
+
+// ---- Header (same structure as the crop screen) ----
+
+.eim-header {
+  position: relative;
+  flex-shrink: 0;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid var(--pinhub-border);
+  background: var(--pinhub-bg);
+}
+
+.eim-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pinhub-text-primary);
+}
+
+.eim-back-btn {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--pinhub-text-primary);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.eim-back-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.eim-next-btn {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--pinhub-accent);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 6px 4px;
+  white-space: nowrap;
+}
+
+.eim-next-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+// ---- Canvas stage ----
+
+.eim-stage {
+  position: relative;
+  flex: 1;
+  min-height: 320px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--pinhub-bg);
+  background-image: radial-gradient(var(--pinhub-border) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+// Image area — grows to fill the space above the toolbar; the picture is centred here.
+.eim-canvas {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.eim-frame {
+  position: relative; // anchor for the absolutely-positioned text layers
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  border: 2px solid var(--pinhub-accent);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.eim-image {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+// ---- Free-hand drawing canvas ----
+
+.eim-draw-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none; // finished strokes only — events fall through to the text layers
+  touch-action: none;
+}
+
+.eim-draw-canvas--active {
+  pointer-events: auto;
+  cursor: crosshair;
+  z-index: 3; // above the (locked) text layers while drawing
+}
+
+// ---- Draggable text layers ----
+
+.eim-tl {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  max-width: 88%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.eim-tl--locked {
+  pointer-events: none; // draw mode owns the pointer
+}
+
+.eim-tl:active {
+  cursor: grabbing;
+}
+
+.eim-tl--selected {
+  outline: 1px dashed rgba(255, 255, 255, 0.65);
+  outline-offset: 5px;
+}
+
+.eim-tl-text,
+.eim-tl-input {
+  margin: 0;
+  font-family: inherit;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+  white-space: pre-wrap;
+  word-break: break-word;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+
+.eim-tl-text {
+  display: block;
+  min-width: 1ch;
+  min-height: 1em;
+}
+
+.eim-tl-input {
+  display: block;
+  width: 240px;
+  max-width: 100%;
+  padding: 2px 6px;
+  border: none;
+  outline: none;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.28);
+  resize: none;
+  overflow: hidden;
+}
+
+.eim-tl-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.eim-tl-delete {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(5, 5, 5, 0.85);
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.eim-tl-delete:hover {
+  background: #050505;
+}
+
+// ---- Sticker layers ----
+
+.eim-sticker {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  line-height: 1;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.eim-sticker:active {
+  cursor: grabbing;
+}
+
+.eim-sticker--locked {
+  pointer-events: none;
+}
+
+.eim-sticker--selected {
+  outline: 1px dashed rgba(255, 255, 255, 0.65);
+  outline-offset: 6px;
+}
+
+.eim-sticker-emoji {
+  display: block;
+  line-height: 1;
+  // Keep the glyph from being selected/dragged as text.
+  pointer-events: none;
+}
+
+.eim-sticker-delete {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(5, 5, 5, 0.85);
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.eim-sticker-delete:hover {
+  background: #050505;
+}
+
+.eim-sticker-resize {
+  position: absolute;
+  right: -12px;
+  bottom: -12px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid var(--pinhub-accent);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+// ---- Sticker picker panel ----
+
+.eim-sticker-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+}
+
+.eim-sticker-panel {
+  position: absolute;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%);
+  z-index: 31;
+  width: min(360px, calc(100% - 32px));
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(20, 20, 22, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.eim-sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+
+.eim-sticker-choice {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.12s ease, transform 0.12s ease;
+}
+
+.eim-sticker-choice:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.12);
+}
+
+// ---- Effects panel (brightness / contrast / saturation) ----
+
+.eim-effects-panel {
+  position: absolute;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%);
+  z-index: 31;
+  width: min(300px, calc(100% - 32px));
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: rgba(20, 20, 22, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.eim-effects-row {
+  display: grid;
+  grid-template-columns: 68px 1fr 40px;
+  align-items: center;
+  gap: 10px;
+}
+
+.eim-effects-row + .eim-effects-row {
+  margin-top: 10px;
+}
+
+.eim-effects-label {
+  font-size: 13px;
+  color: var(--pinhub-text-secondary);
+}
+
+.eim-effects-value {
+  font-size: 12px;
+  color: var(--pinhub-text-secondary);
+  text-align: right;
+}
+
+.eim-effects-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  cursor: pointer;
+}
+
+.eim-effects-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--pinhub-accent);
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+}
+
+.eim-effects-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--pinhub-accent);
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+}
+
+.eim-effects-reset {
+  display: block;
+  margin: 14px 0 0 auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--pinhub-accent);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.eim-effects-reset:hover {
+  text-decoration: underline;
+}
+
+// ---- Colour palette (vertical strip, right edge of the stage) ----
+
+.eim-palette {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 10px 8px;
+  border-radius: 999px;
+  background: rgba(20, 20, 22, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 20;
+}
+
+.eim-swatch {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.eim-swatch:hover {
+  transform: scale(1.08);
+}
+
+.eim-swatch--active {
+  border-color: #ffffff;
+  border-width: 3px;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35);
+}
+
+// ---- Pill toolbar ----
+// Translucent dark pill with a light blur, sitting in the dark canvas area below the
+// image frame (not overlapping it). Five evenly-spaced round icon buttons.
+
+.eim-toolbar {
+  flex-shrink: 0;
+  align-self: center;
+  margin: 0 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(20, 20, 22, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.eim-tool-btn {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--pinhub-text-primary);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.eim-tool-btn:hover {
+  background: rgba(255, 46, 142, 0.16);
+  color: var(--pinhub-accent);
+}
+
+.eim-tool-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.eim-tool-btn:disabled:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--pinhub-text-primary);
+}
+
+// Busy (compositing the download) — keep it fully visible, just non-interactive.
+.eim-tool-btn--busy,
+.eim-tool-btn--busy:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+// Selected brush — a persistent pink fill + ring, clearer than the hover state.
+.eim-tool-btn--active,
+.eim-tool-btn--active:hover {
+  background: rgba(255, 46, 142, 0.22);
+  color: var(--pinhub-accent);
+  box-shadow: 0 0 0 2px var(--pinhub-accent);
+}
+
+.eim-tool-aa {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+// Loading spinner shown on the download button while the export is compositing.
+.eim-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: var(--pinhub-accent);
+  animation: eim-spin 0.7s linear infinite;
+}
+
+@keyframes eim-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ---- Draw-mode toolbar ----
+
+.eim-draw-toolbar {
+  gap: 10px;
+}
+
+.eim-draw-sep {
+  flex-shrink: 0;
+  width: 1px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.eim-draw-done {
+  flex-shrink: 0;
+  height: 36px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--pinhub-accent);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.eim-draw-done:hover {
+  background: rgba(255, 46, 142, 0.16);
+}
+
+// ---- Shared hover tooltip (white on dark, same look as the crop screen) ----
+
+.eim-tooltip {
+  position: fixed;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #050505;
+  font-size: 14px;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 99999;
+}
+
+.eim-tooltip--visible {
+  opacity: 1;
+}
+
+// ---- Discard-changes confirmation dialog ----
+
+.eim-discard-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.eim-discard-dialog {
+  width: min(320px, calc(100% - 48px));
+  border-radius: 16px;
+  background: var(--pinhub-surface);
+  border: 1px solid var(--pinhub-border);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  padding: 24px 20px 0;
+  text-align: center;
+  overflow: hidden;
+}
+
+.eim-discard-title {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--pinhub-text-primary);
+}
+
+.eim-discard-desc {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--pinhub-text-secondary);
+}
+
+.eim-discard-actions {
+  display: flex;
+  flex-direction: column;
+  margin: 0 -20px;
+  border-top: 1px solid var(--pinhub-border);
+}
+
+.eim-discard-keep,
+.eim-discard-discard {
+  width: 100%;
+  padding: 14px 0;
+  border: none;
+  background: transparent;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.eim-discard-keep {
+  color: var(--pinhub-accent);
+  font-weight: 800;
+}
+
+.eim-discard-discard {
+  border-top: 1px solid var(--pinhub-border);
+  color: var(--pinhub-text-secondary);
+  font-weight: 500;
+}
+
+.eim-discard-keep:hover {
+  background: rgba(255, 46, 142, 0.12);
+}
+
+.eim-discard-discard:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--pinhub-text-primary);
+}

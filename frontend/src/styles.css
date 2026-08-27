@@ -2,6 +2,17 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* PinHub dark design system — shared by the create-post flow (upload modal,
+   crop step, etc.) so every step reuses the same palette. */
+:root {
+  --pinhub-bg: #141416;
+  --pinhub-surface: #1a1a1e;
+  --pinhub-accent: #ff2e8e;
+  --pinhub-text-primary: #ffffff;
+  --pinhub-text-secondary: #9c9ca3;
+  --pinhub-border: #2a2a2e;
+}
+
 /* ── Design tokens (dark-only, hồng là màu chính) ──────────────────────────
    Dùng như utility: bg-surface, text-brand, border-hairline, text-muted... */
 @theme {
@@ -33,6 +44,7 @@ body {
     radial-gradient(60% 55% at 100% 0%, rgba(249, 64, 131, 0.08), transparent 60%),
     radial-gradient(55% 55% at 0% 100%, rgba(177, 92, 170, 0.08), transparent 60%);
   background-attachment: fixed;
+}
 }
 
 @theme {

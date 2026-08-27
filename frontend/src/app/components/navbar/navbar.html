@@ -15,9 +15,8 @@
     </div>
   </div>
 
-  <!-- Center Search Bar: only shown once logged in, and hidden on the collage editor
-       (it already has its own "Tìm kiếm ý tưởng để ghép" search) -->
-  <div *ngIf="supabaseService.user() && !isCollagePage()" class="relative flex-1 mx-4">
+  <!-- Center Search Bar: only shown once logged in -->
+  <div *ngIf="supabaseService.user()" class="relative flex-1 mx-4">
     <div
       class="relative z-50 flex items-center gap-2 px-4 h-11 rounded-full text-[#a29aac] border transition-all duration-200"
       [class.bg-white/[0.06]]="!showSearchDropdown()"
@@ -157,7 +156,7 @@
       </div>
     </div>
   </div>
-  <div *ngIf="!supabaseService.user() || isCollagePage()" class="flex-1"></div>
+  <div *ngIf="!supabaseService.user()" class="flex-1"></div>
 
   <!-- Right Profile Section / Login Button -->
   <div class="flex items-center gap-3">
