@@ -25,9 +25,9 @@
       [class.hover:border-white/20]="!showSearchDropdown()"
       [class.bg-[#17131c]]="showSearchDropdown()"
       [class.border-[#F94083]]="showSearchDropdown()"
+      [class.!border-b-0]="showSearchDropdown()"
       [class.!rounded-b-none]="showSearchDropdown()"
       [class.!rounded-t-3xl]="showSearchDropdown()"
-      [class.shadow-[0_12px_44px_rgba(0,0,0,0.55)]]="showSearchDropdown()"
     >
       <span class="material-symbols-outlined text-xl transition-colors" [class.text-[#F94083]]="showSearchDropdown()">search</span>
       <input
@@ -72,14 +72,14 @@
     <!-- Search suggestions dropdown -->
     <div
       *ngIf="showSearchDropdown()"
-      class="absolute top-full left-0 right-0 bg-white dark:bg-[#1e1e1e] rounded-b-3xl shadow-[0_16px_40px_rgba(0,0,0,0.15)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.5)] border-t-0 border-x border-b border-gray-100 dark:border-[#333] max-h-[70vh] overflow-y-auto py-4 z-50 -mt-[1px]"
+      class="absolute top-full left-0 right-0 bg-[#17131c] rounded-b-3xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] border-t-0 border-x border-b border-[#F94083] max-h-[70vh] overflow-y-auto py-4 z-50 -mt-[1px]"
       (click)="$event.stopPropagation()"
     >
       <!-- Live "as you type" suggestions -->
       <div *ngIf="searchQuery().trim()">
         <div
           *ngFor="let t of titleSuggestions"
-          class="flex items-center gap-3 px-5 py-2.5 hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] cursor-pointer"
+          class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/[0.06] cursor-pointer"
           (click)="goToSearch(t)"
         >
           <span class="material-symbols-outlined text-xl text-[#767672] dark:text-[#999]">search</span>
@@ -87,7 +87,7 @@
         </div>
         <div
           *ngFor="let u of userSuggestions()"
-          class="flex items-center gap-3 px-5 py-2.5 hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] cursor-pointer"
+          class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/[0.06] cursor-pointer"
           (click)="goToUserProfile(u)"
         >
           <img *ngIf="u.avatarUrl" [src]="u.avatarUrl" class="w-8 h-8 rounded-full object-cover shrink-0" />
@@ -109,7 +109,7 @@
         <div class="grid grid-cols-4 gap-2">
           <div
             *ngFor="let s of recentSearches()"
-            class="group relative flex items-center gap-3 p-2 rounded-2xl hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] cursor-pointer"
+            class="group relative flex items-center gap-3 p-2 rounded-2xl hover:bg-white/[0.06] cursor-pointer"
             (click)="goToSearch(s.query)"
           >
             <img *ngIf="s.thumbnail" [src]="s.thumbnail" class="w-16 h-16 rounded-2xl object-cover shrink-0" />
@@ -133,7 +133,7 @@
         <div class="grid grid-cols-4 gap-2">
           <div
             *ngFor="let pin of ideaPins()"
-            class="flex items-center gap-3 p-2 rounded-2xl hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] cursor-pointer"
+            class="flex items-center gap-3 p-2 rounded-2xl hover:bg-white/[0.06] cursor-pointer"
             (click)="goToSearch(pin.title)"
           >
             <img [src]="pin.imageUrl" class="w-16 h-16 rounded-2xl object-cover shrink-0" />
@@ -147,7 +147,7 @@
         <div class="grid grid-cols-4 gap-2">
           <div
             *ngFor="let pin of popularPins()"
-            class="flex items-center gap-3 p-2 rounded-2xl hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] cursor-pointer"
+            class="flex items-center gap-3 p-2 rounded-2xl hover:bg-white/[0.06] cursor-pointer"
             (click)="goToSearch(pin.title)"
           >
             <img [src]="pin.imageUrl" class="w-16 h-16 rounded-2xl object-cover shrink-0" />
@@ -165,7 +165,7 @@
     <div class="relative flex items-center" *ngIf="supabaseService.user()">
       <button
         (click)="toggleNotifPopup($event)"
-        class="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] transition-colors cursor-pointer border-none outline-none"
+        class="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/[0.06] transition-colors cursor-pointer border-none outline-none"
         [class.text-[#211922]]="!isNotificationsPage() && !showNotifPopup()"
         [class.dark:text-white]="!isNotificationsPage() && !showNotifPopup()"
         [class.text-[#F94083]]="isNotificationsPage() || showNotifPopup()"
@@ -293,7 +293,7 @@
 
         <button
           (click)="navigateToWallet()"
-          class="w-full flex items-center gap-3 px-3 py-1.5 rounded-xl hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] transition-all duration-200 cursor-pointer border-none outline-none select-none text-left"
+          class="w-full flex items-center gap-3 px-3 py-1.5 rounded-xl hover:bg-white/[0.06] transition-all duration-200 cursor-pointer border-none outline-none select-none text-left"
         >
           <app-icon name="coin" class="w-[22px] h-[22px] shrink-0"></app-icon>
           <span class="flex-1 text-sm font-bold text-black dark:text-white">Ví Credit</span>
@@ -308,7 +308,7 @@
         <!-- View Profile Option -->
         <button
           (click)="navigateToMyProfile()"
-          class="w-full text-left font-bold text-base text-black dark:text-white hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] px-4 py-2 rounded-xl transition-all duration-200 cursor-pointer border-none outline-none select-none"
+          class="w-full text-left font-bold text-base text-black dark:text-white hover:bg-white/[0.06] px-4 py-2 rounded-xl transition-all duration-200 cursor-pointer border-none outline-none select-none"
         >
           Trang cá nhân
         </button>
@@ -316,7 +316,7 @@
         <!-- Settings Option -->
         <button
           (click)="navigateToSettings()"
-          class="w-full text-left font-bold text-base text-black dark:text-white hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] px-4 py-2 rounded-xl transition-all duration-200 cursor-pointer border-none outline-none select-none"
+          class="w-full text-left font-bold text-base text-black dark:text-white hover:bg-white/[0.06] px-4 py-2 rounded-xl transition-all duration-200 cursor-pointer border-none outline-none select-none"
         >
           Cài đặt
         </button>
@@ -324,7 +324,7 @@
         <!-- Sign Out Option -->
         <button
           (click)="signOut()"
-          class="w-full text-left font-bold text-base text-[#F94083] hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] px-4 py-2 rounded-xl transition-all duration-200 cursor-pointer border-none outline-none select-none"
+          class="w-full text-left font-bold text-base text-[#F94083] hover:bg-white/[0.06] px-4 py-2 rounded-xl transition-all duration-200 cursor-pointer border-none outline-none select-none"
         >
           Đăng xuất
         </button>
@@ -437,7 +437,7 @@
     </div>
     <button
       (click)="dismissToast(toast.id)"
-      class="shrink-0 w-6 h-6 flex items-center justify-center rounded-full hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] text-[#62625b] dark:text-[#999] border-none outline-none cursor-pointer"
+      class="shrink-0 w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/[0.06] text-[#62625b] dark:text-[#999] border-none outline-none cursor-pointer"
       title="Đóng"
     >
       <span class="material-symbols-outlined text-base leading-none select-none">close</span>
