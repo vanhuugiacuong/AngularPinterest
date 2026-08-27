@@ -486,8 +486,43 @@ export class PinsService {
     // bước đó sẽ để lại file rác không ai tham chiếu.
     const premium = await this.normalizePremium(userId, isPremium, priceCredits);
 
-    // 2. Download image from temporary url and upload to permanent pins bucket
-    const imageUrl = await this.aiGeneratorService.saveAiImageToStorage(previewUrl, userId);
+    // 2. Move the generated image into permanent storage.
+    //
+    // A Premium AI pin has to be split the same way an uploaded one is
+    // (createUploadPin above): the public bucket gets a downscaled, watermarked
+    // preview and the HD original goes to a private bucket. Before this, every
+    // path here uploaded the generated file straight to the PUBLIC bucket, so an
+    // AI pin marked Premium had its original as its own display URL -- one look
+    // at the Network tab and the file was yours, and the entitlement check on
+    // the download endpoint guarded a door with no wall around it.
+    let imageUrl: string;
+    let originalPath: string | null = null;
+
+    if (premium.isPremium) {
+      const source = await fetch(previewUrl);
+      if (!source.ok) {
+        throw new BadRequestException('Không tải được ảnh vừa tạo để lưu bản gốc.');
+      }
+      const original = Buffer.from(await source.arrayBuffer());
+      const contentType = source.headers.get('Content-Type') || 'image/png';
+      const base = `${userId}/ai_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+      const preview = await this.watermarkService.makePreview(original, 'PinHub');
+      imageUrl = await this.supabaseService.uploadImage(
+        'pins',
+        `${base}_preview.jpg`,
+        preview,
+        'image/jpeg',
+      );
+      originalPath = await this.supabaseService.uploadPrivate(
+        'pins-original',
+        `${base}.png`,
+        original,
+        contentType,
+      );
+    } else {
+      imageUrl = await this.aiGeneratorService.saveAiImageToStorage(previewUrl, userId);
+    }
 
     const category = this.classifyCategory(title, description);
 
@@ -519,6 +554,8 @@ export class PinsService {
         category,
         isPremium: premium.isPremium,
         priceCredits: premium.priceCredits,
+        previewUrl: premium.isPremium ? imageUrl : null,
+        originalPath,
       },
     });
 

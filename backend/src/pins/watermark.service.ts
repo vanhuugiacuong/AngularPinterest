@@ -14,8 +14,27 @@ import sharp from 'sharp';
  */
 @Injectable()
 export class WatermarkService {
-  /** Cạnh dài tối đa của bản preview — đủ xem, không đủ dùng lại. */
-  private readonly PREVIEW_MAX_EDGE = 900;
+  /**
+   * Độ mờ nướng vào bản preview.
+   *
+   * 18 là mức "mờ nhất còn bán được": chỉ còn khối màu và bố cục, mọi chi tiết
+   * đường nét đã mất. Muốn mờ hơn nữa thì tăng số này — nhưng người mua cũng
+   * không còn thấy mình đang mua gì.
+   *
+   * Watermark được composite SAU khi mờ, nên chữ chìm vẫn nét trên nền đã mờ.
+   */
+  static readonly PREVIEW_BLUR_SIGMA = 18;
+
+  /**
+   * Cạnh dài tối đa của bản preview.
+   *
+   * Hạ từ 900 xuống 560 vì đây mới là thứ bảo vệ thật. Blur là một phép chập,
+   * và một ảnh mờ nhẹ ở độ phân giải cao có thể **khôi phục một phần** bằng
+   * deconvolution. Thu nhỏ thì không: thông tin bị bỏ đi vĩnh viễn, không có
+   * thuật toán nào lấy lại được. Mờ đậm + nhỏ là hai lớp khác bản chất, không
+   * phải một lớp làm hai lần.
+   */
+  private readonly PREVIEW_MAX_EDGE = 560;
 
   /**
    * Trả về bản preview: thu nhỏ, nén, phủ chữ chìm lặp kín mặt ảnh.
@@ -37,6 +56,9 @@ export class WatermarkService {
 
     return sharp(original, { failOn: 'none' })
       .resize(outW, outH, { fit: 'inside', withoutEnlargement: true })
+      // Nướng thẳng vào file. CSS `filter: blur()` ở giao diện không tính là bảo
+      // vệ — nó chỉ mờ lúc vẽ, còn file trong tab Network vẫn nét.
+      .blur(WatermarkService.PREVIEW_BLUR_SIGMA)
       .composite([{ input: overlay, blend: 'over' }])
       // Chất lượng vừa đủ nhìn — người lấy trộm cũng không dùng in ấn được.
       .jpeg({ quality: 72, mozjpeg: true })
