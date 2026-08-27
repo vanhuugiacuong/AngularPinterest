@@ -399,34 +399,6 @@
           <span class="mono-label text-xs text-text-muted mt-1 inline-block">
             {{ getTimeAgo(item.createdAt) }}
           </span>
-
-          <!-- Inline Accept/Reject for pending follow requests -->
-          <div
-            *ngIf="item.type === 'FOLLOW_REQUEST' && item.senderId as requesterId"
-            class="flex items-center gap-2 mt-2.5"
-          >
-            <ng-container *ngIf="!isFollowRequestHandled(requesterId); else handledLabel">
-              <button
-                type="button"
-                class="px-3 py-1.5 rounded-control bg-primary text-text-on-accent text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-                [disabled]="isFollowRequestPending(requesterId)"
-                (click)="$event.stopPropagation(); acceptFollowRequest(item, $event)"
-              >
-                Chấp nhận
-              </button>
-              <button
-                type="button"
-                class="px-3 py-1.5 rounded-control bg-surface-high text-text text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-                [disabled]="isFollowRequestPending(requesterId)"
-                (click)="$event.stopPropagation(); rejectFollowRequest(item, $event)"
-              >
-                Từ chối
-              </button>
-            </ng-container>
-            <ng-template #handledLabel>
-              <span class="text-xs text-text-muted italic">{{ followRequestOutcome(requesterId) }}</span>
-            </ng-template>
-          </div>
         </div>
 
         <!-- Pin Image Preview if attached -->
