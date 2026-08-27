@@ -26,5 +26,6 @@ describe('Landing explore orbit', () => {
     expect(landing.orbitArtworks[0]).toBe(landing.artworks[5]);
     expect(landing.orbitArtworks[7]).toBe(landing.artworks[0]);
     expect(landing.artworks.every((art) => art.src.startsWith('/landing/work-'))).toBe(true);
+    expect(landing.artworks[5].title).toBe('Họa sĩ sáng tác tranh khổ lớn');
   });
 });

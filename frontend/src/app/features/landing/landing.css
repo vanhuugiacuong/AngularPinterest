@@ -369,7 +369,7 @@
 .nf-hero__title {
   font-size: clamp(32px, 8vw, 120px);
   font-weight: 800;
-  line-height: 0.92;
+  line-height: 1;
   letter-spacing: -0.05em;
 }
 
@@ -378,6 +378,8 @@
    faded. */
 .nf-hero__line {
   display: block;
+  padding-block: 0.05em;
+  padding-top:1rem;
   overflow: hidden;
   /* Vietnamese stacks a tone mark above a vowel that already carries its own
      diacritic (ở, ẩ), so those glyphs reach higher than a 0.92 line box.
@@ -515,8 +517,8 @@
   position: absolute;
   top: clamp(58px, 7.5vh, 92px);
   left: 50%;
-  z-index: 40;
-  width: min(92vw, 860px);
+  z-index: 20;
+  width: min(94vw, 1120px);
   text-align: center;
   pointer-events: none;
   opacity: clamp(0, calc(1 - var(--focus-p) * 1.35), 1);
@@ -547,19 +549,17 @@
 
 .nf-explore__index {
   display: block;
-  margin-bottom: clamp(7px, 1.1vh, 14px);
+  margin-bottom: clamp(10px, 1.4vh, 16px);
   font-family: var(--font-mono);
-  font-size: clamp(9px, 0.8vw, 11px);
+  font-size: clamp(9px, 0.8vw, 10px);
   font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
+  padding-bottom: 16px;
   color: var(--ink-faint);
 }
 
 .nf-explore__title {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   margin: 0;
   color: var(--ink);
 }
@@ -595,7 +595,7 @@
 .nf-gallery {
   position: absolute;
   inset: 0;
-  z-index: 10;
+  z-index: 30;
   transform-style: preserve-3d;
   pointer-events: none;
 }
@@ -621,8 +621,8 @@
     rotateY(calc(var(--slot) * -16deg)) rotateZ(calc(var(--slot) * 1.2deg))
     scale(calc(1 - var(--depth) * 0.13));
   transition:
-    transform 0.18s linear,
-    opacity 0.18s linear;
+    transform 0.32s var(--ease-out),
+    opacity 0.24s ease-out;
   will-change: transform, opacity;
 }
 
@@ -650,7 +650,7 @@
   height: 100%;
   object-fit: cover;
   transform: scale(1.045) translateX(calc(var(--slot) * -1.4%));
-  transition: transform 0.18s linear;
+  transition: transform 0.32s var(--ease-out);
 }
 
 .nf-gallery__item figcaption {
@@ -716,6 +716,10 @@
   opacity: clamp(0, calc(1 - var(--focus-p) * 4), 1);
 }
 
+.nf-gallery__item--focus .nf-gallery__media img {
+  transform: scale(calc(1.045 - var(--focus-p) * 0.045));
+}
+
 .nf-gallery__item--clone figcaption {
   display: none;
 }
@@ -736,8 +740,8 @@
   opacity: clamp(0, calc(var(--focus-p) * 2.4 - 1.1), 1);
   transform: translateY(calc((1 - var(--focus-p)) * 28px));
   transition:
-    opacity 0.18s linear,
-    transform 0.18s linear;
+    opacity 0.34s var(--ease-out),
+    transform 0.38s var(--ease-out);
   pointer-events: none;
 }
 
@@ -827,21 +831,8 @@
     top: clamp(76px, 12vh, 100px);
   }
 
-  .nf-explore__index {
-    margin-bottom: 8px;
-  }
-
-  .nf-explore__title span {
-    font-size: clamp(43px, 15vw, 64px);
-  }
-
-  .nf-explore__title strong {
-    font-size: clamp(72px, 24vw, 108px);
-  }
-
-  .nf-explore__lede {
-    max-width: 35ch;
-    padding-inline: 16px;
+  .nf-explore__title {
+    font-size: clamp(48px, 16vw, 88px);
   }
 
   .nf-gallery__item {
@@ -1377,7 +1368,6 @@
     top: auto;
     left: auto;
     margin: 0 auto 24px;
-    opacity: 1;
     transform: none;
   }
 
