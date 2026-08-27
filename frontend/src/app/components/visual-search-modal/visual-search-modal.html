@@ -37,23 +37,6 @@
         class="hidden"
         (change)="onFileSelected($event)"
       />
-      <input
-        #captureInput
-        type="file"
-        accept="image/*"
-        capture="environment"
-        class="hidden"
-        (change)="onFileSelected($event)"
-      />
-
-      <button
-        type="button"
-        (click)="captureInput.click()"
-        class="h-12 rounded-full font-bold text-sm text-[#211922] dark:text-white bg-[#f0f0ed] dark:bg-[#2a2a2a] hover:bg-[#e5e5e1] dark:hover:bg-[#333] transition-colors cursor-pointer border-none outline-none flex items-center justify-center gap-2.5 shadow-sm active:scale-98"
-      >
-        <span class="material-symbols-outlined text-xl leading-none">photo_camera</span>
-        Chụp ảnh
-      </button>
     </ng-container>
 
     <ng-container *ngIf="visualSearchService.previewUrl() as preview">
