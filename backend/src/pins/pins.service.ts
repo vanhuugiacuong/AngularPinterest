@@ -459,7 +459,7 @@ export class PinsService {
           {} as Record<string, number>,
         );
 
-        preferredCategories = Object.entries(counts)
+        preferredCategories = (Object.entries(counts) as [string, number][])
           .sort((a, b) => b[1] - a[1])
           .map((e) => e[0]);
       } catch (err) {
