@@ -16,14 +16,17 @@ export class PrismaService
       console.warn('DATABASE_URL is not set in environment variables.');
     }
     // keepAlive + idleTimeout keep pooled connections warm without exceeding
-    // Supabase's session-pooler limit. max is capped at 5 to leave room for
-    // hot-reloads and concurrent requests.
+    // Supabase's session-pooler limit. max is increased to 10 and connectionTimeoutMillis
+    // raised to 15s to handle parallel frontend API requests gracefully.
     const pool = new Pool({
       connectionString,
-      max: Number(process.env.PG_POOL_MAX) || 5,
+      max: Number(process.env.PG_POOL_MAX) || 10,
       keepAlive: true,
-      idleTimeoutMillis: 10_000,
-      connectionTimeoutMillis: 5_000,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 15_000,
+    });
+    pool.on('error', (err) => {
+      console.error('Unexpected error on idle PostgreSQL client:', err);
     });
     const adapter = new PrismaPg(pool);
     super({ adapter });

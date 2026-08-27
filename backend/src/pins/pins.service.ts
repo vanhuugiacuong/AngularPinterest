@@ -78,7 +78,7 @@ interface PinEmbeddingRow {
 @Injectable()
 export class PinsService {
   private readonly clipServiceUrl =
-    process.env.CLIP_SERVICE_URL || 'http://localhost:8001';
+    (process.env.CLIP_SERVICE_URL || 'http://127.0.0.1:8001').replace('localhost', '127.0.0.1');
 
   /** Minimum absolute cosine similarity (0-1) a reverse-image-search result
    * must clear to be considered a real match at all. Configurable via env
@@ -412,38 +412,40 @@ export class PinsService {
   ) {
     const skip = (page - 1) * limit;
 
-    // 1. Fetch a bounded window of the most-recent pins (not the whole table).
-    //    The personalized re-ranking below runs in JS, so we only need a
-    //    candidate pool — fetching every row on each feed request was the main
-    //    latency source (full-table scan + per-row like-count subquery, shipped
-    //    cross-region every call). Tune the pool size via FEED_CANDIDATE_LIMIT.
+    // 1 & 2. Fetch candidate pins and user preferences concurrently with Promise.all
     const candidateLimit = Number(process.env.FEED_CANDIDATE_LIMIT) || 1000;
-    const pins = await this.prisma.pin.findMany({
-      where: this.visibilityFilter(userId),
-      orderBy: { createdAt: 'desc' },
-      take: candidateLimit,
-      include: {
-        user: {
-          select: { id: true, username: true, avatarUrl: true, plan: true },
-        },
-        _count: {
-          select: { likes: true },
-        },
-      },
-    });
-
-    // 2. Fetch user's preferred categories based on likes & board saves
     let preferredCategories: string[] = [];
+
+    const [pins, likes, boardPins] = await Promise.all([
+      this.prisma.pin.findMany({
+        where: this.visibilityFilter(userId),
+        orderBy: { createdAt: 'desc' },
+        take: candidateLimit,
+        include: {
+          user: {
+            select: { id: true, username: true, avatarUrl: true, plan: true },
+          },
+          _count: {
+            select: { likes: true },
+          },
+        },
+      }),
+      userId
+        ? this.prisma.like.findMany({
+            where: { userId },
+            select: { pin: { select: { category: true } } },
+          })
+        : Promise.resolve([]),
+      userId
+        ? this.prisma.boardPin.findMany({
+            where: { board: { userId } },
+            select: { pin: { select: { category: true } } },
+          })
+        : Promise.resolve([]),
+    ]);
+
     if (userId) {
       try {
-        const likes = await this.prisma.like.findMany({
-          where: { userId },
-          include: { pin: { select: { category: true } } },
-        });
-        const boardPins = await this.prisma.boardPin.findMany({
-          where: { board: { userId } },
-          include: { pin: { select: { category: true } } },
-        });
         const categories = [
           ...likes.map((l) => l.pin?.category),
           ...boardPins.map((b) => b.pin?.category),
@@ -589,16 +591,18 @@ export class PinsService {
       throw new NotFoundException('Pin not found');
     }
 
-    const auctionMap = await this.fetchLatestAuctionsByPinIds([pin.id]);
+    const [auctionMap, viewerStatus] = await Promise.all([
+      this.fetchLatestAuctionsByPinIds([pin.id]),
+      viewerId ? this.membershipsService.status(viewerId) : Promise.resolve({ plan: 'FREE' as const }),
+    ]);
     const auction = auctionMap.get(pin.id);
     const isOwner = viewerId === pin.userId;
 
     // Đấu giá chỉ dành cho Pro; ảnh giá cố định dành cho Plus/Pro. Dùng
-    // status() (tự
-    // áp dụng lazy-expiry) thay vì đọc User.plan thô để gói đã hết hạn không
+    // status() (tự áp dụng lazy-expiry) thay vì đọc User.plan thô để gói đã hết hạn không
     // còn được ưu tiên. Đây là lớp chặn thật ở backend — frontend chỉ là UX.
     if ((auction || pin.isForSale) && !isOwner) {
-      const viewerPlan = viewerId ? (await this.membershipsService.status(viewerId)).plan : 'FREE';
+      const viewerPlan = viewerStatus.plan;
       if (auction && viewerPlan !== 'PRO') {
         throw new ForbiddenException('Chỉ thành viên Pro mới có thể xem chi tiết tác phẩm đấu giá.');
       }
