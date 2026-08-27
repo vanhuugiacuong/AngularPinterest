@@ -8,12 +8,12 @@
     >
       <span
         class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
-        [class.bg-[#12271c]]="toast.kind === 'success'"
-        [class.text-[#4ade80]]="toast.kind === 'success'"
-        [class.bg-[#2a151f]]="toast.kind === 'error'"
-        [class.text-[#ff5c8a]]="toast.kind === 'error'"
-        [class.bg-[#241a2e]]="toast.kind === 'info'"
-        [class.text-[#c98be0]]="toast.kind === 'info'"
+        [class.bg-[#2a151f]]="toast.kind === 'success'"
+        [class.text-[#F94083]]="toast.kind === 'success'"
+        [class.bg-[#2e1418]]="toast.kind === 'error'"
+        [class.text-[#ff5c6e]]="toast.kind === 'error'"
+        [class.bg-[#2a151f]]="toast.kind === 'info'"
+        [class.text-[#F94083]]="toast.kind === 'info'"
       >
         <span class="material-symbols-outlined text-[19px] leading-none" style="font-variation-settings: 'FILL' 1, 'wght' 600;">
           {{ toast.kind === 'success' ? 'check_circle' : toast.kind === 'error' ? 'error' : 'info' }}
@@ -35,9 +35,9 @@
       <div
         class="h-full toast-countdown"
         [style.animation-duration.ms]="toast.durationMs"
-        [class.bg-[#4ade80]]="toast.kind === 'success'"
-        [class.bg-[#ff5c8a]]="toast.kind === 'error'"
-        [class.bg-[#c98be0]]="toast.kind === 'info'"
+        [class.bg-[#F94083]]="toast.kind === 'success'"
+        [class.bg-[#ff5c6e]]="toast.kind === 'error'"
+        [class.bg-[#F94083]]="toast.kind === 'info'"
       ></div>
     </div>
   </div>

@@ -50,7 +50,7 @@
 
       <!-- 3-column desktop layout: Ảnh | Thông tin chi tiết | Xem trước + Mẹo.
            Below 1024px it collapses to 1 column in this exact DOM order. -->
-      <div class="grid grid-cols-1 lg:grid-cols-[336px_1fr_320px] lg:grid-rows-[auto_auto] gap-5 items-start">
+      <div class="grid gap-5 items-start transition-all" [ngClass]="hasContent ? 'grid-cols-1 lg:grid-cols-[360px_1fr_320px] lg:grid-rows-[auto_auto]' : 'grid-cols-1 max-w-[620px] mx-auto'">
 
         <!-- COL 1: Image / AI generator panel -->
         <div class="panel-box lg:col-start-1 lg:row-start-1 lg:row-span-2 flex flex-col">
@@ -172,6 +172,8 @@
           </div>
         </div>
 
+        <!-- Chỉ hiện cột chi tiết + xem trước + mẹo SAU KHI đã có ảnh (progressive) -->
+        <ng-container *ngIf="hasContent">
         <!-- COL 3a: Preview panel (comes 2nd in DOM so it lands right after the image
              panel on mobile, per the required stacking order) -->
         <div class="panel-box lg:col-start-3 lg:row-start-1">
@@ -440,6 +442,7 @@
             </li>
           </ul>
         </div>
+        </ng-container>
 
       </div>
 
