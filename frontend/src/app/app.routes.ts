@@ -4,8 +4,9 @@ import { Home } from './features/home/home';
 import { PinDetail } from './features/pin-detail/pin-detail';
 import { Profile } from './features/profile/profile';
 import { BoardDetail } from './features/board-detail/board-detail';
+import { BoardOrganize } from './features/board-organize/board-organize';
+import { BoardIdeas } from './features/board-ideas/board-ideas';
 import { Create } from './features/create/create';
-import { Collage } from './features/collage/collage';
 import { Search } from './features/search/search';
 import { Notifications } from './features/notifications/notifications';
 import { Settings } from './features/settings/settings';
@@ -22,9 +23,10 @@ export const routes: Routes = [
   { path: 'feed', component: Home },
   { path: 'pin/:id', component: PinDetail },
   { path: 'profile/:username', component: Profile },
+  { path: 'board/:id/organize', component: BoardOrganize },
+  { path: 'board/:id/ideas', component: BoardIdeas },
   { path: 'board/:id', component: BoardDetail },
   { path: 'create', component: Create },
-  { path: 'collage', component: Collage },
   { path: 'search', component: Search },
   { path: 'notifications', component: Notifications },
   { path: 'settings', component: Settings },

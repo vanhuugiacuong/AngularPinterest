@@ -1,0 +1,171 @@
+:host {
+  --pinhub-bg: #141416;
+  --pinhub-surface: #1a1a1e;
+  --pinhub-accent: #ff2e8e;
+  --pinhub-text-primary: #ffffff;
+  --pinhub-text-secondary: #9c9ca3;
+  --pinhub-border: #2a2a2e;
+
+  display: block;
+}
+
+.cpm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.cpm-modal {
+  display: flex;
+  flex-direction: column;
+  width: 680px;
+  max-width: 100%;
+  min-height: 640px;
+  border-radius: 16px;
+  background: var(--pinhub-bg);
+  border: 1px solid var(--pinhub-border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.cpm-header {
+  position: relative;
+  flex-shrink: 0;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid var(--pinhub-border);
+}
+
+.cpm-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pinhub-text-primary);
+  text-align: center;
+}
+
+.cpm-close-btn {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--pinhub-text-secondary);
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.cpm-close-btn:hover {
+  color: var(--pinhub-text-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.cpm-dropzone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin: 16px;
+  padding: 56px 32px;
+  border: 2px dashed transparent;
+  border-radius: 12px;
+  text-align: center;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.cpm-dropzone--dragging {
+  border-color: var(--pinhub-accent);
+  background: rgba(255, 46, 142, 0.05);
+}
+
+.cpm-icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cpm-icon-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 300px;
+  height: 300px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 46, 142, 0.15) 0%, transparent 70%);
+  z-index: 0;
+}
+
+.cpm-icon {
+  position: relative;
+  z-index: 1;
+  width: 140px;
+  height: 140px;
+}
+
+.cpm-hint-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.cpm-hint {
+  margin: 0;
+  font-size: 18px;
+  color: var(--pinhub-text-secondary);
+}
+
+.cpm-subhint {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--pinhub-text-secondary);
+}
+
+.cpm-select-btn {
+  border: none;
+  border-radius: 24px;
+  padding: 12px 32px;
+  background: var(--pinhub-accent);
+  color: var(--pinhub-text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.cpm-select-btn:hover {
+  filter: brightness(1.1);
+  transform: scale(1.03);
+  box-shadow: 0 0 20px rgba(255, 46, 142, 0.5);
+}
+
+.cpm-select-btn:active {
+  transform: scale(0.98);
+}
+
+.cpm-error {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ff5c5c;
+}
+
+.cpm-hidden-input {
+  display: none;
+}
