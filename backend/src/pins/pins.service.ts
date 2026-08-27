@@ -372,10 +372,16 @@ export class PinsService {
       originalStoragePath?: string | null;
     },
   >(pins: T[], viewerId?: string): Promise<Omit<T, 'originalStoragePath'>[]> {
-    const [auctionMap, likedIds, purchasedIds] = await Promise.all([
+    const [auctionMap, likedIds, purchasedIds, viewerPlan] = await Promise.all([
       this.fetchLatestAuctionsByPinIds(pins.map((p) => p.id)),
       this.fetchLikedPinIds(pins.map((p) => p.id), viewerId),
       this.fetchPaidPurchasePinIds(pins.map((p) => p.id), viewerId),
+      // status() rather than the raw User.plan column: it applies lazy expiry,
+      // so a lapsed plan stops unlocking previews (same reason getPinById uses
+      // it for its 403 gate).
+      viewerId
+        ? this.membershipsService.status(viewerId).then((s) => s.plan)
+        : Promise.resolve<MembershipPlan>('FREE'),
     ]);
     return pins.map((p) => {
       const { originalStoragePath, ...rest } = p;
@@ -393,6 +399,7 @@ export class PinsService {
           viewerId,
           hasAuction: Boolean(auction),
           hasPaidPurchase: purchasedIds.has(p.id),
+          viewerPlan,
         }),
         ...this.marketFieldsFor(p.isForSale, auction),
         isLiked: likedIds.has(p.id),
@@ -650,7 +657,13 @@ export class PinsService {
     // Plan check above only gates whether the *page* can be viewed at all;
     // it doesn't imply a purchase. An eligible-but-not-yet-buying Plus/Pro
     // viewer still gets the watermarked preview, not the real one.
-    const imageUrl = await resolveSinglePinImageUrl(this.prisma, pin, viewerId, Boolean(auction));
+    const imageUrl = await resolveSinglePinImageUrl(
+      this.prisma,
+      pin,
+      viewerId,
+      Boolean(auction),
+      viewerStatus.plan,
+    );
     return {
       ...safePin,
       imageUrl,
@@ -1474,9 +1487,12 @@ export class PinsService {
       : uniquePins;
 
     const page = filteredPins.slice(0, limit);
-    const [auctionMap, purchasedIds] = await Promise.all([
+    const [auctionMap, purchasedIds, viewerPlan] = await Promise.all([
       this.fetchLatestAuctionsByPinIds(page.map((p) => p.id)),
       this.fetchPaidPurchasePinIds(page.map((p) => p.id), viewerId),
+      viewerId
+        ? this.membershipsService.status(viewerId).then((st) => st.plan)
+        : Promise.resolve<MembershipPlan>('FREE'),
     ]);
 
     return page.map((p) => ({
@@ -1487,6 +1503,7 @@ export class PinsService {
         viewerId,
         hasAuction: Boolean(auctionMap.get(p.id)),
         hasPaidPurchase: purchasedIds.has(p.id),
+        viewerPlan,
       }),
       sourceUrl: p.sourceUrl,
       userId: p.userId,

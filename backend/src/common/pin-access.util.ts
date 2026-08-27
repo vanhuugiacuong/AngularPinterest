@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { MembershipPlan, PrismaClient } from '@prisma/client';
 
 /** A pin is "commerce-restricted" once it's listed for a fixed price or has
  * a non-cancelled auction — only the owner or a PAID buyer should ever see
@@ -24,22 +24,64 @@ export function lockedPinPreviewPath(pinId: string): string {
   return `/api/pins/${pinId}/locked-preview`;
 }
 
+/** Whether the viewer's membership plan lets them LOOK at a commerce pin at
+ * all. Mirrors the gate PinsService.getPinById enforces with a 403 — auctions
+ * are Pro-only, fixed-price is Plus/Pro — because a feed list cannot throw:
+ * one restricted pin must not fail the whole page, so the image is swapped
+ * instead of the request being refused. Keeping the rule in one function is
+ * what stops the two paths drifting apart. */
+export function viewerPlanAllowsPinPreview(
+  plan: MembershipPlan,
+  isForSale: boolean,
+  hasAuction: boolean,
+): boolean {
+  if (hasAuction) return plan === 'PRO';
+  if (isForSale) return plan === 'PLUS' || plan === 'PRO';
+  return true;
+}
+
 /** Picks which image URL one specific viewer should receive for one pin.
+ * Three tiers, and every one of them is load-bearing:
  *
- * The last line used to fall back to the real `imageUrl` when no protected
- * variant had been generated yet, reasoning that showing the previous preview
- * beat showing a broken image. That handed the clear CDN asset to a viewer with
- * no entitlement — CSS blur on the frontend does not help, because the browser
- * has already downloaded the original and it is one glance at the Network panel
- * away. It now falls back to a blurred preview rendered by us, which carries no
- * recoverable original and still never breaks the image. */
+ *  - clear original — the owner, an unrestricted pin, or a PAID buyer.
+ *  - watermarked preview — the plan entitles them to browse but they have not
+ *    bought it. This is the "look, with a watermark, until you buy" step.
+ *  - server-blurred preview — the plan does not entitle them at all.
+ *
+ * That last tier is the fix. This used to fall back to the real `imageUrl`
+ * whenever no protected variant had been generated, reasoning that the previous
+ * preview beat a broken image — but it handed the clear CDN asset to a viewer
+ * with no entitlement. Frontend CSS blur does not help: the browser has already
+ * downloaded the original, and it is one glance at the Network panel away.
+ *
+ * The clear fallback survives only in the middle tier, where the viewer IS
+ * entitled to look — there, showing the unwatermarked preview is a cosmetic
+ * miss, not a leak.
+ *
+ * `viewerPlan` is optional because most callers (boards, users, notifications,
+ * auctions) do not have the viewer's membership status to hand, and threading
+ * MembershipsService through all of them is a change of its own. Omitting it
+ * skips the middle tier, i.e. errs strict: an entitled viewer may get the
+ * blurred preview where they could have had the watermarked one. Too strict is
+ * a cosmetic bug; too loose is the leak this function exists to prevent. */
 export function resolveViewablePinImageUrl(
   pin: RestrictablePinImage,
-  opts: { viewerId?: string; hasAuction: boolean; hasPaidPurchase: boolean },
+  opts: {
+    viewerId?: string;
+    hasAuction: boolean;
+    hasPaidPurchase: boolean;
+    viewerPlan?: MembershipPlan;
+  },
 ): string {
   if (opts.viewerId && opts.viewerId === pin.userId) return pin.imageUrl;
   if (!isPinCommerceRestricted(pin.isForSale, opts.hasAuction)) return pin.imageUrl;
   if (opts.hasPaidPurchase) return pin.imageUrl;
+  if (
+    opts.viewerPlan &&
+    viewerPlanAllowsPinPreview(opts.viewerPlan, pin.isForSale, opts.hasAuction)
+  ) {
+    return pin.protectedImageUrl ?? pin.imageUrl;
+  }
   return pin.protectedImageUrl ?? lockedPinPreviewPath(pin.id);
 }
 
@@ -55,6 +97,7 @@ export async function applyPinImageProtection<T extends RestrictablePinImage>(
   prisma: PinAccessClient,
   pins: T[],
   viewerId: string | undefined,
+  viewerPlan?: MembershipPlan,
 ): Promise<T[]> {
   if (pins.length === 0) return pins;
   const ids = pins.map((p) => p.id);
@@ -79,6 +122,7 @@ export async function applyPinImageProtection<T extends RestrictablePinImage>(
       viewerId,
       hasAuction: auctionedIds.has(pin.id),
       hasPaidPurchase: purchasedIds.has(pin.id),
+      viewerPlan,
     });
   }
   return pins;
@@ -94,6 +138,7 @@ export async function resolveSinglePinImageUrl<T extends RestrictablePinImage>(
   pin: T,
   viewerId: string | undefined,
   hasAuction: boolean,
+  viewerPlan?: MembershipPlan,
 ): Promise<string> {
   if (viewerId === pin.userId) return pin.imageUrl;
   if (!isPinCommerceRestricted(pin.isForSale, hasAuction)) return pin.imageUrl;
@@ -105,5 +150,10 @@ export async function resolveSinglePinImageUrl<T extends RestrictablePinImage>(
         }).then((row) => row?.status === 'PAID'),
       )
     : false;
-  return resolveViewablePinImageUrl(pin, { viewerId, hasAuction, hasPaidPurchase });
+  return resolveViewablePinImageUrl(pin, {
+    viewerId,
+    hasAuction,
+    hasPaidPurchase,
+    viewerPlan,
+  });
 }
