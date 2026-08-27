@@ -5,6 +5,12 @@
     <title>NovaFrame</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- SVG first: modern browsers prefer it, and because it is the very same
+         file the UI renders (public/logo-mark.svg) the tab icon can never drift
+         out of sync with the mark again. The raster set below stays as the
+         fallback for older browsers and the iOS home screen, and is generated
+         from that same SVG. -->
+    <link rel="icon" type="image/svg+xml" href="logo-mark.svg" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png" />

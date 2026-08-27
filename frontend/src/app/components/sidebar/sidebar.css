@@ -126,15 +126,14 @@
 
 /* The compact rail identifies NovaFrame with the mark. In the expanded
    column, the mark gives way to the full wordmark instead of rendering both. */
+/* Logo hiện ở CẢ hai trạng thái. Trước đây khi mở rộng, `.nf-rail-brand__mark`
+   bị thu về width:0/opacity:0 nên chỉ còn lại chữ "NovaFrame" — sidebar mất
+   logo hẳn ở trạng thái người dùng nhìn thấy nhiều nhất.
+   Không đặt padding-inline: để mark giữ đúng hộp 44px, nó tự thẳng hàng với
+   `.nf-rail-icon` của các nav item bên dưới, và chữ bắt đầu đúng vị trí
+   `.nf-rail-label`. */
 .nf-rail--expanded .nf-rail-brand {
   justify-content: flex-start;
-  padding-inline: 12px;
-}
-
-.nf-rail--expanded .nf-rail-brand__mark {
-  width: 0;
-  flex-basis: 0;
-  opacity: 0;
 }
 
 .nf-rail--expanded .nf-rail-brand__name {
@@ -178,6 +177,19 @@
   background: color-mix(in srgb, var(--color-nova-blue) 14%, var(--color-surface));
   color: var(--color-nova-blue);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-nova-blue) 16%, transparent);
+}
+
+/* Bảng thông báo đang mở — CỐ Ý khác `--active`. `--active` nghĩa là "trang bạn
+   đang ở" (kèm aria-current="page"); bảng thông báo chỉ là panel bật/tắt tạm
+   thời và không đổi route. Dùng chung một style khiến lúc mở bảng có HAI tab
+   cùng sáng xanh (tab route + tab thông báo), đọc ra như đang chọn hai chỗ và
+   như tab thông báo bị "dính". Ở đây dùng nền trung tính, không tô xanh. */
+.nf-rail-item--open,
+.nf-rail-item--open:hover,
+.nf-rail-item--open:focus-visible {
+  background: var(--color-surface-high);
+  color: var(--color-text);
+  box-shadow: inset 0 0 0 1px var(--color-border-strong);
 }
 
 .nf-rail-item--disabled,

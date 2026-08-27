@@ -18,6 +18,20 @@ import { BadgeBumpDirective } from '../../shared/badge-bump.directive';
 const BODY_DOCK_CLASS = 'nf-has-dock';
 const BODY_EXPANDED_CLASS = 'nf-sidebar-expanded';
 
+/** Chuột ra xa mép phải rail quá ngưỡng này (px) thì rail tự thu gọn. Đủ rộng
+ * để một cú lia chuột chéo qua không làm rail sập ngay, nhưng vẫn nhỏ hơn
+ * khoảng cách tới vùng nội dung chính nên rời rail có chủ đích là thu. */
+const AUTO_COLLAPSE_DISTANCE_PX = 160;
+
+/** Bề rộng rail mở dùng khi chưa đọc được biến CSS (chỉ là lưới an toàn —
+ * `--nf-shell-sidebar-width` mới là nguồn thật, xem styles.css). */
+const FALLBACK_EXPANDED_RAIL_PX = 248;
+
+/** Dưới ngưỡng này rail là drawer phủ có backdrop, đóng bằng cách bấm backdrop
+ * — tự thu theo khoảng cách chuột không áp dụng. Khớp `@media (min-width: 768px)`
+ * của shell trong styles.css. */
+const DOCK_MIN_WIDTH_PX = 768;
+
 @Component({
   selector: 'app-sidebar',
   standalone: true,
@@ -70,6 +84,43 @@ export class Sidebar implements OnInit, OnDestroy {
   handleEscapeKey(): void {
     this.isNotificationOpen = false;
     this.sidebarState.collapseSidebar();
+  }
+
+  /** Tự thu gọn rail khi chuột đi ra xa nó. Mở rộng vẫn phải bấm — chỉ chiều
+   * thu là tự động, nên không quay lại kiểu hover-để-mở mà PR click-only đã
+   * bỏ.
+   *
+   * Đọc bề rộng từ biến CSS `--nf-shell-sidebar-width` chứ không đo phần tử:
+   * rail có transition 260ms, đo bằng getBoundingClientRect giữa lúc đang mở
+   * sẽ trả về bề rộng dở dang và làm rail thu lại ngay khi vừa bung. Biến CSS
+   * mang giá trị ĐÍCH và không bị transition, nên đọc lúc nào cũng đúng. */
+  @HostListener('document:mousemove', ['$event'])
+  handlePointerDistance(event: MouseEvent): void {
+    if (!this.sidebarState.isExpanded()) return;
+    // Bảng thông báo neo cạnh rail và tự force-expand khi mở; thu rail lúc đó
+    // sẽ kéo bảng chạy theo giữa lúc người dùng đang đọc.
+    if (this.isNotificationOpen) return;
+    if (!this.canAutoCollapse()) return;
+
+    const railRight = this.expandedRailWidth(); // rail là fixed, left: 0
+    if (event.clientX > railRight + AUTO_COLLAPSE_DISTANCE_PX) {
+      this.sidebarState.collapseSidebar();
+    }
+  }
+
+  /** Chỉ áp dụng cho con trỏ thật trên bố cục dock. Thiết bị cảm ứng không có
+   * "chuột ra xa" — mọi lần chạm đều là một điểm rời rạc, tự thu sẽ đóng rail
+   * ngay sau khi người dùng chạm để mở. */
+  private canAutoCollapse(): boolean {
+    if (typeof window === 'undefined') return false;
+    if (window.innerWidth < DOCK_MIN_WIDTH_PX) return false;
+    return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  }
+
+  private expandedRailWidth(): number {
+    const raw = getComputedStyle(document.body).getPropertyValue('--nf-shell-sidebar-width');
+    const parsed = Number.parseFloat(raw);
+    return Number.isFinite(parsed) ? parsed : FALLBACK_EXPANDED_RAIL_PX;
   }
 
   onRailClick(event: MouseEvent): void {
@@ -262,6 +313,10 @@ export class Sidebar implements OnInit, OnDestroy {
   }
 
   navigateToMyProfile(): void {
+    // Như mọi handler điều hướng khác trong rail: rời trang thì đóng bảng thông
+    // báo. Thiếu dòng này (chỉ riêng handler profile) làm bảng thông báo dính
+    // lại và tab của nó vẫn sáng sau khi đã sang trang cá nhân.
+    this.closeNotifications();
     const dbUser = this.supabaseService.dbUser();
     const user = this.supabaseService.user();
     const username =
