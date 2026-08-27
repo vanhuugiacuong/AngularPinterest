@@ -49,13 +49,20 @@
        the grid, but the input itself stays mounted in both tabs so the canvas
        tool bar's add-image button can trigger it at any time. -->
   <label class="upload-drop" [class.upload-drop--tab]="activeTab() === 'upload'">
-    <span class="material-symbols-outlined" aria-hidden="true">add_photo_alternate</span>
-    <strong>Tải ảnh từ máy</strong>
-    <small>JPG, PNG hoặc WebP · tối đa 15 MB</small>
+    @if (isScreening()) {
+      <span class="material-symbols-outlined animate-spin" aria-hidden="true">progress_activity</span>
+      <strong>Đang kiểm tra ảnh…</strong>
+      <small>Ảnh được sàng nội dung trước khi vào khung ghép</small>
+    } @else {
+      <span class="material-symbols-outlined" aria-hidden="true">add_photo_alternate</span>
+      <strong>Tải ảnh từ máy</strong>
+      <small>JPG, PNG hoặc WebP · tối đa 15 MB</small>
+    }
     <input
       #fileInput
       type="file"
       accept="image/jpeg,image/png,image/webp"
+      [disabled]="isScreening()"
       (change)="selectFile($event)"
     />
   </label>

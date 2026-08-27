@@ -38,6 +38,9 @@ export class ImagePickerComponent implements OnInit, OnDestroy {
   readonly loadingPinId = signal<string | null>(null);
   readonly error = signal<string | null>(null);
   readonly activeTab = signal<'ideas' | 'upload'>('ideas');
+  /** True while a picked local file is being screened — the drop zone shows it
+   * so the wait is not a dead click. */
+  readonly isScreening = signal(false);
   searchQuery = '';
 
   setTab(tab: 'ideas' | 'upload'): void {
@@ -96,7 +99,7 @@ export class ImagePickerComponent implements OnInit, OnDestroy {
     }
   }
 
-  selectFile(event: Event): void {
+  async selectFile(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
@@ -110,6 +113,15 @@ export class ImagePickerComponent implements OnInit, OnDestroy {
       this.error.set('Ảnh lớn hơn 15 MB. Vui lòng chọn ảnh nhỏ hơn.');
       return;
     }
+
+    // Screened BEFORE the object URL exists and before the cutout step opens.
+    // This is the collage editor's only unmoderated ingestion point: a pin from
+    // the Ý tưởng grid already went through the upload gate, but a local file
+    // has never been seen by anything until now. Publishing the finished
+    // collage is moderated too, but that is far too late — the image would have
+    // been on screen in the editor the whole time.
+    if (!(await this.isFileAllowed(file))) return;
+
     const temporaryUrl = URL.createObjectURL(file);
     this.imageSelected.emit({
       sourceImageUrl: temporaryUrl,
@@ -117,6 +129,31 @@ export class ImagePickerComponent implements OnInit, OnDestroy {
       title: file.name,
       temporaryUrl,
     });
+  }
+
+  /** Returns false only on a definite rejection. An unreachable moderation
+   * service lets the pick through — the collage's eventual upload is gated
+   * server-side regardless, so failing closed here would break the editor
+   * whenever CLIP is down without closing any hole. */
+  private async isFileAllowed(file: File): Promise<boolean> {
+    this.isScreening.set(true);
+    try {
+      const token = await this.supabase.getSessionToken();
+      if (!token) return true;
+      const result = await this.pinService.checkImageModeration(file, token);
+      if (result.safe === false) {
+        this.error.set(
+          result.message || 'Ảnh này có nội dung không phù hợp nên không thể dùng để ghép.',
+        );
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Collage image pre-screen unavailable:', error);
+      return true;
+    } finally {
+      this.isScreening.set(false);
+    }
   }
 
   async loadPins(query: string): Promise<void> {

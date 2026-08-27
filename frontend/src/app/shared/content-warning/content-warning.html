@@ -1,0 +1,40 @@
+@if (isOpen()) {
+  <!-- No click-outside dismissal on purpose: the point is a deliberate choice,
+       and a stray click on the backdrop should not count as one. -->
+  <div class="cw-backdrop" (keydown)="onKeydown($event)">
+    <section
+      #dialog
+      class="cw-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="cw-title"
+      aria-describedby="cw-body"
+      tabindex="-1"
+    >
+      <span class="cw-mark material-symbols-outlined" aria-hidden="true">shield_person</span>
+
+      <h2 id="cw-title">Trước khi bạn bắt đầu</h2>
+
+      <div id="cw-body" class="cw-body">
+        <p>
+          NovaFrame là nền tảng <strong>lưu trữ và mạng xã hội mang tính lưu trữ
+          độc quyền</strong>. Nội dung ở đây do người dùng tự đăng tải.
+        </p>
+        <p>
+          Vì vậy <strong>có thể xuất hiện một số nội dung không phù hợp với độ
+          tuổi của bạn</strong>. Hãy cân nhắc trước khi tiếp tục.
+        </p>
+        <p class="cw-note">
+          Bạn có thể báo cáo bất kỳ tác phẩm hoặc tài khoản nào ngay trong ứng dụng.
+        </p>
+      </div>
+
+      <div class="cw-actions">
+        <button type="button" class="cw-leave" (click)="leave()">Thoát</button>
+        <button #continueButton type="button" class="cw-continue" (click)="acknowledge()">
+          Tôi hiểu, tiếp tục
+        </button>
+      </div>
+    </section>
+  </div>
+}

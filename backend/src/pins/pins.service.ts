@@ -1350,6 +1350,39 @@ export class PinsService {
    * Pins with the closest embedding. Returns real database matches only —
    * if the CLIP service is unreachable this throws rather than pretending
    * to have found similar images. */
+  /** Moderation gate for images that arrive from OUTSIDE the catalog — reverse
+   * image search, and the pin-detail region-crop tool, which posts its crop to
+   * the same endpoint. Uploads and AI saves are gated elsewhere; this closes
+   * the remaining ingestion path.
+   *
+   * Deliberately FAILS OPEN, unlike the upload gate. A search stores nothing,
+   * so an unscreened image only ever transits the request — whereas failing
+   * closed would take the whole search-by-image feature down every time the
+   * CLIP service is unreachable. The upload path keeps failing closed, because
+   * there the image would be persisted and served to everyone. */
+  private async assertSearchImageAllowed(file: Express.Multer.File): Promise<void> {
+    let moderation: { nsfw: boolean; nsfwScore: number; topLabel: string };
+    try {
+      moderation = await this.moderateImage(
+        file.buffer,
+        file.originalname,
+        file.mimetype,
+      );
+    } catch (error) {
+      console.error(
+        '[moderation] search-by-image check unavailable, allowing the search:',
+        error,
+      );
+      return;
+    }
+
+    if (moderation.nsfw) {
+      throw new BadRequestException(
+        'Ảnh này có nội dung không phù hợp nên không thể dùng để tìm kiếm.',
+      );
+    }
+  }
+
   async searchPinsByImage(
     file: Express.Multer.File | undefined,
     page: number = 1,
@@ -1371,6 +1404,8 @@ export class PinsService {
         'Định dạng ảnh không được hỗ trợ. Vui lòng dùng JPG, JPEG, PNG hoặc WebP',
       );
     }
+
+    await this.assertSearchImageAllowed(file);
 
     const skip = (page - 1) * limit;
     const embedding = await this.getImageEmbedding(
