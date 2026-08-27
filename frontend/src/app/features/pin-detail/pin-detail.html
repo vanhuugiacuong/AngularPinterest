@@ -145,7 +145,7 @@
               <div class="md:flex-1 min-w-0 p-8 flex flex-col justify-between bg-white dark:bg-[#1a1a1a] rounded-bl-[32px] rounded-br-[32px] md:rounded-bl-none md:rounded-tr-[32px]">
                 
                 <!-- Top Row actions -->
-                <div class="flex items-center justify-between gap-2 pb-6 border-b border-[#dadad3] dark:border-[#333]">
+                <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-3 pb-6 border-b border-[#dadad3] dark:border-[#333]">
                   <div class="flex items-center gap-2 shrink-0">
                     <!-- Hearts / Likes count -->
                     <button 
@@ -258,11 +258,11 @@
                   </div>
 
                   <!-- Profile Board save -->
-                  <div class="flex items-center gap-2 select-none relative min-w-0">
+                  <div class="flex items-center gap-2 select-none relative shrink-0 ml-auto">
                     <!-- Dropdown Trigger -->
                     <button
                       (click)="toggleBoardDropdown($event)"
-                      class="h-10 px-4 bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] rounded-full text-sm font-bold flex items-center gap-1 cursor-pointer border-none outline-none text-black dark:text-white select-none max-w-[110px] min-w-[78px]"
+                      class="h-10 px-4 bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] rounded-full text-sm font-bold flex items-center gap-1 cursor-pointer border-none outline-none text-black dark:text-white select-none max-w-[110px] shrink-0"
                     >
                       <span class="truncate whitespace-nowrap">{{ getSelectedBoardName() }}</span>
                       <span class="material-symbols-outlined text-base leading-none shrink-0">keyboard_arrow_down</span>
@@ -285,12 +285,16 @@
                       </div>
                     }
 
-                    <!-- Save button. whitespace-nowrap + shrink-0: the label is the
-                         point of the button, so it is the board dropdown next to it
-                         that gives way on a narrow card (it truncates already). -->
+                    <!-- Short label by necessity: this row holds four controls in
+                         about 450px, and "Lưu vào bộ sưu tập" at text-sm needs ~229px
+                         of it, which left the album name no room and pushed this
+                         button past the card edge. The bookmark icon carries the
+                         "collection" meaning; the full wording stays in the tooltip
+                         and the accessible name. -->
                     <button
                       (click)="savePinToBoard()"
                       title="Lưu vào bộ sưu tập"
+                      aria-label="Lưu vào bộ sưu tập"
                       class="h-10 px-4 bg-[#F94083] hover:bg-[#dc2f6d] text-white rounded-full text-sm font-bold cursor-pointer active:scale-95 border-none outline-none shrink-0 flex items-center gap-1.5 whitespace-nowrap"
                     >
                       <span
@@ -299,7 +303,7 @@
                         aria-hidden="true"
                         >bookmark</span
                       >
-                      Lưu vào bộ sưu tập
+                      Lưu
                     </button>
                   </div>
                 </div>
