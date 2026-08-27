@@ -9,7 +9,14 @@ import { ToastService } from '../../core/services/toast';
 import { ChatService, PublicUserSummary } from '../../core/services/chat';
 import { ProAvatar } from '../../shared/pro-avatar/pro-avatar';
 import { FormsModule } from '@angular/forms';
-import type { CollageDraft } from '../collage/collage';
+
+export interface CollageDraft {
+  id: string;
+  title?: string;
+  thumbnail?: string;
+  updatedAt?: number;
+  layers?: Array<{ type: string; src?: string; [key: string]: any }>;
+}
 
 @Component({
   selector: 'app-profile',
@@ -64,14 +71,15 @@ export class Profile implements OnInit {
     }
   }
 
-  formatDraftDate(timestamp: number): string {
+  formatDraftDate(timestamp?: number): string {
+    if (!timestamp) return '';
     const d = new Date(timestamp);
     return `${d.getDate()} thg ${d.getMonth() + 1}`;
   }
 
   collageDraftThumbnail(draft: CollageDraft): string | null {
     if (draft.thumbnail) return draft.thumbnail;
-    const imageLayer = draft.layers.find((l) => l.type === 'image');
+    const imageLayer = draft.layers?.find((l: any) => l.type === 'image');
     return imageLayer?.src ?? null;
   }
 

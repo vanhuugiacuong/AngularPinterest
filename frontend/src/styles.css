@@ -13,7 +13,7 @@
 html.dark {
   color-scheme: dark;
 }
-}
+
 
 @theme {
   --animate-fade-in: fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
