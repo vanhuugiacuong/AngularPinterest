@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy, HostListener, signal } from '@angular/core';
+import { Component, effect, inject, OnInit, OnDestroy, HostListener, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { SidebarStateService } from '../../core/services/sidebar-state';
@@ -12,11 +12,11 @@ import { UserAvatar } from '../../shared/user-avatar/user-avatar';
 import { toUserMessage } from '../../core/utils/http-error';
 import { BadgeBumpDirective } from '../../shared/badge-bump.directive';
 
-/** Reserves room for the fixed mobile bottom nav so it never covers page
- * content — set once for the lifetime of the (always-mounted, one-per-app)
- * Sidebar rather than per-route, so it isn't the kind of per-page style hack
- * that causes theme flicker; it's a stable app-shell concern. */
+/** Marks the authenticated app shell so global responsive spacing can reserve
+ * the persistent desktop rail and the fixed mobile dock without per-route
+ * layout overrides. */
 const BODY_DOCK_CLASS = 'nf-has-dock';
+const BODY_EXPANDED_CLASS = 'nf-sidebar-expanded';
 
 @Component({
   selector: 'app-sidebar',
@@ -30,9 +30,13 @@ export class Sidebar implements OnInit, OnDestroy {
   private notificationService = inject(NotificationService);
   private messagingService = inject(MessagingService);
   private userService = inject(UserService);
-  private supabaseService = inject(SupabaseService);
+  public supabaseService = inject(SupabaseService);
   private toastService = inject(ToastService);
   private router = inject(Router);
+  private readonly syncShellWidth = effect((onCleanup) => {
+    document.body.classList.toggle(BODY_EXPANDED_CLASS, this.sidebarState.isExpanded());
+    onCleanup(() => document.body.classList.remove(BODY_EXPANDED_CLASS));
+  });
 
   isNotificationOpen = false;
   unreadCount$: Observable<number> = this.notificationService.unreadCount$;
@@ -59,50 +63,49 @@ export class Sidebar implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     document.body.classList.remove(BODY_DOCK_CLASS);
+    document.body.classList.remove(BODY_EXPANDED_CLASS);
   }
 
   @HostListener('window:keydown.escape')
   handleEscapeKey(): void {
-    if (this.isNotificationOpen) {
-      this.closeNotifications();
-    }
+    this.isNotificationOpen = false;
+    this.sidebarState.collapseSidebar();
   }
 
-  onZoneEnter(): void {
-    this.sidebarState.openSidebar();
+  onRailClick(event: MouseEvent): void {
+    if (this.sidebarState.isExpanded()) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest('button, a, [role="button"]')) return;
+    this.sidebarState.expandSidebar();
   }
 
-  onZoneLeave(): void {
-    if (!this.isNotificationOpen) {
-      this.sidebarState.scheduleClose();
-    }
+  onRailKeydown(event: Event): void {
+    if (event.target !== event.currentTarget || this.sidebarState.isExpanded()) return;
+    event.preventDefault();
+    this.sidebarState.expandSidebar();
   }
 
-  showBackdrop(): boolean {
-    return this.isNotificationOpen || this.sidebarState.isOpen();
+  onBrandClick(event: MouseEvent): void {
+    event.stopPropagation();
+    this.sidebarState.toggleSidebar();
   }
 
   onBackdropClick(): void {
-    this.closeNotifications();
-    if (!this.sidebarState.supportsHover) {
-      this.sidebarState.close();
-    }
+    this.isNotificationOpen = false;
+    this.sidebarState.collapseSidebar();
   }
 
   toggleNotifications(): void {
     this.isNotificationOpen = !this.isNotificationOpen;
     if (this.isNotificationOpen) {
-      this.sidebarState.openSidebar();
+      this.sidebarState.expandSidebar();
       this.notificationService.loadNotifications();
       this.notificationService.markAllAsRead().subscribe();
-    } else {
-      this.sidebarState.scheduleClose();
     }
   }
 
   closeNotifications(): void {
     this.isNotificationOpen = false;
-    this.sidebarState.scheduleClose();
   }
 
   markAllAsRead(): void {
@@ -230,12 +233,43 @@ export class Sidebar implements OnInit, OnDestroy {
   }
 
   navigateToMessages(): void {
+    this.closeNotifications();
     this.router.navigate(['/messages']);
   }
 
   navigateToSettings(): void {
     this.closeNotifications();
     this.router.navigate(['/settings']);
+  }
+
+  avatarUrl(): string | null {
+    const dbAvatar = this.supabaseService.dbUser()?.avatarUrl;
+    if (dbAvatar) return dbAvatar;
+    const user = this.supabaseService.user();
+    return user?.user_metadata?.['avatar_url'] || user?.user_metadata?.['picture'] || null;
+  }
+
+  displayName(): string {
+    const dbUser = this.supabaseService.dbUser();
+    if (dbUser) return dbUser.displayName || dbUser.username;
+    const user = this.supabaseService.user();
+    return (
+      user?.user_metadata?.['full_name'] ||
+      user?.user_metadata?.['name'] ||
+      user?.email?.split('@')[0] ||
+      ''
+    );
+  }
+
+  navigateToMyProfile(): void {
+    const dbUser = this.supabaseService.dbUser();
+    const user = this.supabaseService.user();
+    const username =
+      dbUser?.username ||
+      user?.user_metadata?.['full_name'] ||
+      user?.user_metadata?.['name'] ||
+      user?.email?.split('@')[0];
+    if (username) this.router.navigate(['/profile', username]);
   }
 
   isFeedPage(): boolean {
