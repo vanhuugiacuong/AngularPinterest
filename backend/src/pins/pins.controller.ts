@@ -17,6 +17,7 @@ import { PinsService } from './pins.service';
 import { SupabaseAuthGuard } from '../supabase/supabase.guard';
 import { OptionalSupabaseAuthGuard } from '../supabase/optional-supabase.guard';
 import { CurrentUser, UserPayload } from '../supabase/current-user.decorator';
+import { MAX_PIN_IMAGE_UPLOAD_BYTES } from '../common/upload-limits';
 
 @Controller('api/pins')
 export class PinsController {
@@ -175,7 +176,7 @@ export class PinsController {
   @UseGuards(SupabaseAuthGuard)
   @UseInterceptors(
     FileInterceptor('image', {
-      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit, matches pin upload
+      limits: { fileSize: MAX_PIN_IMAGE_UPLOAD_BYTES },
     }),
   )
   async checkImage(@UploadedFile() file: Express.Multer.File) {
@@ -186,7 +187,7 @@ export class PinsController {
   @UseGuards(SupabaseAuthGuard)
   @UseInterceptors(
     FileInterceptor('image', {
-      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+      limits: { fileSize: MAX_PIN_IMAGE_UPLOAD_BYTES },
     }),
   )
   async createUploadPin(

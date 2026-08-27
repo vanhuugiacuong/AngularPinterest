@@ -109,11 +109,6 @@
               Quay lại Không gian khám phá
             </button>
           </div>
-        } @else {
-          <div class="flex items-baseline gap-2.5 select-none">
-            <span class="text-xs font-bold text-gradient-brand">NovaFrame</span>
-            <h1 class="text-lg sm:text-xl font-extrabold text-text tracking-tight">Khám phá</h1>
-          </div>
         }
 
         <!-- Category chips — from GET /api/pins/categories (counted over the
@@ -323,10 +318,11 @@
                          pointer devices. -->
                     <div
                       (click)="$event.stopPropagation()"
-                      class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 focus-within:translate-y-0 [@media(hover:none)]:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 flex items-center justify-between gap-2 z-10"
+                      class="nf-pin-save-bar absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 focus-within:translate-y-0 [@media(hover:none)]:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 z-10"
                     >
+                      <span class="nf-pin-save-title">Lưu vào bộ sưu tập</span>
                       <!-- Collection selector -->
-                      <div class="relative min-w-0 flex-1">
+                      <div class="nf-pin-save-selector relative min-w-0">
                         <button
                           type="button"
                           (click)="toggleBoardDropdown(pin.id, $event)"
@@ -342,7 +338,7 @@
                       </div>
 
                       <!-- Like + Save actions -->
-                      <div class="flex items-center gap-1.5 shrink-0">
+                      <div class="nf-pin-save-actions">
                         <app-like-button
                           size="compact"
                           [liked]="pin.isLiked === true"
@@ -351,8 +347,9 @@
                         ></app-like-button>
                         <button
                           (click)="savePinToBoard(pin.id, $event)"
-                          class="h-8 px-3.5 bg-gradient-brand cta-shape text-text-on-accent font-bold text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                          class="nf-pin-save-button h-8 bg-gradient-brand cta-shape text-text-on-accent font-bold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                         >
+                          <span class="material-symbols-outlined text-[14px] leading-none" aria-hidden="true">bookmark_add</span>
                           Lưu
                         </button>
                       </div>

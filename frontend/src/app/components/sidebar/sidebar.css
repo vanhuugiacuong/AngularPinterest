@@ -1,6 +1,5 @@
 /* Persistent page-level rail: compact remains visible on desktop/tablet and
-   expands as the app shell's left column. Hover affects only controls and
-   tooltips. */
+   expands as the app shell's left column on hover, click or keyboard focus. */
 :host {
   font-family: var(--font-sans);
 }
@@ -24,11 +23,15 @@
   color: var(--color-text-muted);
   font-family: var(--font-sans);
   isolation: isolate;
-  transition: width 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: width;
+  transition:
+    width 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms ease;
 }
 
 .nf-rail--expanded {
   width: 248px;
+  box-shadow: 12px 0 32px -26px color-mix(in srgb, var(--color-nova-blue) 42%, transparent);
 }
 
 .nf-rail:focus-visible {
@@ -124,9 +127,11 @@
 }
 
 .nf-rail-label.nf-rail-brand__name {
-  color: #000;
+  color: color-mix(in srgb, var(--color-nova-blue) 82%, white 18%);
   font-size: 15px;
   font-weight: 800;
+  letter-spacing: -0.02em;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--color-nova-blue) 24%, transparent);
 }
 
 /* The compact rail identifies NovaFrame with the mark. In the expanded
@@ -216,16 +221,16 @@
   white-space: nowrap;
   transform: translateX(-5px);
   transition:
-    max-width 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 130ms ease,
-    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+    max-width 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 160ms ease,
+    transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .nf-rail--expanded .nf-rail-label {
   max-width: 170px;
   opacity: 1;
   transform: translateX(0);
-  transition-delay: 30ms;
+  transition-delay: 45ms;
 }
 
 .nf-rail-badge {

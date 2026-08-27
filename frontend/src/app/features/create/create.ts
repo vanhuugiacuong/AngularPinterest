@@ -15,6 +15,11 @@ import { DialogService } from '../../core/services/dialog';
 import { AuctionService } from '../../core/services/auction';
 import { ToastService } from '../../core/services/toast';
 import { toUserMessage } from '../../core/utils/http-error';
+import {
+  isPinImageSizeAllowed,
+  MAX_PIN_IMAGE_UPLOAD_LABEL,
+  PIN_IMAGE_TOO_LARGE_MESSAGE,
+} from '../../core/constants/upload-limits';
 
 /** Hình thức bán chọn ở Create Studio — 'none' không gửi price/auction nào,
  * 'fixed' giữ nguyên luồng price hiện có, 'auction' tạo phiên đấu giá sau
@@ -38,6 +43,7 @@ type ImageModerationStatus = 'idle' | 'checking' | 'safe' | 'unsafe' | 'error';
   styleUrl: './create.css'
 })
 export class Create implements OnInit {
+  public readonly maxUploadImageLabel = MAX_PIN_IMAGE_UPLOAD_LABEL;
   private router = inject(Router);
   private pinService = inject(PinService);
   private boardService = inject(BoardService);
@@ -101,7 +107,7 @@ export class Create implements OnInit {
   async ngOnInit() {
     await this.membership.load();
     const collageFile = this.collageTransfer.take();
-    if (collageFile) {
+    if (collageFile && this.acceptUploadFileSize(collageFile)) {
       this.selectedFile = collageFile;
       this.formError.set(null);
       this.resetImageModeration();
@@ -207,9 +213,15 @@ export class Create implements OnInit {
     return 'Chọn bộ sưu tập';
   }
 
-  async onFileSelected(event: any) {
-    const file = event.target.files[0];
+  async onFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
     if (!file) return;
+
+    if (!this.acceptUploadFileSize(file)) {
+      input.value = '';
+      return;
+    }
 
     this.selectedFile = file;
     this.formError.set(null);
@@ -219,6 +231,15 @@ export class Create implements OnInit {
     // chặn hoàn toàn, không được lộ ra dù chỉ trong lúc đang kiểm tra.
 
     await this.checkSelectedImage(file);
+  }
+
+  private acceptUploadFileSize(file: File): boolean {
+    if (isPinImageSizeAllowed(file.size)) return true;
+    this.imagePreviewUrl.set(null);
+    this.selectedFile = null;
+    this.resetImageModeration();
+    this.formError.set(PIN_IMAGE_TOO_LARGE_MESSAGE);
+    return false;
   }
 
   /** Runs the pre-submit NSFW check for a just-selected file. Guards every
@@ -477,6 +498,11 @@ export class Create implements OnInit {
           this.showDialogError('Không thể xử lý ảnh đã chỉnh sửa. Vui lòng thử lại.');
           return;
         }
+      }
+
+      if (!this.acceptUploadFileSize(fileToUpload)) {
+        this.showDialogError(PIN_IMAGE_TOO_LARGE_MESSAGE);
+        return;
       }
 
       this.dialogMessage.set('Đang tải ảnh lên…');

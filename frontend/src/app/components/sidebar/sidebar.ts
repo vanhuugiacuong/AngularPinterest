@@ -19,19 +19,10 @@ import { SidebarIcon } from './sidebar-icon';
 const BODY_DOCK_CLASS = 'nf-has-dock';
 const BODY_EXPANDED_CLASS = 'nf-sidebar-expanded';
 
-/** Chuột ra xa mép phải rail quá ngưỡng này (px) thì rail tự thu gọn. Đủ rộng
- * để một cú lia chuột chéo qua không làm rail sập ngay, nhưng vẫn nhỏ hơn
- * khoảng cách tới vùng nội dung chính nên rời rail có chủ đích là thu. */
-const AUTO_COLLAPSE_DISTANCE_PX = 160;
-
-/** Bề rộng rail mở dùng khi chưa đọc được biến CSS (chỉ là lưới an toàn —
- * `--nf-shell-sidebar-width` mới là nguồn thật, xem styles.css). */
-const FALLBACK_EXPANDED_RAIL_PX = 248;
-
-/** Dưới ngưỡng này rail là drawer phủ có backdrop, đóng bằng cách bấm backdrop
- * — tự thu theo khoảng cách chuột không áp dụng. Khớp `@media (min-width: 768px)`
- * của shell trong styles.css. */
+/** Dưới ngưỡng này rail là drawer phủ có backdrop; hover chỉ áp dụng cho rail
+ * desktop/tablet. Khớp breakpoint `md` của shell trong styles.css. */
 const DOCK_MIN_WIDTH_PX = 768;
+const HOVER_COLLAPSE_DELAY_MS = 140;
 
 @Component({
   selector: 'app-sidebar',
@@ -57,6 +48,8 @@ export class Sidebar implements OnInit, OnDestroy {
   unreadCount$: Observable<number> = this.notificationService.unreadCount$;
   notifications$: Observable<Notification[]> = this.notificationService.notifications$;
   unreadMessageCount$: Observable<number> = this.messagingService.unreadCount$;
+  private hoverCollapseTimer: ReturnType<typeof setTimeout> | null = null;
+  private isPointerOverRail = false;
 
   /** Follow requests the viewer has just accepted/rejected inline from the
    * notification list — hides the Accept/Reject row for that item without
@@ -77,51 +70,48 @@ export class Sidebar implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.clearHoverCollapseTimer();
     document.body.classList.remove(BODY_DOCK_CLASS);
     document.body.classList.remove(BODY_EXPANDED_CLASS);
   }
 
   @HostListener('window:keydown.escape')
   handleEscapeKey(): void {
+    this.clearHoverCollapseTimer();
     this.isNotificationOpen = false;
     this.sidebarState.collapseSidebar();
   }
 
-  /** Tự thu gọn rail khi chuột đi ra xa nó. Mở rộng vẫn phải bấm — chỉ chiều
-   * thu là tự động, nên không quay lại kiểu hover-để-mở mà PR click-only đã
-   * bỏ.
-   *
-   * Đọc bề rộng từ biến CSS `--nf-shell-sidebar-width` chứ không đo phần tử:
-   * rail có transition 260ms, đo bằng getBoundingClientRect giữa lúc đang mở
-   * sẽ trả về bề rộng dở dang và làm rail thu lại ngay khi vừa bung. Biến CSS
-   * mang giá trị ĐÍCH và không bị transition, nên đọc lúc nào cũng đúng. */
-  @HostListener('document:mousemove', ['$event'])
-  handlePointerDistance(event: MouseEvent): void {
-    if (!this.sidebarState.isExpanded()) return;
-    // Bảng thông báo neo cạnh rail và tự force-expand khi mở; thu rail lúc đó
-    // sẽ kéo bảng chạy theo giữa lúc người dùng đang đọc.
+  onRailPointerEnter(): void {
+    if (!this.canUseHoverExpansion()) return;
+    this.isPointerOverRail = true;
+    this.clearHoverCollapseTimer();
+    this.sidebarState.expandSidebar();
+  }
+
+  onRailPointerLeave(): void {
+    this.isPointerOverRail = false;
     if (this.isNotificationOpen) return;
-    if (!this.canAutoCollapse()) return;
+    this.scheduleHoverCollapse();
+  }
 
-    const railRight = this.expandedRailWidth(); // rail là fixed, left: 0
-    if (event.clientX > railRight + AUTO_COLLAPSE_DISTANCE_PX) {
+  private scheduleHoverCollapse(): void {
+    if (!this.canUseHoverExpansion() || this.isPointerOverRail) return;
+    this.clearHoverCollapseTimer();
+    this.hoverCollapseTimer = setTimeout(() => {
       this.sidebarState.collapseSidebar();
-    }
+      this.hoverCollapseTimer = null;
+    }, HOVER_COLLAPSE_DELAY_MS);
   }
 
-  /** Chỉ áp dụng cho con trỏ thật trên bố cục dock. Thiết bị cảm ứng không có
-   * "chuột ra xa" — mọi lần chạm đều là một điểm rời rạc, tự thu sẽ đóng rail
-   * ngay sau khi người dùng chạm để mở. */
-  private canAutoCollapse(): boolean {
-    if (typeof window === 'undefined') return false;
-    if (window.innerWidth < DOCK_MIN_WIDTH_PX) return false;
-    return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  private canUseHoverExpansion(): boolean {
+    return typeof window !== 'undefined' && window.innerWidth >= DOCK_MIN_WIDTH_PX;
   }
 
-  private expandedRailWidth(): number {
-    const raw = getComputedStyle(document.body).getPropertyValue('--nf-shell-sidebar-width');
-    const parsed = Number.parseFloat(raw);
-    return Number.isFinite(parsed) ? parsed : FALLBACK_EXPANDED_RAIL_PX;
+  private clearHoverCollapseTimer(): void {
+    if (this.hoverCollapseTimer === null) return;
+    clearTimeout(this.hoverCollapseTimer);
+    this.hoverCollapseTimer = null;
   }
 
   onRailClick(event: MouseEvent): void {
@@ -148,16 +138,20 @@ export class Sidebar implements OnInit, OnDestroy {
   }
 
   toggleNotifications(): void {
+    this.clearHoverCollapseTimer();
     this.isNotificationOpen = !this.isNotificationOpen;
     if (this.isNotificationOpen) {
       this.sidebarState.expandSidebar();
       this.notificationService.loadNotifications();
       this.notificationService.markAllAsRead().subscribe();
+    } else {
+      this.scheduleHoverCollapse();
     }
   }
 
   closeNotifications(): void {
     this.isNotificationOpen = false;
+    this.scheduleHoverCollapse();
   }
 
   markAllAsRead(): void {

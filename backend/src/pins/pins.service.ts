@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   BadRequestException,
   InternalServerErrorException,
+  PayloadTooLargeException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { MembershipPlan, AuctionStatus, Currency, Prisma } from '@prisma/client';
@@ -15,6 +16,10 @@ import { MembershipsService } from '../memberships/memberships.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PinPreviewProtectionService } from '../watermark/pin-preview-protection.service';
 import { applyPinImageProtection, resolveSinglePinImageUrl, resolveViewablePinImageUrl } from '../common/pin-access.util';
+import {
+  isPinImageSizeAllowed,
+  PIN_IMAGE_TOO_LARGE_MESSAGE,
+} from '../common/upload-limits';
 
 interface EmbeddingResponse {
   embedding: number[];
@@ -270,6 +275,9 @@ export class PinsService {
   ): Promise<{ safe: boolean; message?: string }> {
     if (!file) {
       throw new BadRequestException('Vui lòng chọn ảnh để kiểm tra.');
+    }
+    if (!isPinImageSizeAllowed(Math.max(file.size, file.buffer.byteLength))) {
+      throw new PayloadTooLargeException(PIN_IMAGE_TOO_LARGE_MESSAGE);
     }
     const moderation = await this.moderateImage(
       file.buffer,

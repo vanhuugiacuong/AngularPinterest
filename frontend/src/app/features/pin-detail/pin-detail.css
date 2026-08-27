@@ -51,6 +51,146 @@
   min-height: 0;
 }
 
+/* Keep the primary save action on the visual centre line of the frame.
+   Equal outer grid tracks prevent the left action cluster from pushing it
+   off-centre; at smaller widths both groups stack and centre safely. */
+.nf-pin-frame-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.nf-pin-frame-toolbar__actions {
+  justify-self: start;
+  min-width: 0;
+}
+
+.nf-collection-save {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.nf-collection-save__label {
+  width: 100%;
+  color: var(--color-text-muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.nf-collection-save__controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.nf-collection-save__selector {
+  min-width: 0;
+  max-width: min(12rem, 100%);
+}
+
+.nf-collection-save__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.nf-collection-save__menu {
+  top: calc(100% + 0.5rem);
+  left: 50%;
+  width: min(12rem, calc(100vw - 2rem));
+  transform: translateX(-50%);
+}
+
+.nf-related-save-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  max-width: 100%;
+}
+
+.nf-related-save-title {
+  flex: 0 0 100%;
+  width: 100%;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 0.6875rem;
+  font-weight: 750;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nf-related-save-selector {
+  flex: 1 1 9rem;
+  max-width: 100%;
+}
+
+.nf-related-save-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  gap: 0.375rem;
+}
+
+.nf-related-save-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  max-width: 100%;
+  padding-inline: 0.75rem;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  line-height: 1;
+}
+
+@media (max-width: 900px) {
+  .nf-pin-frame-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+  }
+
+  .nf-pin-frame-toolbar__actions,
+  .nf-collection-save {
+    grid-column: 1;
+    justify-self: center;
+  }
+}
+
+@media (max-width: 420px) {
+  .nf-collection-save__controls {
+    flex-basis: 100%;
+    width: 100%;
+  }
+
+  .nf-collection-save__selector {
+    flex: 1 1 8rem;
+  }
+}
+
 @media (min-width: 1024px) {
   .pin-frame-body.is-split {
     flex-direction: row;
