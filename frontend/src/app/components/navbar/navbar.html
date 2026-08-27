@@ -405,6 +405,14 @@
     <span class="material-symbols-outlined text-2xl leading-none" [class.icon-filled]="isProfilePage()">person</span>
     <span class="nav-tooltip">Cá nhân</span>
   </button>
+
+  <!-- Quản trị — chỉ hiện với admin. Đây chỉ là ẩn menu cho gọn; chặn thật nằm
+       ở AdminGuard phía backend (đọc cờ quyền từ DB mỗi request). -->
+  <button *ngIf="adminService.isAdmin()" type="button" (click)="navigateToAdmin()" title="Quản trị"
+    class="nav-rail-btn nav-rail-admin group mt-auto mb-2" [class.nav-rail-active]="isAdminPage()">
+    <span class="material-symbols-outlined text-2xl leading-none" [class.icon-filled]="isAdminPage()">shield_person</span>
+    <span class="nav-tooltip">Quản trị</span>
+  </button>
 </nav>
 
 <!-- Live notification toasts -->

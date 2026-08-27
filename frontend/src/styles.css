@@ -134,11 +134,16 @@ img {
   animation: chrome-shift 7s ease-in-out infinite;
 }
 
+/* Huy hiệu nhỏ (16–24px): gradient phải vừa khít, KHÔNG phóng to như .chrome-text.
+   Với background-size 220% trên vùng bé, mỗi lúc chỉ lọt một dải màu nên huy
+   hiệu trông lúc tím lúc hồng thay vì ra ánh kim. Dùng dải bạc ít điểm dừng. */
 .chrome-badge {
-  background-image: var(--grad-chrome);
-  background-size: 220% 100%;
-  color: #241d2b;
-  animation: chrome-shift 7s ease-in-out infinite;
+  background-image: linear-gradient(
+    135deg,
+    #ffffff 0%, #cfd9f0 28%, #9fb0d8 50%, #e6ecfa 72%, #b9c6e4 100%
+  );
+  background-size: 100% 100%;
+  color: #1e2333;
   box-shadow: 0 4px 14px -4px rgba(184, 198, 255, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
 }
 

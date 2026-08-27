@@ -6,11 +6,14 @@ import {
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../database/prisma.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import {
   CREDIT_PACKS,
   PLANS,
   PLATFORM_FEE_PERCENT,
   PLATFORM_FEE_PERCENT_YEARLY,
+  PAYOUT_VND_PER_CREDIT,
+  PAYOUT_MIN_CREDITS,
   QR_EXPIRE_MS,
   buildQrUrl,
   findPack,
@@ -21,7 +24,10 @@ import {
 
 @Injectable()
 export class BillingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
   // ── Cấu hình công khai ───────────────────────────────────────────────────────
   getPlansConfig() {
@@ -270,6 +276,131 @@ export class BillingService {
     return { reported: true, duplicated: false };
   }
 
+  // ── Rút tiền (payout) ────────────────────────────────────────────────────────
+  /** Thông tin để UI dựng form rút tiền + trạng thái hiện tại của người dùng. */
+  async getPayoutInfo(userId: string) {
+    const wallet = await this.ensureWallet(userId);
+    const pending = await this.prisma.payoutRequest.findFirst({
+      where: { userId, status: { in: ['PENDING', 'APPROVED'] } },
+      orderBy: { createdAt: 'desc' },
+    });
+    const history = await this.prisma.payoutRequest.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    return {
+      // Số dư DUY NHẤT — rút từ chính credit đang tiêu được.
+      balance: wallet.spendable,
+      /** Tổng đã kiếm từ trước tới nay (chỉ để thống kê, không phải số rút được). */
+      totalEarned: wallet.earnings,
+      vndPerCredit: PAYOUT_VND_PER_CREDIT,
+      minCredits: PAYOUT_MIN_CREDITS,
+      canRequest: !pending && wallet.spendable >= PAYOUT_MIN_CREDITS,
+      pending,
+      history,
+    };
+  }
+
+  /**
+   * Tạo yêu cầu rút tiền.
+   *
+   * Trừ `earnings` NGAY trong cùng transaction — không đợi admin duyệt. Nếu đợi
+   * thì người dùng gửi được nhiều yêu cầu cùng lúc cho cùng một số dư, admin
+   * duyệt hết là mất tiền thật. Bị từ chối thì hoàn lại (xem rejectPayout).
+   */
+  async createPayoutRequest(
+    userId: string,
+    input: { credits: number; bankName: string; accountNumber: string; accountName: string },
+  ) {
+    const credits = Math.floor(Number(input.credits) || 0);
+    const bankName = (input.bankName || '').trim().slice(0, 100);
+    const accountNumber = (input.accountNumber || '').trim().replace(/\s+/g, '').slice(0, 40);
+    const accountName = (input.accountName || '').trim().slice(0, 100);
+
+    if (!bankName || !accountNumber || !accountName) {
+      throw new BadRequestException('Vui lòng nhập đủ ngân hàng, số tài khoản và tên chủ tài khoản.');
+    }
+    if (credits < PAYOUT_MIN_CREDITS) {
+      throw new BadRequestException(`Rút tối thiểu ${PAYOUT_MIN_CREDITS} credit.`);
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // Mỗi người chỉ có một yêu cầu đang xử lý.
+      const existing = await tx.payoutRequest.findFirst({
+        where: { userId, status: { in: ['PENDING', 'APPROVED'] } },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new BadRequestException('Bạn đang có một yêu cầu rút tiền chờ xử lý.');
+      }
+
+      const wallet = await this.ensureWalletTx(tx, userId);
+      if (wallet.spendable < credits) {
+        throw new BadRequestException('Số credit rút vượt quá số dư trong ví.');
+      }
+
+      // Giữ credit ngay (trừ số dư), KHÔNG đụng `earnings` vì đó là bộ đếm
+      // tổng đã kiếm chứ không phải số dư.
+      await tx.wallet.update({
+        where: { userId },
+        data: { spendable: { decrement: credits } },
+      });
+      await tx.creditTransaction.create({
+        data: {
+          userId,
+          type: 'SPEND_DOWNLOAD', // chưa có loại riêng cho payout trong enum
+          amount: -credits,
+          balanceAfter: wallet.spendable - credits,
+          note: `Giữ ${credits} credit cho yêu cầu rút tiền`,
+        },
+      });
+
+      return tx.payoutRequest.create({
+        data: {
+          userId,
+          credits,
+          amountVnd: credits * PAYOUT_VND_PER_CREDIT,
+          bankName,
+          accountNumber,
+          accountName,
+        },
+      });
+    });
+  }
+
+  /** Huỷ yêu cầu khi còn PENDING — hoàn credit về ví. */
+  async cancelPayoutRequest(userId: string, id: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const req = await tx.payoutRequest.findUnique({ where: { id } });
+      if (!req || req.userId !== userId) throw new NotFoundException('Không tìm thấy yêu cầu.');
+      if (req.status !== 'PENDING') {
+        throw new BadRequestException('Yêu cầu đã được xử lý, không thể huỷ.');
+      }
+
+      await tx.payoutRequest.update({
+        where: { id },
+        data: { status: 'REJECTED', rejectReason: 'Người dùng tự huỷ', processedAt: new Date() },
+      });
+      const wallet = await this.ensureWalletTx(tx, userId);
+      await tx.wallet.update({
+        where: { userId },
+        data: { spendable: { increment: req.credits } },
+      });
+      await tx.creditTransaction.create({
+        data: {
+          userId,
+          type: 'REFUND',
+          amount: req.credits,
+          balanceAfter: wallet.spendable + req.credits,
+          note: 'Hoàn credit do huỷ yêu cầu rút tiền',
+        },
+      });
+      return { cancelled: true };
+    });
+  }
+
   // ── Webhook đối soát tự động (SePay/PayOS) ───────────────────────────────────
   /**
    * Xử lý một giao dịch tiền-vào: tìm đơn PENDING theo nội dung CK, đối chiếu số
@@ -386,17 +517,25 @@ export class BillingService {
       const feePercent = sellerOnYearly ? PLATFORM_FEE_PERCENT_YEARLY : PLATFORM_FEE_PERCENT;
       const fee = Math.round((price * feePercent) / 100);
       const creatorGain = price - fee;
-      await this.ensureWalletTx(tx, pin.userId);
+      const sellerWallet = await this.ensureWalletTx(tx, pin.userId);
+
+      // MỘT số dư duy nhất: credit bán được cộng thẳng vào `spendable` để người
+      // bán vừa tiêu được vừa rút được — không tách hai loại ví (gây hiểu lầm là
+      // credit kiếm được bị mất). `earnings` giữ lại làm bộ đếm TỔNG ĐÃ KIẾM
+      // từ trước tới nay, chỉ dùng để thống kê, không bị trừ khi rút.
       await tx.wallet.update({
         where: { userId: pin.userId },
-        data: { earnings: { increment: creatorGain } },
+        data: {
+          spendable: { increment: creatorGain },
+          earnings: { increment: creatorGain },
+        },
       });
       await tx.creditTransaction.create({
         data: {
           userId: pin.userId,
           type: 'EARN_SALE',
           amount: creatorGain,
-          balanceAfter: 0, // earnings ledger — balanceAfter không dùng cho ví earnings
+          balanceAfter: sellerWallet.spendable + creatorGain,
           refPinId: pinId,
           note: 'Bán ảnh Premium',
         },
@@ -426,6 +565,39 @@ export class BillingService {
       purchased,
       canDownload: owned || purchased,
     };
+  }
+
+  /**
+   * Link tải bản gốc HD cho ảnh Premium — chỉ cấp cho chủ ảnh hoặc người đã mua.
+   *
+   * File gốc nằm trong bucket riêng tư, không có URL công khai; đây là chỗ DUY
+   * NHẤT tạo được đường vào, và link hết hạn sau 5 phút. Nhờ vậy người chưa mua
+   * dù mở F12 cũng chỉ thấy bản preview có watermark đang hiển thị.
+   */
+  async getPremiumDownloadUrl(userId: string, pinId: string) {
+    const pin = await this.prisma.pin.findUnique({ where: { id: pinId } });
+    if (!pin) throw new NotFoundException('Không tìm thấy ảnh.');
+
+    if (pin.isPremium) {
+      const owned = pin.userId === userId;
+      if (!owned) {
+        const ent = await this.prisma.pinEntitlement.findUnique({
+          where: { userId_pinId: { userId, pinId } },
+        });
+        if (!ent) {
+          throw new ForbiddenException('Bạn cần mua ảnh này để tải bản gốc.');
+        }
+      }
+    }
+
+    // Ảnh cũ (đăng trước khi có tính năng này) chưa có bản gốc riêng — trả về
+    // ảnh công khai để không hỏng luồng tải của chúng.
+    if (!pin.originalPath) {
+      return { url: pin.imageUrl, watermarked: false };
+    }
+
+    const url = await this.supabaseService.createSignedUrl('pins-original', pin.originalPath, 300);
+    return { url, watermarked: false };
   }
 
   // ── Ví: tiện ích ─────────────────────────────────────────────────────────────

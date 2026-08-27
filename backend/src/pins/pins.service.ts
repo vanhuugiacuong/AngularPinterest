@@ -4,6 +4,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { AiGeneratorService } from '../ai-generator/ai-generator.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ModerationService } from '../moderation/moderation.service';
+import { WatermarkService } from './watermark.service';
 import { PREMIUM_PRICE_MAX, PREMIUM_PRICE_MAX_YEARLY, PREMIUM_PRICE_MIN } from '../billing/billing.config';
 import {
   VISUAL_CATEGORY_PROMPTS,
@@ -72,6 +73,7 @@ export class PinsService {
     private readonly aiGeneratorService: AiGeneratorService,
     private readonly notificationsService: NotificationsService,
     private readonly moderationService: ModerationService,
+    private readonly watermarkService: WatermarkService,
   ) {}
 
   /**
@@ -367,8 +369,37 @@ export class PinsService {
     const premium = await this.normalizePremium(userId, isPremium, priceCredits);
 
     const extension = file.originalname.split('.').pop() || 'png';
-    const filename = `${userId}/pin_${Date.now()}_${Math.floor(Math.random() * 1000)}.${extension}`;
-    const imageUrl = await this.supabaseService.uploadImage('pins', filename, file.buffer, file.mimetype);
+    const base = `${userId}/pin_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+    // Ảnh Premium: thứ công khai KHÔNG phải file gốc.
+    //   - bucket public  : bản thu nhỏ + đóng dấu chìm (ai xem/F12 cũng chỉ thấy bản này)
+    //   - bucket riêng tư: file gốc HD, không có URL công khai, chỉ cấp link ký
+    //     tạm thời cho người đã mua (xem getPremiumDownloadUrl).
+    let imageUrl: string;
+    let originalPath: string | null = null;
+
+    if (premium.isPremium) {
+      const preview = await this.watermarkService.makePreview(file.buffer, 'PinHub');
+      imageUrl = await this.supabaseService.uploadImage(
+        'pins',
+        `${base}_preview.jpg`,
+        preview,
+        'image/jpeg',
+      );
+      originalPath = await this.supabaseService.uploadPrivate(
+        'pins-original',
+        `${base}.${extension}`,
+        file.buffer,
+        file.mimetype,
+      );
+    } else {
+      imageUrl = await this.supabaseService.uploadImage(
+        'pins',
+        `${base}.${extension}`,
+        file.buffer,
+        file.mimetype,
+      );
+    }
 
     const category = this.classifyCategory(title, description);
 
@@ -389,6 +420,10 @@ export class PinsService {
         category,
         isPremium: premium.isPremium,
         priceCredits: premium.priceCredits,
+        // Bản công khai chính là preview có watermark; giữ cùng giá trị để chỗ
+        // nào đọc previewUrl cũng ra đúng thứ được phép hiển thị.
+        previewUrl: premium.isPremium ? imageUrl : null,
+        originalPath,
         isCollage: !!isCollage,
       },
     });

@@ -5,6 +5,7 @@ import { SupabaseService } from './core/services/supabase';
 import { ThemeService } from './core/services/theme';
 import { PresenceService } from './core/services/presence';
 import { ImageProtectionService } from './core/services/image-protection';
+import { AdminService } from './core/services/admin';
 import { ToastContainer } from './components/toast-container/toast-container';
 import { ConfirmDialog } from './components/confirm-dialog/confirm-dialog';
 import { ReportDialog } from './components/report-dialog/report-dialog';
@@ -22,6 +23,7 @@ export class App {
   private themeService = inject(ThemeService);
   private presenceService = inject(PresenceService);
   private imageProtectionService = inject(ImageProtectionService);
+  private adminService = inject(AdminService);
 
   private routeHost = viewChild<ElementRef<HTMLElement>>('routeHost');
 
@@ -85,6 +87,17 @@ export class App {
         void this.presenceService.connect(userId);
       } else if (!this.supabaseService.loading()) {
         void this.presenceService.disconnect();
+      }
+    });
+
+    // Hỏi backend xem có phải admin không, để rail hiện/ẩn mục Quản trị.
+    // Chỉ dùng cho giao diện — chặn thật nằm ở AdminGuard phía server.
+    effect(() => {
+      const user = this.supabaseService.user();
+      if (user) {
+        void this.adminService.checkAdmin();
+      } else {
+        this.adminService.isAdmin.set(false);
       }
     });
   }

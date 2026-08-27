@@ -1,0 +1,389 @@
+<div class="min-h-screen bg-[#121212] text-white flex flex-col font-sans">
+  <app-navbar></app-navbar>
+
+  <div class="flex-1 pt-16 pl-28 pb-16 flex flex-col min-w-0">
+    <main class="flex-1 w-full max-w-[1200px] mx-auto px-6 py-8 flex flex-col min-w-0">
+
+      <!-- Tiêu đề -->
+      <div class="flex items-center gap-3 mb-6">
+        <span class="admin-crest w-11 h-11 rounded-[14px] flex items-center justify-center shrink-0">
+          <app-icon name="shield" class="w-[21px] h-[21px]"></app-icon>
+        </span>
+        <div>
+          <h1 class="text-2xl font-extrabold tracking-tight leading-tight">Khu vực quản trị</h1>
+          <p class="text-xs text-[#8b8791] mt-0.5">Duyệt rút tiền, xử lý báo cáo, quản lý người dùng và nội dung</p>
+        </div>
+      </div>
+
+      <!-- Thanh chuyển mục -->
+      <div class="admin-tabs flex items-center gap-1 mb-7 overflow-x-auto">
+        <button (click)="setTab('overview')" class="admin-tab" [class.admin-tab-on]="tab() === 'overview'">
+          <app-icon name="wallet" class="w-4 h-4"></app-icon> Tổng quan
+        </button>
+        <button (click)="setTab('payouts')" class="admin-tab" [class.admin-tab-on]="tab() === 'payouts'">
+          <app-icon name="bank" class="w-4 h-4"></app-icon> Rút tiền
+          @if (stats()?.pendingPayouts) {
+            <span class="admin-badge">{{ stats()?.pendingPayouts }}</span>
+          }
+        </button>
+        <button (click)="setTab('reports')" class="admin-tab" [class.admin-tab-on]="tab() === 'reports'">
+          <app-icon name="x" class="w-4 h-4"></app-icon> Báo cáo
+          @if (stats()?.openReports) {
+            <span class="admin-badge">{{ stats()?.openReports }}</span>
+          }
+        </button>
+        <button (click)="setTab('users')" class="admin-tab" [class.admin-tab-on]="tab() === 'users'">
+          <app-icon name="crown" class="w-4 h-4"></app-icon> Người dùng
+        </button>
+        <button (click)="setTab('revenue')" class="admin-tab" [class.admin-tab-on]="tab() === 'revenue'">
+          <app-icon name="money" class="w-4 h-4"></app-icon> Doanh thu
+        </button>
+        <button (click)="setTab('content')" class="admin-tab" [class.admin-tab-on]="tab() === 'content'">
+          <app-icon name="hd" class="w-4 h-4"></app-icon> Nội dung
+        </button>
+      </div>
+
+      @if (loading()) {
+        <div class="flex items-center justify-center py-24">
+          <div class="w-9 h-9 border-4 border-[#F94083] border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      } @else {
+
+        <!-- ══════════ TỔNG QUAN ══════════ -->
+        @if (tab() === 'overview' && stats(); as s) {
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            <div class="ad-stat"><span class="ad-stat-v">{{ s.users }}</span><span class="ad-stat-k">Người dùng</span></div>
+            <div class="ad-stat"><span class="ad-stat-v">{{ s.pins }}</span><span class="ad-stat-k">Ảnh</span></div>
+            <div class="ad-stat"><span class="ad-stat-v">{{ s.proCount }}</span><span class="ad-stat-k">Thành viên Pro</span></div>
+            <div class="ad-stat"><span class="ad-stat-v">{{ s.premiumPins }}</span><span class="ad-stat-k">Ảnh Premium</span></div>
+          </div>
+
+          <div class="grid sm:grid-cols-2 gap-3 mb-6">
+            <div class="ad-money">
+              <div class="ad-money-k">Tổng doanh thu</div>
+              <div class="ad-money-v">{{ billing.formatVnd(s.revenueTotal) }}</div>
+              <div class="ad-money-sub">Tháng này: {{ billing.formatVnd(s.revenueMonth) }}</div>
+            </div>
+            <div class="ad-money ad-money-credit">
+              <div class="ad-money-k">Credit đang lưu hành</div>
+              <div class="ad-money-v">{{ s.creditsCirculating }}</div>
+              <div class="ad-money-sub">Nghĩa vụ chưa thanh toán · đã kiếm {{ s.creditsEarnedTotal }} từ bán ảnh</div>
+            </div>
+          </div>
+
+          <!-- Việc cần làm -->
+          <h2 class="text-base font-extrabold mb-3">Cần bạn xử lý</h2>
+          <div class="grid sm:grid-cols-3 gap-3">
+            <button (click)="setTab('payouts')" class="ad-todo" [class.ad-todo-on]="s.pendingPayouts > 0">
+              <span class="ad-todo-v">{{ s.pendingPayouts }}</span>
+              <span class="ad-todo-k">Yêu cầu rút tiền chờ duyệt</span>
+            </button>
+            <button (click)="setTab('reports')" class="ad-todo" [class.ad-todo-on]="s.openReports > 0">
+              <span class="ad-todo-v">{{ s.openReports }}</span>
+              <span class="ad-todo-k">Báo cáo ảnh vi phạm</span>
+            </button>
+            <button (click)="setTab('payouts')" class="ad-todo" [class.ad-todo-on]="s.openPaymentReports > 0">
+              <span class="ad-todo-v">{{ s.openPaymentReports }}</span>
+              <span class="ad-todo-k">Sự cố chuyển khoản</span>
+            </button>
+          </div>
+        }
+
+        <!-- ══════════ RÚT TIỀN ══════════ -->
+        @if (tab() === 'payouts') {
+          <div class="flex items-center gap-1.5 mb-4 flex-wrap">
+            @for (f of ['ALL', 'PENDING', 'APPROVED', 'PAID', 'REJECTED']; track f) {
+              <button (click)="setPayoutFilter($any(f))" class="ad-chip" [class.ad-chip-on]="payoutFilter() === f">
+                {{ f === 'ALL' ? 'Tất cả' : payoutStatusLabel(f) }}
+              </button>
+            }
+          </div>
+
+          @if (payouts().length === 0) {
+            <div class="ad-empty">Chưa có yêu cầu rút tiền nào.</div>
+          } @else {
+            <div class="flex flex-col gap-3 mb-8">
+              @for (p of payouts(); track p.id) {
+                <div class="ad-card">
+                  <div class="flex items-start gap-3 flex-wrap">
+                    <app-pro-avatar [src]="p.user?.avatarUrl" [isPro]="false" [size]="40" [alt]="p.user?.username || ''"></app-pro-avatar>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="font-bold text-sm">{{ p.user?.username || '(đã xoá)' }}</span>
+                        <span class="ad-status" [ngClass]="payoutStatusClass(p.status)">{{ payoutStatusLabel(p.status) }}</span>
+                      </div>
+                      <div class="text-xs text-[#8b8791] mt-0.5">{{ p.user?.email }}</div>
+                    </div>
+                    <div class="text-right shrink-0">
+                      <div class="text-lg font-extrabold tabular leading-tight">{{ billing.formatVnd(p.amountVnd) }}</div>
+                      <div class="text-xs text-[#8b8791]">{{ p.credits }} credit</div>
+                    </div>
+                  </div>
+
+                  <!-- Thông tin ngân hàng -->
+                  <div class="ad-bank mt-3">
+                    <div class="grid sm:grid-cols-3 gap-2.5">
+                      <div>
+                        <div class="ad-bank-k">Ngân hàng</div>
+                        <div class="ad-bank-v">{{ p.bankName }}</div>
+                      </div>
+                      <div>
+                        <div class="ad-bank-k">Số tài khoản</div>
+                        <button (click)="copy(p.accountNumber)" class="ad-bank-v ad-copy" title="Bấm để sao chép">
+                          {{ p.accountNumber }} <app-icon name="copy" class="w-3 h-3"></app-icon>
+                        </button>
+                      </div>
+                      <div>
+                        <div class="ad-bank-k">Chủ tài khoản</div>
+                        <button (click)="copy(p.accountName)" class="ad-bank-v ad-copy" title="Bấm để sao chép">
+                          {{ p.accountName }} <app-icon name="copy" class="w-3 h-3"></app-icon>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="text-[11px] text-[#8b8791] mt-2">
+                      Gửi lúc {{ p.createdAt | date: 'HH:mm dd/MM/yyyy' }}
+                      @if (p.bankRef) { · Mã GD: <b class="text-white">{{ p.bankRef }}</b> }
+                      @if (p.rejectReason) { · Lý do từ chối: <span class="text-[#ff8098]">{{ p.rejectReason }}</span> }
+                    </div>
+                  </div>
+
+                  <!-- Hành động -->
+                  @if (p.status === 'PENDING' || p.status === 'APPROVED') {
+                    <div class="flex flex-col gap-2.5 mt-3">
+                      @if (p.status === 'PENDING') {
+                        <div class="flex gap-2 flex-wrap">
+                          <button (click)="approvePayout(p)" [disabled]="busy()" class="ad-btn ad-btn-primary">Duyệt</button>
+                          <input [(ngModel)]="rejectReasonInput[p.id]" placeholder="Lý do từ chối..." class="ad-input flex-1 min-w-[180px]" />
+                          <button (click)="rejectPayout(p)" [disabled]="busy()" class="ad-btn ad-btn-danger">Từ chối</button>
+                        </div>
+                      }
+                      <div class="flex gap-2 flex-wrap">
+                        <input [(ngModel)]="bankRefInput[p.id]" placeholder="Mã giao dịch ngân hàng (nếu có)" class="ad-input flex-1 min-w-[200px]" />
+                        <button (click)="markPaid(p)" [disabled]="busy()" class="ad-btn ad-btn-ok">Đã chuyển khoản</button>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Sự cố chuyển khoản -->
+          <h2 class="text-base font-extrabold mb-3">Sự cố chuyển khoản</h2>
+          @if (paymentReports().length === 0) {
+            <div class="ad-empty">Không có sự cố nào đang chờ.</div>
+          } @else {
+            <div class="flex flex-col gap-2.5">
+              @for (r of paymentReports(); track r.id) {
+                <div class="ad-card">
+                  <div class="flex items-start gap-3 flex-wrap">
+                    <div class="flex-1 min-w-0">
+                      <div class="font-bold text-sm">{{ r.user?.username || '(đã xoá)' }}</div>
+                      <div class="text-xs text-[#E8C468] mt-1">{{ r.reason }}</div>
+                      @if (r.note) {
+                        <div class="text-xs text-[#8b8791] mt-1">{{ r.note }}</div>
+                      }
+                      <div class="text-[11px] text-[#8b8791] mt-1.5">
+                        Mã đơn: <b class="text-white">{{ r.memo }}</b>
+                        @if (r.payment) {
+                          · {{ billing.formatVnd(r.payment.amountVnd) }} · {{ paymentStatusLabel(r.payment.status) }}
+                        }
+                        · {{ r.createdAt | date: 'HH:mm dd/MM' }}
+                      </div>
+                    </div>
+                    <button (click)="resolvePaymentReport(r)" [disabled]="busy()" class="ad-btn ad-btn-ghost shrink-0">Đã xử lý</button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        }
+
+        <!-- ══════════ BÁO CÁO ẢNH ══════════ -->
+        @if (tab() === 'reports') {
+          @if (reports().length === 0) {
+            <div class="ad-empty">Không có báo cáo nào đang chờ xử lý.</div>
+          } @else {
+            <div class="flex flex-col gap-3">
+              @for (g of reports(); track g.pin.id) {
+                <div class="ad-card flex items-start gap-4 flex-wrap">
+                  <img [src]="g.pin.imageUrl" [alt]="g.pin.title" class="w-20 h-20 rounded-2xl object-cover shrink-0 cursor-pointer" (click)="goPin(g.pin.id)" />
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span class="font-bold text-sm truncate">{{ g.pin.title }}</span>
+                      <span class="ad-status st-rejected">{{ g.count }} lượt báo cáo</span>
+                      @if (g.pin.isPremium) { <span class="ad-status st-premium">Premium</span> }
+                    </div>
+                    <div class="text-xs text-[#8b8791] mt-1">
+                      Tác giả: <b class="text-white">{{ g.pin.user.username }}</b>
+                      @if (g.pin.user.isPinhubBanned) { · <span class="text-[#ff8098]">đã bị khoá</span> }
+                    </div>
+                    <div class="text-xs text-[#E8C468] mt-1.5">{{ reasonSummary(g.reasons) }}</div>
+                    <div class="text-[11px] text-[#8b8791] mt-1">Mới nhất: {{ g.latest | date: 'HH:mm dd/MM/yyyy' }}</div>
+                  </div>
+                  <div class="flex flex-col gap-2 shrink-0">
+                    <button (click)="deletePin(g.pin.id, g.pin.title, g.pin.user.username, 'reports')" [disabled]="busy()" class="ad-btn ad-btn-danger">Gỡ ảnh</button>
+                    <button (click)="resolveReport(g)" [disabled]="busy()" class="ad-btn ad-btn-ghost">Bỏ qua</button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        }
+
+        <!-- ══════════ NGƯỜI DÙNG ══════════ -->
+        @if (tab() === 'users') {
+          <div class="flex gap-2 mb-4">
+            <input [(ngModel)]="userQuery" (keyup.enter)="searchUsers()" placeholder="Tìm theo tên hoặc email..." class="ad-input flex-1" />
+            <button (click)="searchUsers()" class="ad-btn ad-btn-primary">Tìm</button>
+          </div>
+
+          <div class="ad-table-wrap">
+            <table class="ad-table">
+              <thead>
+                <tr>
+                  <th>Người dùng</th>
+                  <th>Gói</th>
+                  <th class="num">Ảnh</th>
+                  <th class="num">Credit</th>
+                  <th>Tham gia</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (u of users(); track u.id) {
+                  <tr [class.ad-row-banned]="u.isPinhubBanned">
+                    <td>
+                      <div class="flex items-center gap-2.5 min-w-0">
+                        <app-pro-avatar [src]="u.avatarUrl" [isPro]="u.isProActive" [isYearly]="u.pinhubProPlan === 'YEARLY'" [size]="32" [alt]="u.username"></app-pro-avatar>
+                        <div class="min-w-0">
+                          <div class="flex items-center gap-1.5">
+                            <span class="font-bold text-[13px] truncate">{{ u.username }}</span>
+                            @if (u.isPinhubAdmin) { <span class="ad-status st-approved">ADMIN</span> }
+                            @if (u.isPinhubBanned) { <span class="ad-status st-rejected">BỊ KHOÁ</span> }
+                          </div>
+                          <div class="text-[11px] text-[#8b8791] truncate">{{ u.email }}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      @if (u.isProActive) {
+                        <span class="ad-status" [ngClass]="u.pinhubProPlan === 'YEARLY' ? 'st-chrome' : 'st-pro'">
+                          {{ u.pinhubProPlan === 'YEARLY' ? 'Pro năm' : 'Pro tháng' }}
+                        </span>
+                        <div class="text-[11px] text-[#8b8791] mt-1">đến {{ u.proExpiresAt | date: 'dd/MM/yy' }}</div>
+                      } @else {
+                        <span class="text-xs text-[#8b8791]">Miễn phí</span>
+                      }
+                    </td>
+                    <td class="num">{{ u._count.pins }}</td>
+                    <td class="num">{{ u.wallet?.spendable ?? 0 }}</td>
+                    <td class="text-xs text-[#8b8791]">{{ u.createdAt | date: 'dd/MM/yy' }}</td>
+                    <td class="text-right">
+                      @if (!u.isPinhubAdmin) {
+                        <button (click)="toggleBan(u)" [disabled]="busy()" class="ad-btn" [ngClass]="u.isPinhubBanned ? 'ad-btn-ok' : 'ad-btn-danger'">
+                          {{ u.isPinhubBanned ? 'Mở khoá' : 'Khoá' }}
+                        </button>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        <!-- ══════════ DOANH THU ══════════ -->
+        @if (tab() === 'revenue') {
+          <!-- Biểu đồ 30 ngày -->
+          <div class="ad-card mb-5">
+            <div class="text-sm font-extrabold mb-3">Doanh thu 30 ngày gần nhất</div>
+            <div class="ad-chart">
+              @for (d of revenueDaily(); track d.date) {
+                <div class="ad-bar-wrap" [title]="d.date + ': ' + billing.formatVnd(d.amountVnd)">
+                  <div class="ad-bar" [style.height.%]="barHeight(d.amountVnd)" [class.ad-bar-zero]="d.amountVnd === 0"></div>
+                </div>
+              }
+            </div>
+          </div>
+
+          <h2 class="text-base font-extrabold mb-3">Giao dịch</h2>
+          <div class="ad-table-wrap mb-6">
+            <table class="ad-table">
+              <thead>
+                <tr><th>Thời gian</th><th>Người mua</th><th>Loại</th><th class="num">Số tiền</th><th>Trạng thái</th><th>Mã CK</th></tr>
+              </thead>
+              <tbody>
+                @for (p of payments(); track p.id) {
+                  <tr>
+                    <td class="text-xs text-[#8b8791]">{{ p.createdAt | date: 'HH:mm dd/MM/yy' }}</td>
+                    <td class="text-[13px] font-bold">{{ p.user?.username || '—' }}</td>
+                    <td class="text-xs">{{ purposeLabel(p.purpose, p.planCode, p.packCode) }}</td>
+                    <td class="num font-bold">{{ billing.formatVnd(p.amountVnd) }}</td>
+                    <td><span class="ad-status" [ngClass]="p.status === 'PAID' ? 'st-paid' : p.status === 'PENDING' ? 'st-pending' : 'st-rejected'">{{ paymentStatusLabel(p.status) }}</span></td>
+                    <td class="text-[11px] text-[#8b8791] font-mono">{{ p.memo }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <h2 class="text-base font-extrabold mb-3">Số dư credit theo người dùng</h2>
+          <div class="ad-table-wrap">
+            <table class="ad-table">
+              <thead>
+                <tr><th>Người dùng</th><th class="num">Số dư</th><th class="num">Đã kiếm</th><th class="num">Quy đổi</th></tr>
+              </thead>
+              <tbody>
+                @for (w of wallets(); track w.userId) {
+                  <tr>
+                    <td>
+                      <div class="text-[13px] font-bold">{{ w.user.username }}</div>
+                      <div class="text-[11px] text-[#8b8791]">{{ w.user.email }}</div>
+                    </td>
+                    <td class="num font-bold">{{ w.spendable }}</td>
+                    <td class="num text-[#5fd39a]">{{ w.earnings }}</td>
+                    <td class="num text-xs text-[#8b8791]">{{ billing.formatVnd(w.vndValue) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        <!-- ══════════ NỘI DUNG ══════════ -->
+        @if (tab() === 'content') {
+          <div class="flex gap-2 mb-4 flex-wrap">
+            <button (click)="setPinFilter('all')" class="ad-chip" [class.ad-chip-on]="pinFilter() === 'all'">Tất cả</button>
+            <button (click)="setPinFilter('premium')" class="ad-chip" [class.ad-chip-on]="pinFilter() === 'premium'">Premium</button>
+            <button (click)="setPinFilter('ai')" class="ad-chip" [class.ad-chip-on]="pinFilter() === 'ai'">Ảnh AI</button>
+            <input [(ngModel)]="pinQuery" (keyup.enter)="searchPins()" placeholder="Tìm theo tiêu đề..." class="ad-input flex-1 min-w-[180px]" />
+            <button (click)="searchPins()" class="ad-btn ad-btn-primary">Tìm</button>
+          </div>
+
+          @if (pins().length === 0) {
+            <div class="ad-empty">Không có ảnh nào khớp.</div>
+          } @else {
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              @for (p of pins(); track p.id) {
+                <div class="ad-pin">
+                  <img [src]="p.imageUrl" [alt]="p.title" class="ad-pin-img" (click)="goPin(p.id)" />
+                  <div class="p-2.5 flex flex-col gap-1.5">
+                    <div class="text-xs font-bold truncate">{{ p.title }}</div>
+                    <div class="text-[11px] text-[#8b8791] truncate">{{ p.user.username }}</div>
+                    <div class="flex items-center gap-1 flex-wrap">
+                      @if (p.isPremium) { <span class="ad-status st-premium">{{ p.priceCredits }} cr</span> }
+                      @if (p.isAiGenerated) { <span class="ad-status st-approved">AI</span> }
+                      @if (p._count.reports > 0) { <span class="ad-status st-rejected">{{ p._count.reports }} báo cáo</span> }
+                    </div>
+                    <button (click)="deletePin(p.id, p.title, p.user.username, 'content')" [disabled]="busy()" class="ad-btn ad-btn-danger w-full mt-0.5">Gỡ</button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        }
+      }
+    </main>
+  </div>
+</div>

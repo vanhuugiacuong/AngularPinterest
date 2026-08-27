@@ -15,6 +15,7 @@ import { Chat } from './features/chat/chat';
 import { Pro } from './features/pro/pro';
 import { Wallet } from './features/wallet/wallet';
 import { BillingResult } from './features/billing-result/billing-result';
+import { Admin } from './features/admin/admin';
 import { authGuard } from './core/guards/auth';
 
 export const routes: Routes = [
@@ -39,6 +40,7 @@ export const routes: Routes = [
   { path: 'pro', component: Pro },
   { path: 'wallet', component: Wallet },
   { path: 'billing/result', component: BillingResult },
+  { path: 'admin', component: Admin },
   { path: 'chat', component: Chat },
   { path: 'chat/:conversationId', component: Chat },
   { path: '**', component: NotFound }

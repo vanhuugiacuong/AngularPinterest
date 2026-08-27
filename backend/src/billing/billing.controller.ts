@@ -73,6 +73,38 @@ export class BillingController {
     return this.billingService.reportPayment(user.id, ref, body?.reason, body?.note);
   }
 
+  /**
+   * Link tải bản gốc HD — chỉ chủ ảnh hoặc người đã mua mới lấy được.
+   * Link ký từ bucket riêng tư, hết hạn sau 5 phút.
+   */
+  @Get('pins/:id/download')
+  @UseGuards(SupabaseAuthGuard)
+  downloadPin(@CurrentUser() user: UserPayload, @Param('id') id: string) {
+    return this.billingService.getPremiumDownloadUrl(user.id, id);
+  }
+
+  // ── Rút tiền: người bán đổi credit kiếm được ra tiền mặt ───────────────────
+  @Get('payout')
+  @UseGuards(SupabaseAuthGuard)
+  payoutInfo(@CurrentUser() user: UserPayload) {
+    return this.billingService.getPayoutInfo(user.id);
+  }
+
+  @Post('payout')
+  @UseGuards(SupabaseAuthGuard)
+  requestPayout(
+    @CurrentUser() user: UserPayload,
+    @Body() body: { credits: number; bankName: string; accountNumber: string; accountName: string },
+  ) {
+    return this.billingService.createPayoutRequest(user.id, body);
+  }
+
+  @Post('payout/:id/cancel')
+  @UseGuards(SupabaseAuthGuard)
+  cancelPayout(@CurrentUser() user: UserPayload, @Param('id') id: string) {
+    return this.billingService.cancelPayoutRequest(user.id, id);
+  }
+
   // Mua quyền tải ảnh Premium bằng credit
   @Post('pins/:id/purchase')
   @UseGuards(SupabaseAuthGuard)

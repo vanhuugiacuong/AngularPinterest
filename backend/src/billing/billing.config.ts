@@ -51,6 +51,19 @@ export const PREMIUM_PRICE_MAX_YEARLY = 1000;
 export const PLATFORM_FEE_PERCENT = 30;
 export const PLATFORM_FEE_PERCENT_YEARLY = 20;
 
+/**
+ * Rút tiền — người bán đổi credit kiếm được ra tiền mặt.
+ *
+ * Tỷ giá thấp hơn giá bán credit (~183đ/credit ở gói M) để bù phí chuyển khoản
+ * và rủi ro. Ngưỡng tối thiểu để admin không phải chuyển khoản lặt vặt.
+ *
+ * CHỈ rút được `Wallet.earnings` (tiền người khác trả cho họ), KHÔNG rút
+ * `spendable` — nếu cho rút thì người ta nạp tiền vào rồi rút ra, nền tảng
+ * thành nơi chuyển tiền hộ.
+ */
+export const PAYOUT_VND_PER_CREDIT = 150;
+export const PAYOUT_MIN_CREDITS = 500;
+
 /** Đơn QR hết hạn sau 10 phút. */
 export const QR_EXPIRE_MS = 10 * 60 * 1000;
 

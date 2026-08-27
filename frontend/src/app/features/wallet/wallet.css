@@ -202,3 +202,87 @@
 @media (prefers-reduced-motion: reduce) {
   .bankcard-front::after { animation: none; display: none; }
 }
+
+/* ── Khu vực rút tiền ──────────────────────────────────────────────────────
+   Tông xanh lá "tiền vào" để tách khỏi tông hồng (mua) và vàng (bán ảnh),
+   giúp phân biệt ngay đây là dòng tiền ra khỏi hệ thống. */
+.payout-box {
+  border-color: rgba(34, 197, 94, 0.28);
+  background:
+    radial-gradient(120% 130% at 100% -10%, rgba(34, 197, 94, 0.1), transparent 58%),
+    linear-gradient(180deg, #16221b 0%, #141814 72%);
+  box-shadow: 0 16px 40px -20px rgba(34, 197, 94, 0.3);
+}
+.payout-crest {
+  background: linear-gradient(135deg, #5fd39a, #17794a);
+  color: #08170f;
+  box-shadow: 0 8px 20px -6px rgba(34, 197, 94, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+.payout-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8b9a90;
+}
+
+.payout-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.payout-input::-webkit-outer-spin-button,
+.payout-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.payout-input::placeholder { color: #6c7671; }
+.payout-input:focus {
+  border-color: #5fd39a;
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.payout-note {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.payout-pending {
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.22);
+}
+.payout-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: #5fd39a;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+  animation: payout-pulse 1.8s ease-in-out infinite;
+}
+@keyframes payout-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Nhãn trạng thái trong lịch sử rút */
+.payout-status {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.payout-status-pending  { background: rgba(232, 196, 104, 0.14); color: #E8C468; }
+.payout-status-approved { background: rgba(96, 165, 250, 0.14); color: #7fb4ff; }
+.payout-status-paid     { background: rgba(34, 197, 94, 0.14);  color: #5fd39a; }
+.payout-status-rejected { background: rgba(255, 92, 122, 0.14); color: #ff8098; }
+
+@media (prefers-reduced-motion: reduce) {
+  .payout-dot { animation: none; }
+}

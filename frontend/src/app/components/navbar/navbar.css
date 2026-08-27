@@ -196,3 +196,17 @@
   .upgrade-cta:hover { transform: none; }
   .upgrade-cta:hover .upgrade-arrow { transform: none; }
 }
+
+/* Nút Quản trị trong rail — tông tím riêng để không lẫn với các mục thường,
+   đẩy xuống đáy rail vì đây không phải điều hướng hằng ngày. */
+.nav-rail-admin {
+  color: #b3a8ff;
+}
+.nav-rail-admin:hover {
+  background: rgba(139, 123, 240, 0.14);
+}
+.nav-rail-admin.nav-rail-active {
+  background: linear-gradient(135deg, #8b7bf0, #5b4bc4);
+  color: #fff;
+  box-shadow: 0 6px 18px -6px rgba(139, 123, 240, 0.7);
+}
