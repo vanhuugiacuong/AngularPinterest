@@ -161,17 +161,8 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  // --- Navigation within the page ----------------------------------------
-
   onLoaderFinished(_mode: LoaderMode) {
     this.loaderDone.set(true);
-  }
-
-  scrollToId(targetId: string) {
-    document.getElementById(targetId)?.scrollIntoView({
-      behavior: this.reducedMotion ? 'auto' : 'smooth',
-      block: 'start'
-    });
   }
 
   // --- Pointer-driven depth on the hero object ---------------------------
