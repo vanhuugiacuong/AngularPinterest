@@ -2,119 +2,175 @@
   <app-navbar></app-navbar>
 
   <main class="collage-main">
-    <header class="workspace-header">
-      <div>
-        <span class="workspace-eyebrow">NovaFrame · Collage Studio</span>
-        <h1>Tạo ảnh ghép</h1>
-        <p>Khung dọc 9:16 · PNG 1080 × 1920 px</p>
-      </div>
-      <div class="header-actions">
-        <button
-          type="button"
-          class="secondary-action"
-          (click)="saveDraft()"
-          [disabled]="!store.layers().length || isSaving() || isExporting()"
-          title="Lưu bản nháp trong trình duyệt"
-        >
-          <span class="material-symbols-outlined">save</span
-          >{{ isSaving() ? 'Đang lưu…' : 'Lưu bản nháp' }}
-        </button>
-        <button
-          type="button"
-          class="secondary-action"
-          (click)="downloadPng()"
-          [disabled]="!store.layers().length || isExporting()"
-          title="Tải PNG 1080 × 1920"
-        >
-          <span class="material-symbols-outlined">download</span>Tải PNG
-        </button>
-        <button
-          type="button"
-          class="primary-action"
-          (click)="finish()"
-          [disabled]="!store.layers().length || isExporting()"
-          title="Chuyển ảnh ghép sang luồng đăng bài"
-        >
-          <span class="material-symbols-outlined">arrow_forward</span
-          >{{ isExporting() ? 'Đang xuất…' : 'Hoàn thành' }}
-        </button>
-      </div>
-    </header>
-
-    <div class="editor-toolbar" aria-label="Công cụ ảnh ghép">
+    <!-- Slim editor bar: exit · title · history · overflow · next. The heavy
+         eyebrow/h1/subtitle block and the row of labelled buttons it replaced
+         cost ~140px of vertical space above the canvas, on a page whose whole
+         job is the canvas. Format info moved to a tooltip on the canvas frame,
+         and the two secondary exports moved into the ··· menu. -->
+    <header class="editor-bar">
       <button
         type="button"
+        class="editor-bar__icon"
+        (click)="exit()"
+        title="Đóng trình tạo ảnh ghép"
+        aria-label="Đóng trình tạo ảnh ghép"
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">close</span>
+      </button>
+
+      <h1 class="editor-bar__title">Tạo ảnh ghép</h1>
+
+      <span class="editor-bar__spacer"></span>
+
+      <!-- Autosave state. Replaces the "Lưu bản nháp" button as the primary
+           signal: the draft is written automatically after each edit, so the
+           useful thing to show is whether that has happened, not a button the
+           user has to remember to press. Manual save stays in the ··· menu. -->
+      @if (isSaving()) {
+        <span class="editor-bar__status" role="status">Đang lưu…</span>
+      } @else if (savedAt()) {
+        <span class="editor-bar__status editor-bar__status--done" role="status">Đã lưu</span>
+      }
+
+      <button
+        type="button"
+        class="editor-bar__icon"
         (click)="store.undo()"
         [disabled]="!store.canUndo()"
         title="Hoàn tác (Ctrl+Z)"
         aria-label="Hoàn tác"
       >
-        <span class="material-symbols-outlined" aria-hidden="true">undo</span><span>Hoàn tác</span>
+        <span class="material-symbols-outlined" aria-hidden="true">undo</span>
       </button>
       <button
         type="button"
+        class="editor-bar__icon"
         (click)="store.redo()"
         [disabled]="!store.canRedo()"
         title="Làm lại (Ctrl+Y)"
         aria-label="Làm lại"
       >
-        <span class="material-symbols-outlined" aria-hidden="true">redo</span><span>Làm lại</span>
+        <span class="material-symbols-outlined" aria-hidden="true">redo</span>
       </button>
-      <span class="toolbar-divider"></span>
+
+      <div class="editor-bar__overflow">
+        <button
+          type="button"
+          class="editor-bar__icon"
+          (click)="toggleOverflow($event)"
+          title="Tùy chọn khác"
+          aria-label="Tùy chọn khác"
+          aria-haspopup="menu"
+          [attr.aria-expanded]="showOverflow()"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">more_horiz</span>
+        </button>
+
+        @if (showOverflow()) {
+          <div class="overflow-menu" role="menu" (click)="$event.stopPropagation()">
+            <button
+              type="button"
+              role="menuitem"
+              (click)="saveDraft()"
+              [disabled]="!store.layers().length || isSaving() || isExporting()"
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">save</span>
+              {{ isSaving() ? 'Đang lưu…' : 'Lưu bản nháp' }}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              (click)="downloadPng()"
+              [disabled]="!store.layers().length || isExporting()"
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">download</span>
+              Tải PNG · {{ collageWidth }} × {{ collageHeight }}
+            </button>
+          </div>
+        }
+      </div>
+
       <button
         type="button"
-        (click)="openLayerCrop()"
-        [disabled]="!store.selectedLayer()"
-        title="Chọn lại phần cắt trong ảnh"
-        aria-label="Cắt lại"
+        class="editor-bar__next"
+        (click)="finish()"
+        [disabled]="!store.layers().length || isExporting()"
+        title="Chuyển ảnh ghép sang luồng đăng bài"
       >
-        <span class="material-symbols-outlined" aria-hidden="true">crop</span><span>Cắt lại</span>
+        {{ isExporting() ? 'Đang xuất…' : 'Tiếp theo' }}
       </button>
-      <button
-        type="button"
-        (click)="store.duplicate()"
-        [disabled]="!store.selectedLayer()"
-        title="Nhân bản layer"
-        aria-label="Nhân bản"
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">content_copy</span><span>Nhân bản</span>
-      </button>
-      <button
-        type="button"
-        class="danger-tool"
-        (click)="store.remove()"
-        [disabled]="!store.selectedLayer()"
-        title="Xóa layer (Delete)"
-        aria-label="Xóa"
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">delete</span><span>Xóa</span>
-      </button>
-    </div>
+    </header>
 
     <div class="workspace-grid">
       <aside class="layers-column"><app-collage-layer-list /></aside>
+
       <section class="canvas-column">
-        <app-collage-canvas />
+        <!-- Per-layer actions now live inside the canvas, anchored to the
+             selected cutout (see collage-canvas.html) — this column only
+             carries the three insert tools below. -->
+        <app-collage-canvas (recut)="openLayerCrop()" />
+
+        <!-- Insert tools, bottom-centre under the artboard. Text and drawing
+             are the next two pieces of work, so they are visible but marked
+             unavailable rather than silently missing — CollageLayer has no
+             text/stroke type yet, so a live button would do nothing. -->
+        <div class="insert-tools" role="toolbar" aria-label="Thêm nội dung vào ảnh ghép">
+          <button
+            type="button"
+            class="insert-tools__btn"
+            disabled
+            title="Thêm văn bản — sắp có"
+            aria-label="Thêm văn bản — sắp có"
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">title</span>
+          </button>
+          <button
+            type="button"
+            class="insert-tools__btn"
+            disabled
+            title="Vẽ tay — sắp có"
+            aria-label="Vẽ tay — sắp có"
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">gesture</span>
+          </button>
+          <button
+            type="button"
+            class="insert-tools__btn"
+            (click)="addImage()"
+            title="Thêm ảnh từ máy"
+            aria-label="Thêm ảnh từ máy"
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">image</span>
+          </button>
+        </div>
+
         <p class="canvas-help">
           @if (store.layers().length) {
-            Kéo để di chuyển · Kéo bốn góc để đổi kích thước · Dùng tay cầm phía trên để xoay
+            Kéo để di chuyển · Kéo bốn góc để đổi kích thước · Tay cầm phía trên để xoay
           } @else {
-            Chọn một ảnh ở panel bên phải để bắt đầu ghép.
+            Chọn một ảnh ở panel bên phải để bắt đầu ghép · Khung {{ collageWidth }} × {{ collageHeight }} px
           }
         </p>
       </section>
+
+      <!-- One column, two steps: browse, then cut. Picking an image swaps the
+           picker for the cutout step in place, so the artboard and layer list
+           stay visible the whole time — the cutout used to take over the screen
+           as a modal at exactly the moment you want to see what you are adding
+           to. The back arrow in the panel header returns to the grid. -->
       <aside class="images-column">
-        <app-collage-image-picker (imageSelected)="openSubjectSelector($event)" />
+        @if (selectedSource(); as source) {
+          <app-subject-selector
+            [source]="source"
+            (cancelled)="cancelSubjectSelector()"
+            (cutoutAdded)="addCutout($event)"
+          />
+        } @else {
+          <app-collage-image-picker (imageSelected)="openSubjectSelector($event)" />
+        }
       </aside>
     </div>
   </main>
-
-  <app-subject-selector
-    *ngIf="selectedSource() as source"
-    [source]="source"
-    (cancelled)="cancelSubjectSelector()"
-    (cutoutAdded)="addCutout($event)"
-  />
 
   <app-layer-crop
     *ngIf="cropTarget() as layer"

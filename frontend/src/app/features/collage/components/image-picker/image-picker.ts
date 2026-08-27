@@ -1,5 +1,15 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, OnDestroy, OnInit, Output, inject, signal } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  EventEmitter,
+  OnDestroy,
+  OnInit,
+  Output,
+  ViewChild,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Pin, PinService } from '../../../../core/services/pin';
 import { SupabaseService } from '../../../../core/services/supabase';
@@ -21,12 +31,18 @@ export class ImagePickerComponent implements OnInit, OnDestroy {
   private requestId = 0;
   private abortController?: AbortController;
 
+  @ViewChild('fileInput') private fileInput?: ElementRef<HTMLInputElement>;
+
   readonly pins = signal<Pin[]>([]);
   readonly isLoading = signal(true);
   readonly loadingPinId = signal<string | null>(null);
   readonly error = signal<string | null>(null);
-  readonly isOpen = signal(true);
+  readonly activeTab = signal<'ideas' | 'upload'>('ideas');
   searchQuery = '';
+
+  setTab(tab: 'ideas' | 'upload'): void {
+    this.activeTab.set(tab);
+  }
 
   ngOnInit(): void {
     void this.loadPins('');
@@ -37,8 +53,10 @@ export class ImagePickerComponent implements OnInit, OnDestroy {
     this.abortController?.abort();
   }
 
-  toggle(): void {
-    this.isOpen.update((open) => !open);
+  /** Cho phép thanh công cụ nổi trên canvas mở hộp thoại chọn tệp, dùng lại
+   * đúng phần kiểm tra tệp của selectFile() bên dưới. */
+  openFileDialog(): void {
+    this.fileInput?.nativeElement.click();
   }
 
   onSearchChange(query: string): void {

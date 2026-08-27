@@ -5,6 +5,7 @@ import {
   OnDestroy,
   OnInit,
   ViewChild,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -55,6 +56,16 @@ import { ToastService } from '../../core/services/toast';
 })
 export class Collage implements OnInit, OnDestroy {
   @ViewChild(CollageCanvasComponent) private canvas?: CollageCanvasComponent;
+  /** The picker owns file validation and the CollageImageSource shape, so the
+   * canvas "add image" tool delegates to it instead of duplicating that. */
+  @ViewChild(ImagePickerComponent) private picker?: ImagePickerComponent;
+
+  /** Surfaced for the canvas hint and the ··· export label — the export size is
+   * a real constraint worth showing, just not worth a permanent subtitle. */
+  readonly collageWidth = COLLAGE_WIDTH;
+  readonly collageHeight = COLLAGE_HEIGHT;
+
+  readonly showOverflow = signal(false);
 
   readonly store = inject(CollageStoreService);
   private readonly draftService = inject(CollageDraftService);
@@ -69,6 +80,25 @@ export class Collage implements OnInit, OnDestroy {
   readonly cropTarget = signal<CollageLayer | null>(null);
   readonly isSaving = signal(false);
   readonly isExporting = signal(false);
+  /** Set once the draft has been written at least this session — drives the
+   * "Đã lưu" state so the bar is empty (not falsely reassuring) before the
+   * first save. */
+  readonly savedAt = signal<number | null>(null);
+
+  private autosaveTimer?: ReturnType<typeof setTimeout>;
+
+  /** Autosave: the draft is written a beat after edits settle, so closing the
+   * tab or hitting X never silently loses work. Debounced because a drag emits
+   * a transform per frame and each save serialises every layer's blob.
+   *
+   * Deliberately skips the toast that manual saveDraft() shows — an autosave
+   * firing a toast after every edit would bury the ones that matter. */
+  private readonly autosaveEffect = effect(() => {
+    const layers = this.store.layers();
+    if (!layers.length) return;
+    if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
+    this.autosaveTimer = setTimeout(() => void this.persistDraft(), 1200);
+  });
 
   async ngOnInit(): Promise<void> {
     try {
@@ -84,6 +114,10 @@ export class Collage implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    // Không để autosave nổ sau khi component đã bị hủy — store lúc đó đã dọn
+    // object URL, ghi tiếp là serialize dữ liệu đã giải phóng.
+    if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
+    this.autosaveEffect.destroy();
     this.releaseSelectedSource(false);
     this.store.disposeObjectUrls();
   }
@@ -115,6 +149,37 @@ export class Collage implements OnInit, OnDestroy {
       event.preventDefault();
       this.store.remove();
     }
+  }
+
+  toggleOverflow(event: Event): void {
+    event.stopPropagation();
+    this.showOverflow.update((open) => !open);
+  }
+
+  /** Bấm ra ngoài / Escape thì đóng menu ···. Escape khi menu đóng vẫn để
+   * nguyên cho các modal bên dưới xử lý. */
+  @HostListener('document:click')
+  closeOverflow(): void {
+    if (this.showOverflow()) this.showOverflow.set(false);
+  }
+
+  /** Thoát editor. Nếu đang có layer thì lưu nháp trước, để người dùng bấm X
+   * không mất việc đang làm — nháp sẽ được khôi phục ở ngOnInit lần sau. */
+  async exit(): Promise<void> {
+    if (this.store.layers().length) {
+      try {
+        await this.draftService.save(this.store.layers());
+      } catch (error) {
+        console.error('Unable to save collage draft before exit:', error);
+      }
+    }
+    void this.router.navigate(['/feed']);
+  }
+
+  /** Mở hộp thoại chọn tệp của panel ảnh — không tự dựng lại phần kiểm tra
+   * kiểu/kích cỡ tệp, vốn đã nằm trong ImagePickerComponent.selectFile. */
+  addImage(): void {
+    this.picker?.openFileDialog();
   }
 
   openSubjectSelector(source: CollageImageSource): void {
@@ -180,15 +245,29 @@ export class Collage implements OnInit, OnDestroy {
     this.cropTarget.set(null);
   }
 
+  /** Manual save from the ··· menu — same write as the autosave, plus a toast
+   * because here the user asked for it and expects an answer. */
   async saveDraft(): Promise<void> {
     if (!this.store.layers().length || this.isSaving()) return;
+    const saved = await this.persistDraft();
+    this.showToast(
+      saved ? 'Đã lưu bản nháp trên trình duyệt.' : 'Không thể lưu bản nháp. Vui lòng thử lại.',
+      saved ? 'success' : 'error',
+    );
+  }
+
+  /** Single write path for both autosave and manual save. Returns whether it
+   * succeeded so only the manual caller has to decide about messaging. */
+  private async persistDraft(): Promise<boolean> {
+    if (!this.store.layers().length || this.isSaving()) return false;
     this.isSaving.set(true);
     try {
       await this.draftService.save(this.store.layers());
-      this.showToast('Đã lưu bản nháp trên trình duyệt.');
+      this.savedAt.set(Date.now());
+      return true;
     } catch (error) {
       console.error('Unable to save collage draft:', error);
-      this.showToast('Không thể lưu bản nháp. Vui lòng thử lại.', 'error');
+      return false;
     } finally {
       this.isSaving.set(false);
     }

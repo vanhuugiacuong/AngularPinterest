@@ -1,54 +1,97 @@
+<!-- Always open: on a three-column desktop editor the collapse only ever cost a
+     click, and a collapsed panel hid the one thing this column exists for. The
+     "Nguồn ảnh / Chọn ảnh" eyebrow+strong heading went with it — the search
+     field already says what the panel is for. -->
 <section class="panel">
-  <button type="button" class="panel-heading" (click)="toggle()" [attr.aria-expanded]="isOpen()">
-    <span><span class="eyebrow">Nguồn ảnh</span><strong>Chọn ảnh</strong></span>
-    <span class="material-symbols-outlined" aria-hidden="true">{{ isOpen() ? 'expand_less' : 'expand_more' }}</span>
-  </button>
+  <label class="search-box">
+    <span class="material-symbols-outlined" aria-hidden="true">search</span>
+    <input
+      type="search"
+      [(ngModel)]="searchQuery"
+      (ngModelChange)="onSearchChange($event)"
+      placeholder="Tìm kiếm ý tưởng để ghép"
+      aria-label="Tìm kiếm ý tưởng để ghép"
+    />
+  </label>
 
-  <div *ngIf="isOpen()" class="panel-body">
-    <label class="search-box">
-      <span class="material-symbols-outlined" aria-hidden="true">search</span>
-      <input
-        type="search"
-        [(ngModel)]="searchQuery"
-        (ngModelChange)="onSearchChange($event)"
-        placeholder="Tìm ảnh bài đăng..."
-        aria-label="Tìm ảnh bài đăng"
-      />
-    </label>
+  <!-- Two tabs, both backed by something real: the feed, and the local file
+       dialog. Pinterest also shows "Bộ thương hiệu" and "Bản nháp" tabs, which
+       have no equivalent here — inventing them would mean two dead tabs. -->
+  <div class="picker-tabs" role="tablist" aria-label="Nguồn ảnh">
+    <button
+      type="button"
+      role="tab"
+      class="picker-tab"
+      [class.active]="activeTab() === 'ideas'"
+      [attr.aria-selected]="activeTab() === 'ideas'"
+      (click)="setTab('ideas')"
+    >
+      Ý tưởng
+    </button>
+    <button
+      type="button"
+      role="tab"
+      class="picker-tab"
+      [class.active]="activeTab() === 'upload'"
+      [attr.aria-selected]="activeTab() === 'upload'"
+      (click)="setTab('upload')"
+    >
+      Tải lên
+    </button>
+  </div>
 
-    <label class="upload-button" title="Chọn ảnh từ máy tính">
-      <span class="material-symbols-outlined" aria-hidden="true">upload</span>
-      Tải ảnh từ máy
-      <input type="file" accept="image/jpeg,image/png,image/webp" (change)="selectFile($event)" />
-    </label>
+  <div *ngIf="error()" class="error-message" role="alert">
+    <span>{{ error() }}</span>
+    <button type="button" (click)="loadPins(searchQuery.trim())">Thử lại</button>
+  </div>
 
-    <div *ngIf="error()" class="error-message" role="alert">
-      <span>{{ error() }}</span>
-      <button type="button" (click)="loadPins(searchQuery.trim())">Thử lại</button>
-    </div>
+  <!-- Upload lives in its own tab now rather than as a button competing with
+       the grid, but the input itself stays mounted in both tabs so the canvas
+       tool bar's add-image button can trigger it at any time. -->
+  <label class="upload-drop" [class.upload-drop--tab]="activeTab() === 'upload'">
+    <span class="material-symbols-outlined" aria-hidden="true">add_photo_alternate</span>
+    <strong>Tải ảnh từ máy</strong>
+    <small>JPG, PNG hoặc WebP · tối đa 15 MB</small>
+    <input
+      #fileInput
+      type="file"
+      accept="image/jpeg,image/png,image/webp"
+      (change)="selectFile($event)"
+    />
+  </label>
 
+  @if (activeTab() === 'ideas') {
     <div *ngIf="isLoading()" class="loading-state">
       <span class="spinner"></span><span>Đang tải ảnh...</span>
     </div>
 
-    <div *ngIf="!isLoading()" class="pin-grid">
-      <button
-        *ngFor="let pin of pins()"
-        type="button"
-        class="pin-item"
-        (click)="selectPin(pin)"
-        [disabled]="loadingPinId() !== null"
-        [title]="'Tách chủ thể từ ' + pin.title"
-      >
-        <img [src]="pin.imageUrl" [alt]="pin.title" loading="lazy" crossorigin="anonymous" />
-        <span *ngIf="loadingPinId() === pin.id" class="pin-loading"
-          ><span class="spinner"></span
-        ></span>
-      </button>
+    <!-- Two boxes on purpose. The scroller is the outer one; the multi-column
+         masonry inside it is left free to grow as tall as its content needs.
+         A multicol box with a CONSTRAINED height does not scroll — overflow
+         becomes extra columns along the inline axis instead of extra height —
+         so putting overflow-y on the masonry itself did nothing. -->
+    <div *ngIf="!isLoading()" class="pin-scroll">
+      <!-- Pins keep their own aspect ratio rather than being squared off by a
+           uniform grid, matching the feed and Pinterest's own picker. -->
+      <div class="pin-masonry">
+        <button
+          *ngFor="let pin of pins()"
+          type="button"
+          class="pin-item"
+          (click)="selectPin(pin)"
+          [disabled]="loadingPinId() !== null"
+          [title]="'Tách chủ thể từ ' + pin.title"
+        >
+          <img [src]="pin.imageUrl" [alt]="pin.title" loading="lazy" crossorigin="anonymous" />
+          <span *ngIf="loadingPinId() === pin.id" class="pin-loading"
+            ><span class="spinner"></span
+          ></span>
+        </button>
+      </div>
     </div>
 
     <p *ngIf="!isLoading() && pins().length === 0" class="empty-state">
       Không tìm thấy ảnh phù hợp.
     </p>
-  </div>
+  }
 </section>

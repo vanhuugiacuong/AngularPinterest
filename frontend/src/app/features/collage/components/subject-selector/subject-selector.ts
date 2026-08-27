@@ -88,6 +88,9 @@ export class SubjectSelectorComponent implements AfterViewInit, OnDestroy {
 
   private maskCtx: CanvasRenderingContext2D | null = null;
   private highlightCtx: CanvasRenderingContext2D | null = null;
+  /** The loaded <img>, so the highlight pass can composite the real photo
+   * through the mask (see redrawHighlight). */
+  private loadedImage: HTMLImageElement | null = null;
   private isDrawing = false;
   private lastPoint: CanvasPoint | null = null;
   private activePointerId: number | null = null;
@@ -175,22 +178,12 @@ export class SubjectSelectorComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  /** Tracks where a press on the backdrop started — see profile.ts's
-   * identical helper for why closing must check both the mousedown and
-   * click targets instead of the click alone. */
-  private backdropMouseDownTarget: EventTarget | null = null;
-
-  onBackdropMouseDown(event: MouseEvent): void {
-    this.backdropMouseDownTarget = event.target;
-  }
-
-  onBackdropClick(event: MouseEvent): void {
-    const startedOnBackdrop = this.backdropMouseDownTarget === event.currentTarget;
-    this.backdropMouseDownTarget = null;
-    if (startedOnBackdrop && event.target === event.currentTarget) {
-      this.cancelled.emit();
-    }
-  }
+  /* The backdrop press-tracking helpers and the Tab focus trap that used to
+     live here went with the modal. The trap in particular had to go: it cycled
+     Tab inside this component, which is correct while a dialog owns the screen
+     but means a keyboard user can never reach the artboard, the layer list or
+     the header once this is just a panel in a column. Escape still backs out —
+     that reads the same either way. */
 
   @HostListener('window:keydown', ['$event'])
   onKeydown(event: KeyboardEvent): void {
@@ -204,25 +197,6 @@ export class SubjectSelectorComponent implements AfterViewInit, OnDestroy {
       event.preventDefault();
       if (event.shiftKey) this.redoRegion();
       else this.undoRegion();
-      return;
-    }
-
-    if (event.key === 'Tab') {
-      const dialog = this.dialogRef?.nativeElement;
-      if (!dialog) return;
-      const focusable = Array.from(
-        dialog.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'),
-      );
-      if (!focusable.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
     }
   }
 
@@ -717,6 +691,10 @@ export class SubjectSelectorComponent implements AfterViewInit, OnDestroy {
     ctx.lineJoin = 'round';
     this.maskCtx = ctx;
     this.highlightCtx = highlightCtx;
+    // Kept so redrawHighlight() can paint the photo itself through the mask —
+    // that is what makes the selected region read as focused rather than as a
+    // coloured blob sitting on top of it.
+    this.loadedImage = img;
     this.hasPainted.set(false);
     this.imageReady.set(true);
   }
@@ -858,41 +836,36 @@ export class SubjectSelectorComponent implements AfterViewInit, OnDestroy {
     this.redrawHighlight();
   }
 
-  /** Rebuilds the visible highlight from scratch out of the authoritative
-   * mask, every stroke — so it's always topologically correct for whatever
-   * shape the user has painted so far (any number of separate blobs), never
-   * an approximation stitched together incrementally. Two passes:
-   *  1. A blurred, near-full-alpha copy of the mask — this is what makes the
-   *     glow bleed OUTWARD past the mask's exact silhouette.
-   *  2. 'destination-out' at a lower alpha, drawing the UNBLURRED mask again
-   *     — this only erases alpha strictly inside the exact painted shape
-   *     (where the unblurred mask is opaque), leaving that interior visibly
-   *     tinted while the outward bleed from pass 1 survives untouched,
-   *     reading as a bright glowing rim around a solid-but-see-through fill. */
+  /** Rebuilds the visible highlight from scratch out of the authoritative mask,
+   * every stroke — so it is always topologically correct for whatever shape has
+   * been painted so far (any number of separate blobs), never an approximation
+   * stitched together incrementally.
+   *
+   * What it paints is the PHOTO ITSELF, clipped to the mask:
+   *  1. draw the mask (alpha only matters),
+   *  2. 'source-in' + draw the photo — keeping photo pixels only where the mask
+   *     was opaque.
+   *
+   * The result sits over a blurred, desaturated copy of the same photo (see
+   * .source-image in the stylesheet), so the selection reads as the one part in
+   * focus and everything else falls back. That is the inverse of what this used
+   * to do: it drew the mask as a ~75%-opaque tint, which covered the subject in
+   * a flat colour blob — you could see the shape you had selected but not the
+   * thing you were selecting, which is the one thing that matters here. */
   private redrawHighlight(): void {
     const mask = this.maskCanvasRef?.nativeElement;
     const hctx = this.highlightCtx;
+    const photo = this.loadedImage;
     if (!mask || !hctx) return;
     const { width, height } = mask;
     hctx.clearRect(0, 0, width, height);
 
-    // A fixed pixel blur would look completely different across photos —
-    // e.g. 9px is a thin, crisp rim on a 2560px-wide canvas but a huge,
-    // heavy glow on a 400px-wide one, since object-fit: contain displays
-    // both at roughly the same on-screen size. Deriving it as a fraction of
-    // the canvas's own size keeps the glow reading the same regardless of
-    // the source photo's resolution.
-    const blurPx = Math.max(width, height) * 0.01;
     hctx.save();
-    hctx.filter = `blur(${blurPx}px)`;
-    hctx.globalAlpha = 1;
     hctx.drawImage(mask, 0, 0);
-    hctx.restore();
-
-    hctx.save();
-    hctx.globalCompositeOperation = 'destination-out';
-    hctx.globalAlpha = 0.25;
-    hctx.drawImage(mask, 0, 0);
+    if (photo?.naturalWidth) {
+      hctx.globalCompositeOperation = 'source-in';
+      hctx.drawImage(photo, 0, 0, width, height);
+    }
     hctx.restore();
   }
 

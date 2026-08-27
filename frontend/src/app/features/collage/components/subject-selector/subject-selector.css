@@ -1,44 +1,38 @@
+/* Fills the right-hand column instead of covering the page. Was
+   position: fixed; inset: 0 with a blurred backdrop — see subject-selector.html
+   for why that modal is gone. */
 :host {
-  position: fixed;
-  inset: 0;
-  z-index: 180;
+  display: block;
+  min-width: 0;
 }
-.modal-backdrop {
-  display: grid;
-  width: 100%;
+.selector-panel {
+  display: flex;
   height: 100%;
-  place-items: center;
-  padding: 18px;
-  background: color-mix(in srgb, var(--color-ink) 78%, transparent);
-  backdrop-filter: blur(12px);
-}
-.selector-dialog {
-  width: min(760px, 100%);
+  min-height: 0;
+  flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-panel);
   color: var(--color-text);
-  background: color-mix(in srgb, var(--color-ink) 92%, var(--color-iris-violet) 6%);
-  box-shadow: 0 28px 90px color-mix(in srgb, var(--color-ink) 65%, transparent);
-}
-header,
-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 18px 20px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
 }
 header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--color-border);
 }
-footer {
-  justify-content: flex-end;
-  border-top: 1px solid var(--color-border);
+.header-spacer {
+  flex: 1 1 auto;
 }
 h2 {
-  margin: 3px 0 0;
-  font-size: 20px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
 }
 .eyebrow {
   color: var(--color-accent);
@@ -59,18 +53,34 @@ h2 {
   background: var(--color-surface-elevated);
   cursor: pointer;
 }
+/* Takes the height left over after the header, mode tabs, toolbar and hint,
+   rather than claiming a fixed min(58vh, 560px). Inside a panel that is exactly
+   as tall as its column and clips overflow, a fixed height here meant the
+   bottom of the image — and the hint under it — could simply be cut off on a
+   shorter window instead of the frame drawing smaller. */
+/* Positioning context only. Every child (.image-frame, .zoom-controls,
+   .tap-instruction, .processing-overlay, .error-state) is absolutely
+   positioned, so the flex centering and side padding this used to carry had
+   nothing in flow left to act on — the frame's own `inset` supplies the
+   gutter now. */
 .preview-stage {
   position: relative;
-  display: flex;
-  height: min(58vh, 560px);
-  min-height: 340px;
-  align-items: center;
-  justify-content: center;
+  flex: 1 1 auto;
+  /* Same two belts as .pin-scroll: flex when the ancestor height resolves, a vh
+     floor when it does not. This one matters more than a scrollbar — the photo
+     is absolutely positioned inside .image-frame, so a stage with no resolved
+     height renders nothing at all rather than merely looking cramped. */
+  /* Taller than before: this is where the user traces around a subject by hand,
+     and object-fit: contain means a portrait photo in a short-but-wide stage
+     shrinks to a narrow strip — too small to aim at. */
+  height: calc(100vh - 250px);
+  min-height: 320px;
+  max-height: 700px;
   overflow: hidden;
-  padding: 0 16px;
-  background:
-    radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--color-iris-violet) 18%, transparent), transparent 60%),
-    var(--color-bg-secondary);
+  /* Neutral grey, not the violet wash it had. The stage is the backdrop the
+     blurred/desaturated photo falls back to, so any hue here fights the one
+     thing that should hold colour: the sharp selection on top. */
+  background: color-mix(in srgb, var(--color-text-muted) 16%, var(--color-bg-secondary));
 }
 /* Fills the entire preview-stage instead of shrink-wrapping to the image's
    own rendered size — otherwise a wide/short or small source image would
@@ -83,12 +93,26 @@ h2 {
    instead of the parent's box), which is what was causing the frame to
    shrink/crop differently per image. Absolute positioning has no such
    ambiguity: each layer resolves against .image-frame's box, full stop. */
+/* Pinned to the stage rather than sized with width/height: 100%.
+   Every child here is `position: absolute` (see the note above), so the frame
+   contributes no content height of its own — which meant `height: 100%` had to
+   resolve against the stage. That worked while the stage had a fixed
+   `height: min(58vh, 560px)`, but the stage is now flex-sized to fill the panel,
+   and a percentage height against an indefinite container falls back to auto:
+   the frame collapsed to 0px and the photo vanished entirely.
+   Insetting by the stage's own 16px side padding keeps the same visual box
+   without depending on percentage resolution at all. */
 .image-frame {
-  position: relative;
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 0 16px;
   transform-origin: center;
 }
+/* The "not selected" state of the photo: blurred and desaturated, so whatever
+   the selection keeps sharp (drawn on .highlight-canvas above) is the only thing
+   in focus. Applied unconditionally rather than only once something is selected
+   — the transition then happens as the selection appears, with no jump.
+   `.has-selection` gets a stronger push, so before you select anything the photo
+   is still readable enough to aim at. */
 .source-image {
   display: block;
   position: absolute;
@@ -98,6 +122,11 @@ h2 {
   object-fit: contain;
   user-select: none;
   -webkit-user-drag: none;
+  filter: blur(1.5px) grayscale(0.35) brightness(0.9);
+  transition: filter 0.28s ease;
+}
+.image-frame.has-selection .source-image {
+  filter: blur(5px) grayscale(0.95) brightness(0.72);
 }
 
 /* Sits in the same box as .source-image, sized identically — but a <canvas>
@@ -143,6 +172,19 @@ h2 {
    glow bleeding past the painted silhouette, then the interior mostly
    erased back out — reading as a bright rim around a see-through fill,
    so the photo underneath stays visible while the selection is still obvious. */
+/* The cut outline breathes rather than sitting still: the glow swells and
+   settles on a loop, which is what makes the traced edge read as "this is the
+   live selection" instead of a static border drawn on the photo. Animating
+   `filter` keeps it on the compositor and never reflows.
+
+   Note the animation is on the FILTER only — the canvas pixels are untouched,
+   so nothing here affects the mask that gets cut. */
+/* Holds the SHARP, full-colour photo clipped to the selection (see
+   redrawHighlight). Because the canvas content is now the cut shape itself
+   rather than a flat tint, drop-shadow traces its exact silhouette — that is
+   what draws the white rim, and the pulse makes the rim breathe so the edge
+   reads as live. object-fit must stay identical to .source-image or the sharp
+   copy would sit misaligned over the blurred one. */
 .highlight-canvas {
   position: absolute;
   inset: 0;
@@ -150,7 +192,30 @@ h2 {
   height: 100%;
   object-fit: contain;
   pointer-events: none;
-  filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 6px var(--color-accent));
+  filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 7px var(--color-accent));
+  animation: cut-edge-pulse 2.1s ease-in-out infinite;
+}
+
+@keyframes cut-edge-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.9))
+      drop-shadow(0 0 5px color-mix(in srgb, var(--color-accent) 60%, transparent));
+  }
+  50% {
+    filter: drop-shadow(0 0 3px #fff)
+      drop-shadow(0 0 13px var(--color-accent))
+      drop-shadow(0 0 22px color-mix(in srgb, var(--color-accent) 40%, transparent));
+  }
+}
+
+/* A pulsing glow around the thing the user is trying to look at is exactly the
+   kind of motion that hurts, so respect the setting and hold the bright end. */
+@media (prefers-reduced-motion: reduce) {
+  .highlight-canvas {
+    animation: none;
+    filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 10px var(--color-accent));
+  }
 }
 
 .mode-tabs {
@@ -474,9 +539,6 @@ button:disabled {
   }
 }
 @media (max-width: 640px) {
-  .modal-backdrop {
-    padding: 8px;
-  }
   .preview-stage {
     min-height: 300px;
     height: 52vh;
@@ -486,12 +548,21 @@ button:disabled {
     align-items: stretch;
     flex-direction: column;
   }
-  footer {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+  /* Header wraps rather than squeezing the two confirm buttons to nothing. */
+  header {
+    flex-wrap: wrap;
   }
   .secondary-button,
   .primary-button {
     padding: 0 10px;
+  }
+}
+
+/* Matches image-picker: fill the column in the 3-column desktop layout, fall
+   back to a viewport cap when the grid wraps and the page scrolls. */
+@media (min-width: 1101px) {
+  .selector-panel {
+    height: 100%;
+    max-height: none;
   }
 }

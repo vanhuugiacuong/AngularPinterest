@@ -83,6 +83,18 @@ export class LayerListComponent {
   /** Keyboard/touch equivalent of dragging a row one slot up (-1, toward
    * index 0 = further forward) or down (+1 = further back) — reuses the
    * same reorderFromFront primitive the pointer-drag path already calls. */
+  /** Đổi thứ tự bằng bàn phím: Alt/Ctrl + mũi tên lên/xuống trên hàng đang
+   * focus. Kéo-thả không dùng được bằng bàn phím, và hàng nút lên/xuống trước
+   * đây là con đường duy nhất — gỡ nó mà không có cái này là mất hẳn khả năng
+   * đổi thứ tự cho người dùng bàn phím / trình đọc màn hình. */
+  onRowKeydown(event: KeyboardEvent, id: string): void {
+    if (!event.altKey && !event.ctrlKey && !event.metaKey) return;
+    const direction = event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0;
+    if (!direction) return;
+    event.preventDefault();
+    this.moveStep(id, direction);
+  }
+
   moveStep(id: string, direction: -1 | 1): void {
     const orderedIds = this.orderedLayers.map((layer) => layer.id);
     const index = orderedIds.indexOf(id);

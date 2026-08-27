@@ -1,18 +1,18 @@
+<!-- Always open, plain section title. The old eyebrow ("Layer") + collapse
+     chevron hid the panel's only content behind a click on a column that exists
+     solely to show it. -->
 <section class="panel">
-  <button type="button" class="panel-heading" (click)="toggle()" [attr.aria-expanded]="isOpen()">
-    <span>
-      <span class="eyebrow">Layer</span>
-      <strong>Phần cắt</strong>
-    </span>
-    <span class="material-symbols-outlined" aria-hidden="true">{{ isOpen() ? 'expand_less' : 'expand_more' }}</span>
-  </button>
+  <header class="panel-head">
+    <h2>Phần cắt</h2>
+    <p>Chọn một phần cắt để chỉnh sửa hoặc kéo để sắp xếp lại</p>
+  </header>
 
-  <div *ngIf="isOpen()" class="panel-body">
-    <p *ngIf="orderedLayers.length === 0" class="empty-state">
-      Chọn một ảnh từ danh sách ảnh để thêm chủ thể đầu tiên.
-    </p>
-
+  <div class="panel-body">
     <div *ngFor="let layer of orderedLayers; let position = index" class="layer-row-group">
+      <!-- Drag is the only reorder affordance now. This row previously carried
+           drag-to-reorder AND a pair of up/down buttons AND a hint paragraph
+           below the list — three ways to do one thing, in a panel whose own
+           subtitle already says "kéo để sắp xếp lại". -->
       <button
         type="button"
         class="layer-row"
@@ -24,50 +24,33 @@
         (pointermove)="continuePointerDrag($event)"
         (pointerup)="finishPointerDrag($event)"
         (pointercancel)="cancelPointerDrag($event)"
+        (keydown)="onRowKeydown($event, layer.id)"
         [attr.data-layer-id]="layer.id"
-        [attr.aria-label]="'Chọn phần cắt ' + (orderedLayers.length - position)"
-        title="Nhấn giữ và kéo để đổi thứ tự lớp ảnh"
+        [attr.aria-label]="
+          'Chọn phần cắt ' +
+          (orderedLayers.length - position) +
+          '. Giữ Alt và phím mũi tên lên hoặc xuống để đổi thứ tự lớp.'
+        "
+        title="Kéo để đổi thứ tự · hoặc Alt + mũi tên lên/xuống"
       >
         <span class="drag-handle material-symbols-outlined" aria-hidden="true">drag_indicator</span>
         <span class="layer-thumb"><img [src]="layer.cutoutImageUrl" alt="" draggable="false" /></span>
         <span class="layer-name">Phần cắt {{ orderedLayers.length - position }}</span>
-        <span class="layer-index">{{ layer.zIndex + 1 }}</span>
       </button>
-      <div class="layer-reorder" role="group" aria-label="Sắp xếp thứ tự lớp">
-        <button
-          type="button"
-          class="layer-reorder-btn"
-          [disabled]="position === 0"
-          (click)="moveStep(layer.id, -1)"
-          aria-label="Đưa phần cắt lên trên"
-        >
-          <span class="material-symbols-outlined" aria-hidden="true">keyboard_arrow_up</span>
-        </button>
-        <button
-          type="button"
-          class="layer-reorder-btn"
-          [disabled]="position === orderedLayers.length - 1"
-          (click)="moveStep(layer.id, 1)"
-          aria-label="Đưa phần cắt xuống dưới"
-        >
-          <span class="material-symbols-outlined" aria-hidden="true">keyboard_arrow_down</span>
-        </button>
-      </div>
     </div>
 
-    <p *ngIf="orderedLayers.length > 1" class="reorder-hint">
-      <span class="material-symbols-outlined" aria-hidden="true">drag_indicator</span>
-      Kéo ở bất kỳ vị trí nào trên phần cắt để đổi lớp ảnh trên khung.
+    <!-- Background row: the frame itself, always bottom-most and not a layer the
+         store can move or delete. Shown as a locked row so the list reads as the
+         full stack rather than starting mid-air, matching Pinterest's "Nền". -->
+    <div class="layer-row layer-row--locked" aria-label="Nền — không thể di chuyển hoặc xóa">
+      <span class="material-symbols-outlined lock-icon" aria-hidden="true">lock</span>
+      <span class="layer-thumb layer-thumb--empty" aria-hidden="true"></span>
+      <span class="layer-name">Nền</span>
+    </div>
+
+    <p *ngIf="orderedLayers.length === 0" class="empty-state">
+      Chọn một ảnh từ panel bên phải để thêm phần cắt đầu tiên.
     </p>
-
-    <div class="layer-actions" *ngIf="store.selectedLayer()">
-      <button type="button" title="Nhân bản" (click)="store.duplicate()">
-        <span class="material-symbols-outlined" aria-hidden="true">content_copy</span><span>Nhân bản</span>
-      </button>
-      <button type="button" class="danger" title="Xóa phần cắt" (click)="store.remove()">
-        <span class="material-symbols-outlined" aria-hidden="true">delete</span><span>Xóa</span>
-      </button>
-    </div>
   </div>
 </section>
 
@@ -81,5 +64,4 @@
   <span class="material-symbols-outlined" aria-hidden="true">drag_indicator</span>
   <span class="preview-thumb"><img [src]="layer.cutoutImageUrl" alt="" /></span>
   <strong>Phần cắt {{ layerNumber(layer.id) }}</strong>
-  <span class="preview-index">{{ layer.zIndex + 1 }}</span>
 </div>

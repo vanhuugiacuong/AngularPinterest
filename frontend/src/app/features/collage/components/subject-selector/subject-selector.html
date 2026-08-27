@@ -1,33 +1,67 @@
-<div class="modal-backdrop" (mousedown)="onBackdropMouseDown($event)" (click)="onBackdropClick($event)" role="presentation">
-  <section
-    #dialog
-    class="selector-dialog"
-    tabindex="-1"
-    (click)="$event.stopPropagation()"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="subject-selector-title"
-  >
-    <header>
-      <div>
-        <span class="eyebrow">AI Segmentation</span>
-        <h2 id="subject-selector-title">Khoanh quanh vật thể bạn muốn cắt</h2>
-      </div>
+<!-- A step inside the right-hand column, not a modal. Cutting is part of
+     picking an image, so it happens where the picking happened — the dimmed
+     full-screen dialog it replaced hid both the artboard and the layer list at
+     exactly the moment you want to see what you are adding to. No backdrop, no
+     role="dialog"/aria-modal: nothing here traps focus any more. -->
+<section
+  #dialog
+  class="selector-panel"
+  tabindex="-1"
+  aria-labelledby="subject-selector-title"
+>
+  <header>
+    <button
+      type="button"
+      class="icon-button"
+      (click)="cancelled.emit()"
+      [disabled]="adding()"
+      title="Quay lại danh sách ảnh"
+      aria-label="Quay lại danh sách ảnh"
+    >
+      <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+    </button>
+
+    <h2 id="subject-selector-title">Khoanh quanh vật thể</h2>
+
+    <span class="header-spacer"></span>
+
+    <!-- Confirm actions ride in the header. In a tall panel a footer row sits
+         below the image and can fall past the fold, so the primary action would
+         need a scroll to reach. -->
+    <button
+      *ngIf="!hasSelection(); else resetButton"
+      type="button"
+      class="secondary-button"
+      (click)="selectAll()"
+      [disabled]="processing() || adding() || preparingWhole()"
+      title="Thêm ngay toàn bộ ảnh, không tách nền"
+    >
+      {{ preparingWhole() ? 'Đang thêm…' : 'Chọn tất cả' }}
+    </button>
+    <ng-template #resetButton>
       <button
         type="button"
-        class="icon-button"
-        (click)="cancelled.emit()"
-        [disabled]="adding()"
-        title="Đóng"
-        aria-label="Đóng"
+        class="secondary-button"
+        (click)="resetSmartSelection()"
+        [disabled]="processing() || adding()"
       >
-        <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        Chọn lại
       </button>
-    </header>
+    </ng-template>
+    <button
+      type="button"
+      class="primary-button"
+      (click)="addCutout()"
+      [disabled]="processing() || adding() || preparingWhole() || !previewUrl()"
+    >
+      {{ adding() ? 'Đang cắt…' : 'Thêm phần cắt' }}
+    </button>
+  </header>
 
     <div class="preview-stage" (wheel)="onPreviewWheel($event)">
       <div
         class="image-frame"
+        [class.has-selection]="hasSelection()"
         [style.transform]="'translate(' + panX() + 'px, ' + panY() + 'px) scale(' + zoom() + ')'"
       >
         <img
@@ -131,38 +165,7 @@
       </ng-container>
     </p>
 
-    <footer>
-      <button
-        *ngIf="!hasSelection(); else resetButton"
-        type="button"
-        class="secondary-button"
-        (click)="selectAll()"
-        [disabled]="processing() || adding() || preparingWhole()"
-        title="Thêm ngay toàn bộ ảnh, không tách nền"
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">select_all</span>
-        {{ preparingWhole() ? 'Đang thêm…' : 'Chọn tất cả' }}
-      </button>
-      <ng-template #resetButton>
-        <button
-          type="button"
-          class="secondary-button"
-          (click)="resetSmartSelection()"
-          [disabled]="processing() || adding()"
-        >
-          <span class="material-symbols-outlined" aria-hidden="true">replay</span>
-          Chọn lại
-        </button>
-      </ng-template>
-      <button
-        type="button"
-        class="primary-button"
-        (click)="addCutout()"
-        [disabled]="processing() || adding() || preparingWhole() || !previewUrl()"
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">content_cut</span>
-        {{ adding() ? 'Đang cắt…' : 'Xác nhận cắt' }}
-      </button>
-    </footer>
-  </section>
-</div>
+  <!-- The confirm actions that used to sit in a footer here now ride in the
+       panel header, where they stay reachable without scrolling past the
+       image. -->
+</section>

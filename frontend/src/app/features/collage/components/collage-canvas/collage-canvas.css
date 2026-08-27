@@ -1,35 +1,92 @@
-:host {
-  display: block;
-  min-width: 0;
-}
+/* Fills whatever height the column gives it and centres the artboard inside.
+   The old `min-height: 560px` on .canvas-shell was a floor that could not
+   shrink, so on a shorter window it pushed the page past the viewport instead
+   of just drawing the 9:16 frame smaller — which fitCanvas() already does.
 
+   Plain surface, no checkerboard: the frame itself now carries the dotted
+   pattern (see .canvas-stage), and a checkerboard around it competed with that
+   and read as transparency. */
+:host {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+}
 .canvas-shell {
   display: flex;
-  min-height: 560px;
   width: 100%;
+  min-height: 0;
   align-items: center;
   justify-content: center;
-  overflow: auto;
-  padding: 12px;
-  border: 1px solid var(--color-border);
+  overflow: hidden;
+  padding: 4px;
+  background: transparent;
+}
+
+/* Wraps the canvas element exactly so .selection-tools can be anchored in the
+   element's own coordinate space. The dotted grid sits here rather than on the
+   canvas itself: painting it into Fabric would bake the dots into the exported
+   PNG. */
+.canvas-stage {
+  position: relative;
+  flex: 0 0 auto;
   border-radius: var(--radius-frame);
-  background:
-    linear-gradient(45deg, rgba(255, 255, 255, 0.035) 25%, transparent 25%),
-    linear-gradient(-45deg, rgba(255, 255, 255, 0.035) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.035) 75%),
-    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.035) 75%),
-    var(--color-bg-secondary);
-  background-position:
-    0 0,
-    0 12px,
-    12px -12px,
-    -12px 0;
-  background-size: 24px 24px;
+  background-color: var(--color-surface-elevated);
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--color-text-muted) 34%, transparent) 1.1px,
+    transparent 1.1px
+  );
+  background-size: 15px 15px;
 }
 
 :host ::ng-deep .canvas-container {
   flex: 0 0 auto;
-  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.55);
+  /* Frame is transparent so the dotted stage below shows through until layers
+     cover it — an empty collage reads as an empty artboard, not a white card. */
+  border-radius: var(--radius-frame);
+  overflow: hidden;
+}
+
+/* --- Selection toolbar ----------------------------------------------------
+   Anchored under the selected object's bounding box; the template supplies
+   left/top and this centres and offsets it below the box. Dark pill regardless
+   of theme, so it stays legible over any artwork underneath. */
+.selection-tools {
+  position: absolute;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-ink) 92%, transparent);
+  box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  /* translate: centre on the box, then clear the box plus the corner handles. */
+  transform: translate(-50%, 14px);
+}
+.selection-tools button {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 9999px;
+  color: #fff;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+.selection-tools button:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+.selection-tools button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+.selection-tools .material-symbols-outlined {
+  font-size: 19px;
 }
 
 @media (max-width: 720px) {

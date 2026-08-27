@@ -2,10 +2,13 @@ import {
   AfterViewInit,
   Component,
   ElementRef,
+  EventEmitter,
   OnDestroy,
+  Output,
   ViewChild,
   effect,
   inject,
+  signal,
 } from '@angular/core';
 import { Canvas, FabricImage, FabricObject, Rect } from 'fabric';
 import {
@@ -17,6 +20,13 @@ import {
 import { CollageStoreService } from '../../services/collage-store.service';
 
 type CollageFabricObject = FabricObject & { collageLayerId?: string };
+
+interface SelectionBox {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
 
 @Component({
   selector: 'app-collage-canvas',
@@ -30,7 +40,19 @@ export class CollageCanvasComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvasShell', { static: true })
   private canvasShell!: ElementRef<HTMLDivElement>;
 
-  private readonly store = inject(CollageStoreService);
+  /** Public: the selection toolbar in this component's own template drives
+   * duplicate/remove directly. */
+  readonly store = inject(CollageStoreService);
+
+  /** Re-crop lives in the parent (it owns the crop dialog), so the scissors
+   * button only reports intent. */
+  @Output() readonly recut = new EventEmitter<void>();
+
+  /** Screen box of the selected object, in the canvas ELEMENT's coordinate
+   * space (not the page's), so the template can anchor the toolbar with plain
+   * left/top. Null when nothing is selected. */
+  readonly selectionBox = signal<SelectionBox | null>(null);
+
   private canvas?: Canvas;
   private resizeObserver?: ResizeObserver;
   private syncVersion = 0;
@@ -59,7 +81,10 @@ export class CollageCanvasComponent implements AfterViewInit, OnDestroy {
     this.canvas = new Canvas(this.canvasElement.nativeElement, {
       width: COLLAGE_WIDTH,
       height: COLLAGE_HEIGHT,
-      backgroundColor: '#ffffff',
+      /* Transparent while editing so the dotted artboard behind it shows
+         through and an empty collage reads as empty. exportPng() paints the
+         white background back on, so the exported file is unchanged. */
+      backgroundColor: 'transparent',
       preserveObjectStacking: true,
       selection: false,
       uniformScaling: true,
@@ -80,19 +105,74 @@ export class CollageCanvasComponent implements AfterViewInit, OnDestroy {
 
   async exportPng(): Promise<Blob> {
     if (!this.canvas) throw new Error('Khung ảnh chưa sẵn sàng.');
-    this.canvas.renderAll();
-    const output = this.canvas.toCanvasElement(1);
-    return new Promise((resolve, reject) => {
-      output.toBlob(
-        (blob: Blob | null) => (blob ? resolve(blob) : reject(new Error('Không thể xuất ảnh PNG.'))),
-        'image/png',
-        1,
-      );
-    });
+    /* The editing canvas is transparent so the dotted artboard shows through.
+       Paint the white background back on just for the export, then restore — the
+       output file stays byte-for-byte what it was before that change. */
+    const editingBackground = this.canvas.backgroundColor;
+    this.canvas.backgroundColor = '#ffffff';
+    try {
+      this.canvas.renderAll();
+      const output = this.canvas.toCanvasElement(1);
+      return await new Promise<Blob>((resolve, reject) => {
+        output.toBlob(
+          (blob: Blob | null) =>
+            blob ? resolve(blob) : reject(new Error('Không thể xuất ảnh PNG.')),
+          'image/png',
+          1,
+        );
+      });
+    } finally {
+      this.canvas.backgroundColor = editingBackground;
+      this.canvas.renderAll();
+    }
+  }
+
+  /** Maps the active object's Fabric bounding box into the canvas element's own
+   * pixel space. The element is rendered at COLLAGE_WIDTH internally but sized
+   * down by fitCanvas, so every value has to go through that CSS scale.
+   *
+   * Runs on every Fabric render, hence the equality check before writing: a
+   * signal write per frame during a drag would schedule change detection on
+   * each one for values that mostly have not moved. */
+  private updateSelectionBox(): void {
+    const canvas = this.canvas;
+    const active = canvas?.getActiveObject();
+    if (!canvas || !active) {
+      if (this.selectionBox() !== null) this.selectionBox.set(null);
+      return;
+    }
+
+    const cssWidth = this.canvasElement.nativeElement.clientWidth;
+    if (!cssWidth) return;
+    const scale = cssWidth / COLLAGE_WIDTH;
+    const bounds = active.getBoundingRect();
+    const next: SelectionBox = {
+      left: Math.round(bounds.left * scale),
+      top: Math.round(bounds.top * scale),
+      width: Math.round(bounds.width * scale),
+      height: Math.round(bounds.height * scale),
+    };
+
+    const current = this.selectionBox();
+    if (
+      current &&
+      current.left === next.left &&
+      current.top === next.top &&
+      current.width === next.width &&
+      current.height === next.height
+    ) {
+      return;
+    }
+    this.selectionBox.set(next);
   }
 
   private bindCanvasEvents(): void {
     if (!this.canvas) return;
+
+    /* One hook covers every case: selecting, moving, scaling, rotating and the
+       store-driven re-sync all end in a render, so the toolbar tracks the
+       object without a listener per interaction. */
+    this.canvas.on('after:render', () => this.updateSelectionBox());
 
     this.canvas.on('selection:created', (event: any) => this.onSelectionChanged(event.selected?.[0]));
     this.canvas.on('selection:updated', (event: any) => this.onSelectionChanged(event.selected?.[0]));
