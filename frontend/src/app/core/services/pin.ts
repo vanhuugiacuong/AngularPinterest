@@ -77,7 +77,24 @@ export class PinService {
       }
       throw new Error(message);
     }
-    return response.json() as Promise<T>;
+    const payload = await response.json();
+    // The backend uses same-origin paths for protected/blurred image
+    // endpoints. Prefix them in local development, where Angular and Nest run
+    // on different ports; production remains same-origin.
+    const normalizeImageUrls = (value: unknown): void => {
+      if (!value || typeof value !== 'object') return;
+      if (Array.isArray(value)) {
+        value.forEach(normalizeImageUrls);
+        return;
+      }
+      const record = value as Record<string, unknown>;
+      if (typeof record['imageUrl'] === 'string' && record['imageUrl'].startsWith('/api/')) {
+        record['imageUrl'] = `${API_BASE_URL}${record['imageUrl']}`;
+      }
+      Object.values(record).forEach(normalizeImageUrls);
+    };
+    normalizeImageUrls(payload);
+    return payload as T;
   }
 
   getPins(page = 1, limit = 20, token?: string, seed?: string): Promise<Pin[]> {

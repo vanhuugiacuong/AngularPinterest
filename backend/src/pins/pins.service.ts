@@ -359,19 +359,31 @@ export class PinsService {
    * fetch qua ORM (include), đồng thời bỏ originalStoragePath khỏi response -
    * bản gốc chỉ backend được đọc trực tiếp qua endpoint tải ảnh có kiểm tra
    * quyền riêng. */
-  private async attachMarketInfoToList<T extends { id: string; isForSale: boolean; originalStoragePath?: string | null }>(
+  private async attachMarketInfoToList<T extends { id: string; userId: string; imageUrl: string; isForSale: boolean; originalStoragePath?: string | null }>(
     pins: T[],
     viewerId?: string,
   ): Promise<Omit<T, 'originalStoragePath'>[]> {
-    const [auctionMap, likedIds] = await Promise.all([
+    const [auctionMap, likedIds, viewerPlan] = await Promise.all([
       this.fetchLatestAuctionsByPinIds(pins.map((p) => p.id)),
       this.fetchLikedPinIds(pins.map((p) => p.id), viewerId),
+      viewerId
+        ? this.membershipsService.status(viewerId).then((status) => status.plan)
+        : Promise.resolve<MembershipPlan>('FREE'),
     ]);
     return pins.map((p) => {
       const { originalStoragePath, ...rest } = p;
+      const auction = auctionMap.get(p.id);
+      const isOwner = viewerId === p.userId;
+      const isRestricted = !isOwner && (auction
+        ? viewerPlan !== 'PRO'
+        : p.isForSale && viewerPlan !== 'PLUS' && viewerPlan !== 'PRO');
       return {
         ...rest,
-        ...this.marketFieldsFor(p.isForSale, auctionMap.get(p.id)),
+        // CSS blur alone still downloads the clear CDN asset. Restricted
+        // viewers receive only a server-rendered blurred preview URL, so the
+        // original cannot be recovered from DevTools' Network panel.
+        imageUrl: isRestricted ? `/api/pins/${p.id}/locked-preview` : p.imageUrl,
+        ...this.marketFieldsFor(p.isForSale, auction),
         isLiked: likedIds.has(p.id),
       };
     });
@@ -1183,13 +1195,22 @@ export class PinsService {
    * this pin id, never an arbitrary caller-supplied URL. */
   async getPinImageForProxy(
     pinId: string,
+    viewerId?: string,
   ): Promise<{ buffer: Buffer; contentType: string }> {
     const pin = await this.prisma.pin.findUnique({
       where: { id: pinId },
-      select: { imageUrl: true },
+      select: { imageUrl: true, userId: true, isForSale: true },
     });
     if (!pin) {
       throw new NotFoundException('Pin not found');
+    }
+
+    const auction = (await this.fetchLatestAuctionsByPinIds([pinId])).get(pinId);
+    if (viewerId !== pin.userId && (auction || pin.isForSale)) {
+      const plan = viewerId ? (await this.membershipsService.status(viewerId)).plan : 'FREE';
+      if ((auction && plan !== 'PRO') || (!auction && plan !== 'PLUS' && plan !== 'PRO')) {
+        throw new ForbiddenException('Gói hiện tại không có quyền xem ảnh rõ.');
+      }
     }
 
     try {
@@ -1204,6 +1225,34 @@ export class PinsService {
       if (error instanceof ServiceUnavailableException) throw error;
       console.error('Image proxy fetch error:', error);
       throw new ServiceUnavailableException('Không thể tải ảnh gốc lúc này.');
+    }
+  }
+
+  /** Public, deliberately lossy preview for locked market pins. It never
+   * exposes the stored CDN URL and rasterises the blur into the bytes. */
+  async getLockedPinPreview(pinId: string): Promise<Buffer> {
+    const pin = await this.prisma.pin.findUnique({
+      where: { id: pinId },
+      select: { imageUrl: true, isForSale: true },
+    });
+    if (!pin) throw new NotFoundException('Pin not found');
+
+    const auction = (await this.fetchLatestAuctionsByPinIds([pinId])).get(pinId);
+    if (!auction && !pin.isForSale) throw new NotFoundException('Locked preview not found');
+
+    try {
+      const response = await fetch(pin.imageUrl);
+      if (!response.ok) throw new Error(`Image fetch failed (${response.status})`);
+      const source = Buffer.from(await response.arrayBuffer());
+      return await sharp(source, { limitInputPixels: 60_000_000 })
+        .rotate()
+        .resize({ width: 480, height: 480, fit: 'inside', withoutEnlargement: true })
+        .blur(24)
+        .jpeg({ quality: 52, progressive: true })
+        .toBuffer();
+    } catch (error) {
+      console.error('Locked preview render error:', error);
+      throw new ServiceUnavailableException('Không thể tạo ảnh xem trước lúc này.');
     }
   }
 

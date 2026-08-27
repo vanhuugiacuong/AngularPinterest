@@ -110,11 +110,27 @@ export class PinsController {
    * a canvas without tainting it). Only ever fetches the URL already on
    * file for this specific pin id — no arbitrary-URL fetch/SSRF surface. */
   @Get(':id/image-proxy')
-  async proxyPinImage(@Param('id') id: string, @Res() res: Response) {
+  @UseGuards(OptionalSupabaseAuthGuard)
+  async proxyPinImage(
+    @CurrentUser() user: UserPayload | undefined,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
     const { buffer, contentType } =
-      await this.pinsService.getPinImageForProxy(id);
+      await this.pinsService.getPinImageForProxy(id, user?.id);
     res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 'public, max-age=3600');
+    // This response can contain the clear asset after an entitlement check;
+    // never let a shared cache replay a paid member's response to another user.
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.send(buffer);
+  }
+
+  @Get(':id/locked-preview')
+  async lockedPinPreview(@Param('id') id: string, @Res() res: Response) {
+    const buffer = await this.pinsService.getLockedPinPreview(id);
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.send(buffer);
   }
 
