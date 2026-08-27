@@ -403,19 +403,19 @@
   @if (activeDropdownPin(); as pin) {
     <div
       (click)="$event.stopPropagation()"
-      class="fixed w-44 glass-elevated rounded-panel shadow-card py-1.5 z-[100] text-left"
+      class="fixed w-48 glass-elevated rounded-panel shadow-card border border-border p-1.5 z-[100] text-left overflow-hidden"
       [style.left.px]="dropdownAnchor()?.left"
       [style.top.px]="dropdownAnchor()?.top"
       [style.transform]="'translateY(-100%) translateY(-8px)'"
       role="listbox"
     >
-      <span class="text-xs font-semibold text-text-muted px-3.5 py-1 block">Lưu vào bộ sưu tập</span>
-      <div class="max-h-[140px] overflow-y-auto">
+      <span class="text-xs font-semibold text-text-muted px-3 py-1 block select-none">Lưu vào bộ sưu tập</span>
+      <div class="max-h-[140px] overflow-y-auto flex flex-col gap-0.5">
         @for (b of boards(); track b.id) {
           <button
             type="button"
             (click)="selectBoardForPin(pin.id, b, $event)"
-            class="w-full text-left px-3.5 py-2 text-xs font-bold text-text hover:bg-surface-elevated cursor-pointer truncate border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            class="w-full text-left px-3 py-2 text-xs font-bold text-text hover:bg-surface-elevated rounded-control cursor-pointer truncate border-none bg-transparent transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             {{ b.name }}
           </button>
