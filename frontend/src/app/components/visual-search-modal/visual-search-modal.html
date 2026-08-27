@@ -1,18 +1,18 @@
 <div
   *ngIf="visualSearchService.isOpen()"
-  class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-fade-in"
+  class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-fade-in"
   (click)="visualSearchService.close()"
 >
   <div
-    class="bg-white dark:bg-[#1e1e1e] w-full max-w-[420px] rounded-[28px] p-6 shadow-2xl flex flex-col gap-4 text-left border border-gray-100 dark:border-[#333]"
+    class="bg-white dark:bg-[#1e1e1e] w-full max-w-[560px] rounded-[32px] p-8 shadow-2xl flex flex-col gap-6 text-left border border-gray-100 dark:border-[#333] transition-all"
     (click)="$event.stopPropagation()"
   >
     <div class="flex items-center justify-between">
-      <h2 class="text-base font-extrabold text-black dark:text-white leading-snug">Tìm kiếm bằng hình ảnh</h2>
+      <h2 class="text-lg font-extrabold text-black dark:text-white leading-snug">Tìm kiếm bằng hình ảnh</h2>
       <button
         (click)="visualSearchService.close()"
         title="Đóng"
-        class="shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] text-[#62625b] dark:text-[#999] border-none outline-none cursor-pointer"
+        class="shrink-0 w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] text-[#62625b] dark:text-[#999] border-none outline-none cursor-pointer transition-colors"
       >
         <span class="material-symbols-outlined text-xl leading-none">close</span>
       </button>
@@ -20,14 +20,14 @@
 
     <ng-container *ngIf="!visualSearchService.previewUrl()">
       <div
-        class="drag-drop-area rounded-2xl bg-[#f6f6f3] dark:bg-[#2a2a2a] flex flex-col items-center justify-center p-8 text-center cursor-pointer"
+        class="drag-drop-area rounded-2xl bg-[#f6f6f3] dark:bg-[#2a2a2a] hover:bg-[#eaeae6] dark:hover:bg-[#333] flex flex-col items-center justify-center p-12 min-h-[260px] text-center cursor-pointer transition-all border-2 border-dashed border-transparent hover:border-[#F94083]/40"
         (click)="uploadInput.click()"
         (dragover)="onDragOver($event)"
         (drop)="onDrop($event)"
       >
-        <span class="material-symbols-outlined text-4xl text-gray-400 mb-3">cloud_upload</span>
-        <p class="text-xs font-bold text-gray-700 dark:text-[#ccc]">Kéo thả hoặc nhấp để tải ảnh lên</p>
-        <span class="text-[10px] text-gray-500 dark:text-[#999] mt-2">Hỗ trợ JPG, PNG</span>
+        <span class="material-symbols-outlined text-5xl text-gray-400 dark:text-gray-500 mb-4">cloud_upload</span>
+        <p class="text-sm font-bold text-gray-800 dark:text-[#eee]">Kéo thả hoặc nhấp để tải ảnh lên</p>
+        <span class="text-xs text-gray-500 dark:text-[#aaa] mt-2">Hỗ trợ JPG, PNG, WEBP</span>
       </div>
 
       <input
@@ -49,7 +49,7 @@
       <button
         type="button"
         (click)="captureInput.click()"
-        class="h-11 rounded-full font-bold text-sm text-[#211922] dark:text-white bg-[#f0f0ed] dark:bg-[#2a2a2a] hover:bg-[#e5e5e1] dark:hover:bg-[#333] transition-colors cursor-pointer border-none outline-none flex items-center justify-center gap-2"
+        class="h-12 rounded-full font-bold text-sm text-[#211922] dark:text-white bg-[#f0f0ed] dark:bg-[#2a2a2a] hover:bg-[#e5e5e1] dark:hover:bg-[#333] transition-colors cursor-pointer border-none outline-none flex items-center justify-center gap-2.5 shadow-sm active:scale-98"
       >
         <span class="material-symbols-outlined text-xl leading-none">photo_camera</span>
         Chụp ảnh
@@ -57,27 +57,27 @@
     </ng-container>
 
     <ng-container *ngIf="visualSearchService.previewUrl() as preview">
-      <div class="relative rounded-2xl overflow-hidden bg-[#f6f6f3] dark:bg-[#2a2a2a]">
-        <img [src]="preview" class="w-full max-h-[320px] object-contain" />
+      <div class="relative rounded-2xl overflow-hidden bg-[#f6f6f3] dark:bg-[#2a2a2a] flex items-center justify-center p-2 min-h-[240px]">
+        <img [src]="preview" class="w-full max-h-[420px] object-contain rounded-xl" />
         <div
           *ngIf="visualSearchService.isLoading()"
-          class="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-3"
+          class="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex flex-col items-center justify-center gap-3 rounded-2xl"
         >
-          <div class="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-          <span class="text-xs font-bold text-white">Đang tìm kiếm...</span>
+          <div class="w-10 h-10 border-4 border-[#F94083] border-t-transparent rounded-full animate-spin"></div>
+          <span class="text-xs font-extrabold text-white tracking-wide">Đang tìm kiếm hình ảnh...</span>
         </div>
       </div>
 
-      <div class="flex gap-2 justify-end" *ngIf="!visualSearchService.isLoading()">
+      <div class="flex gap-3 justify-end mt-2" *ngIf="!visualSearchService.isLoading()">
         <button
           (click)="visualSearchService.reset()"
-          class="h-10 px-5 rounded-full font-bold text-sm text-[#211922] dark:text-white bg-[#f0f0ed] dark:bg-[#2a2a2a] hover:bg-[#e5e5e1] dark:hover:bg-[#333] transition-colors cursor-pointer border-none outline-none"
+          class="h-11 px-6 rounded-full font-bold text-sm text-[#211922] dark:text-white bg-[#f0f0ed] dark:bg-[#2a2a2a] hover:bg-[#e5e5e1] dark:hover:bg-[#333] transition-colors cursor-pointer border-none outline-none"
         >
           Chọn ảnh khác
         </button>
         <button
           (click)="visualSearchService.submit()"
-          class="h-10 px-5 rounded-full font-bold text-sm text-white bg-[#F94083] hover:bg-[#dc2f6d] transition-colors cursor-pointer border-none outline-none"
+          class="h-11 px-7 rounded-full font-bold text-sm text-white bg-[#F94083] hover:bg-[#dc2f6d] transition-all cursor-pointer border-none outline-none shadow-md active:scale-95"
         >
           Tìm kiếm
         </button>
