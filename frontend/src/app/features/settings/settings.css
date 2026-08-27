@@ -33,7 +33,7 @@
   background: #f4f6fb;
 }
 .nf-theme-preview--light .nf-theme-preview__accent {
-  background: #3659d9;
+  background: linear-gradient(135deg, #6987ff 0%, #9475ff 100%);
 }
 .nf-theme-preview--light .nf-theme-preview__text {
   color: #172033;
@@ -43,7 +43,7 @@
   background: #070910;
 }
 .nf-theme-preview--dark .nf-theme-preview__accent {
-  background: #6987ff;
+  background: linear-gradient(135deg, #6987ff 0%, #9475ff 100%);
 }
 .nf-theme-preview--dark .nf-theme-preview__text {
   color: #f3f6fb;
@@ -53,7 +53,7 @@
   background: linear-gradient(135deg, #f4f6fb 0%, #f4f6fb 48%, #070910 52%, #070910 100%);
 }
 .nf-theme-preview--system .nf-theme-preview__accent {
-  background: linear-gradient(135deg, #3659d9 0%, #6987ff 100%);
+  background: linear-gradient(135deg, #6987ff 0%, #9475ff 100%);
 }
 .nf-theme-preview--system .nf-theme-preview__text {
   color: #f3f6fb;
@@ -66,7 +66,8 @@ input[type="range"].nf-range-slider {
   width: 100%;
   height: 6px;
   border-radius: 9999px;
-  background: var(--color-surface-elevated, rgba(255, 255, 255, 0.12));
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   outline: none;
   cursor: pointer;
   transition: background 0.2s ease;
@@ -78,27 +79,28 @@ input[type="range"].nf-range-slider::-webkit-slider-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(135deg, var(--color-nova-blue) 0%, var(--color-iris-violet) 100%);
+  border: 2px solid var(--color-surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   cursor: pointer;
   transition: transform 0.15s ease;
 }
 
 input[type="range"].nf-range-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
+  transform: scale(1.2);
 }
 
 input[type="range"].nf-range-slider::-moz-range-thumb {
   width: 18px;
   height: 18px;
-  border: none;
+  border: 2px solid var(--color-surface);
   border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(135deg, var(--color-nova-blue) 0%, var(--color-iris-violet) 100%);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   cursor: pointer;
   transition: transform 0.15s ease;
 }
 
 input[type="range"].nf-range-slider::-moz-range-thumb:hover {
-  transform: scale(1.15);
+  transform: scale(1.2);
 }

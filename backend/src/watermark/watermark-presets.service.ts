@@ -43,9 +43,17 @@ export class WatermarkPresetsService {
     const pin = await this.prisma.pin.findUnique({ where: { id: pinId } });
     if (!pin || pin.userId !== userId) throw new NotFoundException('Không tìm thấy ảnh của bạn để xem trước.');
 
-    const originalBuffer = pin.originalStoragePath
-      ? await this.supabase.downloadPrivate('pins-original', pin.originalStoragePath)
-      : Buffer.from(await (await fetch(pin.imageUrl)).arrayBuffer());
+    let originalBuffer: Buffer;
+    if (pin.originalStoragePath) {
+      try {
+        originalBuffer = await this.supabase.downloadPrivate('pins-original', pin.originalStoragePath);
+      } catch (err) {
+        console.warn('[WatermarkPresetsService] Could not download original from private storage, falling back to public imageUrl:', err);
+        originalBuffer = Buffer.from(await (await fetch(pin.imageUrl)).arrayBuffer());
+      }
+    } else {
+      originalBuffer = Buffer.from(await (await fetch(pin.imageUrl)).arrayBuffer());
+    }
 
     // Ảnh xem trước được giới hạn kích thước để nhẹ - vẫn đủ để đánh giá bố cục.
     const previewSource = await sharp(originalBuffer, { limitInputPixels: 60_000_000 })
@@ -83,7 +91,7 @@ export class WatermarkPresetsService {
     return Math.min(max, Math.max(min, value));
   }
 
-  private async validateInput(userId: string, input: WatermarkPresetInput, logoBuffer?: Buffer) {
+  private async validateInput(userId: string, input: WatermarkPresetInput, logoBuffer?: Buffer, isUpdate = false) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
     if (!user) throw new NotFoundException('Không tìm thấy người dùng.');
     const entitlements = PLAN_ENTITLEMENTS[user.plan];
@@ -94,7 +102,7 @@ export class WatermarkPresetsService {
     if (!input.name?.trim()) throw new BadRequestException('Thiếu tên cấu hình.');
     if (input.type !== 'TEXT' && input.type !== 'LOGO') throw new BadRequestException('Loại watermark không hợp lệ.');
     if (input.type === 'TEXT' && !input.text?.trim()) throw new BadRequestException('Thiếu nội dung chữ.');
-    if (input.type === 'LOGO' && !logoBuffer) throw new BadRequestException('Thiếu file logo.');
+    if (input.type === 'LOGO' && !logoBuffer && !isUpdate) throw new BadRequestException('Thiếu file logo.');
     if (input.position && !POSITIONS.includes(input.position)) throw new BadRequestException('Vị trí không hợp lệ.');
 
     const usesAdvanced = Boolean(input.tiled) || Boolean(input.rotation && input.rotation !== 0);
@@ -152,7 +160,7 @@ export class WatermarkPresetsService {
 
   async update(userId: string, id: string, input: WatermarkPresetInput, logoBuffer?: Buffer) {
     const existing = await this.getOwned(userId, id);
-    await this.validateInput(userId, { ...input, type: input.type ?? existing.type }, logoBuffer);
+    await this.validateInput(userId, { ...input, type: input.type ?? existing.type }, logoBuffer, true);
 
     let logoStoragePath = existing.logoStoragePath;
     if (logoBuffer) {
