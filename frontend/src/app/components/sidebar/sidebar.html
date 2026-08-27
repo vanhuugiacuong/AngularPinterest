@@ -1,249 +1,188 @@
-<!-- Left-edge hover trigger zone (desktop/hover-capable pointers only) -->
-<div
-  *ngIf="sidebarState.supportsHover"
-  (mouseenter)="onZoneEnter()"
-  (mouseleave)="onZoneLeave()"
-  class="fixed left-0 top-16 z-30 h-[calc(100vh-4rem)] w-3 hidden md:block"
-  aria-hidden="true"
-></div>
-
-<!-- Primary Sidebar Rail — "Studio Dock", desktop/tablet only (md+). Opens
-     via click/keyboard (hamburger in Navbar) as the primary path; hover is
-     an additive convenience on pointer-capable devices, never required. -->
+<!-- One persistent rail: compact by default, expanded only by an explicit
+     click/keyboard action. Desktop/tablet never enter a hidden state. -->
 <nav
   id="app-sidebar-panel"
   role="navigation"
-  aria-label="Điều hướng chính"
-  [attr.inert]="sidebarState.isOpen() ? null : ''"
-  (mouseenter)="onZoneEnter()"
-  (mouseleave)="onZoneLeave()"
-  (focusin)="onZoneEnter()"
-  (focusout)="onZoneLeave()"
-  [class.translate-x-0]="sidebarState.isOpen()"
-  [class.-translate-x-full]="!sidebarState.isOpen()"
-  class="nf-rail hidden md:flex bg-surface fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-[84px] flex-col items-center justify-between overflow-visible border-r border-border py-4 shadow-card transition-transform duration-[250ms] ease-out select-none"
+  [attr.aria-label]="sidebarState.isExpanded() ? 'Điều hướng chính, đang mở rộng' : 'Điều hướng chính, đang thu gọn'"
+  [attr.aria-expanded]="sidebarState.isExpanded()"
+  [attr.tabindex]="sidebarState.isExpanded() ? -1 : 0"
+  [class.nf-rail--expanded]="sidebarState.isExpanded()"
+  [class.nf-rail--compact]="!sidebarState.isExpanded()"
+  (click)="onRailClick($event)"
+  (keydown.enter)="onRailKeydown($event)"
+  (keydown.space)="onRailKeydown($event)"
+  class="nf-rail"
 >
-  <!-- Top: Brand + Navigation Icons -->
-  <div class="flex w-full flex-col items-center gap-3">
-    <!-- Brand mark -->
-    <div class="relative group">
-      <button
-        type="button"
-        (click)="navigateHome()"
-        class="flex h-11 w-11 items-center justify-center rounded-control bg-gradient-brand text-text-on-accent shadow-glow transition-transform duration-300 ease-spring active:scale-95 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
-        aria-label="NovaFrame — về trang chủ"
-      >
-        <img src="/logo-mark.svg" alt="NovaFrame" class="h-6 w-6 object-contain" />
-      </button>
-      <span
-        role="tooltip"
-        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control bg-surface-high border border-border-strong px-2.5 py-1.5 text-xs font-semibold text-text opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
-      >
-        NovaFrame
-      </span>
-    </div>
+  <button
+    type="button"
+    class="nf-rail-brand"
+    (click)="onBrandClick($event)"
+    [attr.aria-label]="sidebarState.isExpanded() ? 'Thu gọn thanh điều hướng' : 'Mở rộng thanh điều hướng'"
+  >
+    <span class="nf-rail-brand__mark">
+      <img src="/logo-mark.svg" alt="" aria-hidden="true" />
+    </span>
+    <span class="nf-rail-label nf-rail-brand__name">NovaFrame</span>
+  </button>
 
-    <div class="h-px w-8 bg-border"></div>
-
+  <div class="nf-rail-nav" aria-label="Điều hướng">
     <!-- Home -->
-    <div class="relative group w-full flex justify-center">
-      <span
-        *ngIf="isFeedPage()"
-        class="nf-active-tick absolute left-1.5 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-gradient-brand"
-        aria-hidden="true"
-      ></span>
+    <div class="nf-rail-item-shell group">
       <button
         type="button"
         (click)="navigateHome()"
-        [class.bg-surface-elevated]="isFeedPage()"
-        [class.text-accent]="isFeedPage()"
-        [class.text-text-muted]="!isFeedPage()"
-        class="flex h-11 w-11 items-center justify-center rounded-control transition-colors duration-200 hover:bg-surface-elevated hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
+        [class.nf-rail-item--active]="isFeedPage()"
+        class="nf-rail-item"
         aria-label="Trang chủ"
+        aria-describedby="nf-tooltip-home"
         [attr.aria-current]="isFeedPage() ? 'page' : null"
       >
-        <span class="material-symbols-outlined text-xl" [class.font-bold]="isFeedPage()" aria-hidden="true">home</span>
+        <span class="nf-rail-icon material-symbols-outlined" aria-hidden="true">home</span>
+        <span class="nf-rail-label">Trang chủ</span>
       </button>
-      <span
-        role="tooltip"
-        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control bg-surface-high border border-border-strong px-2.5 py-1.5 text-xs font-semibold text-text opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
-      >
-        Trang chủ
-      </span>
+      <span id="nf-tooltip-home" role="tooltip" class="nf-tooltip">Trang chủ</span>
     </div>
 
-    <!-- Explore — not yet built. A real, focusable disabled control (not an
-         inert div) so its state is announced correctly and the tooltip is
-         at least discoverable via title on every input method. -->
-    <div class="relative group w-full flex justify-center">
+    <!-- Explore remains the existing disabled placeholder; no route is invented. -->
+    <div class="nf-rail-item-shell group">
       <button
         type="button"
-        disabled
         title="Khám phá · Sắp ra mắt"
-        class="flex h-11 w-11 items-center justify-center rounded-control text-text-muted/50 cursor-not-allowed border-none bg-transparent"
+        class="nf-rail-item nf-rail-item--disabled"
         aria-label="Khám phá — sắp ra mắt"
+        aria-disabled="true"
+        aria-describedby="nf-tooltip-explore"
       >
-        <span class="material-symbols-outlined text-xl" aria-hidden="true">explore</span>
+        <span class="nf-rail-icon material-symbols-outlined" aria-hidden="true">explore</span>
+        <span class="nf-rail-label">Khám phá</span>
       </button>
-      <span
-        role="tooltip"
-        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control bg-surface-high border border-border-strong px-2.5 py-1.5 text-xs font-semibold text-text-muted opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100"
-      >
-        Khám phá · Sắp ra mắt
-      </span>
+      <span id="nf-tooltip-explore" role="tooltip" class="nf-tooltip">Khám phá · Sắp ra mắt</span>
     </div>
 
     <!-- Create -->
-    <div class="relative group w-full flex justify-center">
-      <span
-        *ngIf="isCreatePage()"
-        class="nf-active-tick absolute left-1.5 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-gradient-brand"
-        aria-hidden="true"
-      ></span>
+    <div class="nf-rail-item-shell group">
       <button
         type="button"
         (click)="navigateToCreate()"
-        [class.bg-surface-elevated]="isCreatePage()"
-        [class.text-accent]="isCreatePage()"
-        [class.text-text-muted]="!isCreatePage()"
-        class="flex h-11 w-11 items-center justify-center rounded-control transition-colors duration-200 hover:bg-surface-elevated hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
+        [class.nf-rail-item--active]="isCreatePage()"
+        class="nf-rail-item"
         aria-label="Tạo mới"
+        aria-describedby="nf-tooltip-create"
         [attr.aria-current]="isCreatePage() ? 'page' : null"
       >
-        <span class="material-symbols-outlined text-xl" [class.font-bold]="isCreatePage()" aria-hidden="true">add</span>
+        <span class="nf-rail-icon material-symbols-outlined" aria-hidden="true">add</span>
+        <span class="nf-rail-label">Tạo</span>
       </button>
-      <span
-        role="tooltip"
-        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control bg-surface-high border border-border-strong px-2.5 py-1.5 text-xs font-semibold text-text opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
-      >
-        Tạo
-      </span>
+      <span id="nf-tooltip-create" role="tooltip" class="nf-tooltip">Tạo</span>
     </div>
 
     <!-- Collage -->
-    <div class="relative group w-full flex justify-center">
-      <span
-        *ngIf="isCollagePage()"
-        class="nf-active-tick absolute left-1.5 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-gradient-brand"
-        aria-hidden="true"
-      ></span>
+    <div class="nf-rail-item-shell group">
       <button
         type="button"
         (click)="navigateToCollage()"
-        [class.bg-surface-elevated]="isCollagePage()"
-        [class.text-accent]="isCollagePage()"
-        [class.text-text-muted]="!isCollagePage()"
-        class="flex h-11 w-11 items-center justify-center rounded-control transition-colors duration-200 hover:bg-surface-elevated hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
+        [class.nf-rail-item--active]="isCollagePage()"
+        class="nf-rail-item"
         aria-label="Tạo ảnh ghép"
+        aria-describedby="nf-tooltip-collage"
         [attr.aria-current]="isCollagePage() ? 'page' : null"
       >
-        <span class="material-symbols-outlined text-xl" [class.font-bold]="isCollagePage()" aria-hidden="true">dashboard_customize</span>
+        <span class="nf-rail-icon material-symbols-outlined" aria-hidden="true">dashboard_customize</span>
+        <span class="nf-rail-label">Tạo ảnh ghép</span>
       </button>
-      <span
-        role="tooltip"
-        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control bg-surface-high border border-border-strong px-2.5 py-1.5 text-xs font-semibold text-text opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
-      >
-        Tạo ảnh ghép
-      </span>
+      <span id="nf-tooltip-collage" role="tooltip" class="nf-tooltip">Tạo ảnh ghép</span>
     </div>
 
-    <!-- Notifications — Active Notification Button -->
-    <div class="relative group w-full flex justify-center">
-      <span
-        *ngIf="isNotificationOpen"
-        class="nf-active-tick absolute left-1.5 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-gradient-brand"
-        aria-hidden="true"
-      ></span>
+    <!-- Notifications -->
+    <div class="nf-rail-item-shell group">
       <button
         type="button"
         (click)="toggleNotifications()"
-        [class.bg-surface-elevated]="isNotificationOpen"
-        [class.text-accent]="isNotificationOpen"
-        [class.text-text-muted]="!isNotificationOpen"
-        class="relative flex h-11 w-11 items-center justify-center rounded-control transition-colors duration-200 hover:bg-surface-elevated hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
+        [class.nf-rail-item--active]="isNotificationOpen"
+        class="nf-rail-item"
         aria-label="Thông báo"
         aria-controls="nf-notification-panel"
+        aria-describedby="nf-tooltip-notifications"
         [attr.aria-expanded]="isNotificationOpen"
       >
-        <span class="material-symbols-outlined text-xl" [class.font-bold]="isNotificationOpen" aria-hidden="true">notifications</span>
-        <!-- Unread Badge -->
+        <span class="nf-rail-icon material-symbols-outlined" aria-hidden="true">notifications</span>
+        <span class="nf-rail-label">Thông báo</span>
         <span
           *ngIf="(unreadCount$ | async)! > 0"
           [appBadgeBump]="(unreadCount$ | async)!"
-          class="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-text-on-accent ring-2 ring-surface shadow-glow"
+          class="nf-rail-badge"
         >
           {{ (unreadCount$ | async)! > 99 ? '99+' : (unreadCount$ | async) }}
         </span>
       </button>
-      <span
-        role="tooltip"
-        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control bg-surface-high border border-border-strong px-2.5 py-1.5 text-xs font-semibold text-text opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
-      >
-        Thông báo
-      </span>
+      <span id="nf-tooltip-notifications" role="tooltip" class="nf-tooltip">Thông báo</span>
     </div>
 
     <!-- Messages -->
-    <div class="relative group w-full flex justify-center">
-      <span
-        *ngIf="isMessagesPage()"
-        class="nf-active-tick absolute left-1.5 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-gradient-brand"
-        aria-hidden="true"
-      ></span>
+    <div class="nf-rail-item-shell group">
       <button
         type="button"
         (click)="navigateToMessages()"
-        [class.bg-surface-elevated]="isMessagesPage()"
-        [class.text-accent]="isMessagesPage()"
-        [class.text-text-muted]="!isMessagesPage()"
-        class="relative flex h-11 w-11 items-center justify-center rounded-control transition-all duration-300 ease-spring hover:bg-surface-elevated hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
+        [class.nf-rail-item--active]="isMessagesPage()"
+        class="nf-rail-item"
         aria-label="Tin nhắn"
+        aria-describedby="nf-tooltip-messages"
         [attr.aria-current]="isMessagesPage() ? 'page' : null"
       >
-        <span class="material-symbols-outlined text-xl" [class.font-bold]="isMessagesPage()" aria-hidden="true">sms</span>
-        <!-- Unread Badge -->
+        <span class="nf-rail-icon material-symbols-outlined" aria-hidden="true">sms</span>
+        <span class="nf-rail-label">Tin nhắn</span>
         <span
           *ngIf="(unreadMessageCount$ | async)! > 0"
           [appBadgeBump]="(unreadMessageCount$ | async)!"
-          class="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-text-on-accent ring-2 ring-surface shadow-glow"
+          class="nf-rail-badge"
         >
           {{ (unreadMessageCount$ | async)! > 99 ? '99+' : (unreadMessageCount$ | async) }}
         </span>
       </button>
-      <span
-        role="tooltip"
-        class="nf-tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-control bg-surface-high border border-border-strong px-2.5 py-1.5 text-xs font-semibold text-text opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
-      >
-        Tin nhắn
-      </span>
+      <span id="nf-tooltip-messages" role="tooltip" class="nf-tooltip">Tin nhắn</span>
     </div>
   </div>
 
-  <!-- Bottom: Settings — real, focusable, active-state aware -->
-  <div class="relative group w-full flex justify-center">
-    <span
-      *ngIf="isSettingsPage()"
-      class="nf-active-tick absolute left-1.5 bottom-1/2 h-6 w-[3px] translate-y-1/2 rounded-full bg-gradient-brand"
-      aria-hidden="true"
-    ></span>
-    <button
-      type="button"
-      (click)="navigateToSettings()"
-      [class.bg-surface-elevated]="isSettingsPage()"
-      [class.text-accent]="isSettingsPage()"
-      [class.text-text-muted]="!isSettingsPage()"
-      class="flex h-11 w-11 items-center justify-center rounded-control transition-colors duration-200 hover:bg-surface-elevated hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary cursor-pointer"
-      aria-label="Cài đặt"
-      [attr.aria-current]="isSettingsPage() ? 'page' : null"
-    >
-      <span class="material-symbols-outlined text-xl" [class.font-bold]="isSettingsPage()" aria-hidden="true">settings</span>
-    </button>
-    <span
-      role="tooltip"
-      class="nf-tooltip pointer-events-none absolute left-full bottom-1/2 z-50 ml-2 translate-y-1/2 whitespace-nowrap rounded-control bg-surface-high border border-border-strong px-2.5 py-1.5 text-xs font-semibold text-text opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
-    >
-      Cài đặt
-    </span>
+  <div class="nf-rail-footer">
+    <div class="nf-rail-item-shell group">
+      <button
+        type="button"
+        (click)="navigateToSettings()"
+        [class.nf-rail-item--active]="isSettingsPage()"
+        class="nf-rail-item"
+        aria-label="Cài đặt"
+        aria-describedby="nf-tooltip-settings"
+        [attr.aria-current]="isSettingsPage() ? 'page' : null"
+      >
+        <span class="nf-rail-icon material-symbols-outlined" aria-hidden="true">settings</span>
+        <span class="nf-rail-label">Cài đặt</span>
+      </button>
+      <span id="nf-tooltip-settings" role="tooltip" class="nf-tooltip">Cài đặt</span>
+    </div>
+
+    <div *ngIf="supabaseService.user() as user" class="nf-rail-item-shell group nf-rail-profile-shell">
+      <button
+        type="button"
+        class="nf-rail-profile"
+        (click)="navigateToMyProfile()"
+        [attr.aria-label]="'Trang cá nhân của ' + displayName()"
+        aria-describedby="nf-tooltip-profile"
+      >
+        <span class="nf-rail-profile__avatar">
+          <app-user-avatar
+            [src]="avatarUrl()"
+            [name]="displayName()"
+            [size]="36"
+            [plan]="supabaseService.dbUser()?.plan"
+          ></app-user-avatar>
+        </span>
+        <span class="nf-rail-label nf-rail-profile__copy">
+          <strong>{{ displayName() }}</strong>
+          <small>{{ user.email }}</small>
+        </span>
+      </button>
+      <span id="nf-tooltip-profile" role="tooltip" class="nf-tooltip">Trang cá nhân</span>
+    </div>
   </div>
 </nav>
 
@@ -252,9 +191,7 @@
 <div
   *ngIf="isNotificationOpen"
   id="nf-notification-panel"
-  (mouseenter)="onZoneEnter()"
-  (mouseleave)="onZoneLeave()"
-  class="nf-notification-drawer hidden md:flex fixed left-[84px] top-16 z-40 h-[calc(100vh-4rem)] w-80 lg:w-[360px] flex-col bg-surface border-r border-border select-none"
+  class="nf-notification-drawer hidden md:flex fixed w-80 lg:w-[360px] flex-col bg-surface border border-border select-none rounded-[22px] overflow-hidden"
 >
   <ng-container *ngTemplateOutlet="notificationBody"></ng-container>
 </div>
@@ -541,21 +478,11 @@
   </button>
 </nav>
 
-<!-- Background Backdrop — z-30 (behind rail/drawer on desktop AND the
-     mobile sheet, which sit at z-40). Deliberately NOT wired to
-     onZoneEnter/onZoneLeave: it covers the entire page below the header
-     (inset-x-0), so treating "cursor is anywhere on the backdrop" as "still
-     hovering the sidebar" would mean the rail almost never auto-closes on
-     its own — the close-on-mouseleave debounce in SidebarStateService
-     (280ms, tuned longer than the rail's own 250ms slide-in) already
-     handles the hamburger→rail hand-off correctly without the backdrop's
-     help; only the rail/trigger's own zones should extend the open state. -->
+<!-- Mobile drawer backdrop. Desktop/tablet use a page-level sidebar column
+     and therefore do not dim or block the page. -->
 <div
   (click)="onBackdropClick()"
-  [class.opacity-100]="showBackdrop()"
-  [class.opacity-0]="!showBackdrop()"
-  [class.pointer-events-auto]="showBackdrop()"
-  [class.pointer-events-none]="!showBackdrop()"
+  [class.nf-sidebar-backdrop--visible]="sidebarState.isExpanded()"
   class="nf-sidebar-backdrop fixed inset-x-0 top-16 bottom-0 z-30"
   aria-hidden="true"
 ></div>

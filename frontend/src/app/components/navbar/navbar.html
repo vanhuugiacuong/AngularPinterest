@@ -1,4 +1,4 @@
-<!-- Collapsible left sidebar (overlay, only for authenticated users) -->
+<!-- Collapsible app-shell sidebar, only for authenticated users. -->
 <app-sidebar *ngIf="supabaseService.user()" />
 
 <!-- Sticky header — three hairline-separated zones instead of one glass bar.
@@ -12,25 +12,20 @@
 <header
   class="nf-header fixed top-0 inset-x-0 h-16 flex items-center gap-2 sm:gap-4 px-3 sm:px-6 z-50 bg-bg border-b border-border"
 >
-  <!-- Left cluster: hamburger (logged in) + logo -->
-  <div class="flex items-center gap-2 shrink-0">
+  <!-- Mobile-only drawer trigger. On desktop/tablet the persistent sidebar
+       occupies this upper-left area directly. -->
+  <div class="flex items-center shrink-0 md:hidden">
     <button
-      #sidebarTrigger
       type="button"
       *ngIf="supabaseService.user()"
-      (click)="sidebarState.toggle()"
-      (mouseenter)="onSidebarTriggerEnter()"
-      (mouseleave)="onSidebarTriggerLeave()"
-      (focus)="onSidebarTriggerEnter()"
-      class="hidden md:flex relative h-11 w-11 shrink-0 items-center justify-center rounded-control text-text transition-colors duration-150 hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg cursor-pointer"
-      [attr.aria-label]="sidebarState.isOpen() ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'"
-      [attr.aria-expanded]="sidebarState.isOpen()"
+      (click)="sidebarState.toggleSidebar()"
+      class="flex relative h-11 w-11 shrink-0 items-center justify-center rounded-control text-text transition-colors duration-150 hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg cursor-pointer"
+      [attr.aria-label]="sidebarState.isExpanded() ? 'Thu gọn menu điều hướng' : 'Mở rộng menu điều hướng'"
+      [attr.aria-expanded]="sidebarState.isExpanded()"
       aria-controls="app-sidebar-panel"
     >
-      <!-- Always the menu glyph — the sidebar opens on hover/click and closes
-           on mouseleave/backdrop/Escape, so there is no separate "close" icon
-           state to represent here. Hidden on mobile: the bottom nav replaces
-           this entirely below md. -->
+      <!-- Explicit compact/expanded toggle. Hover and focus do not mutate
+           sidebar state. -->
       <span class="material-symbols-outlined text-2xl" aria-hidden="true">menu</span>
       <!-- Combined unread badge (notifications + messages) — visible even
            while the sidebar is collapsed. -->
@@ -42,14 +37,6 @@
         {{ (totalUnread$ | async)! > 99 ? '99+' : (totalUnread$ | async) }}
       </span>
     </button>
-
-    <div
-      (click)="onLogoClick()"
-      class="flex items-center gap-2 cursor-pointer select-none rounded-control px-1.5 py-1 transition-colors duration-200 hover:bg-surface-elevated/60"
-    >
-      <img src="/logo-mark.svg" alt="NovaFrame" class="h-8 w-8 object-contain" />
-      <span class="hidden sm:inline text-lg font-extrabold text-gradient-brand tracking-tight">NovaFrame</span>
-    </div>
   </div>
 
   <!-- Center Search Bar — pill matching the header's other gradient pills;

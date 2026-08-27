@@ -9,7 +9,6 @@ import {
   HostListener,
   Output,
   EventEmitter,
-  ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -71,8 +70,6 @@ export class Navbar implements OnInit, OnDestroy {
   /** Emits the trimmed query on Enter / clear. Pages that care (e.g. /feed)
    * bind to it; pages that don't simply leave it unheard. */
   @Output() search = new EventEmitter<string>();
-
-  @ViewChild('sidebarTrigger') sidebarTrigger?: ElementRef<HTMLButtonElement>;
 
   public showProfilePopup = signal(false);
   public searchQuery = signal('');
@@ -333,31 +330,13 @@ export class Navbar implements OnInit, OnDestroy {
       this.showSearchDropdown.set(false);
       return;
     }
-    if (this.sidebarState.isOpen()) {
-      this.sidebarState.close();
-      this.sidebarTrigger?.nativeElement.focus();
+    if (this.sidebarState.isExpanded()) {
+      this.sidebarState.collapseSidebar();
     }
-  }
-
-  onSidebarTriggerEnter() {
-    this.sidebarState.cancelClose();
-    this.sidebarState.openSidebar();
-  }
-
-  onSidebarTriggerLeave() {
-    this.sidebarState.scheduleClose();
   }
 
   onLoginClick() {
     this.loginClick.emit();
-  }
-
-  onLogoClick() {
-    if (this.supabaseService.user()) {
-      this.router.navigate(['/feed']);
-    } else {
-      this.router.navigate(['/']);
-    }
   }
 
   navigateToMyProfile() {
