@@ -34,8 +34,16 @@
         title="Kéo để đổi thứ tự · hoặc Alt + mũi tên lên/xuống"
       >
         <span class="drag-handle material-symbols-outlined" aria-hidden="true">drag_indicator</span>
-        <span class="layer-thumb"><img [src]="layer.cutoutImageUrl" alt="" draggable="false" /></span>
-        <span class="layer-name">Phần cắt {{ orderedLayers.length - position }}</span>
+        <span class="layer-thumb">
+          @if (thumbUrl(layer); as url) {
+            <img [src]="url" alt="" draggable="false" />
+          } @else {
+            <span class="material-symbols-outlined kind-glyph" aria-hidden="true">{{
+              kindIcon(layer)
+            }}</span>
+          }
+        </span>
+        <span class="layer-name">{{ layerLabel(layer) }}</span>
       </button>
     </div>
 
@@ -62,6 +70,14 @@
   aria-hidden="true"
 >
   <span class="material-symbols-outlined" aria-hidden="true">drag_indicator</span>
-  <span class="preview-thumb"><img [src]="layer.cutoutImageUrl" alt="" /></span>
-  <strong>Phần cắt {{ layerNumber(layer.id) }}</strong>
+  <span class="preview-thumb">
+    @if (thumbUrl(layer); as url) {
+      <img [src]="url" alt="" />
+    } @else {
+      <span class="material-symbols-outlined kind-glyph" aria-hidden="true">{{
+        kindIcon(layer)
+      }}</span>
+    }
+  </span>
+  <strong>{{ layerLabel(layer) }}</strong>
 </div>

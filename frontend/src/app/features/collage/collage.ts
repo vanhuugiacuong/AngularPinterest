@@ -19,10 +19,11 @@ import { SubjectSelectorComponent } from './components/subject-selector/subject-
 import {
   COLLAGE_HEIGHT,
   COLLAGE_WIDTH,
+  CollageImageLayer,
   CollageImageSource,
-  CollageLayer,
   DEFAULT_LAYER_CROP,
   SegmentationResult,
+  isImageLayer,
 } from './collage.types';
 import { CollageDraftService } from './services/collage-draft.service';
 import { CollageStoreService } from './services/collage-store.service';
@@ -76,8 +77,10 @@ export class Collage implements OnInit, OnDestroy {
   readonly selectedSource = signal<CollageImageSource | null>(null);
   /** The layer currently open in the re-crop tool (null = tool closed).
    * Kept as the whole layer (not just its id) so the crop dialog's inputs
-   * don't flicker if the layer briefly disappears from the store mid-edit. */
-  readonly cropTarget = signal<CollageLayer | null>(null);
+   * don't flicker if the layer briefly disappears from the store mid-edit.
+   * Image-only by type: cropping a text or drawing layer is meaningless, and
+   * the tool needs `cutoutImageUrl`. */
+  readonly cropTarget = signal<CollageImageLayer | null>(null);
   readonly isSaving = signal(false);
   readonly isExporting = signal(false);
   /** Set once the draft has been written at least this session — drives the
@@ -200,8 +203,9 @@ export class Collage implements OnInit, OnDestroy {
       1,
     );
     const cutoutImageUrl = URL.createObjectURL(result.blob);
-    const layer: CollageLayer = {
+    const layer: CollageImageLayer = {
       id: crypto.randomUUID(),
+      kind: 'image',
       sourceImageUrl: source.sourceImageUrl,
       cutoutImageUrl,
       cutoutBlob: result.blob,
@@ -230,7 +234,9 @@ export class Collage implements OnInit, OnDestroy {
    * already on the canvas. */
   openLayerCrop(): void {
     const layer = this.store.selectedLayer();
-    if (!layer) return;
+    // Only image layers have a region to re-pick; the scissors button is hidden
+    // for the others, so this is just the guard that makes that a type fact.
+    if (!layer || !isImageLayer(layer)) return;
     this.cropTarget.set(layer);
   }
 

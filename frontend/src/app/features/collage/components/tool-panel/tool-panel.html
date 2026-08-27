@@ -1,0 +1,197 @@
+<section class="tool-panel">
+  <header>
+    <h2>{{ mode === 'draw' ? 'Công cụ vẽ' : 'Định dạng văn bản' }}</h2>
+    <button
+      type="button"
+      class="close-button"
+      (click)="closed.emit()"
+      title="Đóng bảng công cụ"
+      aria-label="Đóng bảng công cụ"
+    >
+      <span class="material-symbols-outlined" aria-hidden="true">close</span>
+    </button>
+  </header>
+
+  <div class="rows">
+    @if (mode === 'draw') {
+      <!-- Only brushes Fabric can actually produce differently. Pinterest shows
+           five styles; an eraser and a calligraphy nib have no equivalent here,
+           and shipping them as buttons that draw an ordinary line would be
+           worse than not shipping them. Deleting a drawing layer from the list
+           is the eraser. -->
+      <div class="row">
+        <span class="row-label" id="brush-style-label">Phong cách</span>
+        <div class="segmented" role="radiogroup" aria-labelledby="brush-style-label">
+          @for (option of brushOptions; track option.kind) {
+            <button
+              type="button"
+              role="radio"
+              [attr.aria-checked]="brush().brush === option.kind"
+              [class.active]="brush().brush === option.kind"
+              (click)="patchBrush({ brush: option.kind })"
+              [title]="option.label"
+              [attr.aria-label]="option.label"
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">{{ option.icon }}</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="row">
+        <label class="row-label" for="brush-size">Kích cỡ</label>
+        <input
+          id="brush-size"
+          type="range"
+          min="2"
+          max="80"
+          step="1"
+          [value]="brush().strokeWidth"
+          (input)="patchBrush({ strokeWidth: +$any($event.target).value })"
+        />
+      </div>
+
+      <div class="row">
+        <label class="row-label" for="brush-color">Màu sắc</label>
+        <input
+          id="brush-color"
+          type="color"
+          class="swatch"
+          [value]="brush().stroke"
+          (input)="patchBrush({ stroke: $any($event.target).value })"
+        />
+      </div>
+
+      <div class="row">
+        <label class="row-label" for="brush-opacity">Độ mờ</label>
+        <input
+          id="brush-opacity"
+          type="range"
+          min="0.1"
+          max="1"
+          step="0.05"
+          [value]="brush().strokeOpacity"
+          (input)="patchBrush({ strokeOpacity: +$any($event.target).value })"
+        />
+      </div>
+
+      <p class="tool-hint">Kéo trực tiếp trên khung để vẽ. Mỗi nét là một lớp riêng.</p>
+    } @else if (textLayer(); as layer) {
+      <div class="row row--stack">
+        <label class="row-label" for="text-content">Nội dung</label>
+        <textarea
+          id="text-content"
+          rows="3"
+          [value]="layer.text"
+          (input)="patchText({ text: $any($event.target).value }, true)"
+          placeholder="Nhập văn bản…"
+        ></textarea>
+      </div>
+
+      <div class="row">
+        <label class="row-label" for="text-weight">Cỡ</label>
+        <select
+          id="text-weight"
+          [value]="layer.fontWeight + '|' + layer.fontStyle"
+          (change)="applyStylePreset($any($event.target).value)"
+        >
+          <option value="800|normal">Đậm</option>
+          <option value="700|normal">Vừa</option>
+          <option value="400|normal">Thường</option>
+          <option value="700|italic">Nghiêng</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label class="row-label" for="text-size">Kích thước phông chữ</label>
+        <select
+          id="text-size"
+          [value]="layer.fontSize"
+          (change)="patchText({ fontSize: +$any($event.target).value })"
+        >
+          @for (size of fontSizes; track size) {
+            <option [value]="size">{{ size }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="row">
+        <span class="row-label" id="text-align-label">Căn chỉnh</span>
+        <div class="segmented" role="radiogroup" aria-labelledby="text-align-label">
+          @for (option of alignOptions; track option.value) {
+            <button
+              type="button"
+              role="radio"
+              [attr.aria-checked]="layer.textAlign === option.value"
+              [class.active]="layer.textAlign === option.value"
+              (click)="patchText({ textAlign: option.value })"
+              [title]="option.label"
+              [attr.aria-label]="option.label"
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">{{ option.icon }}</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="row">
+        <label class="row-label" for="text-color">Màu sắc</label>
+        <input
+          id="text-color"
+          type="color"
+          class="swatch"
+          [value]="layer.color"
+          (input)="patchText({ color: $any($event.target).value }, true)"
+        />
+      </div>
+
+      <div class="row">
+        <span class="row-label" id="text-highlight-label">Đánh dấu</span>
+        <div class="segmented" role="radiogroup" aria-labelledby="text-highlight-label">
+          <button
+            type="button"
+            role="radio"
+            [attr.aria-checked]="!layer.highlight"
+            [class.active]="!layer.highlight"
+            (click)="patchText({ highlight: false })"
+            title="Không đánh dấu"
+            aria-label="Không đánh dấu"
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">format_color_reset</span>
+          </button>
+          <button
+            type="button"
+            role="radio"
+            [attr.aria-checked]="layer.highlight"
+            [class.active]="layer.highlight"
+            (click)="patchText({ highlight: true })"
+            title="Đánh dấu nền chữ"
+            aria-label="Đánh dấu nền chữ"
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">format_ink_highlighter</span>
+          </button>
+        </div>
+      </div>
+
+      @if (layer.highlight) {
+        <div class="row">
+          <label class="row-label" for="text-highlight-color">Màu đánh dấu</label>
+          <input
+            id="text-highlight-color"
+            type="color"
+            class="swatch"
+            [value]="layer.highlightColor"
+            (input)="patchText({ highlightColor: $any($event.target).value }, true)"
+          />
+        </div>
+      }
+
+      <p class="tool-hint">
+        Kéo tay cầm hai bên của khung chữ để đổi chiều rộng — chữ tự xuống dòng bên
+        trong khung, không tràn ra ngoài.
+      </p>
+    } @else {
+      <p class="tool-hint">Chọn một lớp văn bản để chỉnh định dạng.</p>
+    }
+  </div>
+</section>

@@ -1,5 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
+import {
+  CollageLayer,
+  isDrawingLayer,
+  isImageLayer,
+  isTextLayer,
+} from '../../collage.types';
 import { CollageStoreService } from '../../services/collage-store.service';
 
 @Component({
@@ -31,6 +37,30 @@ export class LayerListComponent {
 
   get orderedLayers() {
     return [...this.store.layers()].sort((a, b) => b.zIndex - a.zIndex);
+  }
+
+  /** Only image layers have a picture to show; text and drawing rows get a glyph
+   * instead, which also makes the row's kind readable at a glance. */
+  thumbUrl(layer: CollageLayer): string | null {
+    return isImageLayer(layer) ? layer.cutoutImageUrl : null;
+  }
+
+  kindIcon(layer: CollageLayer): string {
+    if (isTextLayer(layer)) return 'title';
+    if (isDrawingLayer(layer)) return 'gesture';
+    return 'image';
+  }
+
+  /** Numbered per kind, so the list reads "Văn bản 1 / Hình vẽ 1 / Phần cắt 2"
+   * rather than numbering everything off one shared counter. */
+  layerLabel(layer: CollageLayer): string {
+    const sameKind = [...this.store.layers()]
+      .filter((candidate) => candidate.kind === layer.kind)
+      .sort((a, b) => a.zIndex - b.zIndex);
+    const position = sameKind.findIndex((candidate) => candidate.id === layer.id) + 1;
+    const noun =
+      layer.kind === 'text' ? 'Văn bản' : layer.kind === 'drawing' ? 'Hình vẽ' : 'Phần cắt';
+    return `${noun} ${position}`;
   }
 
   toggle(): void {

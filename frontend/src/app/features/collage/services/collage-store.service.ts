@@ -1,5 +1,13 @@
 import { Injectable, computed, signal } from '@angular/core';
-import { CollageLayer, CollageLayerTransform } from '../collage.types';
+import {
+  CollageDrawingLayer,
+  CollageLayer,
+  CollageLayerTransform,
+  CollageTextLayer,
+  isDrawingLayer,
+  isImageLayer,
+  isTextLayer,
+} from '../collage.types';
 
 @Injectable()
 export class CollageStoreService {
@@ -56,6 +64,35 @@ export class CollageStoreService {
     this.remember();
     this.layersState.update((layers) =>
       layers.map((layer) => (layer.id === id ? { ...layer, ...crop } : layer)),
+    );
+  }
+
+  /** Patches a text layer's content/style. Separate from updateTransform so
+   * typing does not push a history entry per keystroke — `coalesce` reuses the
+   * previous snapshot while the same edit continues. */
+  updateText(id: string, patch: Partial<Omit<CollageTextLayer, 'id' | 'kind'>>, coalesce = false): void {
+    const current = this.layersState().find((layer) => layer.id === id);
+    if (!current || !isTextLayer(current)) return;
+    if (!coalesce) this.remember();
+    this.layersState.update((layers) =>
+      layers.map((layer) => (layer.id === id ? { ...(layer as CollageTextLayer), ...patch } : layer)),
+    );
+  }
+
+  /** Patches a drawing layer's stroke style — same reasoning as updateText for
+   * slider drags, which fire continuously. */
+  updateDrawing(
+    id: string,
+    patch: Partial<Omit<CollageDrawingLayer, 'id' | 'kind' | 'pathData'>>,
+    coalesce = false,
+  ): void {
+    const current = this.layersState().find((layer) => layer.id === id);
+    if (!current || !isDrawingLayer(current)) return;
+    if (!coalesce) this.remember();
+    this.layersState.update((layers) =>
+      layers.map((layer) =>
+        layer.id === id ? { ...(layer as CollageDrawingLayer), ...patch } : layer,
+      ),
     );
   }
 
@@ -133,9 +170,13 @@ export class CollageStoreService {
     this.syncHistorySignals();
   }
 
+  /** Only image layers hold object URLs — text and drawing layers are plain
+   * data, so there is nothing to revoke for them. */
   disposeObjectUrls(): void {
     const urls = new Set(
-      this.layersState().flatMap((layer) => [layer.cutoutImageUrl, layer.sourceImageUrl]),
+      this.layersState()
+        .filter(isImageLayer)
+        .flatMap((layer) => [layer.cutoutImageUrl, layer.sourceImageUrl]),
     );
     for (const url of urls) {
       if (url.startsWith('blob:')) URL.revokeObjectURL(url);

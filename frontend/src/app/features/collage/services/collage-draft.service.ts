@@ -3,9 +3,11 @@ import {
   COLLAGE_HEIGHT,
   COLLAGE_WIDTH,
   CollageDraft,
+  CollageImageLayer,
   CollageLayer,
   DEFAULT_LAYER_CROP,
   StoredCollageLayer,
+  isImageLayer,
 } from '../collage.types';
 
 const DATABASE_NAME = 'novaframe-collage';
@@ -20,7 +22,14 @@ export class CollageDraftService {
       updatedAt: Date.now(),
       width: COLLAGE_WIDTH,
       height: COLLAGE_HEIGHT,
-      layers: layers.map(({ cutoutImageUrl: _url, ...layer }) => ({ ...layer })),
+      // Object URLs are per-session, so the image variant drops its one before
+      // storage; the blob it was created from is what actually persists. Text
+      // and drawing layers are plain data and go through untouched.
+      layers: layers.map((layer) =>
+        isImageLayer(layer)
+          ? (({ cutoutImageUrl: _url, ...rest }) => ({ ...rest }))(layer)
+          : { ...layer },
+      ),
     };
     const database = await this.openDatabase();
     await this.runRequest(database, 'readwrite', (store) => store.put(draft));
@@ -34,11 +43,19 @@ export class CollageDraftService {
     );
     database.close();
     if (!draft?.layers.length) return null;
-    return draft.layers.map((layer: StoredCollageLayer) => ({
-      ...DEFAULT_LAYER_CROP,
-      ...layer,
-      cutoutImageUrl: URL.createObjectURL(layer.cutoutBlob),
-    }));
+    return draft.layers.map((layer: StoredCollageLayer): CollageLayer => {
+      // Drafts written before layer kinds existed have no `kind` at all, and
+      // every one of them was an image — so treat a missing discriminant as
+      // 'image' rather than dropping the user's saved work.
+      if (layer.kind === 'text' || layer.kind === 'drawing') return { ...layer };
+      const image = layer as Omit<CollageImageLayer, 'cutoutImageUrl'>;
+      return {
+        ...DEFAULT_LAYER_CROP,
+        ...image,
+        kind: 'image',
+        cutoutImageUrl: URL.createObjectURL(image.cutoutBlob),
+      };
+    });
   }
 
   private openDatabase(): Promise<IDBDatabase> {
