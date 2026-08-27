@@ -83,6 +83,8 @@ export class MessagingService {
   private unreadCountSubject = new BehaviorSubject<number>(0);
   unreadCount$ = this.unreadCountSubject.asObservable();
   private lastConversations: ConversationSummary[] = [];
+  private conversationUnreadCount = 0;
+  private pendingIncomingRequestIds = new Set<string>();
 
   /** Fires the moment a new incoming message request is pushed over
    * realtime — MessagesComponent subscribes to trigger an immediate
@@ -152,13 +154,18 @@ export class MessagingService {
     // renders the message and marks it read; no toast/badge needed here.
     if (conversationId === this.activeConversationId) return;
 
-    this.unreadCountSubject.next(this.unreadCountSubject.value + 1);
+    this.conversationUnreadCount += 1;
+    this.emitUnreadTotal();
     this.toast.notify(`${sender.username}: ${message.content}`);
   }
 
   private handleRealtimeMessageRequest(payload: { request: MessageRequestRecord }): void {
     const { request } = payload;
     this.incomingRequestSubject.next(request);
+    if (!this.pendingIncomingRequestIds.has(request.id)) {
+      this.pendingIncomingRequestIds.add(request.id);
+      this.emitUnreadTotal();
+    }
     const senderName = request.sender?.username ?? 'Ai đó';
     this.toast.notify(`${senderName} đã gửi cho bạn một yêu cầu nhắn tin.`);
   }
@@ -171,7 +178,27 @@ export class MessagingService {
     if (!conversation || conversation.unreadCount === 0) return;
     const delta = conversation.unreadCount;
     conversation.unreadCount = 0;
-    this.unreadCountSubject.next(Math.max(0, this.unreadCountSubject.value - delta));
+    this.conversationUnreadCount = Math.max(0, this.conversationUnreadCount - delta);
+    this.emitUnreadTotal();
+  }
+
+  /** Keeps the global message badge aligned with the actionable incoming
+   * request queue. MessagesComponent calls this after each queue refresh;
+   * the service poll below provides the same reconciliation app-wide. */
+  syncIncomingRequests(requests: MessageRequestRecord[]): void {
+    this.pendingIncomingRequestIds = new Set(
+      requests.filter((request) => request.status === 'PENDING').map((request) => request.id),
+    );
+    this.emitUnreadTotal();
+  }
+
+  private markIncomingRequestHandled(requestId: string): void {
+    if (!this.pendingIncomingRequestIds.delete(requestId)) return;
+    this.emitUnreadTotal();
+  }
+
+  private emitUnreadTotal(): void {
+    this.unreadCountSubject.next(this.conversationUnreadCount + this.pendingIncomingRequestIds.size);
   }
 
   private startPolling(): void {
@@ -180,21 +207,35 @@ export class MessagingService {
     timer(0, 30000)
       .pipe(
         switchMap(() => this.fetchUnreadState()),
-        tap(({ total, conversations }) => {
+        tap(({ conversationTotal, conversations, incomingRequests }) => {
           this.lastConversations = conversations;
-          this.unreadCountSubject.next(total);
+          this.conversationUnreadCount = conversationTotal;
+          this.syncIncomingRequests(incomingRequests);
         }),
-        catchError(() => of({ total: 0, conversations: [] as ConversationSummary[] }))
+        catchError(() =>
+          of({
+            conversationTotal: 0,
+            conversations: [] as ConversationSummary[],
+            incomingRequests: [] as MessageRequestRecord[],
+          }),
+        ),
       )
       .subscribe();
   }
 
-  private async fetchUnreadState(): Promise<{ total: number; conversations: ConversationSummary[] }> {
+  private async fetchUnreadState(): Promise<{
+    conversationTotal: number;
+    conversations: ConversationSummary[];
+    incomingRequests: MessageRequestRecord[];
+  }> {
     const token = await this.auth.getSessionToken();
-    if (!token) return { total: 0, conversations: [] };
-    const conversations = await this.listConversations(token);
-    const total = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
-    return { total, conversations };
+    if (!token) return { conversationTotal: 0, conversations: [], incomingRequests: [] };
+    const [conversations, incomingRequests] = await Promise.all([
+      this.listConversations(token),
+      this.listIncomingRequests(token),
+    ]);
+    const conversationTotal = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
+    return { conversationTotal, conversations, incomingRequests };
   }
 
   async sendMessageRequest(receiverId: string, token: string): Promise<MessageRequestRecord> {
@@ -212,15 +253,19 @@ export class MessagingService {
   }
 
   async acceptRequest(id: string, token: string): Promise<AcceptRequestResult> {
-    return this.request<AcceptRequestResult>(`${this.requestsUrl}/${id}/accept`, token, {
+    const result = await this.request<AcceptRequestResult>(`${this.requestsUrl}/${id}/accept`, token, {
       method: 'PATCH',
     });
+    this.markIncomingRequestHandled(id);
+    return result;
   }
 
   async rejectRequest(id: string, token: string): Promise<MessageRequestRecord> {
-    return this.request<MessageRequestRecord>(`${this.requestsUrl}/${id}/reject`, token, {
+    const result = await this.request<MessageRequestRecord>(`${this.requestsUrl}/${id}/reject`, token, {
       method: 'PATCH',
     });
+    this.markIncomingRequestHandled(id);
+    return result;
   }
 
   async reportRequest(
@@ -229,10 +274,12 @@ export class MessagingService {
     details: string | undefined,
     token: string,
   ): Promise<{ request: MessageRequestRecord }> {
-    return this.request(`${this.requestsUrl}/${id}/report`, token, {
+    const result = await this.request<{ request: MessageRequestRecord }>(`${this.requestsUrl}/${id}/report`, token, {
       method: 'PATCH',
       body: JSON.stringify({ reason, details }),
     });
+    this.markIncomingRequestHandled(id);
+    return result;
   }
 
   async listConversations(token: string): Promise<ConversationSummary[]> {

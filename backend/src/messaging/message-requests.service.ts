@@ -58,24 +58,43 @@ export class MessageRequestsService {
         ],
       },
     });
-    if (existing) {
+    if (existing && existing.status !== 'REJECTED') {
       throw new ConflictException(this.describeExistingRequestConflict(existing, senderId));
     }
 
     let request;
-    try {
-      request = await this.prisma.messageRequest.create({
-        data: { senderId, receiverId },
+    if (existing?.status === 'REJECTED') {
+      // A rejection resolves only that attempt. Reuse the pair's unique row
+      // for a fresh request so either user can try again later.
+      request = await this.prisma.messageRequest.update({
+        where: { id: existing.id },
+        data: {
+          senderId,
+          receiverId,
+          status: 'PENDING',
+          createdAt: new Date(),
+          respondedAt: null,
+        },
         include: {
           receiver: { select: PUBLIC_USER_SELECT },
           sender: { select: PUBLIC_USER_SELECT },
         },
       });
-    } catch (error) {
-      if (isUniqueConstraintError(error)) {
-        throw new ConflictException('Bạn đã gửi yêu cầu nhắn tin cho người này rồi');
+    } else {
+      try {
+        request = await this.prisma.messageRequest.create({
+          data: { senderId, receiverId },
+          include: {
+            receiver: { select: PUBLIC_USER_SELECT },
+            sender: { select: PUBLIC_USER_SELECT },
+          },
+        });
+      } catch (error) {
+        if (isUniqueConstraintError(error)) {
+          throw new ConflictException('Bạn đã gửi yêu cầu nhắn tin cho người này rồi');
+        }
+        throw error;
       }
-      throw error;
     }
 
     // Instant push for the receiver's incoming-requests queue — mirrors

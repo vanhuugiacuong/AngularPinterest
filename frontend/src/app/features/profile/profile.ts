@@ -15,7 +15,7 @@ import { Navbar } from '../../components/navbar/navbar';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
 import { LikeButton } from '../../shared/like-button/like-button';
 import { BoardService } from '../../core/services/board';
-import { PinService } from '../../core/services/pin';
+import { Pin, PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
 import { ProfileAlbum, ProfilePin, ProfileSummary, UserService } from '../../core/services/user';
 import { MessagingService, ReportReason } from '../../core/services/messaging';
@@ -112,9 +112,14 @@ export class Profile implements OnInit, OnDestroy {
 
   private readonly pageSize = 20;
   private routeSubscription?: Subscription;
+  private createdPinSubscription?: Subscription;
   private currentUsername = '';
   private requestVersion = 0;
   private dialogReturnFocus?: HTMLElement;
+  private readonly pendingCreatedPins = new Map<
+    string,
+    { pin: Pin; incrementCount: boolean }
+  >();
 
   /** Hero avatar's pixel size, matching the .profile-avatar-slot breakpoints
    * in profile.css (108 / 80 / 72px) — set here rather than in CSS because
@@ -129,6 +134,17 @@ export class Profile implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.updateProfileAvatarSize();
+    this.createdPinSubscription = this.pinService.createdPins$.subscribe((pin) => {
+      const summary = this.profile();
+      const incrementCount =
+        summary?.user.id === pin.userId &&
+        this.postsState().loaded &&
+        !this.postsState().items.some((item) => item.id === pin.id);
+      this.pendingCreatedPins.set(pin.id, { pin, incrementCount });
+      if (summary?.user.id === pin.userId && this.postsState().loaded) {
+        this.flushPendingCreatedPins();
+      }
+    });
     this.routeSubscription = combineLatest([
       this.route.paramMap,
       this.route.queryParamMap,
@@ -154,6 +170,7 @@ export class Profile implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.routeSubscription?.unsubscribe();
+    this.createdPinSubscription?.unsubscribe();
     this.requestVersion += 1;
   }
 
@@ -405,7 +422,7 @@ export class Profile implements OnInit, OnDestroy {
       case 'PENDING_INCOMING':
         return 'Phản hồi trong Tin nhắn';
       case 'REJECTED':
-        return 'Yêu cầu đã bị từ chối';
+        return 'Gửi yêu cầu nhắn tin';
       case 'REPORTED':
         return 'Yêu cầu đã bị báo cáo';
       default:
@@ -416,7 +433,8 @@ export class Profile implements OnInit, OnDestroy {
   messageButtonDisabled(): boolean {
     const viewer = this.profile()?.viewer;
     if (!viewer || this.messageActionPending()) return true;
-    return !viewer.canMessage && !viewer.canSendMessageRequest;
+    const canRetryRejectedRequest = viewer.messageRequestStatus === 'REJECTED';
+    return !viewer.canMessage && !viewer.canSendMessageRequest && !canRetryRejectedRequest;
   }
 
   async onMessageAction() {
@@ -440,7 +458,7 @@ export class Profile implements OnInit, OnDestroy {
       return;
     }
 
-    if (viewer.canSendMessageRequest) {
+    if (viewer.canSendMessageRequest || viewer.messageRequestStatus === 'REJECTED') {
       this.messageActionPending.set(true);
       try {
         const token = await this.requireToken();
@@ -971,6 +989,7 @@ export class Profile implements OnInit, OnDestroy {
         error: null,
       });
       this.setCount(tab, response.total);
+      if (tab === 'posts') this.flushPendingCreatedPins();
     } catch (error) {
       if (version !== this.requestVersion) return;
       stateSignal.update((state) => ({
@@ -979,6 +998,70 @@ export class Profile implements OnInit, OnDestroy {
         loading: false,
         loadingMore: false,
         error: this.errorMessage(error, 'Không thể tải nội dung.'),
+      }));
+      if (tab === 'posts') this.flushPendingCreatedPins();
+    }
+  }
+
+  private flushPendingCreatedPins(): void {
+    const summary = this.profile();
+    const state = this.postsState();
+    if (!summary || (!state.loaded && !state.error)) return;
+
+    const matching = [...this.pendingCreatedPins.values()]
+      .filter(({ pin }) => pin.userId === summary.user.id)
+      .sort(
+        (a, b) =>
+          new Date(b.pin.createdAt).getTime() - new Date(a.pin.createdAt).getTime(),
+      );
+    if (!matching.length) return;
+
+    const existingIds = new Set(state.items.map((pin) => pin.id));
+    const additions = matching
+      .filter(({ pin }) => !existingIds.has(pin.id))
+      .map<ProfilePin>(({ pin }) => ({
+        id: pin.id,
+        title: pin.title,
+        description: pin.description ?? null,
+        imageUrl: pin.imageUrl,
+        sourceUrl: pin.sourceUrl ?? null,
+        userId: pin.userId,
+        createdAt: pin.createdAt,
+        isAiGenerated: pin.isAiGenerated,
+        promptUsed: pin.promptUsed ?? null,
+        negativePrompt: pin.negativePrompt ?? null,
+        generationModel: pin.generationModel ?? null,
+        category: pin.category ?? '',
+        isLiked: pin.isLiked ?? false,
+        user: {
+          id: summary.user.id,
+          username: summary.user.username,
+          avatarUrl: summary.user.avatarUrl,
+          plan: summary.user.plan,
+        },
+        _count: {
+          likes: pin._count?.likes ?? pin.likeCount ?? 0,
+          comments: pin._count?.comments ?? 0,
+        },
+      }));
+
+    const countIncrement = matching.filter(
+      ({ pin, incrementCount }) => incrementCount && !existingIds.has(pin.id),
+    ).length;
+    for (const { pin } of matching) this.pendingCreatedPins.delete(pin.id);
+    if (!additions.length) return;
+
+    this.postsState.update((current) => ({
+      ...current,
+      items: [...additions, ...current.items],
+      loaded: true,
+      loading: false,
+      error: null,
+    }));
+    if (countIncrement > 0) {
+      this.updateProfile((current) => ({
+        ...current,
+        counts: { ...current.counts, posts: current.counts.posts + countIncrement },
       }));
     }
   }

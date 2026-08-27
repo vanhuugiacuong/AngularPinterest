@@ -516,6 +516,7 @@ export class Create implements OnInit {
         }
       }
 
+      this.pinService.notifyPinCreated(createdPin);
       await this.handlePublishSuccess();
     } catch (error) {
       console.error('Error uploading pin:', error);
@@ -554,7 +555,8 @@ export class Create implements OnInit {
         generationModel: this.aiModel,
       };
 
-      await this.pinService.saveAiPin(body, token);
+      const createdPin = await this.pinService.saveAiPin(body, token);
+      this.pinService.notifyPinCreated(createdPin);
       await this.membership.load();
       await this.handlePublishSuccess();
     } catch (error) {
@@ -581,10 +583,13 @@ export class Create implements OnInit {
     this.dialogStatus.set('success');
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    const username = await this.resolveOwnUsername();
+    const profileIdentifier = await this.resolveOwnProfileIdentifier();
     try {
-      if (username) {
-        const navigated = await this.router.navigate(['/profile', username]);
+      if (profileIdentifier) {
+        const navigated = await this.router.navigate([
+          '/profile',
+          profileIdentifier,
+        ]);
         if (navigated) return;
         console.error('Navigating to own profile did not complete; falling back to /feed.');
       } else {
@@ -597,10 +602,10 @@ export class Create implements OnInit {
     }
   }
 
-  /** Username for the post-publish redirect, in priority order: the synced
-   * DB user (retried briefly in case sync is still in flight), then
-   * Supabase auth metadata, then the email local-part as a last resort. */
-  private async resolveOwnUsername(): Promise<string | null> {
+  /** Canonical username for the post-publish redirect, with the authenticated
+   * Supabase UUID as the unambiguous fallback while backend sync is in flight.
+   * OAuth full_name/name is display text and must never become a route id. */
+  private async resolveOwnProfileIdentifier(): Promise<string | null> {
     const immediate = this.supabaseService.dbUser()?.username;
     if (immediate) return immediate;
 
@@ -611,14 +616,7 @@ export class Create implements OnInit {
     }
 
     const user = this.supabaseService.user();
-    if (!user) return null;
-
-    const metaUsername = (user.user_metadata?.['full_name'] || user.user_metadata?.['name'] || '').trim();
-    if (metaUsername) return metaUsername;
-
-    const email = user.email || '';
-    const prefix = email.split('@')[0];
-    return prefix || null;
+    return user?.id || null;
   }
 
   onDialogRetry(): void {

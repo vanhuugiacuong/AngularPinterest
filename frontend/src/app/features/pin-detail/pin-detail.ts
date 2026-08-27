@@ -1100,7 +1100,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     if (!viewer) return true;
     if (viewer.isBlocked || viewer.isBlockedByTarget) return true;
     if (viewer.messageRequestStatus === 'PENDING_OUTGOING') return true;
-    return !viewer.canMessage && !viewer.canSendMessageRequest;
+    return !viewer.canMessage && !viewer.canSendMessageRequest && viewer.messageRequestStatus !== 'REJECTED';
   }
 
   async onContactOwner(): Promise<void> {
@@ -1121,7 +1121,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
         return;
       }
 
-      if (viewer.canSendMessageRequest) {
+      if (viewer.canSendMessageRequest || viewer.messageRequestStatus === 'REJECTED') {
         await this.messagingService.sendMessageRequest(p.user.id, token);
         this.contactViewer.set({ ...viewer, messageRequestStatus: 'PENDING_OUTGOING', canSendMessageRequest: false });
         this.toast.success('Đã gửi yêu cầu trao đổi tới chủ sở hữu.');

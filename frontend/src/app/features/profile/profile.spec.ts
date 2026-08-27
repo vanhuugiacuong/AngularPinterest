@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
-import { of } from 'rxjs';
+import { Subject, of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { BoardService } from '../../core/services/board';
-import { PinService } from '../../core/services/pin';
+import { Pin, PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
 import { ProfileSummary, ProfileViewerState, UserService } from '../../core/services/user';
 import { MessagingService } from '../../core/services/messaging';
@@ -52,7 +52,13 @@ describe('Profile', () => {
   };
 
   function setup(
-    overrides: { userService?: object; messagingService?: object; safetyService?: object; tab?: string } = {},
+    overrides: {
+      userService?: object;
+      pinService?: object;
+      messagingService?: object;
+      safetyService?: object;
+      tab?: string;
+    } = {},
   ) {
     const userService = {
       getUserProfile: vi.fn().mockResolvedValue(summary),
@@ -79,6 +85,10 @@ describe('Profile', () => {
       reportUser: vi.fn(),
       ...overrides.safetyService,
     };
+    const pinService = {
+      createdPins$: of(),
+      ...overrides.pinService,
+    };
     const router = { navigate: vi.fn().mockResolvedValue(true) };
 
     TestBed.configureTestingModule({
@@ -94,7 +104,7 @@ describe('Profile', () => {
         { provide: Router, useValue: router },
         { provide: UserService, useValue: userService },
         { provide: BoardService, useValue: {} },
-        { provide: PinService, useValue: {} },
+        { provide: PinService, useValue: pinService },
         { provide: MessagingService, useValue: messagingService },
         { provide: SafetyService, useValue: safetyService },
         {
@@ -105,8 +115,50 @@ describe('Profile', () => {
     }).overrideComponent(Profile, { set: { template: '' } });
 
     const fixture = TestBed.createComponent(Profile);
-    return { fixture, userService, messagingService, safetyService, router };
+    return { fixture, userService, pinService, messagingService, safetyService, router };
   }
+
+  it('prepends a newly created pin immediately without reloading or duplicating the profile list', async () => {
+    const createdPins = new Subject<Pin>();
+    const { fixture, userService } = setup({
+      pinService: { createdPins$: createdPins.asObservable() },
+    });
+    fixture.detectChanges();
+
+    const profile = fixture.componentInstance;
+    await vi.waitFor(() => expect(profile.postsState().loaded).toBe(true));
+
+    const createdPin: Pin = {
+      id: 'new-pin',
+      title: 'Bài mới',
+      description: 'Mô tả bài mới',
+      imageUrl: 'https://example.com/new-pin.jpg',
+      userId: 'artist-id',
+      createdAt: '2026-08-27T12:00:00.000Z',
+      isAiGenerated: false,
+      category: 'art',
+      user: {
+        id: 'artist-id',
+        username: 'artist',
+        avatarUrl: undefined,
+        plan: 'FREE',
+      },
+      _count: { likes: 0, comments: 0 },
+    };
+
+    createdPins.next(createdPin);
+
+    expect(profile.postsState().items[0]).toMatchObject({
+      id: 'new-pin',
+      title: 'Bài mới',
+    });
+    expect(userService.getUserPosts).toHaveBeenCalledTimes(1);
+
+    createdPins.next(createdPin);
+
+    expect(profile.postsState().items.filter((pin) => pin.id === 'new-pin')).toHaveLength(1);
+    fixture.destroy();
+  });
 
   it('defaults to real user posts and rejects a private favorites query for another profile', async () => {
     const { fixture, userService, router } = setup();
@@ -195,16 +247,25 @@ describe('Profile', () => {
     expect(profile.messageButtonDisabled()).toBe(true);
   });
 
-  it('shows a disabled state once a request was rejected, and never lets it be resent', () => {
-    const { fixture } = setup();
+  it('returns a rejected request to the enabled send-request state', async () => {
+    const { fixture, messagingService } = setup({
+      messagingService: {
+        sendMessageRequest: vi.fn().mockResolvedValue({ id: 'req-retry', status: 'PENDING' }),
+      },
+    });
     const profile = fixture.componentInstance;
     profile.profile.set({
       ...summary,
       viewer: baseViewer({ messageRequestStatus: 'REJECTED', canSendMessageRequest: false }),
     });
 
-    expect(profile.messageButtonLabel()).toBe('Yêu cầu đã bị từ chối');
-    expect(profile.messageButtonDisabled()).toBe(true);
+    expect(profile.messageButtonLabel()).toBe('Gửi yêu cầu nhắn tin');
+    expect(profile.messageButtonDisabled()).toBe(false);
+
+    await profile.onMessageAction();
+
+    expect(messagingService.sendMessageRequest).toHaveBeenCalledWith('artist-id', 'token');
+    expect(profile.profile()?.viewer.messageRequestStatus).toBe('PENDING_OUTGOING');
   });
 
   it('disables messaging entirely once blocked, regardless of follow state', () => {
