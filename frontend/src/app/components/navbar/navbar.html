@@ -349,77 +349,35 @@
      left-[6px]: the capsule is 68px wide but its icon buttons are 44px, centered inside
      it — so the capsule's own left edge has to sit 6px from the viewport, not 24px like
      the header's px-6, for the icons' center-x to line up with the logo's center-x above. -->
+<!-- Sidebar rail: cao full chiều, cố định bên trái, icon xếp dọc luôn hiện -->
 <nav
   *ngIf="supabaseService.user()"
-  (mouseenter)="isHoveringNav.set(true)"
-  (mouseleave)="isHoveringNav.set(false)"
-  class="nav-capsule fixed left-[6px] top-[88px] flex flex-col items-center py-3 gap-1"
+  class="nav-rail fixed left-0 top-16 bottom-0 w-[72px] flex flex-col items-center pt-5 gap-2"
   [class.z-40]="!showSearchDropdown()"
   [class.z-30]="showSearchDropdown()"
 >
-  <button
-    type="button"
-    (click)="onLogoClick()"
-    title="Trang chủ"
-    class="nav-icon-btn group relative w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer shrink-0"
-    [class.nav-icon-active]="isFeedPage()"
-  >
+  <button type="button" (click)="onLogoClick()" title="Trang chủ"
+    class="nav-rail-btn group" [class.nav-rail-active]="isFeedPage()">
     <span class="material-symbols-outlined text-2xl leading-none" [class.icon-filled]="isFeedPage()">home</span>
     <span class="nav-tooltip">Trang chủ</span>
   </button>
 
-  <!-- The other 4 destinations: grid-rows 0fr -> 1fr, not max-height (no jank) -->
-  <div id="nav-rail-panel" class="nav-panel-grid" [class.nav-panel-open]="isNavMenuVisible()">
-    <div class="nav-panel-inner flex flex-col items-center gap-1">
-      <button
-        type="button"
-        (click)="navigateToCreate()"
-        title="Tạo"
-        [attr.tabindex]="isNavMenuVisible() ? 0 : -1"
-        class="nav-icon-btn group relative w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer shrink-0"
-        [class.nav-icon-active]="isCreatePage()"
-      >
-        <span class="material-symbols-outlined text-2xl leading-none" [class.icon-filled]="isCreatePage()">add_circle</span>
-        <span class="nav-tooltip">Tạo</span>
-      </button>
+  <button type="button" (click)="navigateToCreate()" title="Tạo"
+    class="nav-rail-btn group" [class.nav-rail-active]="isCreatePage()">
+    <span class="material-symbols-outlined text-2xl leading-none" [class.icon-filled]="isCreatePage()">add_circle</span>
+    <span class="nav-tooltip">Tạo</span>
+  </button>
 
-      <button
-        type="button"
-        (click)="navigateToChat()"
-        title="Nhắn tin"
-        [attr.tabindex]="isNavMenuVisible() ? 0 : -1"
-        class="nav-icon-btn group relative w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer shrink-0"
-        [class.nav-icon-active]="isChatPage()"
-      >
-        <span class="material-symbols-outlined text-2xl leading-none" [class.icon-filled]="isChatPage()">chat_bubble</span>
-        <span class="nav-tooltip">Nhắn tin</span>
-      </button>
+  <button type="button" (click)="navigateToChat()" title="Nhắn tin"
+    class="nav-rail-btn group" [class.nav-rail-active]="isChatPage()">
+    <span class="material-symbols-outlined text-2xl leading-none" [class.icon-filled]="isChatPage()">chat_bubble</span>
+    <span class="nav-tooltip">Nhắn tin</span>
+  </button>
 
-      <button
-        type="button"
-        (click)="navigateToMyProfile()"
-        title="Cá nhân"
-        [attr.tabindex]="isNavMenuVisible() ? 0 : -1"
-        class="nav-icon-btn group relative w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer shrink-0"
-        [class.nav-icon-active]="isProfilePage()"
-      >
-        <span class="material-symbols-outlined text-2xl leading-none" [class.icon-filled]="isProfilePage()">person</span>
-        <span class="nav-tooltip">Cá nhân</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Toggle: chevron with the same hover/focus affordance as the icon buttons above it -->
-  <button
-    type="button"
-    (click)="toggleNavMenu($event)"
-    [attr.aria-expanded]="isNavMenuVisible()"
-    aria-controls="nav-rail-panel"
-    [title]="showNavMenu() ? 'Thu gọn menu' : 'Xem thêm menu'"
-    class="nav-chevron-btn group relative w-8 h-6 rounded-full flex items-center justify-center border-none bg-transparent cursor-pointer shrink-0"
-  >
-    <span class="material-symbols-outlined text-xl leading-none nav-chevron" [class.nav-chevron-open]="showNavMenu()">expand_more</span>
-    <span class="nav-tooltip">{{ showNavMenu() ? 'Thu gọn menu' : 'Xem thêm menu' }}</span>
+  <button type="button" (click)="navigateToMyProfile()" title="Cá nhân"
+    class="nav-rail-btn group" [class.nav-rail-active]="isProfilePage()">
+    <span class="material-symbols-outlined text-2xl leading-none" [class.icon-filled]="isProfilePage()">person</span>
+    <span class="nav-tooltip">Cá nhân</span>
   </button>
 </nav>
 

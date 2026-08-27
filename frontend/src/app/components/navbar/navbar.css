@@ -1,81 +1,51 @@
 /* Navbar — dark-only, hồng là màu chính. */
 
-/* Fills the outline-style Material Symbol for the active nav item */
 .icon-filled {
   font-variation-settings: 'FILL' 1, 'wght' 500;
 }
 
-/* ── Sidebar rail: viên nang kính tối, nổi mềm ─────────────────────────────── */
-.nav-capsule {
-  width: 60px;
-  border-radius: 30px;
-  background: rgba(22, 18, 27, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* ── Sidebar rail: cao full chiều, cố định trái ────────────────────────────── */
+.nav-rail {
+  background: rgba(20, 16, 25, 0.8);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
 }
 
-.nav-icon-btn {
+.nav-rail-btn {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
   background: transparent;
   color: #b3aabf;
-  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
 }
-.nav-icon-btn:hover {
+.nav-rail-btn:hover {
   background: rgba(255, 255, 255, 0.07);
   color: #ffffff;
 }
-.nav-icon-btn:active {
+.nav-rail-btn:active {
   transform: scale(0.92);
 }
 
-/* Mục đang chọn: viên gradient hồng→tím + glow */
-.nav-icon-active,
-.nav-icon-active:hover {
-  background: linear-gradient(135deg, #f94083 0%, #b15caa 100%);
+/* Mục đang chọn: viên HỒNG ĐẶC (không gradient) + glow nhẹ */
+.nav-rail-active,
+.nav-rail-active:hover {
+  background: #f94083;
   color: #ffffff;
-  box-shadow: 0 8px 18px -5px rgba(249, 64, 131, 0.65);
+  box-shadow: 0 8px 18px -6px rgba(249, 64, 131, 0.7);
 }
 
-.nav-icon-btn:focus-visible,
-.nav-chevron-btn:focus-visible {
+.nav-rail-btn:focus-visible {
   outline: 2px solid #f94083;
   outline-offset: 2px;
-}
-
-.nav-chevron-btn {
-  transition: background-color 0.15s ease;
-  border-radius: 9999px;
-}
-.nav-chevron-btn:hover,
-.nav-chevron-btn:focus-visible {
-  background: rgba(255, 255, 255, 0.07);
-}
-
-/* Panel mở rộng (grid-rows 0fr -> 1fr, mượt) */
-.nav-panel-grid {
-  display: grid;
-  grid-template-rows: 0fr;
-  width: 100%;
-  transition: grid-template-rows 280ms ease;
-}
-.nav-panel-open {
-  grid-template-rows: 1fr;
-}
-.nav-panel-inner {
-  min-height: 0;
-  overflow: hidden;
-}
-.nav-panel-open .nav-panel-inner {
-  padding-top: 0.25rem;
-}
-
-.nav-chevron {
-  color: #8b8496;
-  transition: transform 0.2s ease;
-}
-.nav-chevron-open {
-  transform: rotate(180deg);
 }
 
 /* Tooltip: kính tối, chữ trắng */
@@ -98,14 +68,12 @@
   transition: opacity 0.15s ease, transform 0.15s ease;
   z-index: 60;
 }
-.nav-icon-btn.group:hover .nav-tooltip,
-.nav-chevron-btn.group:hover .nav-tooltip,
-.nav-chevron-btn.group:focus-visible .nav-tooltip {
+.nav-rail-btn.group:hover .nav-tooltip {
   opacity: 1;
   transform: translate(0, -50%);
 }
 
-/* Gradient thương hiệu cho mục Pro trong menu */
+/* Gradient thương hiệu cho mục Pro trong menu tài khoản (không phải sidebar) */
 .grad-pill {
   background-image: linear-gradient(135deg, #f94083 0%, #b15caa 100%);
 }
