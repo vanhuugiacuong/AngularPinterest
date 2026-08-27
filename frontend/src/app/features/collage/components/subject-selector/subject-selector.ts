@@ -287,7 +287,7 @@ export class SubjectSelectorComponent implements AfterViewInit, OnDestroy {
     if (this.scribblePoints.length === 0) return;
 
     ctx.save();
-    ctx.strokeStyle = 'rgba(139, 44, 255, 0.9)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
     ctx.lineWidth = Math.max(3, Math.max(canvas.width, canvas.height) * 0.006);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -651,7 +651,7 @@ export class SubjectSelectorComponent implements AfterViewInit, OnDestroy {
       maskCtx.globalCompositeOperation = 'source-over';
       maskCtx.drawImage(bitmap, 0, 0, maskCanvas.width, maskCanvas.height);
       maskCtx.globalCompositeOperation = 'source-in';
-      maskCtx.fillStyle = 'rgba(139, 44, 255, 1)';
+      maskCtx.fillStyle = 'rgba(255, 255, 255, 1)';
       maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
       maskCtx.globalCompositeOperation = 'source-over';
     } finally {
@@ -813,8 +813,8 @@ export class SubjectSelectorComponent implements AfterViewInit, OnDestroy {
     const radius = this.brushRadius();
     const erasing = this.brushMode() === 'erase';
     ctx.globalCompositeOperation = erasing ? 'destination-out' : 'source-over';
-    ctx.fillStyle = 'rgba(139, 44, 255, 1)';
-    ctx.strokeStyle = 'rgba(139, 44, 255, 1)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 1)';
     ctx.lineWidth = radius * 2;
 
     if (this.lastPoint) {
@@ -862,7 +862,13 @@ export class SubjectSelectorComponent implements AfterViewInit, OnDestroy {
 
     hctx.save();
     hctx.drawImage(mask, 0, 0);
-    if (photo?.naturalWidth) {
+    /* A `naturalWidth` truthiness check was not enough: anything carrying that
+       property passed it and then blew up inside drawImage ("Image or Canvas
+       expected"), taking the whole stroke handler down with it. Verifying the
+       element type instead means a source that cannot be drawn simply leaves the
+       mask on its own — the selection still shows, just without the photo
+       composited into it. */
+    if (photo instanceof HTMLImageElement && photo.naturalWidth > 0) {
       hctx.globalCompositeOperation = 'source-in';
       hctx.drawImage(photo, 0, 0, width, height);
     }
@@ -951,7 +957,10 @@ export class SubjectSelectorComponent implements AfterViewInit, OnDestroy {
     const subtracting = this.regionOp() === 'subtract';
     ctx.save();
     ctx.globalCompositeOperation = subtracting ? 'destination-out' : 'source-over';
-    ctx.strokeStyle = subtracting ? 'rgba(255, 255, 255, 0.55)' : 'rgba(139, 44, 255, 0.55)';
+    // Add and subtract are told apart by globalCompositeOperation above, not by
+    // colour: subtract runs as destination-out, where this only supplies the
+    // alpha it erases with. So one white serves both.
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.lineWidth = this.regionBrushRadius() * 2;

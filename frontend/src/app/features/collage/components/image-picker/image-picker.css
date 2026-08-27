@@ -56,6 +56,18 @@
 .search-box {
   display: flex;
   height: 42px;
+  /* Belt over the height above. `height` on a flex item is only a hypothetical
+     main size -- flex is free to resolve past it -- so the field lost 10px the
+     moment the panel gained a definite height and the shrink factor below was
+     still the default. min-height cannot be resolved away, whatever flex
+     context this ends up in later. */
+  min-height: 42px;
+  /* Fixed chrome: never shrink. It only started mattering once the panel
+     got a definite height (see collage.css) -- before that nothing was
+     over-constrained so the default `flex: 0 1 auto` never actually
+     shrank anything. With a real height, flex takes the overflow out of
+     every shrinkable child, and this one collapsed. */
+  flex: 0 0 auto;
   align-items: center;
   gap: 8px;
   padding: 0 11px;
@@ -212,6 +224,7 @@
 .loading-state,
 .empty-state {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   gap: 8px;
@@ -232,6 +245,7 @@
   animation: spin 0.8s linear infinite;
 }
 .error-message {
+  flex: 0 0 auto;
   padding: 10px;
   border: 1px solid color-mix(in srgb, var(--color-error) 30%, transparent);
   border-radius: var(--radius-control);
@@ -274,6 +288,17 @@
 @media (min-width: 1101px) {
   .panel {
     height: 100%;
+    max-height: none;
+  }
+  /* Drop the vh cap here. At this width the flex chain resolves to a definite
+     height (page 100vh -> main -> grid row minmax(0,1fr) -> column -> panel),
+     so flex: 1 1 auto sizes the box correctly on its own — and the constant
+     is now simply wrong: the images column spans the editor-bar row as well,
+     making it ~54px taller than 290 was measured against, so the cap would
+     leave that much dead space under the last pin. It stays in force below
+     1101px, where the chain is not definite and it is the only thing making
+     this box scroll at all. */
+  .pin-scroll {
     max-height: none;
   }
 }

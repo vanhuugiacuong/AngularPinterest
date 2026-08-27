@@ -172,7 +172,7 @@
                         title="Chia sẻ"
                         class="w-9 h-9 rounded-full bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] flex items-center justify-center cursor-pointer transition-colors active:scale-90 border-none outline-none select-none text-black dark:text-white shrink-0"
                       >
-                        <span class="material-symbols-outlined text-lg leading-none">upload</span>
+                        <span class="material-symbols-outlined text-lg leading-none">share</span>
                       </button>
 
                       @if (showSharePopover()) {
@@ -258,11 +258,11 @@
                   </div>
 
                   <!-- Profile Board save -->
-                  <div class="flex items-center gap-2 select-none relative shrink-0">
+                  <div class="flex items-center gap-2 select-none relative min-w-0">
                     <!-- Dropdown Trigger -->
                     <button
                       (click)="toggleBoardDropdown($event)"
-                      class="h-10 px-4 bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] rounded-full text-sm font-bold flex items-center gap-1 cursor-pointer border-none outline-none text-black dark:text-white select-none max-w-[110px] shrink-0"
+                      class="h-10 px-4 bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] rounded-full text-sm font-bold flex items-center gap-1 cursor-pointer border-none outline-none text-black dark:text-white select-none max-w-[110px] min-w-[78px]"
                     >
                       <span class="truncate whitespace-nowrap">{{ getSelectedBoardName() }}</span>
                       <span class="material-symbols-outlined text-base leading-none shrink-0">keyboard_arrow_down</span>
@@ -285,12 +285,21 @@
                       </div>
                     }
 
-                    <!-- Save button -->
+                    <!-- Save button. whitespace-nowrap + shrink-0: the label is the
+                         point of the button, so it is the board dropdown next to it
+                         that gives way on a narrow card (it truncates already). -->
                     <button
                       (click)="savePinToBoard()"
-                      class="h-10 px-6 bg-[#F94083] hover:bg-[#dc2f6d] text-white rounded-full text-sm font-bold cursor-pointer active:scale-95 border-none outline-none shrink-0"
+                      title="Lưu vào bộ sưu tập"
+                      class="h-10 px-4 bg-[#F94083] hover:bg-[#dc2f6d] text-white rounded-full text-sm font-bold cursor-pointer active:scale-95 border-none outline-none shrink-0 flex items-center gap-1.5 whitespace-nowrap"
                     >
-                      Lưu
+                      <span
+                        class="material-symbols-outlined text-lg leading-none"
+                        style="font-variation-settings: 'FILL' 1"
+                        aria-hidden="true"
+                        >bookmark</span
+                      >
+                      Lưu vào bộ sưu tập
                     </button>
                   </div>
                 </div>

@@ -48,12 +48,73 @@
     </div>
 
     <!-- Background row: the frame itself, always bottom-most and not a layer the
-         store can move or delete. Shown as a locked row so the list reads as the
-         full stack rather than starting mid-air, matching Pinterest's "Nền". -->
-    <div class="layer-row layer-row--locked" aria-label="Nền — không thể di chuyển hoặc xóa">
-      <span class="material-symbols-outlined lock-icon" aria-hidden="true">lock</span>
-      <span class="layer-thumb layer-thumb--empty" aria-hidden="true"></span>
-      <span class="layer-name">Nền</span>
+         store can move or delete — hence the lock, which stays. It is a button
+         all the same, because the one thing about the background that IS
+         editable is its colour, and this row is where users look for it. -->
+    <div class="background-row">
+      <button
+        type="button"
+        class="layer-row layer-row--background"
+        [class.selected]="showBackgroundPicker()"
+        (click)="toggleBackgroundPicker($event)"
+        aria-haspopup="dialog"
+        [attr.aria-expanded]="showBackgroundPicker()"
+        title="Đổi màu nền của khung ảnh ghép"
+        aria-label="Nền — chọn màu nền. Không thể di chuyển hoặc xóa."
+      >
+        <span class="material-symbols-outlined lock-icon" aria-hidden="true">lock</span>
+        <!-- Shows the colour itself rather than a fixed checkerboard, so the row
+             reports the current background instead of implying transparency. -->
+        <span
+          class="layer-thumb layer-thumb--swatch"
+          [style.background-color]="store.background()"
+          aria-hidden="true"
+        ></span>
+        <span class="layer-name">Nền</span>
+      </button>
+
+      @if (showBackgroundPicker()) {
+        <!-- Anchored to the row and floating over the artboard, so the colour
+             being previewed is visible while the grid is open. -->
+        <div
+          class="colour-popover"
+          role="dialog"
+          aria-label="Chọn màu nền"
+          (click)="$event.stopPropagation()"
+        >
+          <div class="colour-grid">
+            @for (swatch of swatches; track swatch) {
+              <button
+                type="button"
+                class="colour-swatch"
+                [class.active]="isCurrent(swatch)"
+                [style.background-color]="swatch"
+                (click)="pickBackground(swatch)"
+                [attr.aria-label]="'Màu nền ' + swatch"
+                [attr.aria-pressed]="isCurrent(swatch)"
+                [title]="swatch"
+              ></button>
+            }
+          </div>
+
+          <!-- Anything outside the grid goes in here. Kept as a plain text field
+               rather than <input type="color">, whose native picker is a
+               separate OS window that covers the artboard it is editing. -->
+          <input
+            #hexInput
+            type="text"
+            class="colour-hex"
+            [value]="hexDraft()"
+            (input)="onHexInput(hexInput.value)"
+            (keydown.enter)="commitHex(hexInput.value)"
+            (blur)="commitHex(hexInput.value)"
+            spellcheck="false"
+            autocomplete="off"
+            maxlength="7"
+            aria-label="Mã màu nền dạng hex"
+          />
+        </div>
+      }
     </div>
 
     <p *ngIf="orderedLayers.length === 0" class="empty-state">

@@ -3,7 +3,11 @@
        positioned in the canvas element's own coordinate space. The parent
        cannot do this: .canvas-shell pads and centres the element, so its offset
        is not knowable from outside this component. -->
-  <div class="canvas-stage">
+  <div
+    class="canvas-stage"
+    [style.background-color]="store.background()"
+    [style.--stage-dot]="stageDotColor()"
+  >
     <canvas #canvasElement></canvas>
 
     <!-- Actions for the selected cutout, anchored under its bounding box the

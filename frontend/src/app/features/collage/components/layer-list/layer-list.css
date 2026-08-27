@@ -17,6 +17,12 @@
 /* Plain always-visible section header. Replaces a button+chevron whose only job
    was hiding this column's sole content. */
 .panel-head {
+  /* Fixed chrome: never shrink. This only started mattering once the panel
+     got a definite height (see the min-width:1101px block in collage.css):
+     until then nothing was over-constrained, so the default `flex: 0 1 auto`
+     never shrank anything. With a real height flex takes the overflow out of
+     every shrinkable child, and this one collapsed. */
+  flex: 0 0 auto;
   padding: 16px 14px 10px;
 }
 .panel-head h2 {
@@ -58,25 +64,96 @@
 
 /* The frame itself — bottom of the stack, and not something the store can move
    or delete, so it is deliberately not a button. */
-.layer-row--locked {
-  cursor: default;
-  opacity: 0.72;
+/* --- Background row + colour popover -------------------------------------
+   The row is a button (its colour is editable) but must not read as a cutout
+   that can be dragged or deleted, so it keeps the lock and drops the drag
+   affordance the layer rows have. */
+.background-row {
+  position: relative;
 }
-.layer-row--locked:hover {
-  border-color: var(--color-border);
+.layer-row--background {
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+}
+
+/* Bordered, because a white swatch on a light colour or a #121212 swatch on
+   the dark panel would otherwise have no edge at all. */
+.layer-thumb--swatch {
+  box-shadow: inset 0 0 0 1px var(--color-border-strong);
+}
+
+/* Anchored to the row and allowed to overhang the panel — the layers column is
+   248px wide and the grid alone is wider than that, so a popover confined
+   inside would have to wrap to two columns and stop matching the reference
+   layout. Left edge starts at the row so it reads as belonging to it. */
+.colour-popover {
+  position: absolute;
+  z-index: 40;
+  bottom: calc(100% + 8px);
+  left: 0;
+  display: flex;
+  width: max-content;
+  flex-direction: column;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
   background: var(--color-surface-elevated);
+  box-shadow: 0 18px 44px -18px rgba(0, 0, 0, 0.75);
+  gap: 12px;
+}
+.colour-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 26px);
+  gap: 8px;
+}
+.colour-swatch {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  /* Hairline ring on every swatch so #FFFFFF and #121212 are both visible
+     against the panel; the selected ring below sits outside it. */
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  cursor: pointer;
+  transition: transform 0.14s ease;
+}
+.colour-swatch:hover {
+  transform: scale(1.12);
+}
+.colour-swatch:focus-visible {
+  outline: 2px solid var(--color-nova-blue);
+  outline-offset: 2px;
+}
+/* Detached ring rather than a border, so selecting a colour does not shrink
+   the swatch and shift the whole grid by a pixel. */
+.colour-swatch.active {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 0 0 2px var(--color-surface-elevated),
+    0 0 0 4px var(--color-nova-blue);
+}
+.colour-hex {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  color: var(--color-text);
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.colour-hex:focus-visible {
+  border-color: var(--color-nova-blue);
+  outline: none;
 }
 .lock-icon {
   font-size: 16px;
   color: var(--color-text-muted);
-}
-.layer-thumb--empty {
-  background:
-    repeating-conic-gradient(
-        color-mix(in srgb, var(--color-text-muted) 22%, transparent) 0% 25%,
-        transparent 0% 50%
-      )
-      50% / 10px 10px;
 }
 .layer-row {
   display: grid;

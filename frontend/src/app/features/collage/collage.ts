@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import {
   Component,
   HostListener,
@@ -10,7 +11,6 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
 import { CollageCanvasComponent } from './components/collage-canvas/collage-canvas';
 import { ImagePickerComponent } from './components/image-picker/image-picker';
@@ -32,8 +32,8 @@ import {
 import { DrawingSettings } from './components/collage-canvas/collage-canvas';
 import { ToolPanelComponent, ToolPanelMode } from './components/tool-panel/tool-panel';
 import { CollageDraftService } from './services/collage-draft.service';
-import { CollageStoreService } from './services/collage-store.service';
 import { CollageTransferService } from './services/collage-transfer.service';
+import { CollageStoreService } from './services/collage-store.service';
 import { SEGMENTATION_PROVIDER } from './services/segmentation-provider';
 import { InteractiveSegmentationService } from './services/interactive-segmentation.service';
 import { SELECTION_ENGINE, SMART_CUT_ENGINE } from './services/selection-engine';
@@ -60,7 +60,10 @@ import { ToastService } from '../../core/services/toast';
     { provide: SMART_CUT_ENGINE, useExisting: RegionGrowingSelectionEngine },
   ],
   templateUrl: './collage.html',
-  styleUrl: './collage.css',
+  // Tokens first: they must be defined before collage.css consumes them. Custom
+  // properties inherit through the DOM, so declaring them on .collage-page also
+  // supplies every child component's scoped styles — see collage.tokens.css.
+  styleUrls: ['./collage.tokens.css', './collage.css'],
 })
 export class Collage implements OnInit, OnDestroy {
   @ViewChild(CollageCanvasComponent) private canvas?: CollageCanvasComponent;
@@ -127,9 +130,9 @@ export class Collage implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     try {
-      const layers = await this.draftService.load();
-      if (layers?.length) {
-        this.store.replaceAll(layers);
+      const draft = await this.draftService.load();
+      if (draft?.layers.length) {
+        this.store.replaceAll(draft.layers, draft.background);
         this.showToast('Đã khôi phục bản nháp ảnh ghép gần nhất.');
       }
     } catch (error) {
@@ -193,12 +196,12 @@ export class Collage implements OnInit, OnDestroy {
   async exit(): Promise<void> {
     if (this.store.layers().length) {
       try {
-        await this.draftService.save(this.store.layers());
+        await this.draftService.save(this.store.layers(), this.store.background());
       } catch (error) {
         console.error('Unable to save collage draft before exit:', error);
       }
     }
-    void this.router.navigate(['/feed']);
+    void this.router.navigate(['/create']);
   }
 
   /** Mở hộp thoại chọn tệp của panel ảnh — không tự dựng lại phần kiểm tra
@@ -361,7 +364,7 @@ export class Collage implements OnInit, OnDestroy {
     if (!this.store.layers().length || this.isSaving()) return false;
     this.isSaving.set(true);
     try {
-      await this.draftService.save(this.store.layers());
+      await this.draftService.save(this.store.layers(), this.store.background());
       this.savedAt.set(Date.now());
       return true;
     } catch (error) {
@@ -397,16 +400,21 @@ export class Collage implements OnInit, OnDestroy {
     this.isExporting.set(true);
     try {
       const blob = await this.requireCanvas().exportPng();
-      const file = new File([blob], `novaframe-collage-${Date.now()}.png`, {
+      const file = new File([blob], `pinhub-collage-${Date.now()}.png`, {
         type: 'image/png',
       });
-      await this.draftService.save(this.store.layers());
+      await this.draftService.save(this.store.layers(), this.store.background());
+      // Parked in CollageTransferService because the export has to survive the
+      // navigation to /create, which is where it becomes the pin photo.
       this.transferService.set(file);
       const navigated = await this.router.navigate(['/create']);
       if (!navigated) throw new Error('Navigation was cancelled');
     } catch (error) {
-      console.error('Unable to continue collage to publishing:', error);
-      this.showToast('Không thể chuyển ảnh sang trang đăng bài.', 'error');
+      console.error('Unable to finish collage:', error);
+      this.showToast('Không thể xuất ảnh ghép. Vui lòng thử lại.', 'error');
+    } finally {
+      // Was only reset on the error path, because success used to navigate away.
+      // As a modal it stays mounted, so the button has to become usable again.
       this.isExporting.set(false);
     }
   }

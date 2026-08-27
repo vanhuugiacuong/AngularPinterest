@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CollageLayer } from '../collage.types';
+import { DEFAULT_COLLAGE_BACKGROUND, CollageLayer } from '../collage.types';
 import { CollageStoreService } from './collage-store.service';
 
 function layer(id: string, zIndex: number): CollageLayer {
@@ -83,5 +83,53 @@ describe('CollageStoreService', () => {
       .map((item) => item.id);
     expect(frontToBack).toEqual(['first', 'third', 'second']);
     expect(store.layers().find((item) => item.id === 'first')?.zIndex).toBe(2);
+  });
+
+  it('carries the artboard background through undo and redo', () => {
+    const store = new CollageStoreService();
+    expect(store.background()).toBe(DEFAULT_COLLAGE_BACKGROUND);
+
+    store.setBackground('#121212');
+    expect(store.background()).toBe('#121212');
+
+    store.undo();
+    expect(store.background()).toBe(DEFAULT_COLLAGE_BACKGROUND);
+    store.redo();
+    expect(store.background()).toBe('#121212');
+  });
+
+  it('does not let a background change lose the layers, or a layer change lose the background', () => {
+    const store = new CollageStoreService();
+    store.add(layer('first', 0));
+    store.setBackground('#FF6F61');
+    store.add(layer('second', 1));
+
+    // One undo takes back only the second layer; the colour set before it and
+    // the layer set before that both have to survive.
+    store.undo();
+    expect(store.layers().map((item) => item.id)).toEqual(['first']);
+    expect(store.background()).toBe('#FF6F61');
+  });
+
+  it('coalesces a typed hex into one history step', () => {
+    const store = new CollageStoreService();
+    store.setBackground('#F00000');
+    store.setBackground('#FF0000', true);
+    store.setBackground('#FFF000', true);
+
+    store.undo();
+
+    expect(store.background()).toBe(DEFAULT_COLLAGE_BACKGROUND);
+    expect(store.canUndo()).toBe(false);
+  });
+
+  it('restores the background a draft was saved with', () => {
+    const store = new CollageStoreService();
+    store.replaceAll([layer('first', 0)], '#105233');
+    expect(store.background()).toBe('#105233');
+
+    // A draft with no stored colour falls back to the default.
+    store.replaceAll([layer('first', 0)]);
+    expect(store.background()).toBe(DEFAULT_COLLAGE_BACKGROUND);
   });
 });

@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import {
+  COLLAGE_BACKGROUND_SWATCHES,
+  DEFAULT_COLLAGE_BACKGROUND,
   CollageLayer,
   isDrawingLayer,
   isImageLayer,
@@ -29,6 +31,17 @@ export class LayerListComponent {
   readonly dragPreviewTransform = computed(
     () => `translate3d(${this.dragX() - 28}px, ${this.dragY() - 40}px, 0)`,
   );
+
+  /* --- Artboard background -------------------------------------------------
+     Lives here, not in a component of its own: it is one popover driven off one
+     row of this list, and splitting it out would mean passing the store, the
+     open state and the anchor across a boundary for no reuse. */
+  readonly swatches = COLLAGE_BACKGROUND_SWATCHES;
+  readonly showBackgroundPicker = signal(false);
+  /** What is in the hex field, which is deliberately NOT the committed colour:
+   * half-typed input has to survive in the field without being pushed to the
+   * artboard on every keystroke. */
+  readonly hexDraft = signal<string>(DEFAULT_COLLAGE_BACKGROUND);
 
   private pointerId: number | null = null;
   private pendingDragId: string | null = null;
@@ -158,5 +171,63 @@ export class LayerListComponent {
   layerNumber(id: string): number {
     const layers = this.orderedLayers;
     return layers.length - layers.findIndex((layer) => layer.id === id);
+  }
+
+  toggleBackgroundPicker(event: Event): void {
+    // Without this the document listener below sees the same click and closes
+    // the popover in the same tick it was opened.
+    event.stopPropagation();
+    const opening = !this.showBackgroundPicker();
+    if (opening) this.hexDraft.set(this.store.background().toUpperCase());
+    this.showBackgroundPicker.set(opening);
+  }
+
+  @HostListener('document:click')
+  closeBackgroundPicker(): void {
+    this.showBackgroundPicker.set(false);
+  }
+
+  @HostListener('document:keydown.escape')
+  dismissBackgroundPicker(): void {
+    if (this.showBackgroundPicker()) this.showBackgroundPicker.set(false);
+  }
+
+  isCurrent(colour: string): boolean {
+    return colour.toLowerCase() === this.store.background().toLowerCase();
+  }
+
+  pickBackground(colour: string): void {
+    this.store.setBackground(colour);
+    this.hexDraft.set(colour.toUpperCase());
+  }
+
+  /** Previews as it is typed once the value parses, so the artboard responds
+   * without a separate commit — coalesced, so the whole typed code is one undo
+   * step rather than one per character. */
+  onHexInput(raw: string): void {
+    this.hexDraft.set(raw);
+    const colour = this.normaliseHex(raw);
+    if (colour) this.store.setBackground(colour, true);
+  }
+
+  /** Enter or blur. Invalid input is discarded rather than left sitting in the
+   * field looking applied. */
+  commitHex(raw: string): void {
+    const colour = this.normaliseHex(raw);
+    this.hexDraft.set(colour ?? this.store.background().toUpperCase());
+    if (colour) this.store.setBackground(colour);
+  }
+
+  /** Accepts `fff`, `#fff`, `ffffff`, `#FFFFFF`; anything else is null. */
+  private normaliseHex(raw: string): string | null {
+    const value = raw.trim().replace(/^#/, '');
+    const full =
+      value.length === 3
+        ? value
+            .split('')
+            .map((char) => char + char)
+            .join('')
+        : value;
+    return /^[0-9a-fA-F]{6}$/.test(full) ? `#${full.toUpperCase()}` : null;
   }
 }

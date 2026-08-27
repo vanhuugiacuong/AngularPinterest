@@ -2,106 +2,106 @@
   <app-navbar></app-navbar>
 
   <main class="collage-main">
-    <!-- Slim editor bar: exit · title · history · overflow · next. The heavy
-         eyebrow/h1/subtitle block and the row of labelled buttons it replaced
-         cost ~140px of vertical space above the canvas, on a page whose whole
-         job is the canvas. Format info moved to a tooltip on the canvas frame,
-         and the two secondary exports moved into the ··· menu. -->
-    <header class="editor-bar">
-      <button
-        type="button"
-        class="editor-bar__icon"
-        (click)="exit()"
-        title="Đóng trình tạo ảnh ghép"
-        aria-label="Đóng trình tạo ảnh ghép"
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">close</span>
-      </button>
-
-      <h1 class="editor-bar__title">Tạo ảnh ghép</h1>
-
-      <span class="editor-bar__spacer"></span>
-
-      <!-- Autosave state. Replaces the "Lưu bản nháp" button as the primary
-           signal: the draft is written automatically after each edit, so the
-           useful thing to show is whether that has happened, not a button the
-           user has to remember to press. Manual save stays in the ··· menu. -->
-      @if (isSaving()) {
-        <span class="editor-bar__status" role="status">Đang lưu…</span>
-      } @else if (savedAt()) {
-        <span class="editor-bar__status editor-bar__status--done" role="status">Đã lưu</span>
-      }
-
-      <button
-        type="button"
-        class="editor-bar__icon"
-        (click)="store.undo()"
-        [disabled]="!store.canUndo()"
-        title="Hoàn tác (Ctrl+Z)"
-        aria-label="Hoàn tác"
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">undo</span>
-      </button>
-      <button
-        type="button"
-        class="editor-bar__icon"
-        (click)="store.redo()"
-        [disabled]="!store.canRedo()"
-        title="Làm lại (Ctrl+Y)"
-        aria-label="Làm lại"
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">redo</span>
-      </button>
-
-      <div class="editor-bar__overflow">
+    <div class="workspace-grid">
+      <!-- Slim editor bar: exit · title · history · overflow · next. The heavy
+           eyebrow/h1/subtitle block and the row of labelled buttons it replaced
+           cost ~140px of vertical space above the canvas, on a page whose whole
+           job is the canvas. Format info moved to a tooltip on the canvas frame,
+           and the two secondary exports moved into the ··· menu. -->
+      <header class="editor-bar">
         <button
           type="button"
           class="editor-bar__icon"
-          (click)="toggleOverflow($event)"
-          title="Tùy chọn khác"
-          aria-label="Tùy chọn khác"
-          aria-haspopup="menu"
-          [attr.aria-expanded]="showOverflow()"
+          (click)="exit()"
+          title="Đóng trình tạo ảnh ghép"
+          aria-label="Đóng trình tạo ảnh ghép"
         >
-          <span class="material-symbols-outlined" aria-hidden="true">more_horiz</span>
+          <span class="material-symbols-outlined" aria-hidden="true">close</span>
         </button>
 
-        @if (showOverflow()) {
-          <div class="overflow-menu" role="menu" (click)="$event.stopPropagation()">
-            <button
-              type="button"
-              role="menuitem"
-              (click)="saveDraft()"
-              [disabled]="!store.layers().length || isSaving() || isExporting()"
-            >
-              <span class="material-symbols-outlined" aria-hidden="true">save</span>
-              {{ isSaving() ? 'Đang lưu…' : 'Lưu bản nháp' }}
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              (click)="downloadPng()"
-              [disabled]="!store.layers().length || isExporting()"
-            >
-              <span class="material-symbols-outlined" aria-hidden="true">download</span>
-              Tải PNG · {{ collageWidth }} × {{ collageHeight }}
-            </button>
-          </div>
+        <h1 class="editor-bar__title">Tạo ảnh ghép</h1>
+
+        <span class="editor-bar__spacer"></span>
+
+        <!-- Autosave state. Replaces the "Lưu bản nháp" button as the primary
+             signal: the draft is written automatically after each edit, so the
+             useful thing to show is whether that has happened, not a button the
+             user has to remember to press. Manual save stays in the ··· menu. -->
+        @if (isSaving()) {
+          <span class="editor-bar__status" role="status">Đang lưu…</span>
+        } @else if (savedAt()) {
+          <span class="editor-bar__status editor-bar__status--done" role="status">Đã lưu</span>
         }
-      </div>
 
-      <button
-        type="button"
-        class="editor-bar__next"
-        (click)="finish()"
-        [disabled]="!store.layers().length || isExporting()"
-        title="Chuyển ảnh ghép sang luồng đăng bài"
-      >
-        {{ isExporting() ? 'Đang xuất…' : 'Tiếp theo' }}
-      </button>
-    </header>
+        <button
+          type="button"
+          class="editor-bar__icon"
+          (click)="store.undo()"
+          [disabled]="!store.canUndo()"
+          title="Hoàn tác (Ctrl+Z)"
+          aria-label="Hoàn tác"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">undo</span>
+        </button>
+        <button
+          type="button"
+          class="editor-bar__icon"
+          (click)="store.redo()"
+          [disabled]="!store.canRedo()"
+          title="Làm lại (Ctrl+Y)"
+          aria-label="Làm lại"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">redo</span>
+        </button>
 
-    <div class="workspace-grid">
+        <div class="editor-bar__overflow">
+          <button
+            type="button"
+            class="editor-bar__icon"
+            (click)="toggleOverflow($event)"
+            title="Tùy chọn khác"
+            aria-label="Tùy chọn khác"
+            aria-haspopup="menu"
+            [attr.aria-expanded]="showOverflow()"
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">more_horiz</span>
+          </button>
+
+          @if (showOverflow()) {
+            <div class="overflow-menu" role="menu" (click)="$event.stopPropagation()">
+              <button
+                type="button"
+                role="menuitem"
+                (click)="saveDraft()"
+                [disabled]="!store.layers().length || isSaving() || isExporting()"
+              >
+                <span class="material-symbols-outlined" aria-hidden="true">save</span>
+                {{ isSaving() ? 'Đang lưu…' : 'Lưu bản nháp' }}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                (click)="downloadPng()"
+                [disabled]="!store.layers().length || isExporting()"
+              >
+                <span class="material-symbols-outlined" aria-hidden="true">download</span>
+                Tải PNG · {{ collageWidth }} × {{ collageHeight }}
+              </button>
+            </div>
+          }
+        </div>
+
+        <button
+          type="button"
+          class="editor-bar__next"
+          (click)="finish()"
+          [disabled]="!store.layers().length || isExporting()"
+          title="Chuyển ảnh ghép sang luồng đăng bài"
+        >
+          {{ isExporting() ? 'Đang xuất…' : 'Tiếp theo' }}
+        </button>
+      </header>
+
       <aside class="layers-column"><app-collage-layer-list /></aside>
 
       <section class="canvas-column">

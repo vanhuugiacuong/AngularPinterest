@@ -1,5 +1,6 @@
 import { Injectable, computed, signal } from '@angular/core';
 import {
+  DEFAULT_COLLAGE_BACKGROUND,
   CollageDrawingLayer,
   CollageLayer,
   CollageLayerTransform,
@@ -9,15 +10,28 @@ import {
   isTextLayer,
 } from '../collage.types';
 
+interface CollageSnapshot {
+  layers: CollageLayer[];
+  background: string;
+}
+
 @Injectable()
 export class CollageStoreService {
   private readonly layersState = signal<CollageLayer[]>([]);
   private readonly selectedIdState = signal<string | null>(null);
-  private past: CollageLayer[][] = [];
-  private future: CollageLayer[][] = [];
+  /** The artboard colour behind every layer. Not modelled as a layer: it can
+   * never be reordered, deleted or transformed, and giving it an id would put
+   * it in reach of every method here that takes one. */
+  private readonly backgroundState = signal<string>(DEFAULT_COLLAGE_BACKGROUND);
+  /* History holds the background alongside the layers. Undo that silently
+     skipped a background change would be a hole in the one control users reach
+     for after any edit they regret. */
+  private past: CollageSnapshot[] = [];
+  private future: CollageSnapshot[] = [];
 
   readonly layers = this.layersState.asReadonly();
   readonly selectedId = this.selectedIdState.asReadonly();
+  readonly background = this.backgroundState.asReadonly();
   readonly selectedLayer = computed(
     () => this.layersState().find((layer) => layer.id === this.selectedIdState()) ?? null,
   );
@@ -31,12 +45,22 @@ export class CollageStoreService {
     this.selectedIdState.set(layer.id);
   }
 
-  replaceAll(layers: CollageLayer[]): void {
+  replaceAll(layers: CollageLayer[], background = DEFAULT_COLLAGE_BACKGROUND): void {
     this.layersState.set(this.normalizeZ(layers.map((layer) => ({ ...layer }))));
+    this.backgroundState.set(background);
     this.selectedIdState.set(layers.at(-1)?.id ?? null);
     this.past = [];
     this.future = [];
     this.syncHistorySignals();
+  }
+
+  /** `coalesce` folds the change into whatever history entry is already open,
+   * the same way updateText does: typing a hex code fires per keystroke, and
+   * without it six characters would cost six undo steps to get back. */
+  setBackground(color: string, coalesce = false): void {
+    if (color === this.backgroundState()) return;
+    if (!coalesce) this.remember();
+    this.backgroundState.set(color);
   }
 
   select(id: string | null): void {
@@ -156,7 +180,7 @@ export class CollageStoreService {
     const previous = this.past.pop();
     if (!previous) return;
     this.future.push(this.snapshot());
-    this.layersState.set(previous.map((layer) => ({ ...layer })));
+    this.restore(previous);
     this.ensureSelection();
     this.syncHistorySignals();
   }
@@ -165,7 +189,7 @@ export class CollageStoreService {
     const next = this.future.pop();
     if (!next) return;
     this.past.push(this.snapshot());
-    this.layersState.set(next.map((layer) => ({ ...layer })));
+    this.restore(next);
     this.ensureSelection();
     this.syncHistorySignals();
   }
@@ -214,8 +238,16 @@ export class CollageStoreService {
     this.syncHistorySignals();
   }
 
-  private snapshot(): CollageLayer[] {
-    return this.layersState().map((layer) => ({ ...layer }));
+  private snapshot(): CollageSnapshot {
+    return {
+      layers: this.layersState().map((layer) => ({ ...layer })),
+      background: this.backgroundState(),
+    };
+  }
+
+  private restore(snapshot: CollageSnapshot): void {
+    this.layersState.set(snapshot.layers.map((layer) => ({ ...layer })));
+    this.backgroundState.set(snapshot.background);
   }
 
   private normalizeZ(layers: CollageLayer[]): CollageLayer[] {

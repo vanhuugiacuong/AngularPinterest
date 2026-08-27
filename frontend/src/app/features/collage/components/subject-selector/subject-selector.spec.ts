@@ -1,6 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SegmentationResult } from '../../collage.types';
+import { InteractiveSegmentationService } from '../../services/interactive-segmentation.service';
+import { RegionGrowingSelectionEngine } from '../../services/region-growing-selection-engine';
+import { SEGMENTATION_PROVIDER } from '../../services/segmentation-provider';
+import { SELECTION_ENGINE, SMART_CUT_ENGINE } from '../../services/selection-engine';
 import { SubjectSelectorComponent } from './subject-selector';
 
 function attachCanvases(component: SubjectSelectorComponent): void {
@@ -19,7 +23,18 @@ describe('SubjectSelectorComponent', () => {
   let component: SubjectSelectorComponent;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    // The component injects three tokens, and SELECTION_ENGINE / SMART_CUT_ENGINE
+    // are bare InjectionToken values — no factory, no providedIn — so with an
+    // empty TestBed the constructor threw and every test in this file failed on
+    // an undefined component rather than on anything it was meant to check.
+    // Provided here the same way the Collage component provides them.
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: SEGMENTATION_PROVIDER, useExisting: InteractiveSegmentationService },
+        { provide: SELECTION_ENGINE, useExisting: RegionGrowingSelectionEngine },
+        { provide: SMART_CUT_ENGINE, useExisting: RegionGrowingSelectionEngine },
+      ],
+    });
     component = TestBed.runInInjectionContext(() => new SubjectSelectorComponent());
     component.source = {
       sourceImageUrl: 'https://example.com/source.jpg',

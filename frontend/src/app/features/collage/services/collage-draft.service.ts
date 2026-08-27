@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import {
   COLLAGE_HEIGHT,
   COLLAGE_WIDTH,
+  DEFAULT_COLLAGE_BACKGROUND,
   CollageDraft,
   CollageImageLayer,
   CollageLayer,
@@ -16,12 +17,13 @@ const DATABASE_VERSION = 1;
 
 @Injectable({ providedIn: 'root' })
 export class CollageDraftService {
-  async save(layers: CollageLayer[]): Promise<void> {
+  async save(layers: CollageLayer[], background = DEFAULT_COLLAGE_BACKGROUND): Promise<void> {
     const draft: CollageDraft = {
       id: 'latest',
       updatedAt: Date.now(),
       width: COLLAGE_WIDTH,
       height: COLLAGE_HEIGHT,
+      background,
       // Object URLs are per-session, so the image variant drops its one before
       // storage; the blob it was created from is what actually persists. Text
       // and drawing layers are plain data and go through untouched.
@@ -36,14 +38,14 @@ export class CollageDraftService {
     database.close();
   }
 
-  async load(): Promise<CollageLayer[] | null> {
+  async load(): Promise<{ layers: CollageLayer[]; background: string } | null> {
     const database = await this.openDatabase();
     const draft = await this.runRequest<CollageDraft | undefined>(database, 'readonly', (store) =>
       store.get('latest'),
     );
     database.close();
     if (!draft?.layers.length) return null;
-    return draft.layers.map((layer: StoredCollageLayer): CollageLayer => {
+    const layers = draft.layers.map((layer: StoredCollageLayer): CollageLayer => {
       // Drafts written before layer kinds existed have no `kind` at all, and
       // every one of them was an image — so treat a missing discriminant as
       // 'image' rather than dropping the user's saved work.
@@ -56,6 +58,9 @@ export class CollageDraftService {
         cutoutImageUrl: URL.createObjectURL(image.cutoutBlob),
       };
     });
+    // Drafts saved before the background was selectable have no colour stored;
+    // white is what their export painted, so that is what they restore to.
+    return { layers, background: draft.background ?? DEFAULT_COLLAGE_BACKGROUND };
   }
 
   private openDatabase(): Promise<IDBDatabase> {

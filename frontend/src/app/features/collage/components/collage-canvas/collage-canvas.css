@@ -27,13 +27,18 @@
    element's own coordinate space. The dotted grid sits here rather than on the
    canvas itself: painting it into Fabric would bake the dots into the exported
    PNG. */
+/* background-color and --stage-dot are both bound inline from the component:
+   the colour is the user's choice, and the dots have to flip between dark and
+   light with it or they vanish against half the palette (black dots on #121212,
+   white dots on #FFFFFF). The fallbacks keep the panel styled if the binding
+   has not run yet. */
 .canvas-stage {
   position: relative;
   flex: 0 0 auto;
   border-radius: var(--radius-frame);
   background-color: var(--color-surface-elevated);
   background-image: radial-gradient(
-    color-mix(in srgb, var(--color-text-muted) 34%, transparent) 1.1px,
+    var(--stage-dot, color-mix(in srgb, var(--color-text-muted) 34%, transparent)) 1.1px,
     transparent 1.1px
   );
   background-size: 15px 15px;

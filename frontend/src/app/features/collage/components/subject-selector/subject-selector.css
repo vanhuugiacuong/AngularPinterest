@@ -34,14 +34,8 @@ h2 {
   font-weight: 800;
   white-space: nowrap;
 }
-.eyebrow {
-  color: var(--color-accent);
-  font-family: var(--font-sans);
-  font-weight: 700;
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
+/* .eyebrow removed with the same brush-era markup — the panel header now shows
+   a back arrow, a title and the two confirm buttons, no eyebrow label. */
 .icon-button {
   display: grid;
   width: 40px;
@@ -192,7 +186,7 @@ h2 {
   height: 100%;
   object-fit: contain;
   pointer-events: none;
-  filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 7px var(--color-accent));
+  filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 7px rgba(255, 255, 255, 0.75));
   animation: cut-edge-pulse 2.1s ease-in-out infinite;
 }
 
@@ -200,12 +194,12 @@ h2 {
   0%,
   100% {
     filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.9))
-      drop-shadow(0 0 5px color-mix(in srgb, var(--color-accent) 60%, transparent));
+      drop-shadow(0 0 5px rgba(255, 255, 255, 0.45));
   }
   50% {
     filter: drop-shadow(0 0 3px #fff)
-      drop-shadow(0 0 13px var(--color-accent))
-      drop-shadow(0 0 22px color-mix(in srgb, var(--color-accent) 40%, transparent));
+      drop-shadow(0 0 13px rgba(255, 255, 255, 0.8))
+      drop-shadow(0 0 22px rgba(255, 255, 255, 0.4));
   }
 }
 
@@ -214,90 +208,15 @@ h2 {
 @media (prefers-reduced-motion: reduce) {
   .highlight-canvas {
     animation: none;
-    filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 10px var(--color-accent));
+    filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 10px rgba(255, 255, 255, 0.7));
   }
 }
 
-.mode-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 14px 20px 0;
-}
-.mode-tabs button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 34px;
-  padding: 0 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  color: var(--color-text-muted);
-  background: var(--color-surface-elevated);
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.mode-tabs button.active {
-  color: var(--color-text);
-  border-color: var(--color-accent);
-  background: var(--color-surface-high);
-}
-.mode-tabs .material-symbols-outlined {
-  font-size: 16px;
-}
-
-.brush-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 20px;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface-elevated);
-}
-.brush-mode-switch {
-  display: inline-flex;
-  gap: 4px;
-  padding: 3px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-bg-secondary);
-}
-.brush-mode-switch button {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  height: 32px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: calc(var(--radius-control) - 3px);
-  color: var(--color-text-muted);
-  background: transparent;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.brush-mode-switch button.active {
-  color: var(--color-text);
-  background: var(--color-surface-high);
-}
-.brush-mode-switch .material-symbols-outlined {
-  font-size: 16px;
-}
-.brush-size {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--color-text-muted);
-}
-.brush-size .material-symbols-outlined {
-  font-size: 10px;
-}
-.brush-size input[type='range'] {
-  width: 120px;
-  accent-color: var(--color-accent);
-}
+/* The .mode-tabs / .brush-toolbar / .brush-mode-switch / .brush-size rules that
+   sat here are gone: they styled the brush-painting workflow that region/lasso
+   selection replaced, and no element in the template carries any of those
+   classes any more. Dead either way — and their weight pushed this file past
+   the 8 kB per-component CSS budget, which fails the production build. */
 .clear-button {
   display: flex;
   align-items: center;
@@ -486,6 +405,12 @@ h2 {
   cursor: pointer;
 }
 .hint {
+  /* Fixed chrome: never shrink. This only started mattering once the panel
+     got a definite height (see the min-width:1101px block in collage.css):
+     until then nothing was over-constrained, so the default `flex: 0 1 auto`
+     never shrank anything. With a real height flex takes the overflow out of
+     every shrinkable child, and this one collapsed. */
+  flex: 0 0 auto;
   min-height: 42px;
   margin: 0;
   padding: 12px 20px;

@@ -7,6 +7,7 @@ import {
   OnDestroy,
   Output,
   ViewChild,
+  computed,
   effect,
   inject,
   signal,
@@ -97,6 +98,28 @@ export class CollageCanvasComponent implements AfterViewInit, OnDestroy {
    * theme's actual value once per call so corner/border colors stay on
    * the Nova/Iris brand tokens (and adapt across light/dark) instead of
    * a hardcoded neon cyan/violet. */
+  /* Relative luminance by the sRGB coefficients, on the raw channels rather
+   * than gamma-corrected ones: the exact threshold does not matter here, only
+   * which side of "is this light or dark" a swatch falls on, and this is
+   * cheaper and stable across the whole palette. Unparseable input counts as
+   * light, matching the white default. */
+  readonly stageDotColor = computed(() => {
+    const hex = this.store.background().replace('#', '');
+    const full =
+      hex.length === 3
+        ? hex
+            .split('')
+            .map((char) => char + char)
+            .join('')
+        : hex;
+    if (!/^[0-9a-fA-F]{6}$/.test(full)) return 'rgba(0, 0, 0, 0.16)';
+    const r = Number.parseInt(full.slice(0, 2), 16);
+    const g = Number.parseInt(full.slice(2, 4), 16);
+    const b = Number.parseInt(full.slice(4, 6), 16);
+    const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    return luminance > 0.55 ? 'rgba(0, 0, 0, 0.16)' : 'rgba(255, 255, 255, 0.18)';
+  });
+
   private resolveToken(name: string, fallback: string): string {
     if (typeof window === 'undefined') return fallback;
     const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -140,11 +163,12 @@ export class CollageCanvasComponent implements AfterViewInit, OnDestroy {
 
   async exportPng(): Promise<Blob> {
     if (!this.canvas) throw new Error('Khung ảnh chưa sẵn sàng.');
-    /* The editing canvas is transparent so the dotted artboard shows through.
-       Paint the white background back on just for the export, then restore — the
-       output file stays byte-for-byte what it was before that change. */
+    /* The editing canvas is transparent so the artboard behind it — its colour
+       and its dot grid, both CSS on .canvas-stage — shows through. Only the
+       colour belongs in the file, so it is painted on for the export and the
+       dots are never baked in. */
     const editingBackground = this.canvas.backgroundColor;
-    this.canvas.backgroundColor = '#ffffff';
+    this.canvas.backgroundColor = this.store.background();
     try {
       this.canvas.renderAll();
       const output = this.canvas.toCanvasElement(1);

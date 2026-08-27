@@ -9,67 +9,12 @@
 }
 .collage-main {
   width: 100%;
-  padding: 76px 22px 28px;
+  /* Left padding clears the fixed 72px navbar rail — see the note in the
+     min-width: 1101px block at the end of this file. */
+  padding: 76px 22px 28px calc(72px + 22px);
 }
 
-/* --- Fit-the-viewport editor ---------------------------------------------
-   Above the stacking breakpoint the whole editor is exactly one screen tall and
-   the page itself never scrolls; each column scrolls inside its own box.
 
-   This replaces per-panel `max-height: calc(100vh - 150px)` / `- 230px`. Those
-   numbers were each guessing the space above their own panel, and they did not
-   add up: the right panel starts at 76 (top padding) + 40 (bar) + 14 (margin)
-   = 130px, so `100vh - 150px` plus the 28px bottom padding overflowed the
-   viewport by a sliver — enough to arm a scrollbar for nothing. Deriving the
-   height from the real box instead of a constant means it cannot drift again
-   when the bar or the padding changes.
-
-   Gated at 1101px, not the 761px stacking breakpoint: below 1100px the grid
-   wraps the image column onto a second row, and two rows inside a fixed height
-   would squeeze both instead of scrolling. That range keeps normal document
-   flow. */
-@media (min-width: 1101px) {
-  .collage-page {
-    height: 100vh;
-    overflow: hidden;
-  }
-  .collage-main {
-    /* Navbar is fixed at h-16 = 64px; the rest of the screen is ours. */
-    height: calc(100vh - 64px);
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    padding: 12px 22px 16px;
-    margin-top: 64px;
-  }
-  /* min-height: 0 at every level, or a grid/flex child refuses to shrink below
-     its content and pushes the overflow back out.
-     `align-items: stretch` and an explicit `minmax(0, 1fr)` row matter just as
-     much: the base rule sets `align-items: start`, which leaves the single row
-     auto-sized to its tallest content — so a column's `height: 100%` resolved
-     against a row that was itself sized by that column. Circular, and the net
-     effect was that nothing was ever bounded and no panel could scroll. */
-  .workspace-grid {
-    flex: 1 1 auto;
-    min-height: 0;
-    align-items: stretch;
-    grid-template-rows: minmax(0, 1fr);
-  }
-  .layers-column,
-  .canvas-column,
-  .images-column {
-    height: 100%;
-    min-height: 0;
-    /* The base rule sticks these at top: 82px for a scrolling page. Nothing
-       scrolls at page level here, so sticky only risks fighting the fixed
-       height. */
-    position: static;
-  }
-  .canvas-column {
-    display: flex;
-    flex-direction: column;
-  }
-}
 
 /* --- Editor bar -----------------------------------------------------------
    One slim row directly under the site navbar: exit · title · history ·
@@ -78,10 +23,11 @@
    the canvas on a page whose entire purpose is the canvas. */
 .editor-bar {
   display: flex;
-  max-width: 1680px;
   align-items: center;
   gap: 6px;
-  margin: 0 auto 14px;
+  /* The grid gap supplies the space below; the 1680px cap and auto margins went
+     with the centred wrapper. */
+  margin: 0;
 }
 .editor-bar__title {
   margin: 0 4px;
@@ -205,10 +151,30 @@
 .workspace-grid {
   display: grid;
   grid-template-columns: minmax(200px, 248px) minmax(300px, 1fr) minmax(420px, 640px);
-  max-width: 1680px;
+  grid-template-rows: auto auto;
   align-items: start;
   gap: 14px;
-  margin: 0 auto;
+}
+/* Explicit placement, not auto-flow: the editor bar spans only the left and
+   centre columns so the images column can run the full height beside it and
+   carry the divider all the way up — the reference layout, where the right
+   panel is its own full-height region rather than something parked under a
+   full-width header. Auto-placement cannot express that. */
+.editor-bar {
+  grid-column: 1 / 3;
+  grid-row: 1;
+}
+.layers-column {
+  grid-column: 1;
+  grid-row: 2;
+}
+.canvas-column {
+  grid-column: 2;
+  grid-row: 2;
+}
+.images-column {
+  grid-column: 3;
+  grid-row: 1 / -1;
 }
 .layers-column,
 .images-column {
@@ -281,15 +247,24 @@
 @media (max-width: 1100px) {
   .workspace-grid {
     grid-template-columns: minmax(190px, 230px) minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
   }
+  .editor-bar {
+    grid-column: 1 / -1;
+  }
+  /* Wrapped onto its own row, so it is no longer beside anything — the divider
+     and the edge docking both go with that. */
   .images-column {
     position: static;
     grid-column: 1 / -1;
+    grid-row: 3;
+    padding: 0;
+    border-left: 0;
   }
 }
 @media (max-width: 760px) {
   .collage-main {
-    padding: 72px 10px 24px;
+    padding: 72px 10px 24px calc(72px + 10px);
   }
   .editor-bar__title {
     overflow: hidden;
@@ -305,6 +280,9 @@
   .canvas-column {
     position: static;
     width: 100%;
+  }
+  .editor-bar {
+    order: 0;
   }
   .layers-column {
     order: 2;
@@ -323,4 +301,128 @@
   color: var(--color-nova-blue);
   background: color-mix(in srgb, var(--color-nova-blue) 14%, transparent);
   box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-nova-blue) 45%, transparent);
+}
+
+/* --- Fit-the-viewport editor: MUST STAY LAST ------------------------------
+   This block used to sit at the top of the file, which quietly cost it three of
+   its own declarations: a media query adds no specificity, so every rule here
+   was losing to the same selector further down. `align-items: stretch`,
+   `grid-template-rows` and `position: static` were all being overridden by the
+   base .workspace-grid / column rules — which is why the base rule's
+   `align-items: start` was still in force at desktop width despite the comment
+   below claiming to fix it, and why the panels never actually got a definite
+   height to scroll inside. Keep this block at the end of the file.
+   Above the stacking breakpoint the whole editor is exactly one screen tall and
+   the page itself never scrolls; each column scrolls inside its own box.
+
+   This replaces per-panel `max-height: calc(100vh - 150px)` / `- 230px`. Those
+   numbers were each guessing the space above their own panel, and they did not
+   add up: the right panel starts at 76 (top padding) + 40 (bar) + 14 (margin)
+   = 130px, so `100vh - 150px` plus the 28px bottom padding overflowed the
+   viewport by a sliver — enough to arm a scrollbar for nothing. Deriving the
+   height from the real box instead of a constant means it cannot drift again
+   when the bar or the padding changes.
+
+   Gated at 1101px, not the 761px stacking breakpoint: below 1100px the grid
+   wraps the image column onto a second row, and two rows inside a fixed height
+   would squeeze both instead of scrolling. That range keeps normal document
+   flow. */
+@media (min-width: 1101px) {
+  .collage-page {
+    height: 100vh;
+    overflow: hidden;
+  }
+  .collage-main {
+    /* Navbar is fixed at h-16 = 64px; the rest of the screen is ours. */
+    height: calc(100vh - 64px);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    /* Left: clears the navbar rail, which is `fixed left-0 w-[72px]` and so is
+       out of flow — nothing in this page reserves space for it. Until the grid
+       went full-width that was invisible, because centring a 1680px grid in a
+       wider viewport happened to leave more than 72px on the left; docking the
+       right column to the edge removed that accident and the layers panel slid
+       under the rail.
+       Right: none. The images column is docked against the viewport edge and
+       its own inner padding holds the content off it; anything here would leave
+       a strip of page between the panel and the edge. */
+    padding: 12px 0 16px calc(72px + 22px);
+    margin-top: 64px;
+  }
+  /* min-height: 0 at every level, or a grid/flex child refuses to shrink below
+     its content and pushes the overflow back out.
+     `align-items: stretch` and an explicit `minmax(0, 1fr)` row matter just as
+     much: the base rule sets `align-items: start`, which leaves the single row
+     auto-sized to its tallest content — so a column's `height: 100%` resolved
+     against a row that was itself sized by that column. Circular, and the net
+     effect was that nothing was ever bounded and no panel could scroll. */
+  .workspace-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: stretch;
+    /* Bar, then everything else. The images column spans both. */
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  /* Docked against the right edge of the page with a hairline divider, so the
+     centre keeps every pixel the viewport has beyond the old 1680px cap — on a
+     1920 screen that is a little over 200px more room for the artboard. */
+  .images-column {
+    border-left: 1px solid var(--color-border);
+    padding: 0 18px;
+  }
+  /* Each of this column's three faces (picker · cutout step · tool settings) is
+     a bordered, rounded, shadowed card. Docked, that border lands ~18px from
+     the divider and reads as a second separator, so flatten them and let the
+     column itself be the panel — which is also why the background goes
+     transparent: the page colour continues past the divider. */
+  .images-column ::ng-deep .panel,
+  .images-column ::ng-deep .selector-panel,
+  .images-column ::ng-deep .tool-panel {
+    max-height: none;
+    height: 100%;
+    padding-right: 0;
+    padding-left: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .layers-column,
+  .canvas-column,
+  .images-column {
+    height: 100%;
+    min-height: 0;
+    /* The base rule sticks these at top: 82px for a scrolling page. Nothing
+       scrolls at page level here, so sticky only risks fighting the fixed
+       height. */
+    position: static;
+  }
+  .canvas-column {
+    display: flex;
+    flex-direction: column;
+  }
+  /* The chain from the column down to the panel that scrolls runs through a
+     component host element (app-collage-layer-list, app-collage-image-picker,
+     app-subject-selector, app-collage-tool-panel), and every one of those is
+     `:host { display: block }` with no height. So the column having a definite
+     height was never enough: `.panel { height: 100% }` inside was resolving its
+     percentage against an auto-height host and falling back to auto, which is
+     why the right panel had no bounded box to scroll inside and needed a
+     viewport-relative cap to scroll at all.
+     Making the column a flex container and the host a flex item hands the host
+     the column's height, so the percentage below it finally resolves. `> *`
+     reaches the host element because Angular stamps a child component's host
+     with the parent's content attribute, so no ::ng-deep is needed. */
+  .layers-column,
+  .images-column {
+    display: flex;
+    flex-direction: column;
+  }
+  .layers-column > *,
+  .images-column > * {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
 }

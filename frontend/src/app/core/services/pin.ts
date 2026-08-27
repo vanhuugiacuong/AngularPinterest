@@ -181,6 +181,23 @@ export class PinService {
     }
   }
 
+  /** Text search. The backend endpoint already existed (GET /api/pins/search,
+   * accepting `q` or `query`); this service simply had no method for it, so the
+   * collage image picker's search box had nothing to call. */
+  async searchPins(query: string, page = 1, limit = 20): Promise<Pin[]> {
+    try {
+      const url = `${this.baseUrl}/search?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(await this.errorMessage(response, 'Không thể tìm kiếm.'));
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error searching pins in PinService:', error);
+      throw error;
+    }
+  }
+
   async searchByImage(formData: FormData): Promise<any[]> {
     try {
       const response = await fetch(`${this.baseUrl}/search-by-image`, {

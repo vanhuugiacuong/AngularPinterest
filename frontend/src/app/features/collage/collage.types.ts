@@ -129,4 +129,24 @@ export interface CollageDraft {
   width: number;
   height: number;
   layers: StoredCollageLayer[];
+  /** Optional so drafts written before the background could be chosen still
+   * load — they fall back to DEFAULT_COLLAGE_BACKGROUND, which is the colour
+   * their export was hardcoded to anyway. */
+  background?: string;
 }
+
+/** White, because that is what exportPng() already painted behind every
+ * collage before the colour was selectable. Keeping it means the default
+ * export is byte-identical to what it produced before. */
+export const DEFAULT_COLLAGE_BACKGROUND = '#FFFFFF';
+
+/** The artboard background swatches, laid out as a 7-column grid: a pastel
+ * row, then bright, mid and dark rows of the same seven hues. Ordered by hue
+ * down the columns so a colour stays findable by position. Any colour outside
+ * the grid goes in through the hex field next to it. */
+export const COLLAGE_BACKGROUND_SWATCHES: readonly string[] = [
+  '#FFFFFF', '#FBE3D2', '#FAF4C3', '#DEF0C9', '#CFEFEA', '#DDD9F6', '#F7D7ED',
+  '#FF6F61', '#FFA24B', '#FFE24F', '#54D47F', '#3AD2EA', '#AB8DF6', '#FF62C2',
+  '#E5312B', '#D97706', '#8E8E1C', '#188B46', '#2060D7', '#8C2DFF', '#C2185B',
+  '#6C101B', '#6C3B10', '#404B17', '#105233', '#11325F', '#3C1471', '#121212',
+];
