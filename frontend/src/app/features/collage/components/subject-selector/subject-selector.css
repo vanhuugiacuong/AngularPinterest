@@ -87,6 +87,7 @@ h2 {
   position: relative;
   width: 100%;
   height: 100%;
+  transform-origin: center;
 }
 .source-image {
   display: block;
@@ -125,6 +126,15 @@ h2 {
 .mask-canvas.erase-cursor {
   cursor: cell;
 }
+.mask-canvas.subtract-cursor {
+  cursor: not-allowed;
+}
+.mask-canvas.pan-cursor {
+  cursor: grab;
+}
+.mask-canvas.pan-cursor:active {
+  cursor: grabbing;
+}
 
 /* Purely visual, non-interactive (pointer-events: none — all input goes to
    .mask-canvas underneath). Needs the same object-fit: contain as the mask,
@@ -140,6 +150,35 @@ h2 {
   height: 100%;
   object-fit: contain;
   pointer-events: none;
+}
+
+.mode-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 20px 0;
+}
+.mode-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text-muted);
+  background: var(--color-surface-elevated);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mode-tabs button.active {
+  color: var(--color-text);
+  border-color: var(--color-accent);
+  background: var(--color-surface-high);
+}
+.mode-tabs .material-symbols-outlined {
+  font-size: 16px;
 }
 
 .brush-toolbar {
@@ -214,6 +253,67 @@ h2 {
 }
 .clear-button .material-symbols-outlined {
   font-size: 16px;
+}
+.region-toolbar {
+  row-gap: 8px;
+}
+.region-history-controls {
+  display: inline-flex;
+  gap: 4px;
+}
+.icon-button.small {
+  width: 32px;
+  height: 32px;
+}
+.icon-button.small .material-symbols-outlined {
+  font-size: 16px;
+}
+.icon-button.small.active {
+  color: var(--color-text);
+  border-color: var(--color-accent);
+  background: var(--color-surface-high);
+}
+.preview-toggle {
+  margin-left: 0;
+}
+.zoom-controls {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-ink) 82%, transparent);
+  backdrop-filter: blur(6px);
+}
+.zoom-level {
+  min-width: 40px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+.preview-cut-stage {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  background-image:
+    linear-gradient(45deg, color-mix(in srgb, var(--color-ink) 70%, transparent) 25%, transparent 25%),
+    linear-gradient(-45deg, color-mix(in srgb, var(--color-ink) 70%, transparent) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, color-mix(in srgb, var(--color-ink) 70%, transparent) 75%),
+    linear-gradient(-45deg, transparent 75%, color-mix(in srgb, var(--color-ink) 70%, transparent) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+}
+.preview-cut-stage img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 .tap-instruction {
   position: absolute;

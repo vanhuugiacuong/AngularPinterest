@@ -10,8 +10,8 @@
   >
     <header>
       <div>
-        <span class="eyebrow">Tô chọn thủ công</span>
-        <h2 id="subject-selector-title">Chọn vùng ảnh</h2>
+        <span class="eyebrow">AI Segmentation</span>
+        <h2 id="subject-selector-title">Khoanh quanh vật thể bạn muốn cắt</h2>
       </div>
       <button
         type="button"
@@ -25,54 +25,11 @@
       </button>
     </header>
 
-    <div class="brush-toolbar">
-      <div class="brush-mode-switch" role="group" aria-label="Chế độ tô">
-        <button
-          type="button"
-          [class.active]="brushMode() === 'paint'"
-          (click)="setBrushMode('paint')"
-          [disabled]="adding() || preparingWhole()"
-        >
-          <span class="material-symbols-outlined">brush</span>
-          Tô chọn
-        </button>
-        <button
-          type="button"
-          [class.active]="brushMode() === 'erase'"
-          (click)="setBrushMode('erase')"
-          [disabled]="adding() || preparingWhole()"
-        >
-          <span class="material-symbols-outlined">ink_eraser</span>
-          Tẩy
-        </button>
-      </div>
-
-      <label class="brush-size">
-        <span class="material-symbols-outlined">circle</span>
-        <input
-          type="range"
-          [min]="minBrushRadius"
-          [max]="maxBrushRadius"
-          [value]="brushRadius()"
-          (input)="setBrushRadius($any($event.target).valueAsNumber)"
-          [disabled]="adding() || preparingWhole()"
-          aria-label="Cỡ bút tô"
-        />
-      </label>
-
-      <button
-        type="button"
-        class="clear-button"
-        (click)="clearMask()"
-        [disabled]="!hasPainted() || adding() || preparingWhole()"
+    <div class="preview-stage" (wheel)="onPreviewWheel($event)">
+      <div
+        class="image-frame"
+        [style.transform]="'translate(' + panX() + 'px, ' + panY() + 'px) scale(' + zoom() + ')'"
       >
-        <span class="material-symbols-outlined">delete_sweep</span>
-        Xóa hết
-      </button>
-    </div>
-
-    <div class="preview-stage">
-      <div class="image-frame">
         <img
           class="source-image"
           [src]="source.temporaryUrl || source.sourceImageUrl"
@@ -83,7 +40,7 @@
         <canvas
           #maskCanvas
           class="mask-canvas"
-          [class.erase-cursor]="brushMode() === 'erase'"
+          [class.pan-cursor]="panMode()"
           (pointerdown)="onCanvasPointerDown($event)"
           (pointermove)="onCanvasPointerMove($event)"
           (pointerup)="onCanvasPointerUp($event)"
@@ -92,13 +49,62 @@
         <canvas #highlightCanvas class="highlight-canvas" aria-hidden="true"></canvas>
       </div>
 
-      <div *ngIf="imageReady() && !hasPainted() && !error()" class="tap-instruction">
-        <span class="material-symbols-outlined">brush</span>
-        <strong>Tô lên những vùng bạn muốn giữ lại</strong>
-        <small>Có thể tô nhiều vùng rời rạc khác nhau trong cùng một ảnh — chỉ phần đã tô mới được giữ lại, phần còn lại sẽ trong suốt.</small>
+      <div class="zoom-controls">
+        <button
+          type="button"
+          class="icon-button small"
+          (click)="togglePanMode()"
+          [class.active]="panMode()"
+          [disabled]="zoom() <= 1"
+          title="Di chuyển ảnh (khi đã zoom)"
+          aria-label="Bật/tắt chế độ di chuyển ảnh"
+        >
+          <span class="material-symbols-outlined">pan_tool</span>
+        </button>
+        <button type="button" class="icon-button small" (click)="zoomOut()" title="Thu nhỏ" aria-label="Thu nhỏ">
+          <span class="material-symbols-outlined">remove</span>
+        </button>
+        <span class="zoom-level">{{ (zoom() * 100) | number: '1.0-0' }}%</span>
+        <button type="button" class="icon-button small" (click)="zoomIn()" title="Phóng to" aria-label="Phóng to">
+          <span class="material-symbols-outlined">add</span>
+        </button>
+        <button
+          type="button"
+          class="icon-button small"
+          (click)="resetZoom()"
+          [disabled]="zoom() <= 1"
+          title="Đặt lại zoom"
+          aria-label="Đặt lại zoom"
+        >
+          <span class="material-symbols-outlined">restart_alt</span>
+        </button>
       </div>
 
-      <div *ngIf="preparingWhole() || (adding() && hasPainted())" class="processing-overlay" aria-live="polite">
+      <div *ngIf="!hasSelection() && !processing() && !error()" class="tap-instruction">
+        <span class="material-symbols-outlined" aria-hidden="true">gesture</span>
+        <strong>Khoanh quanh vật thể bạn muốn cắt</strong>
+        <small
+          >Giữ chuột và vẽ một vòng quanh vật thể — không cần đi sát biên. Với ảnh nhiều chi tiết hoặc vật thể
+          nhỏ, nhấn thẳng một điểm vào đúng chi tiết đó sẽ chính xác hơn khoanh vòng to.</small
+        >
+      </div>
+
+      <div *ngIf="processing()" class="processing-overlay" aria-live="polite">
+        <span class="spinner"></span>
+        <strong>Đang nhận diện đối tượng…</strong>
+        <div
+          class="progress-track"
+          role="progressbar"
+          [attr.aria-valuenow]="progress()"
+          aria-valuemin="0"
+          aria-valuemax="100"
+        >
+          <span [style.width.%]="progress()"></span>
+        </div>
+        <small>{{ progress() }}% · Lần đầu cần tải mô hình AI</small>
+      </div>
+
+      <div *ngIf="preparingWhole()" class="processing-overlay" aria-live="polite">
         <span class="spinner"></span>
         <strong>Đang xử lý…</strong>
       </div>
@@ -106,37 +112,51 @@
       <div *ngIf="error()" class="error-state" role="alert">
         <span class="material-symbols-outlined" aria-hidden="true">image_not_supported</span>
         <strong>{{ error() }}</strong>
+        <button *ngIf="hasSelection()" type="button" (click)="retry()">Thử lại</button>
       </div>
     </div>
 
     <p class="hint">
-      <ng-container *ngIf="!hasPainted()">
-        Kéo chuột (hoặc ngón tay) để tô lên phần ảnh muốn giữ. Dùng "Tẩy" để sửa lại vùng đã tô lỡ.
+      <ng-container *ngIf="!previewUrl()">
+        Giữ chuột và vẽ một vòng thô quanh vật thể (người, xe, đồ vật...) — không cần đi sát biên. Nếu ảnh có
+        nhiều chi tiết và AI chọn nhầm, hãy nhấn thẳng một điểm vào đúng chi tiết bạn muốn thay vì khoanh vòng.
       </ng-container>
-      <ng-container *ngIf="hasPainted()">
-        Đã tô {{ brushMode() === 'erase' ? 'và tẩy ' : '' }}xong vùng cần giữ? Nhấn "Thêm phần cắt" để đưa vào khung ghép.
+      <ng-container *ngIf="previewUrl()">
+        Vùng sáng đang bao quanh vật thể AI vừa nhận diện. Khoanh lại nếu muốn đổi vật thể, hoặc xác nhận để cắt.
       </ng-container>
     </p>
 
     <footer>
       <button
+        *ngIf="!hasSelection(); else resetButton"
         type="button"
         class="secondary-button"
         (click)="selectAll()"
-        [disabled]="adding() || preparingWhole()"
+        [disabled]="processing() || adding() || preparingWhole()"
         title="Thêm ngay toàn bộ ảnh, không tách nền"
       >
         <span class="material-symbols-outlined" aria-hidden="true">select_all</span>
         {{ preparingWhole() ? 'Đang thêm…' : 'Chọn tất cả' }}
       </button>
+      <ng-template #resetButton>
+        <button
+          type="button"
+          class="secondary-button"
+          (click)="resetSmartSelection()"
+          [disabled]="processing() || adding()"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">replay</span>
+          Chọn lại
+        </button>
+      </ng-template>
       <button
         type="button"
         class="primary-button"
         (click)="addCutout()"
-        [disabled]="!hasPainted() || adding() || preparingWhole()"
+        [disabled]="processing() || adding() || preparingWhole() || !previewUrl()"
       >
-        <span class="material-symbols-outlined">content_cut</span>
-        {{ adding() && hasPainted() ? 'Đang thêm…' : 'Thêm phần cắt' }}
+        <span class="material-symbols-outlined" aria-hidden="true">content_cut</span>
+        {{ adding() ? 'Đang cắt…' : 'Xác nhận cắt' }}
       </button>
     </footer>
   </section>
