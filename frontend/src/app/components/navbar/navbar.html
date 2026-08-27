@@ -252,7 +252,7 @@
     <button
       *ngIf="supabaseService.user()"
       (click)="navigateToNovaToken()"
-      class="hidden sm:flex h-10 items-center gap-2 px-3 rounded-full border border-accent/35 bg-surface-elevated hover:bg-surface-high text-text font-bold text-xs cursor-pointer transition-all"
+      class="hidden sm:flex h-10 items-center gap-2 px-3.5 rounded-full bg-gradient-brand text-text-on-accent font-bold text-xs cursor-pointer transition-all shadow-glow hover:brightness-110 active:scale-95 border-none"
       aria-label="Mở ví NovaToken"
     >
       <img src="/assets/novatoken/novatoken-coin.png" alt="" class="w-6 h-6 object-contain" />
@@ -261,10 +261,10 @@
     <button
       *ngIf="supabaseService.user()"
       (click)="navigateToPricing()"
-      class="hidden sm:flex h-10 items-center gap-2 px-4 rounded-full border border-accent/35 bg-accent/10 hover:bg-accent/20 text-accent font-bold text-xs cursor-pointer transition-all shadow-[0_0_24px_color-mix(in_srgb,var(--color-accent)_12%,transparent)]"
+      class="hidden sm:flex h-10 items-center gap-2 px-4 rounded-full bg-gradient-brand text-text-on-accent font-bold text-xs cursor-pointer transition-all shadow-glow hover:brightness-110 active:scale-95 border-none"
       aria-label="Xem các gói thành viên"
     >
-      <span class="material-symbols-outlined text-base" aria-hidden="true">diamond</span>
+      <span class="material-symbols-outlined text-base leading-none" aria-hidden="true">diamond</span>
       <span>Thành viên</span>
     </button>
     <!-- Quick theme switch — visibility controlled from /settings -->
