@@ -1,56 +1,136 @@
-<div class="modal-backdrop" (mousedown)="onBackdropMouseDown($event)" (click)="onBackdropClick($event)" role="presentation">
-  <section
-    #dialog
-    class="selector-dialog"
-    tabindex="-1"
-    (click)="$event.stopPropagation()"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="subject-selector-title"
-  >
-    <header>
-      <div>
-        <span class="eyebrow">AI Segmentation</span>
-        <h2 id="subject-selector-title">Chọn chủ thể</h2>
-      </div>
+<!-- A step inside the right-hand column, not a modal. Cutting is part of
+     picking an image, so it happens where the picking happened — the dimmed
+     full-screen dialog it replaced hid both the artboard and the layer list at
+     exactly the moment you want to see what you are adding to. No backdrop, no
+     role="dialog"/aria-modal: nothing here traps focus any more. -->
+<section
+  #dialog
+  class="selector-panel"
+  tabindex="-1"
+  aria-labelledby="subject-selector-title"
+>
+  <header>
+    <button
+      type="button"
+      class="icon-button"
+      (click)="cancelled.emit()"
+      [disabled]="adding()"
+      title="Quay lại danh sách ảnh"
+      aria-label="Quay lại danh sách ảnh"
+    >
+      <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+    </button>
+
+    <h2 id="subject-selector-title">Khoanh quanh vật thể</h2>
+
+    <span class="header-spacer"></span>
+
+    <!-- Confirm actions ride in the header. In a tall panel a footer row sits
+         below the image and can fall past the fold, so the primary action would
+         need a scroll to reach. -->
+    <button
+      *ngIf="!hasSelection(); else resetButton"
+      type="button"
+      class="secondary-button"
+      (click)="selectAll()"
+      [disabled]="processing() || adding() || preparingWhole()"
+      title="Thêm ngay toàn bộ ảnh, không tách nền"
+    >
+      {{ preparingWhole() ? 'Đang thêm…' : 'Chọn tất cả' }}
+    </button>
+    <ng-template #resetButton>
       <button
         type="button"
-        class="icon-button"
-        (click)="cancelled.emit()"
-        [disabled]="adding()"
-        title="Đóng"
+        class="secondary-button"
+        (click)="resetSmartSelection()"
+        [disabled]="processing() || adding()"
       >
-        <span class="material-symbols-outlined">close</span>
+        Chọn lại
       </button>
-    </header>
+    </ng-template>
+    <button
+      type="button"
+      class="primary-button"
+      (click)="addCutout()"
+      [disabled]="processing() || adding() || preparingWhole() || !previewUrl()"
+    >
+      {{ adding() ? 'Đang cắt…' : 'Thêm phần cắt' }}
+    </button>
+  </header>
 
-    <div class="preview-stage">
-      <div class="image-frame">
+    <div class="preview-stage" (wheel)="onPreviewWheel($event)">
+      <div
+        class="image-frame"
+        [class.has-selection]="hasSelection()"
+        [style.transform]="'translate(' + panX() + 'px, ' + panY() + 'px) scale(' + zoom() + ')'"
+      >
         <img
           class="source-image"
-          [class.dimmed]="previewUrl()"
           [src]="source.temporaryUrl || source.sourceImageUrl"
           [alt]="source.title"
-          (click)="selectAtPoint($event)"
-          title="Nhấn vào người hoặc vật bạn muốn cắt"
+          (load)="onImageLoad($event)"
+          draggable="false"
         />
-        <img
-          *ngIf="previewUrl() as cutout"
-          class="cutout-outline"
-          [src]="cutout"
-          alt="Vật thể đã chọn"
-        />
+        <canvas
+          #maskCanvas
+          class="mask-canvas"
+          [class.pan-cursor]="panMode()"
+          (pointerdown)="onCanvasPointerDown($event)"
+          (pointermove)="onCanvasPointerMove($event)"
+          (pointerup)="onCanvasPointerUp($event)"
+          (pointercancel)="onCanvasPointerUp($event)"
+        ></canvas>
+        <canvas #highlightCanvas class="highlight-canvas" aria-hidden="true"></canvas>
       </div>
 
-      <div *ngIf="!selectedPoint() && !processing() && !error()" class="tap-instruction">
-        <span class="material-symbols-outlined">touch_app</span>
-        <strong>Nhấn trực tiếp vào người hoặc vật bạn muốn cắt</strong>
-        <small>Ví dụ: nhấn cô gái bên trái, cô gái bên phải hoặc chiếc laptop.</small>
+      <!-- Zoom/pan của minhchi thay cho hướng dẫn tô cọ ở bản web357: workflow
+           tô cọ đã được thay bằng khoanh vùng, và hướng dẫn tương ứng nằm ngay
+           dưới (.tap-instruction "Khoanh quanh vật thể"). Icon để aria-hidden
+           vì mỗi nút đã có aria-label riêng — nếu không, trình đọc màn hình đọc
+           cả tên glyph lẫn nhãn. -->
+      <div class="zoom-controls">
+        <button
+          type="button"
+          class="icon-button small"
+          (click)="togglePanMode()"
+          [class.active]="panMode()"
+          [disabled]="zoom() <= 1"
+          title="Di chuyển ảnh (khi đã zoom)"
+          aria-label="Bật/tắt chế độ di chuyển ảnh"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">pan_tool</span>
+        </button>
+        <button type="button" class="icon-button small" (click)="zoomOut()" title="Thu nhỏ" aria-label="Thu nhỏ">
+          <span class="material-symbols-outlined" aria-hidden="true">remove</span>
+        </button>
+        <span class="zoom-level">{{ (zoom() * 100) | number: '1.0-0' }}%</span>
+        <button type="button" class="icon-button small" (click)="zoomIn()" title="Phóng to" aria-label="Phóng to">
+          <span class="material-symbols-outlined" aria-hidden="true">add</span>
+        </button>
+        <button
+          type="button"
+          class="icon-button small"
+          (click)="resetZoom()"
+          [disabled]="zoom() <= 1"
+          title="Đặt lại zoom"
+          aria-label="Đặt lại zoom"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>
+        </button>
+      </div>
+
+      <div *ngIf="!hasSelection() && !processing() && !error()" class="tap-instruction">
+        <span class="material-symbols-outlined" aria-hidden="true">gesture</span>
+        <strong>Khoanh quanh vật thể bạn muốn cắt</strong>
+        <small
+          >Giữ chuột và vẽ một vòng quanh vật thể — không cần đi sát biên. Với ảnh nhiều chi tiết hoặc vật thể
+          nhỏ, nhấn thẳng một điểm vào đúng chi tiết đó sẽ chính xác hơn khoanh vòng to.</small
+        >
       </div>
 
       <div *ngIf="processing()" class="processing-overlay" aria-live="polite">
         <span class="spinner"></span>
-        <strong>Đang nhận diện vật thể…</strong>
+        <strong>Đang nhận diện đối tượng…</strong>
         <div
           class="progress-track"
           role="progressbar"
@@ -63,44 +143,29 @@
         <small>{{ progress() }}% · Lần đầu cần tải mô hình AI</small>
       </div>
 
+      <div *ngIf="preparingWhole()" class="processing-overlay" aria-live="polite">
+        <span class="spinner"></span>
+        <strong>Đang xử lý…</strong>
+      </div>
+
       <div *ngIf="error()" class="error-state" role="alert">
-        <span class="material-symbols-outlined">image_not_supported</span>
+        <span class="material-symbols-outlined" aria-hidden="true">image_not_supported</span>
         <strong>{{ error() }}</strong>
-        <button *ngIf="selectedPoint()" type="button" (click)="retry()">Thử lại</button>
+        <button *ngIf="hasSelection()" type="button" (click)="retry()">Thử lại</button>
       </div>
     </div>
 
     <p class="hint">
       <ng-container *ngIf="!previewUrl()">
-        Nhấn trực tiếp vào một người hoặc vật để chọn trọn vật thể đó. Bạn có thể nhấn lại vị trí
-        khác nếu muốn đổi lựa chọn.
+        Giữ chuột và vẽ một vòng thô quanh vật thể (người, xe, đồ vật...) — không cần đi sát biên. Nếu ảnh có
+        nhiều chi tiết và AI chọn nhầm, hãy nhấn thẳng một điểm vào đúng chi tiết bạn muốn thay vì khoanh vòng.
       </ng-container>
       <ng-container *ngIf="previewUrl()">
-        Đường sáng đang bao quanh vật thể tại điểm đã chọn. Nhấn vị trí khác để đổi vật thể hoặc
-        thêm phần cắt này vào khung.
+        Vùng sáng đang bao quanh vật thể AI vừa nhận diện. Khoanh lại nếu muốn đổi vật thể, hoặc xác nhận để cắt.
       </ng-container>
     </p>
 
-    <footer>
-      <button
-        type="button"
-        class="secondary-button"
-        (click)="selectAll()"
-        [disabled]="processing() || adding() || preparingWhole()"
-        title="Thêm ngay toàn bộ ảnh, không tách nền"
-      >
-        <span class="material-symbols-outlined">select_all</span>
-        {{ preparingWhole() ? 'Đang thêm…' : 'Chọn tất cả' }}
-      </button>
-      <button
-        type="button"
-        class="primary-button"
-        (click)="addCutout()"
-        [disabled]="processing() || !previewUrl() || adding() || preparingWhole()"
-      >
-        <span class="material-symbols-outlined">content_cut</span>
-        {{ adding() ? 'Đang thêm…' : 'Thêm phần cắt' }}
-      </button>
-    </footer>
-  </section>
-</div>
+  <!-- The confirm actions that used to sit in a footer here now ride in the
+       panel header, where they stay reachable without scrolling past the
+       image. -->
+</section>

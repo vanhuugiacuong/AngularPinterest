@@ -9,7 +9,6 @@ import {
   HostListener,
   Output,
   EventEmitter,
-  ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -71,8 +70,6 @@ export class Navbar implements OnInit, OnDestroy {
   /** Emits the trimmed query on Enter / clear. Pages that care (e.g. /feed)
    * bind to it; pages that don't simply leave it unheard. */
   @Output() search = new EventEmitter<string>();
-
-  @ViewChild('sidebarTrigger') sidebarTrigger?: ElementRef<HTMLButtonElement>;
 
   public showProfilePopup = signal(false);
   public searchQuery = signal('');
@@ -193,6 +190,12 @@ export class Navbar implements OnInit, OnDestroy {
    * default, since that would flash a real Plus/Pro member down to no frame. */
   myPlan(): MembershipPlan | null | undefined {
     return this.membership.status()?.plan ?? this.supabaseService.dbUser()?.plan;
+  }
+
+  /** dbUser is the only source that carries isAdmin (a static flag, not a
+   * membership-status concern), unlike myPlan() above. */
+  myIsAdmin(): boolean {
+    return this.supabaseService.dbUser()?.isAdmin ?? false;
   }
 
   displayName(): string {
@@ -333,44 +336,24 @@ export class Navbar implements OnInit, OnDestroy {
       this.showSearchDropdown.set(false);
       return;
     }
-    if (this.sidebarState.isOpen()) {
-      this.sidebarState.close();
-      this.sidebarTrigger?.nativeElement.focus();
+    if (this.sidebarState.isExpanded()) {
+      this.sidebarState.collapseSidebar();
     }
-  }
-
-  onSidebarTriggerEnter() {
-    this.sidebarState.cancelClose();
-    this.sidebarState.openSidebar();
-  }
-
-  onSidebarTriggerLeave() {
-    this.sidebarState.scheduleClose();
   }
 
   onLoginClick() {
     this.loginClick.emit();
   }
 
-  onLogoClick() {
-    if (this.supabaseService.user()) {
-      this.router.navigate(['/feed']);
-    } else {
-      this.router.navigate(['/']);
-    }
-  }
-
   navigateToMyProfile() {
     const dbUser = this.supabaseService.dbUser();
-    if (dbUser && dbUser.username) {
-      this.router.navigate(['/profile', dbUser.username]);
-    } else {
-      const user = this.supabaseService.user();
-      if (user) {
-        const email = user.email || '';
-        const username = user.user_metadata?.['full_name'] || user.user_metadata?.['name'] || email.split('@')[0];
-        this.router.navigate(['/profile', username]);
-      }
+    // Never put the OAuth display name in the profile route. While backend
+    // sync is still in flight, the authenticated Supabase UUID is the only
+    // unambiguous fallback; the profile API resolves both UUID and username.
+    const profileIdentifier =
+      dbUser?.username || this.supabaseService.user()?.id;
+    if (profileIdentifier) {
+      this.router.navigate(['/profile', profileIdentifier]);
     }
     this.showProfilePopup.set(false);
   }

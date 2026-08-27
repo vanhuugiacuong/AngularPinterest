@@ -50,12 +50,21 @@ export function computeContainedRect(
 
 /** Keeps a normalized selection rect fully inside [0,1] on both axes (i.e.
  * fully inside the real image, never in a letterbox gutter) and above a
- * minimum size so it can never collapse to a degenerate crop. */
+ * minimum size so it can never collapse to a degenerate crop. Falls back to
+ * sane finite values first (minSize / 0) so a NaN/Infinity produced mid-drag
+ * (e.g. a divide-by-zero while the stage is still measuring itself) can
+ * never propagate into a broken crop rect — shared by the image editor's
+ * and collage's own re-crop tools, which both used to re-derive this same
+ * clamp independently. */
 export function clampNormalizedRect(rect: NormalizedRect, minSize = 0.05): NormalizedRect {
-  const width = Math.min(1, Math.max(minSize, rect.width));
-  const height = Math.min(1, Math.max(minSize, rect.height));
-  const x = Math.min(Math.max(0, rect.x), 1 - width);
-  const y = Math.min(Math.max(0, rect.y), 1 - height);
+  const rawWidth = Number.isFinite(rect.width) ? rect.width : minSize;
+  const rawHeight = Number.isFinite(rect.height) ? rect.height : minSize;
+  const width = Math.min(1, Math.max(minSize, rawWidth));
+  const height = Math.min(1, Math.max(minSize, rawHeight));
+  const rawX = Number.isFinite(rect.x) ? rect.x : 0;
+  const rawY = Number.isFinite(rect.y) ? rect.y : 0;
+  const x = Math.min(Math.max(0, rawX), 1 - width);
+  const y = Math.min(Math.max(0, rawY), 1 - height);
   return { x, y, width, height };
 }
 

@@ -15,6 +15,7 @@ describe('MessageRequestsService', () => {
       findFirst: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
       findUnique: jest.fn(),
       updateMany: jest.fn(),
       findUniqueOrThrow: jest.fn(),
@@ -24,6 +25,7 @@ describe('MessageRequestsService', () => {
   };
   const blocksService = { isBlockedEitherWay: jest.fn() };
   const reportsService = { createMessageRequestReport: jest.fn() };
+  const supabase = { broadcast: jest.fn() };
 
   let service: MessageRequestsService;
 
@@ -31,7 +33,12 @@ describe('MessageRequestsService', () => {
     jest.clearAllMocks();
     prisma.$transaction.mockImplementation((cb: (tx: typeof prisma) => unknown) => cb(prisma));
     blocksService.isBlockedEitherWay.mockResolvedValue(false);
-    service = new MessageRequestsService(prisma as never, blocksService as never, reportsService as never);
+    service = new MessageRequestsService(
+      prisma as never,
+      blocksService as never,
+      reportsService as never,
+      supabase as never,
+    );
   });
 
   describe('sendRequest', () => {
@@ -103,6 +110,35 @@ describe('MessageRequestsService', () => {
       );
     });
 
+    it('reopens a rejected request as a fresh pending request', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'user-2' });
+      prisma.follow.findUnique.mockResolvedValue(null);
+      prisma.messageRequest.findFirst.mockResolvedValue({
+        id: 'req-old',
+        senderId: 'user-1',
+        receiverId: 'user-2',
+        status: 'REJECTED',
+      });
+      prisma.messageRequest.update.mockResolvedValue({ id: 'req-old', status: 'PENDING' });
+
+      const result = await service.sendRequest('user-1', 'user-2');
+
+      expect(result).toEqual({ id: 'req-old', status: 'PENDING' });
+      expect(prisma.messageRequest.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'req-old' },
+          data: expect.objectContaining({
+            senderId: 'user-1',
+            receiverId: 'user-2',
+            status: 'PENDING',
+            respondedAt: null,
+            createdAt: expect.any(Date),
+          }),
+        }),
+      );
+      expect(prisma.messageRequest.create).not.toHaveBeenCalled();
+    });
+
     it("selects and returns the receiver's membership plan", async () => {
       prisma.user.findUnique.mockResolvedValue({ id: 'user-2' });
       prisma.follow.findUnique.mockResolvedValue(null);
@@ -117,7 +153,9 @@ describe('MessageRequestsService', () => {
 
       expect(prisma.messageRequest.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          include: { receiver: { select: expect.objectContaining({ plan: true }) } },
+          include: expect.objectContaining({
+            receiver: { select: expect.objectContaining({ plan: true }) },
+          }),
         }),
       );
       expect((result as { receiver: { plan: string } }).receiver.plan).toBe('PLUS');

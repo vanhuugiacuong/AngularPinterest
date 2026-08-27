@@ -25,3 +25,22 @@
   pointer-events: none;
   z-index: -1;
 }
+
+/* NSFW rejection banner — the Material icon glyph carries its own internal
+   padding that pushes it a few px above the text baseline under plain
+   items-center, so it's pinned to a fixed box and nudged down to sit flush
+   with the first line of text instead of floating above it. */
+.unsafe-alert-icon {
+  font-size: 1.125rem;
+  line-height: 1;
+  width: 1.125rem;
+  height: 1.125rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(1px);
+}
+
+.unsafe-alert-text {
+  line-height: 1.4;
+}

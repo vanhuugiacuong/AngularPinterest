@@ -12,6 +12,7 @@ export interface AuctionBidder {
   username: string;
   avatarUrl?: string | null;
   plan: MembershipPlan;
+  isAdmin?: boolean;
 }
 
 export interface AuctionBid {

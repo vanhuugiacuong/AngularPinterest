@@ -19,6 +19,7 @@ export interface DbUser {
   ownedPlans: MembershipPlan[];
   planStartedAt: string | null;
   isPrivate: boolean;
+  isAdmin: boolean;
 }
 
 @Injectable({

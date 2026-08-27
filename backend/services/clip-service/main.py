@@ -35,25 +35,77 @@ HF_TOKEN = os.getenv("HF_TOKEN", "")
 # strongest unsafe match with the strongest safe match, so adding more labels
 # to either group cannot bias the verdict merely by increasing that group's
 # total probability mass. Threshold is tunable via env.
-NSFW_THRESHOLD = float(os.getenv("NSFW_THRESHOLD", "0.5"))
+NSFW_THRESHOLD = float(os.getenv("NSFW_THRESHOLD", "0.65"))
+
+# Temperature applied to the two competing cosine similarities before softmax.
+# This matters more than the threshold does. CLIP cosine similarities sit around
+# 0.20-0.35, and the gap between the best unsafe prompt and the best safe prompt
+# is typically 0.01-0.03. At the previous scale of 100, a 0.02 gap became a 2.0
+# logit gap -> a score of ~0.88, so the score saturated near 0 or 1 and moving
+# NSFW_THRESHOLD barely changed any verdict. That is why adding bikini prompts to
+# SAFE_LABELS did not stop bikini photos being rejected.
+#
+# The pair below is what actually sets the strictness. Blocking happens when
+# the cosine gap d = unsafe_max - safe_max satisfies d >= ln(T/(1-T)) / scale:
+#   scale 100 + threshold 0.62 -> d >= 0.005  (the old hair-trigger: bikini blocked)
+#   scale  25 + threshold 0.90 -> d >= 0.088  (too loose: real nudity got through)
+#   scale  25 + threshold 0.65 -> d >= 0.025  <- current
+# Keeping the scale at 25 rather than raising it back toward 100 is deliberate:
+# a low scale keeps the score spread across the 0..1 range, which is what makes
+# NSFW_THRESHOLD a usable dial at all. At scale 100 the score saturates near 0
+# or 1 and the threshold stops responding — tune the threshold, not the scale.
+NSFW_LOGIT_SCALE = float(os.getenv("NSFW_LOGIT_SCALE", "25"))
 
 NSFW_LABELS = [
-    "explicit nudity",
-    "graphic nudity",
-    "pornographic content",
-    "explicit sexual activity",
-    "exposed genitals",
-    "exposed female breasts",
+    "fully nude body with no clothing at all",
+    "graphic nudity showing bare genitals or bare breasts with no clothing",
+    "pornographic content showing explicit sex acts",
+    "explicit sexual activity or sexual penetration",
+    "fully exposed bare genitals with no underwear or swimwear covering them",
+    "fully exposed bare female nipples with no bikini, bra, or clothing covering them",
+    # Partial nudity. Every prompt above insists on "no clothing at all" or
+    # "fully", which left a gap: a topless photo, or one with clothing pulled
+    # aside, matched none of them strongly and slipped through on the safe side.
+    "a topless person with bare chest and no top",
+    "a person with clothing pulled aside to expose bare breasts or genitals",
+    "a person wearing see-through clothing showing bare nipples or genitals",
+    "an upskirt or crotch shot exposing underwear or bare genitals",
+    "a sexual pose with the genital area as the focus of the photo",
+    "graphic violence with visible blood",
+    "a gory mutilated body or corpse",
+    "a person being killed or tortured",
+    "a severed body part",
+    "a bloody weapon wound",
 ]
 SAFE_LABELS = [
     "a normal safe photo",
     "a portrait photo of a fully clothed person",
     "a fashion photo of clothing",
+    "a person wearing a bikini or swimsuit at the beach or pool",
+    "a close-up photo of a person wearing a bikini or swimsuit",
+    "a bikini or swimsuit photo taken from behind",
+    "a wet bikini photo at the pool or beach",
+    "a lingerie or underwear fashion photo with underwear covering the body",
+    # For the category that was being rejected most: revealing but CLOTHED.
+    # Every prompt here names the covering explicitly. Two earlier attempts were
+    # removed for doing the opposite:
+    #   "a shirtless muscular person at the gym or beach" — matches a topless
+    #     nude just as strongly as a gym photo, so it pulled safe_max up on
+    #     images that should have been blocked.
+    #   "a suggestive but fully clothed photo of a person" — too broad an
+    #     attractor; "suggestive" is what explicit images are, so it competed
+    #     with the nudity prompts instead of against them.
+    # The rule this leaves behind: a safe prompt must describe the CLOTHING,
+    # never the suggestiveness.
+    "a photo showing cleavage on a person wearing a top",
+    "a photo of a person in tight clothing that covers the body",
+    "a swimwear catalogue photo for a clothing brand",
     "a photo of food",
     "a photo of an animal or pet",
     "a landscape or nature photo",
     "a meme or funny picture",
     "a photo of a product",
+    "a video game or animated action scene with no real gore",
 ]
 
 _label_embeddings_cache: dict[str, np.ndarray] = {}
@@ -67,7 +119,9 @@ def _binary_moderation_score(similarities: np.ndarray) -> float:
     """
     unsafe_max = float(np.max(similarities[:len(NSFW_LABELS)]))
     safe_max = float(np.max(similarities[len(NSFW_LABELS):]))
-    logits = np.array([unsafe_max, safe_max], dtype=np.float64) * 100
+    # Scale is configurable rather than a hardcoded 100 — see NSFW_LOGIT_SCALE
+    # above for why this value, not the threshold, controls the strictness.
+    logits = np.array([unsafe_max, safe_max], dtype=np.float64) * NSFW_LOGIT_SCALE
     logits -= np.max(logits)
     probabilities = np.exp(logits)
     return float(probabilities[0] / probabilities.sum())
@@ -217,6 +271,19 @@ def _get_label_embeddings() -> dict[str, np.ndarray]:
         for label in NSFW_LABELS + SAFE_LABELS:
             _label_embeddings_cache[label] = _get_text_embedding_array(label)
     return _label_embeddings_cache
+
+def score_image_bytes(image_bytes: bytes) -> float:
+    """Unsafe probability for one image. Split out of the endpoint below so
+    calibrate_moderation.py can score a folder of samples through exactly the
+    same path the API uses — a calibration that ran different code would tell
+    you nothing about the API's behaviour."""
+    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    image_embedding = _get_image_embedding_array(image)
+    label_embeddings = _get_label_embeddings()
+    labels = list(label_embeddings.keys())
+    sims = np.array([float(np.dot(image_embedding, label_embeddings[l])) for l in labels])
+    return _binary_moderation_score(sims)
+
 
 @app.post("/moderate/image")
 async def moderate_image(file: UploadFile = File(...)):

@@ -1,0 +1,125 @@
+<app-navbar></app-navbar>
+<main class="withdraw-page">
+  <div class="withdraw-aurora withdraw-aurora-a"></div>
+  <div class="withdraw-aurora withdraw-aurora-b"></div>
+
+  <a class="back-link" routerLink="/novatoken">
+    <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>Quay lại ví
+  </a>
+
+  <header class="withdraw-hero">
+    <span class="eyebrow">DOANH THU NGƯỜI BÁN</span>
+    <h1>Rút tiền bán hàng</h1>
+    <p>Trải nghiệm thử toàn bộ quy trình rút doanh thu từ tác phẩm đã bán về tài khoản ngân hàng.</p>
+  </header>
+
+  <div class="demo-legal-note" role="note">
+    <span class="material-symbols-outlined" aria-hidden="true">science</span>
+    <div>
+      <strong>CHỨC NĂNG MÔ PHỎNG — KHÔNG CHUYỂN TIỀN THẬT</strong>
+      <p>
+        Đây là bản demo để minh họa quy trình kỹ thuật. Yêu cầu rút không được gửi tới ngân hàng,
+        không phải dịch vụ thanh toán và không tạo quyền yêu cầu chi trả thực tế.
+      </p>
+    </div>
+  </div>
+
+  @if (error()) {
+    <div class="withdraw-error" role="alert">
+      <p>{{ error() }}</p>
+      <button type="button" class="withdraw-error-retry" (click)="retryLoad()">Thử lại</button>
+    </div>
+  }
+  @if (loading()) {
+    <div class="loading-state">Đang tải dữ liệu ví…</div>
+  }
+
+  @if (!loading() && tokens.wallet(); as wallet) {
+    <div class="withdraw-grid">
+      <section class="withdraw-panel balance-panel">
+        <span class="panel-label">DOANH THU CÓ THỂ RÚT THỬ</span>
+        <strong class="balance-figure">{{ wallet.withdrawableBalance | number: '1.0-0' }}<small>đ</small></strong>
+        <p class="panel-hint">Chỉ tính doanh thu từ bán tác phẩm/đấu giá — không bao gồm tiền bạn tự nạp vào ví.</p>
+
+        @if (wallet.payoutAccount; as account) {
+          <div class="payout-account">
+            <span class="material-symbols-outlined" aria-hidden="true">account_balance</span>
+            <div>
+              <strong>{{ account.bankCode }} · {{ account.accountNumber }}</strong>
+              <span>{{ account.accountName | uppercase }}</span>
+            </div>
+          </div>
+        } @else {
+          <div class="payout-account payout-account-missing">
+            <span class="material-symbols-outlined" aria-hidden="true">warning</span>
+            <div>
+              <strong>Chưa có tài khoản nhận tiền</strong>
+              <a routerLink="/settings">Thiết lập trong Cài đặt →</a>
+            </div>
+          </div>
+        }
+      </section>
+
+      <section class="withdraw-panel form-panel">
+        <h2>Yêu cầu rút thử</h2>
+        <label for="withdrawalAmount">Số tiền muốn rút thử</label>
+        <div class="money-input">
+          <input
+            id="withdrawalAmount"
+            type="number"
+            min="10000"
+            step="1000"
+            [(ngModel)]="withdrawalAmount"
+            placeholder="Tối thiểu 10.000"
+            [disabled]="withdrawing()"
+          /><span>VND</span>
+        </div>
+
+        <div class="quick-amounts">
+          @for (percent of quickPercents; track percent) {
+            <button
+              type="button"
+              (click)="selectQuickAmount(percent)"
+              [disabled]="withdrawing() || +wallet.withdrawableBalance < 10000"
+            >
+              {{ percent === 100 ? 'Tối đa' : percent + '%' }}
+            </button>
+          }
+        </div>
+
+        <button
+          type="button"
+          class="submit-withdrawal"
+          (click)="submitDemoWithdrawal()"
+          [disabled]="withdrawing() || !wallet.payoutAccount || +wallet.withdrawableBalance < 10000"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">science</span
+          >{{ withdrawing() ? 'Đang mô phỏng…' : 'Rút tiền thử nghiệm' }}
+        </button>
+        @if (withdrawalMessage()) {
+          <p class="withdrawal-message">{{ withdrawalMessage() }}</p>
+        }
+      </section>
+    </div>
+
+    <section class="withdraw-history-section">
+      <h2>Lịch sử rút thử</h2>
+      @if (wallet.withdrawals.length) {
+        <ol class="history-timeline">
+          @for (item of wallet.withdrawals; track item.id) {
+            <li>
+              <span class="timeline-dot" aria-hidden="true"></span>
+              <div class="timeline-body">
+                <strong>{{ item.amount | number }}đ</strong>
+                <span class="timeline-status">Hoàn tất mô phỏng</span>
+                <time>{{ item.createdAt | date: 'dd/MM/yyyy · HH:mm' }}</time>
+              </div>
+            </li>
+          }
+        </ol>
+      } @else {
+        <div class="empty-history">Bạn chưa thực hiện lượt rút thử nào.</div>
+      }
+    </section>
+  }
+</main>

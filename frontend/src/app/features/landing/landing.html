@@ -1,6 +1,11 @@
 <app-nf-loader (finished)="onLoaderFinished($event)"></app-nf-loader>
 
 <div class="nf" [class.nf--ready]="loaderDone()">
+  <div class="nf-atmosphere" aria-hidden="true">
+    <span></span>
+    <span></span>
+  </div>
+
   <app-public-header (loginClick)="openLoginModal()"></app-public-header>
 
   <!-- ================================================================== -->
@@ -57,55 +62,76 @@
         <p class="nf-hero__lede">
           Khám phá, lưu trữ và tạo ra hình ảnh của riêng bạn — bằng ảnh thật hoặc bằng AI.
         </p>
-        <div class="nf-hero__actions">
-          <button
-            type="button"
-            class="nf-btn nf-btn--solid"
-            (click)="openLoginModal()"
-            (mousemove)="onMagneticMove($event)"
-            (mouseleave)="onMagneticLeave($event)"
-          >
-            Bắt đầu khám phá
-          </button>
-          <button type="button" class="nf-btn nf-btn--ghost" (click)="scrollToId('nf-explore')">
-            Xem tác phẩm
-            <span class="material-symbols-outlined">arrow_downward</span>
-          </button>
-        </div>
       </div>
 
       <span class="nf-hero__cue" aria-hidden="true">
-        <span class="nf-hero__cue-label">Cuộn</span>
-        <span class="nf-hero__cue-line"></span>
+        <span class="nf-hero__cue-label">Cuộn để khám phá</span>
+        <span class="nf-hero__cue-arrow material-symbols-outlined">arrow_downward</span>
       </span>
     </div>
   </section>
 
   <!-- ================================================================== -->
   <!-- SCENE 02 — KHÁM PHÁ                                                 -->
-  <!-- The exhibition: artworks travel horizontally through the pinned     -->
-  <!-- viewport as the user scrolls vertically, each one scaling as it     -->
-  <!-- crosses centre. Not a masonry grid — a moving gallery wall.         -->
+  <!-- A pinned, cylindrical exhibition inspired by the supplied reference -->
+  <!-- video. Vertical scroll rotates the local NovaFrame works through a   -->
+  <!-- bowed horizontal orbit; the final work then opens into a full-width  -->
+  <!-- feature before the story continues.                                 -->
   <!-- ================================================================== -->
   <section #exploreScene class="nf-scene nf-scene--explore" id="nf-explore">
     <div class="nf-scene__pin">
-      <header class="nf-scene__head">
-        <span class="nf-scene__index">01</span>
-        <h2 class="nf-scene__title">Khám phá</h2>
-        <p class="nf-scene__lede">
-          Không gian khám phá — nơi tác phẩm thật và ảnh do AI tạo ra cùng xuất hiện, sắp xếp theo
-          danh mục bạn quan tâm.
-        </p>
+      <svg class="nf-explore__defs" aria-hidden="true" focusable="false">
+        <defs>
+          <clipPath id="nf-explore-arc" clipPathUnits="objectBoundingBox">
+            <path d="M 0 0.065 Q 0.5 0 1 0.065 L 1 0.935 Q 0.5 1 0 0.935 Z"></path>
+          </clipPath>
+        </defs>
+      </svg>
+
+      <header class="nf-explore__head">
+        <span class="nf-explore__index">01 · Không gian hình ảnh</span>
+        <h2 class="nf-explore__title" id="nf-explore-title" aria-label="Khám phá">
+          <strong>Khám Phá</strong>
+        </h2>
       </header>
 
-      <div class="nf-gallery">
-        <figure class="nf-gallery__item" *ngFor="let art of artworks; let i = index" [style.--i]="i">
-          <img [src]="art.src" [alt]="art.title" loading="lazy" decoding="async" width="800" height="1000" />
+      <br/>
+      <div class="nf-gallery" role="list" aria-labelledby="nf-explore-title">
+        <figure
+          class="nf-gallery__item"
+          *ngFor="let art of orbitArtworks; let i = index"
+          [class.nf-gallery__item--focus]="i === orbitArtworks.length - 2"
+          [class.nf-gallery__item--clone]="i === 0 || i === orbitArtworks.length - 1"
+          [style.--i]="i"
+          role="listitem"
+          [attr.aria-hidden]="i === 0 || i === orbitArtworks.length - 1 ? 'true' : null"
+        >
+          <div class="nf-gallery__media">
+            <img
+              [src]="art.src"
+              [alt]="i === 0 || i === orbitArtworks.length - 1 ? '' : art.title"
+              loading="lazy"
+              decoding="async"
+              width="800"
+              height="520"
+            />
+          </div>
           <figcaption>
-            <span class="nf-gallery__title">{{ art.title }}</span>
             <span class="nf-gallery__meta">{{ art.meta }}</span>
+            <span class="nf-gallery__title">{{ art.title }}</span>
           </figcaption>
         </figure>
+      </div>
+
+      <div class="nf-explore__focus-copy" aria-hidden="true">
+        <span>{{ artworks[artworks.length - 1].meta }}</span>
+        <strong>{{ artworks[artworks.length - 1].title }}</strong>
+      </div>
+
+      <div class="nf-explore__progress" aria-hidden="true">
+        <span>Cuộn</span>
+        <i></i>
+        <strong>01 — 06</strong>
       </div>
     </div>
   </section>
@@ -190,7 +216,7 @@
             của bạn.
           </p>
           <p class="nf-ai__prompt" aria-hidden="true">
-            <span class="material-symbols-outlined">auto_awesome</span>
+            <span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
             <span class="nf-ai__prompt-text">một đài quan sát ánh sáng giữa sương màu…</span>
           </p>
         </header>
@@ -216,7 +242,7 @@
         <span class="nf-cta__shard" style="--i: 1"></span>
         <span class="nf-cta__shard" style="--i: 2"></span>
         <span class="nf-cta__shard" style="--i: 3"></span>
-        <img class="nf-cta__mark" src="/logo-mark.png" alt="" loading="lazy" />
+        <img class="nf-cta__mark" src="/logo-mark.svg" alt="" loading="lazy" />
       </div>
 
       <h2 class="nf-cta__title">Sẵn sàng để <em>bắt đầu</em>?</h2>
@@ -224,18 +250,7 @@
         Đăng nhập bằng Google và bước vào không gian sáng tạo của riêng bạn trên NovaFrame.
       </p>
       <div class="nf-cta__actions">
-        <button
-          type="button"
-          class="nf-btn nf-btn--solid"
-          (click)="openLoginModal()"
-          (mousemove)="onMagneticMove($event)"
-          (mouseleave)="onMagneticLeave($event)"
-        >
-          Bắt đầu khám phá
-        </button>
-        <button type="button" class="nf-btn nf-btn--outline" (click)="openLoginModal()">
-          Đăng nhập
-        </button>
+        <app-landing-cta-button (activated)="openLoginModal()"></app-landing-cta-button>
       </div>
     </div>
   </section>
@@ -243,10 +258,13 @@
   <footer class="nf-foot">
     <div class="nf-foot__row">
       <span class="nf-foot__brand">
-        <img src="/logo-mark.png" alt="" aria-hidden="true" />
+        <img src="/logo-mark.svg" alt="" aria-hidden="true" />
         NovaFrame
       </span>
-      <span class="nf-foot__tag">Creative Observatory</span>
+      <nav class="nf-foot__legal flex items-center gap-5" aria-label="Liên kết pháp lý">
+        <a routerLink="/terms" class="text-inherit no-underline transition-colors hover:text-text focus-visible:text-text">Điều khoản</a>
+        <a routerLink="/privacy" class="text-inherit no-underline transition-colors hover:text-text focus-visible:text-text">Bảo mật</a>
+      </nav>
       <span class="nf-foot__copy">© {{ currentYear }} NovaFrame</span>
     </div>
   </footer>

@@ -2,21 +2,44 @@ import {
   AfterViewInit,
   Component,
   ElementRef,
+  EventEmitter,
+  Input,
   OnDestroy,
+  Output,
   ViewChild,
   effect,
   inject,
+  signal,
 } from '@angular/core';
-import { Canvas, FabricImage, FabricObject, Rect } from 'fabric';
+import { Canvas, FabricImage, FabricObject, Path, PencilBrush, Rect, Textbox } from 'fabric';
 import {
   COLLAGE_HEIGHT,
   COLLAGE_WIDTH,
+  CollageBrushKind,
+  CollageImageLayer,
   CollageLayer,
   CollageLayerTransform,
+  CollageTextLayer,
+  isImageLayer,
+  isTextLayer,
 } from '../../collage.types';
 import { CollageStoreService } from '../../services/collage-store.service';
 
 type CollageFabricObject = FabricObject & { collageLayerId?: string };
+
+interface SelectionBox {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+export interface DrawingSettings {
+  stroke: string;
+  strokeWidth: number;
+  strokeOpacity: number;
+  brush: CollageBrushKind;
+}
 
 @Component({
   selector: 'app-collage-canvas',
@@ -30,13 +53,55 @@ export class CollageCanvasComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvasShell', { static: true })
   private canvasShell!: ElementRef<HTMLDivElement>;
 
-  private readonly store = inject(CollageStoreService);
+  /** Public: the selection toolbar in this component's own template drives
+   * duplicate/remove directly. */
+  readonly store = inject(CollageStoreService);
+
+  /** Re-crop lives in the parent (it owns the crop dialog), so the scissors
+   * button only reports intent. */
+  @Output() readonly recut = new EventEmitter<void>();
+
+  /** A finished brush stroke, as the path data + style needed to rebuild it.
+   * The parent turns it into a layer; this component does not touch the store
+   * for creation, only for selection and transforms. */
+  @Output() readonly strokeCompleted = new EventEmitter<{
+    pathData: string;
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  }>();
+
+  /** Non-null puts Fabric into free-drawing mode with these settings; null
+   * returns the canvas to selection mode. */
+  @Input() set drawing(settings: DrawingSettings | null) {
+    this.drawingSettings = settings;
+    this.applyDrawingMode();
+  }
+
+  /** Screen box of the selected object, in the canvas ELEMENT's coordinate
+   * space (not the page's), so the template can anchor the toolbar with plain
+   * left/top. Null when nothing is selected. */
+  readonly selectionBox = signal<SelectionBox | null>(null);
+
   private canvas?: Canvas;
+  private drawingSettings: DrawingSettings | null = null;
   private resizeObserver?: ResizeObserver;
   private syncVersion = 0;
   private suppressSelectionEvent = false;
   private isPointerTransforming = false;
   private pointerLayerId: string | null = null;
+
+  /** Fabric.js paints selection chrome on the canvas 2D context, which
+   * cannot read CSS custom properties directly — resolve the current
+   * theme's actual value once per call so corner/border colors stay on
+   * the Nova/Iris brand tokens (and adapt across light/dark) instead of
+   * a hardcoded neon cyan/violet. */
+  private resolveToken(name: string, fallback: string): string {
+    if (typeof window === 'undefined') return fallback;
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback;
+  }
 
   private readonly layerSyncEffect = effect(() => {
     const layers = this.store.layers();
@@ -48,7 +113,10 @@ export class CollageCanvasComponent implements AfterViewInit, OnDestroy {
     this.canvas = new Canvas(this.canvasElement.nativeElement, {
       width: COLLAGE_WIDTH,
       height: COLLAGE_HEIGHT,
-      backgroundColor: '#ffffff',
+      /* Transparent while editing so the dotted artboard behind it shows
+         through and an empty collage reads as empty. exportPng() paints the
+         white background back on, so the exported file is unchanged. */
+      backgroundColor: 'transparent',
       preserveObjectStacking: true,
       selection: false,
       uniformScaling: true,
@@ -58,6 +126,9 @@ export class CollageCanvasComponent implements AfterViewInit, OnDestroy {
     this.resizeObserver = new ResizeObserver(() => this.fitCanvas());
     this.resizeObserver.observe(this.canvasShell.nativeElement);
     this.fitCanvas();
+    // The `drawing` input can arrive before the Fabric canvas exists, so apply
+    // whatever it last set once we do have one.
+    this.applyDrawingMode();
     void this.syncCanvas(this.store.layers(), this.store.selectedId());
   }
 
@@ -69,19 +140,74 @@ export class CollageCanvasComponent implements AfterViewInit, OnDestroy {
 
   async exportPng(): Promise<Blob> {
     if (!this.canvas) throw new Error('Khung ảnh chưa sẵn sàng.');
-    this.canvas.renderAll();
-    const output = this.canvas.toCanvasElement(1);
-    return new Promise((resolve, reject) => {
-      output.toBlob(
-        (blob: Blob | null) => (blob ? resolve(blob) : reject(new Error('Không thể xuất ảnh PNG.'))),
-        'image/png',
-        1,
-      );
-    });
+    /* The editing canvas is transparent so the dotted artboard shows through.
+       Paint the white background back on just for the export, then restore — the
+       output file stays byte-for-byte what it was before that change. */
+    const editingBackground = this.canvas.backgroundColor;
+    this.canvas.backgroundColor = '#ffffff';
+    try {
+      this.canvas.renderAll();
+      const output = this.canvas.toCanvasElement(1);
+      return await new Promise<Blob>((resolve, reject) => {
+        output.toBlob(
+          (blob: Blob | null) =>
+            blob ? resolve(blob) : reject(new Error('Không thể xuất ảnh PNG.')),
+          'image/png',
+          1,
+        );
+      });
+    } finally {
+      this.canvas.backgroundColor = editingBackground;
+      this.canvas.renderAll();
+    }
+  }
+
+  /** Maps the active object's Fabric bounding box into the canvas element's own
+   * pixel space. The element is rendered at COLLAGE_WIDTH internally but sized
+   * down by fitCanvas, so every value has to go through that CSS scale.
+   *
+   * Runs on every Fabric render, hence the equality check before writing: a
+   * signal write per frame during a drag would schedule change detection on
+   * each one for values that mostly have not moved. */
+  private updateSelectionBox(): void {
+    const canvas = this.canvas;
+    const active = canvas?.getActiveObject();
+    if (!canvas || !active) {
+      if (this.selectionBox() !== null) this.selectionBox.set(null);
+      return;
+    }
+
+    const cssWidth = this.canvasElement.nativeElement.clientWidth;
+    if (!cssWidth) return;
+    const scale = cssWidth / COLLAGE_WIDTH;
+    const bounds = active.getBoundingRect();
+    const next: SelectionBox = {
+      left: Math.round(bounds.left * scale),
+      top: Math.round(bounds.top * scale),
+      width: Math.round(bounds.width * scale),
+      height: Math.round(bounds.height * scale),
+    };
+
+    const current = this.selectionBox();
+    if (
+      current &&
+      current.left === next.left &&
+      current.top === next.top &&
+      current.width === next.width &&
+      current.height === next.height
+    ) {
+      return;
+    }
+    this.selectionBox.set(next);
   }
 
   private bindCanvasEvents(): void {
     if (!this.canvas) return;
+
+    /* One hook covers every case: selecting, moving, scaling, rotating and the
+       store-driven re-sync all end in a render, so the toolbar tracks the
+       object without a listener per interaction. */
+    this.canvas.on('after:render', () => this.updateSelectionBox());
 
     this.canvas.on('selection:created', (event: any) => this.onSelectionChanged(event.selected?.[0]));
     this.canvas.on('selection:updated', (event: any) => this.onSelectionChanged(event.selected?.[0]));
@@ -119,6 +245,31 @@ export class CollageCanvasComponent implements AfterViewInit, OnDestroy {
         this.store.bringToFront(id);
       });
     });
+    /* A finished stroke is handed to the parent as data and the raw Fabric path
+       is dropped again: syncCanvas rebuilds it from the resulting layer, so the
+       store stays the single source of truth for what is on the canvas. Leaving
+       Fabric's own path in place would mean two objects for one stroke. */
+    this.canvas.on('path:created', (event: any) => {
+      const path = event.path as Path | undefined;
+      if (!path) return;
+      const canvas = this.canvas;
+      if (!canvas) return;
+
+      const bounds = path.getBoundingRect();
+      const pathData = path.toSVG().match(/ d="([^"]+)"/)?.[1];
+      canvas.remove(path);
+      canvas.requestRenderAll();
+      if (!pathData) return;
+
+      this.strokeCompleted.emit({
+        pathData,
+        left: bounds.left + bounds.width / 2,
+        top: bounds.top + bounds.height / 2,
+        width: bounds.width,
+        height: bounds.height,
+      });
+    });
+
     this.canvas.on('object:modified', (event: any) => {
       const target = event.target as CollageFabricObject | undefined;
       const id = target?.collageLayerId;
@@ -155,24 +306,18 @@ export class CollageCanvasComponent implements AfterViewInit, OnDestroy {
         (candidate) => candidate.collageLayerId === layer.id,
       );
       if (!object) {
-        const image = await FabricImage.fromURL(layer.cutoutImageUrl);
-        if (version !== this.syncVersion || !this.canvas) return;
-        (image as CollageFabricObject).collageLayerId = layer.id;
-        image.set({
-          originX: 'center',
-          originY: 'center',
-          cornerStyle: 'circle',
-          cornerColor: '#00e5ff',
-          cornerStrokeColor: '#070712',
-          borderColor: '#8b2cff',
-          transparentCorners: false,
-          cornerSize: 28,
-          padding: 5,
-          perPixelTargetFind: true,
-        });
-        image.setControlsVisibility({ ml: false, mr: false, mt: false, mb: false });
-        canvas.add(image);
-        object = image;
+        const created = await this.createObject(layer);
+        if (version !== this.syncVersion || !this.canvas || !created) return;
+        created.collageLayerId = layer.id;
+        this.applySelectionChrome(created, layer);
+        canvas.add(created);
+        object = created;
+      }
+
+      // Text is re-applied on every sync, not just at creation: editing the
+      // style panel changes the layer, and a Textbox has to be told about it.
+      if (isTextLayer(layer) && object instanceof Textbox) {
+        this.applyTextStyle(object, layer);
       }
 
       object.set({
@@ -181,7 +326,7 @@ export class CollageCanvasComponent implements AfterViewInit, OnDestroy {
         scaleX: layer.scaleX,
         scaleY: layer.scaleY,
         angle: layer.rotation,
-        clipPath: this.buildClipPath(layer),
+        clipPath: isImageLayer(layer) ? this.buildClipPath(layer) : undefined,
       });
       object.setCoords();
       canvas.moveObjectTo(object, layer.zIndex);
@@ -197,13 +342,136 @@ export class CollageCanvasComponent implements AfterViewInit, OnDestroy {
     canvas.requestRenderAll();
   }
 
+  /** Puts Fabric in or out of free-drawing mode and configures the brush.
+   * Selection is disabled while drawing — otherwise the first press lands on
+   * whatever layer is under the cursor and drags it instead of drawing. */
+  private applyDrawingMode(): void {
+    const canvas = this.canvas;
+    if (!canvas) return;
+    const settings = this.drawingSettings;
+
+    canvas.isDrawingMode = !!settings;
+    if (!settings) {
+      canvas.forEachObject((object) => {
+        object.selectable = true;
+        object.evented = true;
+      });
+      canvas.requestRenderAll();
+      return;
+    }
+
+    canvas.discardActiveObject();
+    canvas.forEachObject((object) => {
+      object.selectable = false;
+      object.evented = false;
+    });
+
+    const brush = new PencilBrush(canvas);
+    // Marker reads as a marker by being wider and translucent — the alpha rides
+    // on the stroke colour because PencilBrush has no opacity of its own.
+    const isMarker = settings.brush === 'marker';
+    brush.width = settings.strokeWidth * (isMarker ? 2.4 : 1);
+    brush.color = this.withAlpha(
+      settings.stroke,
+      settings.strokeOpacity * (isMarker ? 0.45 : 1),
+    );
+    canvas.freeDrawingBrush = brush;
+    canvas.requestRenderAll();
+  }
+
+  /** Fabric's brush takes a CSS colour string, so opacity has to be baked into
+   * it. Handles the #rgb/#rrggbb the colour picker produces. */
+  private withAlpha(color: string, alpha: number): string {
+    const clamped = Math.min(1, Math.max(0, alpha));
+    const hex = color.replace('#', '');
+    const full =
+      hex.length === 3
+        ? hex
+            .split('')
+            .map((char) => char + char)
+            .join('')
+        : hex;
+    if (full.length !== 6) return color;
+    const r = Number.parseInt(full.slice(0, 2), 16);
+    const g = Number.parseInt(full.slice(2, 4), 16);
+    const b = Number.parseInt(full.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${clamped})`;
+  }
+
+  /** One Fabric object per layer kind. Text becomes a Textbox specifically
+   * because Textbox reflows its content to a fixed `width` — that is what keeps
+   * long text inside the layer's frame instead of spilling across the artboard.
+   * A plain IText would grow sideways forever. */
+  private async createObject(layer: CollageLayer): Promise<CollageFabricObject | null> {
+    if (isImageLayer(layer)) {
+      return (await FabricImage.fromURL(layer.cutoutImageUrl)) as CollageFabricObject;
+    }
+
+    if (isTextLayer(layer)) {
+      const textbox = new Textbox(layer.text, { width: layer.width });
+      this.applyTextStyle(textbox, layer);
+      return textbox as CollageFabricObject;
+    }
+
+    const path = new Path(layer.pathData, {
+      fill: undefined,
+      stroke: layer.stroke,
+      strokeWidth: layer.strokeWidth,
+      opacity: layer.strokeOpacity,
+      strokeLineCap: 'round',
+      strokeLineJoin: 'round',
+    });
+    return path as CollageFabricObject;
+  }
+
+  private applyTextStyle(textbox: Textbox, layer: CollageTextLayer): void {
+    textbox.set({
+      text: layer.text,
+      // The wrap width. Scaling the layer scales the rendered result, so this
+      // stays in the layer's own unscaled pixel space.
+      width: layer.width,
+      fontFamily: layer.fontFamily,
+      fontSize: layer.fontSize,
+      fontWeight: layer.fontWeight,
+      fontStyle: layer.fontStyle,
+      textAlign: layer.textAlign,
+      fill: layer.color,
+      backgroundColor: layer.highlight ? layer.highlightColor : undefined,
+    });
+  }
+
+  private applySelectionChrome(object: CollageFabricObject, layer: CollageLayer): void {
+    object.set({
+      originX: 'center',
+      originY: 'center',
+      cornerStyle: 'circle',
+      cornerColor: this.resolveToken('--color-studio-aqua', '#4fb2ff'),
+      cornerStrokeColor: this.resolveToken('--color-ink', '#05070e'),
+      borderColor: this.resolveToken('--color-iris-violet', '#9475ff'),
+      transparentCorners: false,
+      cornerSize: 28,
+      padding: 5,
+      // Only meaningful for a bitmap with transparent regions; on text and
+      // vector strokes it makes thin shapes almost impossible to grab.
+      perPixelTargetFind: isImageLayer(layer),
+    });
+    // Text keeps its side handles: dragging them changes the wrap width, which
+    // is the one resize that matters for text. Images and strokes scale
+    // uniformly from the corners.
+    object.setControlsVisibility(
+      isTextLayer(layer)
+        ? { mt: false, mb: false }
+        : { ml: false, mr: false, mt: false, mb: false },
+    );
+  }
+
   /** Fabric clipPath coordinates are relative to the object's OWN center
    * (since `absolutePositioned` defaults to false), in its unscaled pixel
    * space — so this only ever depends on the layer's own width/height, and
    * automatically stays correct across the object's position/scale/rotation
    * on the canvas (resizing the layer can never reveal what's outside the
    * crop; it only zooms the already-cropped picture in or out). */
-  private buildClipPath(layer: CollageLayer): Rect | undefined {
+  private buildClipPath(layer: CollageImageLayer): Rect | undefined {
     const cropX = layer.cropX ?? 0;
     const cropY = layer.cropY ?? 0;
     const cropWidth = layer.cropWidth ?? 1;

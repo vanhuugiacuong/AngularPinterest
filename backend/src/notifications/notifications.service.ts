@@ -8,6 +8,7 @@ import {
   NotificationTemplate,
 } from '../templates/notification.templates';
 import { PUBLIC_USER_SELECT } from '../common/relationship.util';
+import { applyPinImageProtection, resolveSinglePinImageUrl } from '../common/pin-access.util';
 
 export type NotificationType =
   | 'LIKE'
@@ -65,10 +66,22 @@ export class NotificationsService {
           select: PUBLIC_USER_SELECT,
         },
         pin: {
-          select: { id: true, title: true, imageUrl: true },
+          select: { id: true, title: true, imageUrl: true, protectedImageUrl: true, userId: true, isForSale: true },
         },
       },
     });
+
+    // The recipient here isn't necessarily the pin's owner or a buyer (e.g.
+    // AUCTION_OUTBID goes to a bidder who lost the top spot, not the seller)
+    // — the embedded pin thumbnail must go through the same commerce gate
+    // as every other pin-image response, both in the realtime push below
+    // and in the persisted row returned to the caller.
+    if (notification.pin) {
+      const hasAuction = await this.prisma.auction.count({
+        where: { pinId: notification.pin.id, status: { not: 'CANCELLED' } },
+      }).then((count) => count > 0);
+      notification.pin.imageUrl = await resolveSinglePinImageUrl(this.prisma, notification.pin, userId, hasAuction);
+    }
 
     void this.supabase.broadcast(`user:${userId}`, 'notification', notification);
 
@@ -86,7 +99,7 @@ export class NotificationsService {
             select: PUBLIC_USER_SELECT,
           },
           pin: {
-            select: { id: true, title: true, imageUrl: true },
+            select: { id: true, title: true, imageUrl: true, protectedImageUrl: true, userId: true, isForSale: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -95,6 +108,16 @@ export class NotificationsService {
       }),
       this.prisma.notification.count({ where: { userId } }),
     ]);
+
+    // Same gate as createNotification — a notification's embedded pin
+    // thumbnail is only safe to show as-is once we know this recipient is
+    // the owner or a paid buyer (an AUCTION_OUTBID recipient may be
+    // neither, and this list is what makes that notification durable).
+    await applyPinImageProtection(
+      this.prisma,
+      notifications.map((n) => n.pin).filter((pin): pin is NonNullable<typeof pin> => pin !== null),
+      userId,
+    );
 
     const unreadCount = await this.prisma.notification.count({
       where: { userId, isRead: false },

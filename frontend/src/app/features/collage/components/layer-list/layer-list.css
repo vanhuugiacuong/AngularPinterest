@@ -3,43 +3,43 @@
   min-width: 0;
 }
 .panel {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-panel);
   background: var(--color-surface);
   box-shadow: var(--shadow-card);
 }
-.panel-heading {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 18px;
-  border: 0;
-  color: var(--color-text);
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
+
+/* Plain always-visible section header. Replaces a button+chevron whose only job
+   was hiding this column's sole content. */
+.panel-head {
+  padding: 16px 14px 10px;
 }
-.panel-heading strong {
-  display: block;
-  margin-top: 3px;
+.panel-head h2 {
+  margin: 0;
   font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
-.eyebrow {
-  color: var(--color-accent);
-  font-family: var(--font-sans);
-  font-weight: 700;
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+.panel-head p {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.5;
 }
+
+/* Takes the leftover height under the header and scrolls inside it, instead of
+   a `calc(100vh - 230px)` guess that had to be kept in sync by hand. */
 .panel-body {
   display: flex;
-  max-height: calc(100vh - 230px);
+  flex: 1 1 auto;
+  min-height: 0;
   flex-direction: column;
-  gap: 9px;
+  gap: 6px;
   overflow-y: auto;
   padding: 0 12px 14px;
 }
@@ -51,12 +51,43 @@
   line-height: 1.6;
   text-align: center;
 }
+.layer-row-group {
+  display: flex;
+  align-items: stretch;
+}
+
+/* The frame itself — bottom of the stack, and not something the store can move
+   or delete, so it is deliberately not a button. */
+.layer-row--locked {
+  cursor: default;
+  opacity: 0.72;
+}
+.layer-row--locked:hover {
+  border-color: var(--color-border);
+  background: var(--color-surface-elevated);
+}
+.lock-icon {
+  font-size: 16px;
+  color: var(--color-text-muted);
+}
+.layer-thumb--empty {
+  background:
+    repeating-conic-gradient(
+        color-mix(in srgb, var(--color-text-muted) 22%, transparent) 0% 25%,
+        transparent 0% 50%
+      )
+      50% / 10px 10px;
+}
 .layer-row {
   display: grid;
-  grid-template-columns: 18px 48px minmax(0, 1fr) 24px;
+  /* handle · thumb · name. The trailing z-index column went with the raw
+     zIndex number it showed — the row's own position in the list already
+     communicates stacking order, and the number leaked an internal value. */
+  grid-template-columns: 18px 48px minmax(0, 1fr);
   align-items: center;
   gap: 9px;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 8px;
   border: 1px solid transparent;
   border-radius: var(--radius-control);
@@ -90,7 +121,8 @@
   font-size: 18px;
   pointer-events: none;
 }
-.layer-thumb {
+.layer-thumb,
+.layer-drag-preview .preview-thumb {
   display: flex;
   width: 48px;
   height: 48px;
@@ -98,7 +130,11 @@
   justify-content: center;
   overflow: hidden;
   border-radius: 8px;
+  /* Transparency checkerboard — theme-independent by convention, same as
+     --color-canvas-neutral's purpose: shows real alpha regardless of theme. */
   background: repeating-conic-gradient(#fff 0 25%, #dfe3ef 0 50%) 50% / 12px 12px;
+}
+.layer-thumb {
   pointer-events: none;
 }
 .layer-thumb img {
@@ -113,32 +149,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.layer-index {
-  color: var(--color-text-muted);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  text-align: center;
-}
-.reorder-hint {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin: 2px 3px 0;
-  color: var(--color-text-muted);
-  font-size: 9px;
-  line-height: 1.4;
-}
-.reorder-hint .material-symbols-outlined {
-  flex: 0 0 auto;
-  font-size: 14px;
-}
 .layer-drag-preview {
   position: fixed;
   top: 0;
   left: 0;
   z-index: 300;
   display: grid;
-  grid-template-columns: 18px 48px minmax(0, 1fr) 24px;
+  grid-template-columns: 18px 48px minmax(0, 1fr);
   max-width: calc(100vw - 24px);
   min-height: 66px;
   align-items: center;
@@ -150,23 +167,13 @@
   background: color-mix(in srgb, var(--color-surface-high) 94%, transparent);
   box-shadow:
     0 18px 45px rgba(0, 0, 0, 0.48),
-    0 0 24px rgba(0, 229, 255, 0.16);
+    0 0 24px color-mix(in srgb, var(--color-accent) 16%, transparent);
   pointer-events: none;
   will-change: transform;
 }
 .layer-drag-preview > .material-symbols-outlined {
   color: var(--color-accent);
   font-size: 18px;
-}
-.layer-drag-preview .preview-thumb {
-  display: flex;
-  width: 48px;
-  height: 48px;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border-radius: 8px;
-  background: repeating-conic-gradient(#fff 0 25%, #dfe3ef 0 50%) 50% / 12px 12px;
 }
 .layer-drag-preview img {
   width: 100%;
@@ -179,45 +186,21 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.layer-drag-preview .preview-index {
-  color: var(--color-text-muted);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  text-align: center;
-}
-.layer-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 7px;
-  padding-top: 5px;
-}
-.layer-actions button {
-  display: flex;
-  min-height: 38px;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  color: var(--color-text-muted);
-  background: var(--color-surface-elevated);
-  font-size: 10px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.layer-actions button:hover {
-  border-color: var(--color-border-strong);
-  color: var(--color-text);
-}
-.layer-actions button.danger:hover {
-  border-color: var(--color-error);
-  color: var(--color-error);
-}
-.layer-actions .material-symbols-outlined {
-  font-size: 16px;
-}
 @media (max-width: 1100px) {
   .panel-body {
     max-height: 360px;
   }
+}
+
+@media (min-width: 1101px) {
+  .panel {
+    height: 100%;
+    max-height: none;
+  }
+}
+
+/* Text and drawing rows have no picture, so the thumb shows the kind's glyph. */
+.kind-glyph {
+  font-size: 22px;
+  color: var(--color-text-muted);
 }

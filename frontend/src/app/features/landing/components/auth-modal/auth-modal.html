@@ -32,12 +32,56 @@
     aria-modal="true"
     aria-labelledby="nf-auth-title"
   >
-    <button type="button" class="nf-auth__close" (click)="closeModal.emit()" aria-label="Đóng">
-      <span class="material-symbols-outlined">close</span>
+    <button type="button" class="nf-auth__close" (click)="requestClose()" aria-label="Đóng">
+      <span class="material-symbols-outlined" aria-hidden="true">close</span>
     </button>
 
+    <!-- ============================ STEP 1 ============================ -->
+    <!-- Content notice. Placed ahead of sign-in rather than as its own modal:
+         a first-time visitor is not stacked two dialogs deep, and the notice is
+         read before an account exists — the point at which consent matters.
+         This is a WARNING, not age verification: it cannot establish anyone's
+         age, and anything that actually gates minors is a separate feature. -->
+    @if (step() === 'warning') {
+      <div class="nf-auth__body">
+        <span class="nf-auth__notice-mark material-symbols-outlined" aria-hidden="true"
+          >shield_person</span
+        >
+
+        <span class="nf-auth__eyebrow">Trước khi bắt đầu</span>
+
+        <h2 id="nf-auth-title" class="nf-auth__title">Lưu ý về nội dung</h2>
+
+        <div class="nf-auth__notice">
+          <p>
+            NovaFrame là nền tảng <strong>lưu trữ và mạng xã hội mang tính lưu trữ
+            độc quyền</strong>. Nội dung ở đây do người dùng tự đăng tải.
+          </p>
+          <p>
+            Vì vậy <strong>có thể xuất hiện một số nội dung không phù hợp với độ
+            tuổi của bạn</strong>. Hãy cân nhắc trước khi tiếp tục.
+          </p>
+          <p class="nf-auth__notice-small">
+            Bạn có thể báo cáo bất kỳ tác phẩm hoặc tài khoản nào ngay trong ứng dụng.
+          </p>
+        </div>
+
+        <button type="button" class="nf-auth__submit" (click)="acknowledgeWarning()">
+          <span class="material-symbols-outlined" aria-hidden="true">check</span>
+          <span>Tôi hiểu, tiếp tục</span>
+        </button>
+
+        <p class="nf-auth__fine">
+          Tiếp tục nghĩa là bạn đã đọc lưu ý trên và đồng ý với
+          <a routerLink="/terms">Điều khoản Dịch vụ</a> của chúng tôi.
+        </p>
+      </div>
+    }
+
+    <!-- ============================ STEP 2 ============================ -->
+    @if (step() === 'signin') {
     <div class="nf-auth__body">
-      <img src="/logo-mark.png" alt="" aria-hidden="true" class="nf-auth__logo" />
+      <img src="/logo-mark.svg" alt="" aria-hidden="true" class="nf-auth__logo" />
 
       <span class="nf-auth__eyebrow">Creative Observatory</span>
 
@@ -61,7 +105,7 @@
         (click)="loginRequested.emit()"
       >
         @if (isSigningIn) {
-          <span class="nf-auth__spinner material-symbols-outlined">progress_activity</span>
+          <span class="nf-auth__spinner material-symbols-outlined" aria-hidden="true">progress_activity</span>
           <span>Đang kết nối với Google…</span>
         } @else {
           <svg class="nf-auth__gicon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -96,8 +140,10 @@
 
       <p class="nf-auth__fine">
         Bằng việc tiếp tục, bạn đồng ý với
-        <a href="#">Điều khoản Dịch vụ</a> và <a href="#">Chính sách Bảo mật</a> của chúng tôi.
+        <a routerLink="/terms">Điều khoản Dịch vụ</a> và
+        <a routerLink="/privacy">Chính sách Bảo mật</a> của chúng tôi.
       </p>
     </div>
+    }
   </div>
 </div>

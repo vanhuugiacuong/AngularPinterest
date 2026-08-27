@@ -1,57 +1,353 @@
-/* Component-specific styles for Sidebar */
+/* Persistent page-level rail: compact remains visible on desktop/tablet and
+   expands as the app shell's left column. Hover affects only controls and
+   tooltips. */
+:host {
+  font-family: var(--font-sans);
+}
 
-/* No `position` rule here: the <nav> already carries Tailwind's `fixed`
-   utility class in the template, which already establishes a positioning
-   context for the ::after light trail below. Adding `position: relative`
-   here used to WIN over that `fixed` class — Angular's component-style
-   scoping adds an `[_ngcontent-*]` attribute to selectors defined in this
-   file, giving `.nf-rail[_ngcontent-*]` higher specificity than the plain
-   `.fixed` utility class, which silently downgraded the sidebar nav to
-   `position: relative`. That took it out of fixed/overlay mode and back
-   into normal document flow, so its full height was reserved as empty
-   space above the page content — pushing the entire Feed (and every other
-   route's <main>) hundreds of pixels below the fold. */
+.nf-rail {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 60;
+  display: flex;
+  width: 64px;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  overflow: visible;
+  border: 0;
+  border-right: 1px solid var(--color-border);
+  border-radius: 0;
+  background: var(--color-surface);
+  box-shadow: none;
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  isolation: isolate;
+  transition: width 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
 
-/* A faint vertical light trail along the rail's right edge — NovaFrame
-   signature, split between the two brand hues rather than one flat line. */
-.nf-rail::after {
-  content: "";
+.nf-rail--expanded {
+  width: 248px;
+}
+
+.nf-rail:focus-visible {
+  outline: 2px solid var(--color-nova-blue);
+  outline-offset: 3px;
+}
+
+.nf-rail-brand,
+.nf-rail-item,
+.nf-rail-profile {
+  display: flex;
+  min-width: 0;
+  height: 44px;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.nf-rail-brand {
+  width: 44px;
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+.nf-rail--expanded .nf-rail-brand,
+.nf-rail--expanded .nf-rail-item,
+.nf-rail--expanded .nf-rail-profile {
+  width: 100%;
+}
+
+.nf-rail-brand:hover,
+.nf-rail-brand:focus-visible,
+.nf-rail-item:hover,
+.nf-rail-item:focus-visible,
+.nf-rail-profile:hover,
+.nf-rail-profile:focus-visible {
+  background: var(--color-surface-elevated);
+  color: var(--color-text);
+}
+
+.nf-rail-brand:focus-visible,
+.nf-rail-item:focus-visible,
+.nf-rail-profile:focus-visible {
+  outline: 2px solid var(--color-nova-blue);
+  outline-offset: 2px;
+}
+
+.nf-rail-brand__mark,
+.nf-rail-icon,
+.nf-rail-profile__avatar {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: center;
+}
+
+.nf-rail-brand__mark {
+  overflow: hidden;
+  opacity: 1;
+  transition:
+    width 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    flex-basis 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 100ms ease;
+}
+
+.nf-rail-brand__mark img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 9px color-mix(in srgb, var(--color-nova-blue) 30%, transparent));
+}
+
+.nf-rail-icon {
+  color: var(--color-text);
+  transition: color 160ms ease;
+}
+
+.nf-rail-item--active .nf-rail-icon {
+  color: var(--color-nova-blue);
+}
+
+.nf-rail-item--disabled .nf-rail-icon {
+  color: color-mix(in srgb, var(--color-text-muted) 52%, transparent);
+}
+
+.nf-rail-label.nf-rail-brand__name {
+  color: var(--color-text);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+/* The compact rail identifies NovaFrame with the mark. In the expanded
+   column, the mark gives way to the full wordmark instead of rendering both. */
+/* Logo hiện ở CẢ hai trạng thái. Trước đây khi mở rộng, `.nf-rail-brand__mark`
+   bị thu về width:0/opacity:0 nên chỉ còn lại chữ "NovaFrame" — sidebar mất
+   logo hẳn ở trạng thái người dùng nhìn thấy nhiều nhất.
+   Không đặt padding-inline: để mark giữ đúng hộp 44px, nó tự thẳng hàng với
+   `.nf-rail-icon` của các nav item bên dưới, và chữ bắt đầu đúng vị trí
+   `.nf-rail-label`. */
+.nf-rail--expanded .nf-rail-brand {
+  justify-content: flex-start;
+}
+
+.nf-rail--expanded .nf-rail-brand__name {
+  font-size: 18px;
+}
+
+.nf-rail-nav,
+.nf-rail-footer {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.nf-rail-nav {
+  flex: 1 1 auto;
+  justify-content: flex-start;
+  padding-top: 18px;
+}
+
+.nf-rail-footer {
+  flex: 0 0 auto;
+}
+
+.nf-rail-item-shell {
+  position: relative;
+  display: flex;
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.nf-rail-item {
+  position: relative;
+  width: 44px;
+}
+
+.nf-rail-item--active,
+.nf-rail-item--active:hover,
+.nf-rail-item--active:focus-visible {
+  background: color-mix(in srgb, var(--color-nova-blue) 14%, var(--color-surface));
+  color: var(--color-nova-blue);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-nova-blue) 16%, transparent);
+}
+
+/* Bảng thông báo đang mở — CỐ Ý khác `--active`. `--active` nghĩa là "trang bạn
+   đang ở" (kèm aria-current="page"); bảng thông báo chỉ là panel bật/tắt tạm
+   thời và không đổi route. Dùng chung một style khiến lúc mở bảng có HAI tab
+   cùng sáng xanh (tab route + tab thông báo), đọc ra như đang chọn hai chỗ và
+   như tab thông báo bị "dính". Ở đây dùng nền trung tính, không tô xanh. */
+.nf-rail-item--open,
+.nf-rail-item--open:hover,
+.nf-rail-item--open:focus-visible {
+  background: var(--color-surface-high);
+  color: var(--color-text);
+  box-shadow: inset 0 0 0 1px var(--color-border-strong);
+}
+
+.nf-rail-item--disabled,
+.nf-rail-item--disabled:hover {
+  background: transparent;
+  color: color-mix(in srgb, var(--color-text-muted) 52%, transparent);
+  cursor: not-allowed;
+}
+
+.nf-rail-label {
+  display: block;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  color: currentColor;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  transform: translateX(-5px);
+  transition:
+    max-width 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 130ms ease,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nf-rail--expanded .nf-rail-label {
+  max-width: 170px;
+  opacity: 1;
+  transform: translateX(0);
+  transition-delay: 30ms;
+}
+
+.nf-rail-badge {
   position: absolute;
-  top: 0;
-  right: -1px;
-  width: 1px;
-  height: 100%;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    color-mix(in srgb, var(--color-studio-aqua) 40%, transparent) 15%,
-    color-mix(in srgb, var(--color-nova-blue) 32%, transparent) 45%,
-    color-mix(in srgb, var(--color-iris-violet) 24%, transparent) 72%,
-    transparent 100%
-  );
-  opacity: 0.55;
+  top: -2px;
+  right: -2px;
+  display: flex;
+  min-width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--color-iris-violet);
+  color: var(--color-text-on-accent);
+  font-size: 10px;
+  font-weight: 800;
+  box-shadow: 0 0 0 2px var(--color-surface);
+}
+
+.nf-rail--expanded .nf-rail-badge {
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+}
+
+.nf-tooltip {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 10px);
+  z-index: 70;
+  max-width: calc(100vw - 100px);
+  padding: 6px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-high);
+  box-shadow: var(--shadow-card);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
   pointer-events: none;
+  transform: translate(4px, -50%);
+  transition: opacity 140ms ease, transform 140ms ease, visibility 0s linear 140ms;
 }
 
-.nf-active-tick {
-  box-shadow: 0 0 10px 1px color-mix(in srgb, var(--color-nova-blue) 55%, transparent);
+.nf-rail--compact .nf-rail-item-shell:hover > .nf-tooltip,
+.nf-rail--compact .nf-rail-item-shell:focus-within > .nf-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(0, -50%);
+  transition-delay: 0s;
 }
 
-/* Focus backdrop behind the open sidebar — soft ink tint, never pure black.
-   No backdrop-filter: the sidebar opens on hover of the header's hamburger
-   trigger, so on a weak/integrated GPU this scrim was recomputing a blur
-   every time the pointer merely passed near that button — the same class of
-   jank as the header bar itself (see navbar.html). A slightly deeper flat
-   tint reads just as clearly without costing anything to composite. */
+.nf-rail--expanded .nf-tooltip {
+  display: none;
+}
+
+.nf-rail-profile-shell {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.nf-rail-profile {
+  width: 44px;
+}
+
+.nf-rail-profile__copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding-right: 8px;
+}
+
+.nf-rail-profile__copy strong,
+.nf-rail-profile__copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nf-rail-profile__copy strong {
+  color: var(--color-text);
+  font-size: 12px;
+}
+
+.nf-rail-profile__copy small {
+  margin-top: 2px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
 .nf-sidebar-backdrop {
-  background:
-    radial-gradient(120% 100% at 0% 50%, color-mix(in srgb, var(--color-iris-violet) 13%, transparent), transparent 60%),
-    color-mix(in srgb, var(--color-ink) 74%, transparent);
-  transition: opacity 0.25s ease-out;
+  z-index: 50;
+  background: color-mix(in srgb, var(--color-ink) 38%, transparent);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 260ms;
+}
+
+.nf-sidebar-backdrop--visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
 }
 
 /* Notification Side Drawer Animation & Glow */
 .nf-notification-drawer {
+  top: 76px;
+  bottom: 14px;
+  left: 260px;
+  z-index: 61;
   animation: drawerSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   box-shadow:
     10px 0 30px -5px color-mix(in srgb, var(--color-ink) 55%, transparent),
@@ -61,8 +357,64 @@
 /* Mobile notification sheet — slides up from the bottom nav instead of in
    from the left rail. */
 .nf-notification-sheet {
+  z-index: 61;
   animation: sheetSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   box-shadow: 0 -10px 30px -5px color-mix(in srgb, var(--color-ink) 55%, transparent);
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .nf-rail {
+    width: 60px;
+    padding-inline: 8px;
+  }
+
+  .nf-rail--expanded {
+    width: 236px;
+  }
+
+  .nf-notification-drawer {
+    left: 248px;
+  }
+}
+
+@media (min-width: 768px) {
+  .nf-sidebar-backdrop {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .nf-rail {
+    inset: 76px auto 76px 12px;
+    width: min(248px, calc(100vw - 24px));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-card);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(calc(-100% - 20px));
+    transition:
+      transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 180ms ease,
+      visibility 0s linear 260ms;
+  }
+
+  .nf-rail--expanded {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+    transition-delay: 0s;
+  }
+
+  .nf-rail-nav {
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .nf-rail-nav::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* One cohesive interaction surface: hovering or keyboard-focusing either the
@@ -116,6 +468,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .nf-rail,
+  .nf-rail-label,
+  .nf-tooltip,
+  .nf-sidebar-backdrop,
   .nf-notification-card,
   .nf-follow-action {
     transition: none;

@@ -8,12 +8,14 @@ import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
 import { UserService, ProfilePin } from '../../core/services/user';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
+import { LikeButton } from '../../shared/like-button/like-button';
 import { ImageSearchStore } from '../../core/services/image-search-store';
 import { ToastService } from '../../core/services/toast';
 import { MembershipService } from '../../core/services/membership';
 import { DialogService } from '../../core/services/dialog';
 import { formatVnd } from '../../core/utils/currency';
 import { formatNovaToken, vndToNovaToken } from '../../core/utils/novatoken';
+import { masonryColumnCount, masonryContentWidth } from '../../core/utils/masonry';
 
 /** Vietnamese labels for the category codes the backend's auto-classifier
  * assigns (see PinsService.classifyCategory) — chips are only ever built
@@ -29,10 +31,15 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: 'Khác',
 };
 
+/** Tỉ lệ tạm dùng cho khung ảnh trước khi đo được tỉ lệ thật. Backend không
+ * lưu kích thước ảnh nên tỉ lệ chỉ biết sau khi ảnh tải xong; 0.75 là dáng dọc
+ * phổ biến nhất, giúp lưới ít nhảy nhất khi tỉ lệ thật được áp vào. */
+const PLACEHOLDER_RATIO = 0.75;
+
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, Navbar, UserAvatar],
+  imports: [CommonModule, Navbar, UserAvatar, LikeButton],
   templateUrl: './home.html',
   styleUrl: './home.css'
 })
@@ -53,6 +60,18 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   public pins = signal<any[]>([]);
   public boards = signal<Board[]>([]);
   public activeDropdownPinId = signal<string | null>(null);
+  /** Screen position of the currently-open board dropdown's trigger button.
+   * The dropdown itself renders as a `position: fixed` portal outside the
+   * pin card's `overflow-hidden` frame (see home.html) instead of as an
+   * absolutely-positioned descendant of it — otherwise a dropdown taller
+   * than the remaining space above its anchor gets silently clipped by the
+   * card's own rounded-corner mask. */
+  public dropdownAnchor = signal<{ top: number; left: number } | null>(null);
+  public readonly activeDropdownPin = computed(() => {
+    const id = this.activeDropdownPinId();
+    if (!id) return null;
+    return this.filteredPins().find((pin) => pin.id === id) ?? null;
+  });
   public selectedBoardMap = signal<Record<string, Board>>({});
   public isLoading = signal<boolean>(true);
   public isScrollingLoad = signal<boolean>(false);
@@ -140,25 +159,28 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  /** Categories actually present in the currently loaded feed — never a
-   * fixed/fake list, and hidden entirely while a search is active. */
-  public categoryChips = computed(() => {
-    const seen = new Map<string, number>();
-    for (const pin of this.pins()) {
-      if (!pin.category) continue;
-      seen.set(pin.category, (seen.get(pin.category) || 0) + 1);
-    }
-    return Array.from(seen.keys())
-      .sort((a, b) => (seen.get(b) || 0) - (seen.get(a) || 0))
-      .map((code) => ({ code, label: CATEGORY_LABELS[code] || code }));
-  });
+  /** Danh mục có thật trong feed, lấy từ `GET /api/pins/categories` (đếm trên
+   * toàn bộ feed người xem thấy được), KHÔNG suy ra từ các pin đã tải: suy ra
+   * từ pin đã tải thì chip bật/tắt giữa lúc cuộn, và danh mục nằm ở trang chưa
+   * tải sẽ không bao giờ chọn tới được. */
+  private feedCategories = signal<{ code: string; count: number }[]>([]);
 
-  public filteredPins = computed(() => {
-    const category = this.activeCategory();
-    const list = this.pins();
-    if (!category) return list;
-    return list.filter((p) => p.category === category);
-  });
+  public categoryChips = computed(() =>
+    this.feedCategories().map(({ code, count }) => ({
+      code,
+      count,
+      label: CATEGORY_LABELS[code] || code,
+    })),
+  );
+
+  /** Chip lọc chỉ có nghĩa khi có từ 2 danh mục trở lên — một danh mục duy nhất
+   * thì "Tất cả" và chip đó trả về đúng cùng một tập, hàng chip chiếm chỗ mà
+   * không phân loại được gì. */
+  public readonly showCategoryChips = computed(() => this.categoryChips().length >= 2);
+
+  /** Server đã lọc theo `activeCategory` nên `pins()` vốn đã là tập đúng. Giữ
+   * tên này vì template và nhiều helper đang dùng. */
+  public filteredPins = computed(() => this.pins());
 
   /** True while either a text search or a reverse-image search is active —
    * gates the feed-only UI (greeting, recent creations, category chips)
@@ -168,6 +190,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   async ngOnInit() {
     this.updateNumColumns();
     void this.loadBoards();
+    void this.loadFeedCategories();
 
     // Query params are the single source of truth for search mode — reached
     // via a direct link (/feed?q=...) or the navbar's Enter/suggestion-click
@@ -197,24 +220,26 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   @HostListener('window:resize')
   onResize() {
     this.updateNumColumns();
+    this.closeBoardDropdown();
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.activeDropdownPinId()) this.closeBoardDropdown();
+  }
+
+  @HostListener('window:scroll')
+  onWindowScroll(): void {
+    if (this.activeDropdownPinId()) this.closeBoardDropdown();
   }
 
   updateNumColumns() {
-    // 4-5 columns is the sweet spot for readable card sizes; 6 is reserved
-    // for genuinely very wide screens (≥1920px) rather than an ordinary
-    // 1440-1536px laptop, so artwork doesn't shrink to thumbnails.
-    const width = window.innerWidth;
-    if (width >= 1920) {
-      this.numColumns.set(6);
-    } else if (width >= 1440) {
-      this.numColumns.set(5);
-    } else if (width >= 1024) {
-      this.numColumns.set(4);
-    } else if (width >= 640) {
-      this.numColumns.set(3);
-    } else {
-      this.numColumns.set(2);
-    }
+    if (typeof document === 'undefined') return;
+    // clientWidth: đã trừ scrollbar, khác với innerWidth.
+    const viewport = document.documentElement.clientWidth;
+    // Khớp padding ngang của <main>: px-4 (32) / sm:px-6 (48) / lg:px-8 (64).
+    const padding = viewport >= 1024 ? 64 : viewport >= 640 ? 48 : 32;
+    this.numColumns.set(masonryColumnCount(masonryContentWidth(viewport, padding)));
   }
 
   getColumnsArray(): number[] {
@@ -297,17 +322,26 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  async loadPins() {
+  /** `resetCategory` mặc định true để mọi lời gọi cũ (mở trang, thử lại, thoát
+   * tìm kiếm) giữ nguyên hành vi đưa feed về "Tất cả"; setActiveCategory truyền
+   * false để tải lại feed mà KHÔNG xoá chip vừa chọn. */
+  async loadPins(resetCategory = true) {
     this.isLoading.set(true);
     this.loadError.set(null);
     this.currentPage = 1;
     this.hasMore = true;
+    if (resetCategory) this.activeCategory.set(null);
     try {
       const token = await this.supabaseService.getSessionToken() || undefined;
-      const apiPins = await this.pinService.getPins(this.currentPage, this.limit, token, this.feedSeed);
+      const apiPins = await this.pinService.getPins(
+        this.currentPage,
+        this.limit,
+        token,
+        this.feedSeed,
+        this.activeCategory(),
+      );
       const mapped = this.mapPins(apiPins || []);
       this.pins.set(mapped);
-      this.activeCategory.set(null);
       if (!apiPins || apiPins.length < this.limit) {
         this.hasMore = false;
       }
@@ -327,7 +361,15 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     this.currentPage++;
     try {
       const token = await this.supabaseService.getSessionToken() || undefined;
-      const apiPins = await this.pinService.getPins(this.currentPage, this.limit, token, this.feedSeed);
+      // Giữ filter khi nạp trang tiếp — thiếu tham số này thì trang sau trả về
+      // pin của mọi danh mục và người dùng thấy lưới "lọc" lẫn ảnh không khớp.
+      const apiPins = await this.pinService.getPins(
+        this.currentPage,
+        this.limit,
+        token,
+        this.feedSeed,
+        this.activeCategory(),
+      );
       if (apiPins && apiPins.length > 0) {
         const mapped = this.mapPins(apiPins);
         this.pins.update(current => {
@@ -418,8 +460,25 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     await this.loadPins();
   }
 
+  /** Đổi chip = tải lại feed từ trang 1 với danh mục mới, vì việc lọc nằm ở
+   * server. Bấm lại chip đang chọn thì bỏ lọc (về "Tất cả"). */
   setActiveCategory(code: string | null) {
-    this.activeCategory.set(this.activeCategory() === code ? null : code);
+    const next = this.activeCategory() === code ? null : code;
+    if (next === this.activeCategory()) return;
+    this.activeCategory.set(next);
+    void this.loadPins(false);
+  }
+
+  /** Nạp danh mục cho hàng chip. Lỗi ở đây không được chặn feed — mất chip thì
+   * chỉ là không lọc được, còn ảnh vẫn xem bình thường. */
+  private async loadFeedCategories(): Promise<void> {
+    try {
+      const token = (await this.supabaseService.getSessionToken()) || undefined;
+      this.feedCategories.set(await this.pinService.getFeedCategories(token));
+    } catch (error) {
+      console.error('Error fetching feed categories:', error);
+      this.feedCategories.set([]);
+    }
   }
 
   retryLoad() {
@@ -439,39 +498,44 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private mapPins(apiPins: any[]): any[] {
-    return apiPins.map(p => {
-      const author = p.user?.username || 'NovaFrame AI';
-      const likes = (p as any)._count?.likes ?? 0;
+    return apiPins.map(p => ({
+      id: p.id,
+      title: p.title,
+      image: p.imageUrl,
+      author: p.user?.username || 'NovaFrame AI',
+      authorAvatarUrl: p.user?.avatarUrl || null,
+      authorPlan: p.user?.plan || 'FREE',
+      authorIsAdmin: p.user?.isAdmin ?? false,
+      likes: (p as any)._count?.likes ?? 0,
+      isLiked: p.isLiked === true,
+      isAiGenerated: p.isAiGenerated,
+      category: p.category,
+      /** Tỉ lệ thật, đo từ ảnh khi tải xong (onPinImageLoad) — backend chưa
+       * lưu kích thước ảnh, nên null cho tới lúc đó và khung dùng tỉ lệ tạm
+       * PLACEHOLDER_RATIO. Trước đây chỗ này bốc một tỉ lệ ngẫu nhiên từ hash
+       * của id, nên mọi pin trong lưới đều hiển thị sai hình dạng. */
+      aspectRatio: null as number | null,
+      ownerId: p.userId,
+      price: p.price ?? null,
+      currency: p.currency ?? null,
+      listingType: p.listingType ?? 'NONE',
+      auction: p.auction ?? null,
+    }));
+  }
 
-      let idHash = 0;
-      for (let i = 0; i < p.id.length; i++) {
-        idHash += p.id.charCodeAt(i);
-      }
-      const hasBottomBar = (idHash % 10) < 6;
+  /** Tỉ lệ tạm cho khung pin chưa đo được — template đọc trực tiếp. */
+  public readonly placeholderRatio = PLACEHOLDER_RATIO;
 
-      const ratios = [0.65, 0.7, 0.75, 0.8, 1.0, 1.2];
-      const aspectRatio = ratios[idHash % ratios.length];
-
-      return {
-        id: p.id,
-        title: p.title,
-        image: p.imageUrl,
-        hasBottomBar,
-        author,
-        authorAvatarUrl: p.user?.avatarUrl || null,
-        authorPlan: p.user?.plan || 'FREE',
-        likes,
-        isLiked: p.isLiked ?? false,
-        isAiGenerated: p.isAiGenerated,
-        category: p.category,
-        aspectRatio,
-        ownerId: p.userId,
-        price: p.price ?? null,
-        currency: p.currency ?? null,
-        listingType: p.listingType ?? 'NONE',
-        auction: p.auction ?? null,
-      };
-    });
+  /** Ghi lại tỉ lệ thật của một pin ngay khi ảnh tải xong, để khung ảnh khớp
+   * đúng hình dạng gốc thay vì bị cắt theo một tỉ lệ áp đặt. */
+  onPinImageLoad(pin: { aspectRatio: number | null }, img: HTMLImageElement): void {
+    if (pin.aspectRatio !== null) return;
+    const { naturalWidth: w, naturalHeight: h } = img;
+    if (!w || !h) return;
+    pin.aspectRatio = w / h;
+    // Cùng kiểu cập nhật như toggleLike: pin là object thường được mutate tại
+    // chỗ, nên phải phát lại signal để template đọc lại.
+    this.pins.update((current) => [...current]);
   }
 
   /** Text hiển thị trong badge vương miện — '' nếu pin không phải tác phẩm
@@ -554,37 +618,69 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     const currentUser = this.supabaseService.user();
     if (!currentUser) return;
 
-    // Optimistic update - lật trạng thái ngay trên UI thay vì đợi round-trip
-    // API mới phản hồi (đây là phần khiến việc bấm tim cảm giác chậm), rồi
-    // hoàn tác nếu request thất bại.
-    const previousLiked = !!pin.isLiked;
-    const previousLikes = pin.likes ?? 0;
+    const previousLiked = pin.isLiked === true;
+    const previousLikes = Number(pin.likes) || 0;
     pin.isLiked = !previousLiked;
-    pin.likes = pin.isLiked ? previousLikes + 1 : Math.max(0, previousLikes - 1);
-    this.pins.update(current => [...current]);
+    pin.likes = Math.max(0, previousLikes + (previousLiked ? -1 : 1));
+    pin.likeQueuedToggles = (pin.likeQueuedToggles || 0) + 1;
+    this.pins.update((current) => [...current]);
+
+    await this.flushLikeQueue(pin);
+  }
+
+  private async flushLikeQueue(pin: any): Promise<void> {
+    if (pin.likeSyncing) return;
+    pin.likeSyncing = true;
 
     try {
-      const token = await this.supabaseService.getSessionToken();
-      if (!token) throw new Error('no session token');
-      const result = await this.pinService.toggleLike(pin.id, token);
-      pin.isLiked = result.liked;
-      pin.likes = result.likeCount;
-      this.pins.update(current => [...current]);
-    } catch (error) {
-      console.error('Error toggling like:', error);
-      pin.isLiked = previousLiked;
-      pin.likes = previousLikes;
-      this.pins.update(current => [...current]);
+      while ((pin.likeQueuedToggles || 0) > 0) {
+        pin.likeQueuedToggles--;
+
+        try {
+          const token = await this.supabaseService.getSessionToken();
+          if (!token) throw new Error('Không tìm thấy phiên đăng nhập.');
+
+          const result = await this.pinService.toggleLike(pin.id, token);
+          if (pin.likeQueuedToggles === 0) {
+            pin.isLiked = result.liked;
+            pin.likes = result.likeCount;
+          }
+        } catch (error) {
+          const currentLiked = pin.isLiked === true;
+          pin.isLiked = !currentLiked;
+          pin.likes = Math.max(
+            0,
+            (Number(pin.likes) || 0) + (currentLiked ? -1 : 1),
+          );
+          console.error('Error toggling like:', error);
+        }
+
+        this.pins.update((current) => [...current]);
+      }
+    } finally {
+      pin.likeSyncing = false;
+      this.pins.update((current) => [...current]);
     }
   }
 
   toggleBoardDropdown(pinId: string, event: MouseEvent) {
     event.stopPropagation();
     if (this.activeDropdownPinId() === pinId) {
-      this.activeDropdownPinId.set(null);
-    } else {
-      this.activeDropdownPinId.set(pinId);
+      this.closeBoardDropdown();
+      return;
     }
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const dropdownWidth = 176; // w-44
+    this.dropdownAnchor.set({
+      top: rect.top,
+      left: Math.min(rect.left, window.innerWidth - dropdownWidth - 12),
+    });
+    this.activeDropdownPinId.set(pinId);
+  }
+
+  closeBoardDropdown(): void {
+    this.activeDropdownPinId.set(null);
+    this.dropdownAnchor.set(null);
   }
 
   selectBoardForPin(pinId: string, board: Board, event: MouseEvent) {
@@ -593,7 +689,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       ...current,
       [pinId]: board
     }));
-    this.activeDropdownPinId.set(null);
+    this.closeBoardDropdown();
   }
 
   getSelectedBoardName(pinId: string): string {

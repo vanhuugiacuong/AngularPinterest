@@ -44,6 +44,7 @@ export class Messages implements OnInit, OnDestroy {
   private readonly supabaseService = inject(SupabaseService);
 
   @ViewChild('messageList') messageListRef?: ElementRef<HTMLDivElement>;
+  @ViewChild('messageComposer') messageComposerRef?: ElementRef<HTMLTextAreaElement>;
 
   readonly maxMessageLength = MAX_MESSAGE_LENGTH;
 
@@ -67,7 +68,6 @@ export class Messages implements OnInit, OnDestroy {
   readonly messagesHasMore = signal(false);
   readonly messagesLoadingMore = signal(false);
 
-  readonly sendPending = signal(false);
   readonly sendError = signal<string | null>(null);
   readonly otherUserTyping = signal(false);
   readonly otherUserOnline = signal(false);
@@ -82,17 +82,19 @@ export class Messages implements OnInit, OnDestroy {
   private reportBodyOverflow?: string;
 
   private routeSubscription?: Subscription;
+  private incomingRequestSubscription?: Subscription;
   private realtimeChannel?: RealtimeChannel;
   private typingTimer?: ReturnType<typeof setTimeout>;
   private messagesRequestVersion = 0;
   private messagesPage = 1;
+  private optimisticMessageSequence = 0;
 
   /** Light polling + focus/visibility refresh so a sender's pending request
    * and conversation list pick up the receiver's accept without a re-login.
    * The backend/database is the source of truth — this only re-fetches it. */
   private requestsPollTimer?: ReturnType<typeof setInterval>;
   private isRefreshingLive = false;
-  private readonly REQUESTS_POLL_INTERVAL_MS = 15000;
+  private readonly REQUESTS_POLL_INTERVAL_MS = 5000;
   private onWindowFocus = () => void this.refreshLiveState();
   private onVisibilityChange = () => {
     if (document.visibilityState === 'visible') void this.refreshLiveState();
@@ -130,6 +132,17 @@ export class Messages implements OnInit, OnDestroy {
 
     await Promise.all([this.loadConversations(), this.loadRequests()]);
 
+    // Instant push — MessagingService's realtime channel emits the moment
+    // the backend broadcasts a new incoming request, so the requests queue
+    // updates immediately instead of waiting for the next poll tick.
+    this.incomingRequestSubscription = this.messagingService.incomingRequest$.subscribe(
+      (request) => {
+        this.incomingRequests.update((current) =>
+          current.some((r) => r.id === request.id) ? current : [request, ...current],
+        );
+      },
+    );
+
     if (typeof window !== 'undefined') {
       window.addEventListener('focus', this.onWindowFocus);
       document.addEventListener('visibilitychange', this.onVisibilityChange);
@@ -142,6 +155,7 @@ export class Messages implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.routeSubscription?.unsubscribe();
+    this.incomingRequestSubscription?.unsubscribe();
     this.messagingService.activeConversationId = null;
     void this.disconnectRealtime();
     if (this.typingTimer) clearTimeout(this.typingTimer);
@@ -226,8 +240,10 @@ export class Messages implements OnInit, OnDestroy {
       // The request inbox is an action queue, not a status history. Keep this
       // client-side guard as well as the backend filter so a stale deployment
       // or an in-flight refresh can never reinsert an already handled item.
-      this.incomingRequests.set(incoming.filter((request) => request.status === 'PENDING'));
+      const pendingIncoming = incoming.filter((request) => request.status === 'PENDING');
+      this.incomingRequests.set(pendingIncoming);
       this.outgoingRequests.set(outgoing.filter((request) => request.status === 'PENDING'));
+      this.messagingService.syncIncomingRequests(pendingIncoming);
     } catch (error) {
       if (!silent) {
         this.requestsError.set(this.errorMessage(error, 'Không thể tải danh sách yêu cầu.'));
@@ -291,18 +307,61 @@ export class Messages implements OnInit, OnDestroy {
   async sendMessage() {
     const conversationId = this.selectedConversationId();
     const content = this.messageDraft.trim();
-    if (!conversationId || !content || this.sendPending()) return;
+    if (!conversationId || !content) return;
+    const composer = this.messageComposerRef?.nativeElement;
+    const optimisticCreatedAt = new Date().toISOString();
+    const optimisticId = `optimistic:${Date.now()}:${++this.optimisticMessageSequence}`;
+    const optimisticMessage: ConversationMessage = {
+      id: optimisticId,
+      conversationId,
+      senderId: this.currentUserId ?? 'current-user',
+      content,
+      createdAt: optimisticCreatedAt,
+    };
+    const previousConversation = this.conversations().find((conversation) => conversation.id === conversationId);
 
-    this.sendPending.set(true);
     this.sendError.set(null);
+    // Render locally before any network wait. The server response below
+    // replaces this temporary row with the persisted message.
+    this.messages.update((current) => [...current, optimisticMessage]);
+    this.messageDraft = '';
+    this.conversations.update((current) =>
+      current.map((conversation) =>
+        conversation.id === conversationId
+          ? {
+              ...conversation,
+              lastMessage: {
+                content,
+                createdAt: optimisticCreatedAt,
+                senderId: optimisticMessage.senderId,
+              },
+              updatedAt: optimisticCreatedAt,
+            }
+          : conversation,
+      ),
+    );
+    void this.broadcastTyping(false);
+    setTimeout(() => this.scrollToBottom());
+    composer?.focus({ preventScroll: true });
+
     try {
       const token = await this.requireToken();
       const message = await this.messagingService.sendMessage(conversationId, content, token);
-      this.messages.update((current) => [...current, message]);
-      this.messageDraft = '';
-      await this.realtimeChannel?.send({ type: 'broadcast', event: 'message', payload: message });
-      await this.broadcastTyping(false);
-      setTimeout(() => this.scrollToBottom());
+      this.messages.update((current) =>
+        current.map((item) => (item.id === optimisticId ? message : item)),
+      );
+      const realtimeBroadcast = this.realtimeChannel?.send({
+        type: 'broadcast',
+        event: 'message',
+        payload: message,
+      });
+      if (realtimeBroadcast) {
+        void realtimeBroadcast.catch(() => {
+          // The backend also pushes the persisted message to the recipient's
+          // user channel, so a conversation-channel ACK must not hold up the
+          // sender UI or turn an already-saved message into a visible error.
+        });
+      }
       this.conversations.update((current) =>
         current.map((c) =>
           c.id === conversationId
@@ -315,10 +374,28 @@ export class Messages implements OnInit, OnDestroy {
         ),
       );
     } catch (error) {
+      this.messages.update((current) => current.filter((item) => item.id !== optimisticId));
+      if (!this.messageDraft) this.messageDraft = content;
+      if (previousConversation) {
+        this.conversations.update((current) =>
+          current.map((conversation) =>
+            conversation.id === conversationId && conversation.updatedAt === optimisticCreatedAt
+              ? previousConversation
+              : conversation,
+          ),
+        );
+      }
       this.sendError.set(this.errorMessage(error, 'Không thể gửi tin nhắn.'));
     } finally {
-      this.sendPending.set(false);
+      // Keep typing continuous for both Enter-to-send and button clicks.
+      // Capturing the element before the async request also avoids losing
+      // the query reference during an intervening Angular render.
+      composer?.focus({ preventScroll: true });
     }
+  }
+
+  isOptimisticMessage(message: ConversationMessage): boolean {
+    return message.id.startsWith('optimistic:');
   }
 
   onDraftInput() {

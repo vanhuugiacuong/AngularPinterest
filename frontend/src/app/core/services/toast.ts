@@ -15,12 +15,14 @@ export interface Toast {
   action?: ToastAction;
   duration: number;
   corner: ToastCorner;
+  icon?: string;
 }
 
 export interface ToastOptions {
   action?: ToastAction;
   duration?: number;
   corner?: ToastCorner;
+  icon?: string;
 }
 
 const DEFAULT_DURATION: Record<ToastKind, number> = {
@@ -48,7 +50,7 @@ export class ToastService {
     const id = ++this.idCounter;
     const duration = options.duration ?? DEFAULT_DURATION[kind];
     const corner = options.corner ?? 'top-right';
-    this.toasts.update((list) => [...list, { id, kind, message, action: options.action, duration, corner }]);
+    this.toasts.update((list) => [...list, { id, kind, message, action: options.action, duration, corner, icon: options.icon }]);
     return id;
   }
 

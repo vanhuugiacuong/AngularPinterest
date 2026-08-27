@@ -29,11 +29,31 @@ export class PinsController {
     @Query('page') page: string,
     @Query('limit') limit: string,
     @Query('seed') seed?: string,
+    @Query('category') category?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
 
-    return this.pinsService.getAllPins(pageNum, limitNum, user?.id, seed);
+    return this.pinsService.getAllPins(
+      pageNum,
+      limitNum,
+      user?.id,
+      seed,
+      category,
+    );
+  }
+
+  /** Danh mục có thật trong feed mà người xem được phép thấy, kèm số lượng.
+   * Frontend dựng chip từ đây thay vì từ các pin đã tải — nếu dựng từ pin đã
+   * tải thì chip bật ra giữa lúc cuộn, và danh mục nằm ở trang chưa tải sẽ
+   * không bao giờ chọn tới được.
+   *
+   * Phải khai báo TRƯỚC `@Get(':id')` bên dưới, không thì 'categories' bị bắt
+   * làm id. */
+  @Get('categories')
+  @UseGuards(OptionalSupabaseAuthGuard)
+  async getFeedCategories(@CurrentUser() user: UserPayload | undefined) {
+    return this.pinsService.getFeedCategories(user?.id);
   }
 
   @Get('search')
@@ -119,12 +139,20 @@ export class PinsController {
     const { buffer, contentType } =
       await this.pinsService.getPinImageForProxy(id, user?.id);
     res.setHeader('Content-Type', contentType);
-    // This response can contain the clear asset after an entitlement check;
-    // never let a shared cache replay a paid member's response to another user.
+    // Both branches independently moved this off a shared `public` cache, for
+    // the same reason: this response can hold the clear asset once the
+    // entitlement check passes, so it must never be replayed to another viewer.
+    // `no-store` over `private, max-age=3600` because entitlement can be lost
+    // (a plan lapses, a purchase is refunded) and a browser-cached copy would
+    // keep serving the clear bytes past that point.
     res.setHeader('Cache-Control', 'private, no-store');
     res.send(buffer);
   }
 
+  /** Public, deliberately lossy stand-in for a locked market pin. Safe to cache
+   * shared: the bytes are already blurred for everyone, and the real CDN URL
+   * never reaches the client. Two path segments, so it cannot collide with the
+   * `@Get(':id')` route below. */
   @Get(':id/locked-preview')
   async lockedPinPreview(@Param('id') id: string, @Res() res: Response) {
     const buffer = await this.pinsService.getLockedPinPreview(id);

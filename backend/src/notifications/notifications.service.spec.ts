@@ -9,6 +9,8 @@ describe('NotificationsService', () => {
       update: jest.fn(),
       updateMany: jest.fn(),
     },
+    auction: { count: jest.fn(), findMany: jest.fn() },
+    imagePurchase: { findUnique: jest.fn(), findMany: jest.fn() },
   };
 
   const supabase = { broadcast: jest.fn() };
@@ -18,6 +20,12 @@ describe('NotificationsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     service = new NotificationsService(prisma as never, supabase as never);
+    // Default: pin is not commerce-restricted — matches every existing test
+    // here, none of which are exercising the pin-image-protection feature.
+    prisma.auction.count.mockResolvedValue(0);
+    prisma.auction.findMany.mockResolvedValue([]);
+    prisma.imagePurchase.findUnique.mockResolvedValue(null);
+    prisma.imagePurchase.findMany.mockResolvedValue([]);
   });
 
   describe('createNotification', () => {

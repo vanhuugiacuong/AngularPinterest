@@ -91,7 +91,11 @@ describe('PinDetail visual search results', () => {
 
 describe('PinDetail — save to board toast feedback', () => {
   let component: PinDetail;
-  let boardService: { getBoards: ReturnType<typeof vi.fn>; createBoard: ReturnType<typeof vi.fn>; addPinToBoard: ReturnType<typeof vi.fn> };
+  let boardService: {
+    getBoards: ReturnType<typeof vi.fn>;
+    createBoard: ReturnType<typeof vi.fn>;
+    addPinToBoard: ReturnType<typeof vi.fn>;
+  };
   let toastService: ToastService;
 
   beforeEach(() => {
@@ -109,7 +113,11 @@ describe('PinDetail — save to board toast feedback', () => {
         { provide: BoardService, useValue: boardService },
         {
           provide: SupabaseService,
-          useValue: { dbUser: () => null, user: () => ({ id: 'user-1' }), getSessionToken: vi.fn().mockResolvedValue('token') },
+          useValue: {
+            dbUser: () => null,
+            user: () => ({ id: 'user-1' }),
+            getSessionToken: vi.fn().mockResolvedValue('token'),
+          },
         },
         { provide: MembershipService, useValue: { status: () => null } },
         { provide: AuctionService, useValue: {} },
@@ -131,7 +139,10 @@ describe('PinDetail — save to board toast feedback', () => {
 
     expect(boardService.addPinToBoard).toHaveBeenCalledWith('board-1', 'pin-1', 'token');
     expect(toastService.toasts()).toHaveLength(1);
-    expect(toastService.toasts()[0]).toMatchObject({ kind: 'success', message: 'Đã lưu vào bộ sưu tập' });
+    expect(toastService.toasts()[0]).toMatchObject({
+      kind: 'success',
+      message: 'Đã lưu vào bộ sưu tập',
+    });
   });
 
   it('shows an error toast with a retry action when the save fails', async () => {
@@ -154,11 +165,89 @@ describe('PinDetail — save to board toast feedback', () => {
   });
 });
 
+describe('PinDetail — optimistic like feedback', () => {
+  let component: PinDetail;
+  let resolveToggle: (value: { liked: boolean; likeCount: number }) => void = () => {};
+
+  beforeEach(() => {
+    const pinService = {
+      toggleLike: vi.fn().mockReturnValue(
+        new Promise<{ liked: boolean; likeCount: number }>((resolve) => {
+          resolveToggle = resolve;
+        }),
+      ),
+    };
+
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: ActivatedRoute, useValue: { paramMap: of() } },
+        { provide: Router, useValue: { navigate: vi.fn() } },
+        { provide: PinService, useValue: pinService },
+        { provide: BoardService, useValue: {} },
+        {
+          provide: SupabaseService,
+          useValue: {
+            dbUser: () => null,
+            user: () => ({ id: 'user-1' }),
+            getSessionToken: vi.fn().mockResolvedValue('token'),
+          },
+        },
+        { provide: MembershipService, useValue: { status: () => null } },
+        { provide: AuctionService, useValue: {} },
+        { provide: UserService, useValue: {} },
+        { provide: MessagingService, useValue: {} },
+      ],
+    });
+
+    component = TestBed.runInInjectionContext(() => new PinDetail());
+  });
+
+  it('updates the main pin before the API responds', async () => {
+    component.pin.set({ ...makePin('pin-1'), isLiked: false, likeCount: 2 });
+
+    const request = component.toggleLike();
+
+    expect(component.pin()?.isLiked).toBe(true);
+    expect(component.pin()?.likeCount).toBe(3);
+    expect(component.likePending()).toBe(true);
+
+    resolveToggle({ liked: true, likeCount: 3 });
+    await request;
+
+    expect(component.likePending()).toBe(false);
+  });
+
+  it('updates a related pin before the API responds', async () => {
+    const relatedPin: {
+      id: string;
+      likes: number;
+      isLiked: boolean;
+      likeQueuedToggles?: number;
+      likeSyncing?: boolean;
+    } = { id: 'related-1', likes: 4, isLiked: false };
+    component.relatedPins.set([relatedPin]);
+
+    const request = component.toggleRelatedLike(relatedPin, new MouseEvent('click'));
+
+    expect(relatedPin.isLiked).toBe(true);
+    expect(relatedPin.likes).toBe(5);
+    expect(relatedPin.likeSyncing).toBe(true);
+
+    resolveToggle({ liked: true, likeCount: 5 });
+    await request;
+
+    expect(relatedPin.likeSyncing).toBe(false);
+  });
+});
+
 describe('PinDetail — nâng cấp gói khi mở tác phẩm có giá trị', () => {
   let component: PinDetail;
   let router: { navigate: ReturnType<typeof vi.fn> };
   let dialogService: { confirm: ReturnType<typeof vi.fn> };
-  let pinService: { getPinById: ReturnType<typeof vi.fn>; getRelatedPins: ReturnType<typeof vi.fn> };
+  let pinService: {
+    getPinById: ReturnType<typeof vi.fn>;
+    getRelatedPins: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     router = { navigate: vi.fn() };
@@ -176,7 +265,11 @@ describe('PinDetail — nâng cấp gói khi mở tác phẩm có giá trị', (
         { provide: BoardService, useValue: {} },
         {
           provide: SupabaseService,
-          useValue: { dbUser: () => null, user: () => null, getSessionToken: vi.fn().mockResolvedValue(null) },
+          useValue: {
+            dbUser: () => null,
+            user: () => null,
+            getSessionToken: vi.fn().mockResolvedValue(null),
+          },
         },
         { provide: MembershipService, useValue: { status: () => null } },
         { provide: AuctionService, useValue: {} },
@@ -255,7 +348,10 @@ describe('PinDetail — form đặt giá đấu giá (validation, không optimis
         { provide: Router, useValue: { navigate: vi.fn() } },
         { provide: PinService, useValue: {} },
         { provide: BoardService, useValue: {} },
-        { provide: SupabaseService, useValue: { dbUser: () => null, user: () => ({ id: 'bidder-1' }) } },
+        {
+          provide: SupabaseService,
+          useValue: { dbUser: () => null, user: () => ({ id: 'bidder-1' }) },
+        },
         { provide: MembershipService, useValue: { status: () => ({ plan: 'PLUS' }) } },
         { provide: AuctionService, useValue: auctionService },
         { provide: UserService, useValue: {} },
@@ -285,30 +381,35 @@ describe('PinDetail — form đặt giá đấu giá (validation, không optimis
   });
 
   it('rejects a bid below the starting price without calling the backend (client-side pre-validation)', async () => {
-    component.bidAmount = 500;
+    component.bidAmount = 500_000;
 
     await component.submitBid();
 
     expect(auctionService.placeBid).not.toHaveBeenCalled();
-    expect(component.bidError()).toContain('1.000 NT');
+    expect(component.bidError()).toContain('1.000.000đ');
   });
 
   it('disables further submits while a bid is in flight', async () => {
     let resolveBid: (value: any) => void = () => {};
     auctionService.placeBid.mockReturnValue(new Promise((resolve) => (resolveBid = resolve)));
-    component.bidAmount = 1_000;
+    component.bidAmount = 1_000_000;
 
     const submitPromise = component.submitBid();
     expect(component.bidSubmitting()).toBe(true);
 
-    resolveBid({ ...component.auction(), currentPrice: '1000000', bidCount: 1, serverNow: new Date().toISOString() });
+    resolveBid({
+      ...component.auction(),
+      currentPrice: '1000000',
+      bidCount: 1,
+      serverNow: new Date().toISOString(),
+    });
     await submitPromise;
 
     expect(component.bidSubmitting()).toBe(false);
   });
 
   it('updates currentPrice only from the real backend response — never optimistically before the call resolves', async () => {
-    component.bidAmount = 1_000;
+    component.bidAmount = 1_000_000;
     auctionService.placeBid.mockResolvedValue({
       ...component.auction(),
       currentPrice: '1100000',
@@ -322,14 +423,20 @@ describe('PinDetail — form đặt giá đấu giá (validation, không optimis
     expect(component.auction()?.currentPrice).toBe('1000000');
     await submitPromise;
 
-    expect(auctionService.placeBid).toHaveBeenCalledWith('auction-1', 1_000_000, expect.any(String));
+    expect(auctionService.placeBid).toHaveBeenCalledWith(
+      'auction-1',
+      1_000_000,
+      expect.any(String),
+    );
     expect(component.auction()?.currentPrice).toBe('1100000');
     expect(component.bidSuccessMessage()).toBeTruthy();
   });
 
   it('shows a friendly error and does not crash when the backend rejects the bid (e.g. optimistic-lock conflict)', async () => {
-    component.bidAmount = 1_100;
-    auctionService.placeBid.mockRejectedValue(new Error('Đã có người đặt giá khác, vui lòng thử lại.'));
+    component.bidAmount = 1_100_000;
+    auctionService.placeBid.mockRejectedValue(
+      new Error('Đã có người đặt giá khác, vui lòng thử lại.'),
+    );
 
     await component.submitBid();
 

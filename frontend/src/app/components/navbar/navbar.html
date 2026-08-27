@@ -1,4 +1,4 @@
-<!-- Collapsible left sidebar (overlay, only for authenticated users) -->
+<!-- Collapsible app-shell sidebar, only for authenticated users. -->
 <app-sidebar *ngIf="supabaseService.user()" />
 
 <!-- Sticky header — three hairline-separated zones instead of one glass bar.
@@ -12,26 +12,23 @@
 <header
   class="nf-header fixed top-0 inset-x-0 h-16 flex items-center gap-2 sm:gap-4 px-3 sm:px-6 z-50 bg-bg border-b border-border"
 >
-  <!-- Left cluster: hamburger (logged in) + logo -->
-  <div class="flex items-center gap-2 shrink-0">
+  <!-- Mobile-only drawer trigger. On desktop/tablet the persistent sidebar
+       occupies this upper-left area directly. -->
+  <div class="flex items-center shrink-0 md:hidden">
     <button
-      #sidebarTrigger
       type="button"
       *ngIf="supabaseService.user()"
-      (click)="sidebarState.toggle()"
-      (mouseenter)="onSidebarTriggerEnter()"
-      (mouseleave)="onSidebarTriggerLeave()"
-      (focus)="onSidebarTriggerEnter()"
-      class="hidden md:flex relative h-11 w-11 shrink-0 items-center justify-center rounded-control text-text transition-colors duration-150 hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg cursor-pointer"
-      [attr.aria-label]="sidebarState.isOpen() ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'"
-      [attr.aria-expanded]="sidebarState.isOpen()"
+      (click)="sidebarState.toggleSidebar()"
+      class="flex relative h-11 w-11 shrink-0 items-center justify-center rounded-control text-text transition-colors duration-150 hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg cursor-pointer"
+      [attr.aria-label]="
+        sidebarState.isExpanded() ? 'Thu gọn menu điều hướng' : 'Mở rộng menu điều hướng'
+      "
+      [attr.aria-expanded]="sidebarState.isExpanded()"
       aria-controls="app-sidebar-panel"
     >
-      <!-- Always the menu glyph — the sidebar opens on hover/click and closes
-           on mouseleave/backdrop/Escape, so there is no separate "close" icon
-           state to represent here. Hidden on mobile: the bottom nav replaces
-           this entirely below md. -->
-      <span class="material-symbols-outlined text-2xl">menu</span>
+      <!-- Explicit compact/expanded toggle. Hover and focus do not mutate
+           sidebar state. -->
+      <span class="material-symbols-outlined text-2xl" aria-hidden="true">menu</span>
       <!-- Combined unread badge (notifications + messages) — visible even
            while the sidebar is collapsed. -->
       <span
@@ -42,24 +39,21 @@
         {{ (totalUnread$ | async)! > 99 ? '99+' : (totalUnread$ | async) }}
       </span>
     </button>
-
-    <div
-      (click)="onLogoClick()"
-      class="flex items-center gap-2 cursor-pointer select-none rounded-control px-1.5 py-1 transition-colors duration-200 hover:bg-surface-elevated/60"
-    >
-      <img src="/logo-mark.png" alt="NovaFrame" class="h-8 w-8 object-contain" />
-      <span class="hidden sm:inline text-lg font-extrabold text-gradient-brand tracking-tight">NovaFrame</span>
-    </div>
   </div>
 
-  <!-- Center Search Bar — soft control shape with focus-sweep underline instead of a pill -->
+  <!-- Center Search Bar — pill matching the header's other gradient pills;
+       shape, border paint and focus ring all live in navbar.css (.nf-search). -->
   <div class="relative flex-1 max-w-2xl mx-auto">
     <div
       (click)="!supabaseService.user() ? onLoginClick() : null"
       [class.cursor-pointer]="!supabaseService.user()"
-      class="nf-search flex items-center gap-2 px-4 h-11 rounded-control text-text-muted bg-surface border border-border transition-colors duration-200 hover:border-border-strong"
+      class="nf-search flex items-center gap-2"
     >
-      <span class="material-symbols-outlined text-xl">search</span>
+      <span
+        class="nf-search-icon material-symbols-outlined text-xl leading-none shrink-0"
+        aria-hidden="true"
+        >search</span
+      >
       <input
         *ngIf="supabaseService.user()"
         type="search"
@@ -69,19 +63,25 @@
         (keydown.enter)="onEnterKey()"
         (keydown.arrowdown)="onArrowDown($event)"
         (keydown.arrowup)="onArrowUp($event)"
-        [placeholder]="isProfilePage() ? 'Tìm kiếm tác phẩm của bạn' : 'Tìm kiếm ý tưởng, tác phẩm, hoặc tác giả...'"
+        [placeholder]="
+          isProfilePage()
+            ? 'Tìm kiếm tác phẩm của bạn'
+            : 'Tìm kiếm ý tưởng, tác phẩm, hoặc tác giả...'
+        "
         aria-label="Tìm kiếm"
         role="combobox"
         aria-haspopup="listbox"
         [attr.aria-expanded]="showSearchDropdown()"
         aria-controls="nf-search-listbox"
-        [attr.aria-activedescendant]="activeSuggestionIndex() >= 0 ? 'nf-suggestion-' + activeSuggestionIndex() : null"
-        class="bg-transparent border-none outline-none w-full text-sm text-text placeholder-text-muted"
+        [attr.aria-activedescendant]="
+          activeSuggestionIndex() >= 0 ? 'nf-suggestion-' + activeSuggestionIndex() : null
+        "
+        class="bg-transparent border-none outline-none flex-1 min-w-0 text-sm text-text placeholder-text-muted"
         (click)="$event.stopPropagation()"
       />
       <span
         *ngIf="!supabaseService.user()"
-        class="text-xs text-text-muted select-none truncate"
+        class="flex-1 min-w-0 text-sm text-text-muted select-none truncate"
       >
         Tìm kiếm cách nấu món ăn, hay mẹo về thời trang, v.v.
       </span>
@@ -90,21 +90,66 @@
         *ngIf="supabaseService.user() && searchQuery()"
         type="button"
         (click)="$event.stopPropagation(); clearSearch()"
-        class="material-symbols-outlined text-lg text-text-muted hover:text-text transition-colors duration-200 cursor-pointer select-none border-none outline-none bg-transparent p-0 leading-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
+        class="nf-search-action select-none"
         aria-label="Xóa tìm kiếm"
+        title="Xóa tìm kiếm"
       >
-        close
+        <span class="material-symbols-outlined text-lg leading-none" aria-hidden="true">close</span>
       </button>
+
+      <span *ngIf="supabaseService.user()" class="nf-search-divider" aria-hidden="true"></span>
+
       <!-- Search-by-image -->
       <button
         *ngIf="supabaseService.user()"
         type="button"
         (click)="$event.stopPropagation(); openImageSearch()"
-        class="material-symbols-outlined text-xl text-text-muted hover:text-accent transition-colors duration-200 cursor-pointer select-none border-none outline-none bg-transparent p-0 leading-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
+        class="nf-search-action nf-search-camera select-none"
         aria-label="Tìm kiếm bằng hình ảnh"
         title="Tìm kiếm bằng hình ảnh"
       >
-        photo_camera
+        <svg
+          class="nf-search-camera-icon"
+          width="18"
+          height="18"
+          viewBox="0 0 18 18"
+          fill="none"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <circle
+            cx="10"
+            cy="9"
+            r="2.75"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <rect
+            x="1.75"
+            y="3.75"
+            width="14.5"
+            height="10.5"
+            rx="2"
+            ry="2"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <circle cx="4.25" cy="6.25" r="0.75" fill="currentColor" />
+          <line
+            x1="4.25"
+            y1="1.25"
+            x2="6.75"
+            y2="1.25"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
       </button>
     </div>
 
@@ -115,7 +160,7 @@
       *ngIf="supabaseService.user() && showSearchDropdown()"
       (click)="$event.stopPropagation()"
       id="nf-search-listbox"
-      class="bg-surface-elevated border border-border absolute left-0 right-0 top-12 mt-1 max-w-[calc(100vw-24px)] max-h-[70vh] overflow-y-auto rounded-panel shadow-card p-3 flex flex-col gap-3 z-50 animate-fade-in text-left"
+      class="bg-surface-elevated border border-border absolute left-0 right-0 top-full mt-2 max-w-[calc(100vw-24px)] max-h-[70vh] overflow-y-auto rounded-panel shadow-card p-3 flex flex-col gap-3 z-50 animate-fade-in text-left"
       role="listbox"
     >
       <ng-container *ngIf="!searchQuery().trim()">
@@ -135,41 +180,74 @@
               class="w-full flex items-center justify-between gap-2 text-left px-3 py-2 rounded-control hover:bg-surface-elevated cursor-pointer border-none outline-none bg-transparent focus-visible:ring-2 focus-visible:ring-accent"
             >
               <span class="flex items-center gap-2 min-w-0 text-sm text-text">
-                <span class="material-symbols-outlined text-base text-text-muted leading-none">history</span>
+                <span
+                  class="material-symbols-outlined text-base text-text-muted leading-none"
+                  aria-hidden="true"
+                  >history</span
+                >
                 <span class="truncate">{{ term }}</span>
               </span>
               <span
                 (click)="removeRecentSearch(term, $event)"
                 class="material-symbols-outlined text-base text-text-muted hover:text-text leading-none shrink-0"
                 aria-label="Xóa khỏi lịch sử"
-              >close</span>
+                >close</span
+              >
             </button>
           </div>
         </ng-container>
+        <!-- Empty state: a lone line of muted text left this whole panel
+             looking blank, so give it a centred icon + title + hint that fills
+             the space it occupies. -->
         <ng-template #noHistory>
-          <p class="text-xs text-text-muted px-2 py-1 select-none">
-            Gõ để tìm ý tưởng, tác phẩm hoặc tác giả trên NovaFrame.
-          </p>
+          <div class="flex flex-col items-center gap-2 px-4 py-7 text-center select-none">
+            <span
+              class="w-11 h-11 rounded-full bg-surface border border-border flex items-center justify-center text-text-muted"
+            >
+              <span class="material-symbols-outlined text-xl leading-none" aria-hidden="true"
+                >search</span
+              >
+            </span>
+            <p class="text-sm font-bold text-text">Bắt đầu tìm kiếm</p>
+            <p class="text-xs text-text-muted leading-relaxed max-w-[280px]">
+              Gõ để tìm ý tưởng, tác phẩm hoặc tác giả trên NovaFrame — hoặc bấm biểu tượng máy ảnh
+              để tìm bằng hình ảnh.
+            </p>
+          </div>
         </ng-template>
       </ng-container>
 
       <ng-container *ngIf="searchQuery().trim()">
         <!-- Loading -->
-        <div *ngIf="isSuggesting()" class="flex items-center gap-2 px-2 py-1 text-xs text-text-muted select-none">
-          <span class="material-symbols-outlined text-base animate-spin leading-none">progress_activity</span>
+        <div
+          *ngIf="isSuggesting()"
+          class="flex items-center gap-2 px-2 py-1 text-xs text-text-muted select-none"
+        >
+          <span
+            class="material-symbols-outlined text-base animate-spin leading-none"
+            aria-hidden="true"
+            >progress_activity</span
+          >
           Đang tìm gợi ý...
         </div>
 
         <!-- Error -->
-        <div *ngIf="!isSuggesting() && suggestError()" class="flex items-center gap-2 px-2 py-1 text-xs text-error select-none">
-          <span class="material-symbols-outlined text-base leading-none">cloud_off</span>
+        <div
+          *ngIf="!isSuggesting() && suggestError()"
+          class="flex items-center gap-2 px-2 py-1 text-xs text-error select-none"
+        >
+          <span class="material-symbols-outlined text-base leading-none" aria-hidden="true"
+            >cloud_off</span
+          >
           {{ suggestError() }}
         </div>
 
         <ng-container *ngIf="!isSuggesting()">
           <!-- Keyword suggestions -->
           <ng-container *ngIf="suggestKeywords().length > 0">
-            <span class="text-xs font-semibold text-text-muted px-2 select-none">Từ khóa liên quan</span>
+            <span class="text-xs font-semibold text-text-muted px-2 select-none"
+              >Từ khóa liên quan</span
+            >
             <div class="flex flex-col">
               <button
                 *ngFor="let term of suggestKeywords(); let i = index"
@@ -181,7 +259,11 @@
                 [class.bg-surface-elevated]="activeSuggestionIndex() === i"
                 class="w-full text-left flex items-center gap-2 px-3 py-2 rounded-control hover:bg-surface-elevated cursor-pointer border-none outline-none bg-transparent text-sm text-text focus-visible:ring-2 focus-visible:ring-accent"
               >
-                <span class="material-symbols-outlined text-base text-text-muted leading-none">search</span>
+                <span
+                  class="material-symbols-outlined text-base text-text-muted leading-none"
+                  aria-hidden="true"
+                  >search</span
+                >
                 <span class="truncate">{{ term }}</span>
               </button>
             </div>
@@ -189,19 +271,32 @@
 
           <!-- Account matches -->
           <ng-container *ngIf="suggestUsers().length > 0">
-            <span class="text-xs font-semibold text-text-muted px-2 select-none">Tài khoản phù hợp</span>
+            <span class="text-xs font-semibold text-text-muted px-2 select-none"
+              >Tài khoản phù hợp</span
+            >
             <div class="flex flex-col">
               <button
                 *ngFor="let u of suggestUsers(); let i = index"
                 type="button"
                 [id]="'nf-suggestion-' + (suggestKeywords().length + pinsSuggestionCount() + i)"
                 role="option"
-                [attr.aria-selected]="activeSuggestionIndex() === suggestKeywords().length + pinsSuggestionCount() + i"
+                [attr.aria-selected]="
+                  activeSuggestionIndex() === suggestKeywords().length + pinsSuggestionCount() + i
+                "
                 (click)="selectSuggestion({ kind: 'user', user: u })"
-                [class.bg-surface-elevated]="activeSuggestionIndex() === suggestKeywords().length + pinsSuggestionCount() + i"
+                [class.bg-surface-elevated]="
+                  activeSuggestionIndex() === suggestKeywords().length + pinsSuggestionCount() + i
+                "
                 class="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-control hover:bg-surface-elevated cursor-pointer border-none outline-none bg-transparent focus-visible:ring-2 focus-visible:ring-accent"
               >
-                <app-user-avatar [src]="u.avatarUrl" [name]="u.username" [size]="28" [ring]="false" [plan]="u.plan"></app-user-avatar>
+                <app-user-avatar
+                  [src]="u.avatarUrl"
+                  [name]="u.username"
+                  [size]="28"
+                  [ring]="false"
+                  [plan]="u.plan"
+                  [isAdmin]="u.isAdmin"
+                ></app-user-avatar>
                 <span class="text-sm font-bold text-text truncate">{{ u.username }}</span>
               </button>
             </div>
@@ -209,7 +304,9 @@
 
           <!-- Matching pins -->
           <ng-container *ngIf="suggestPins().length > 0">
-            <span class="text-xs font-semibold text-text-muted px-2 select-none">Hình ảnh phù hợp</span>
+            <span class="text-xs font-semibold text-text-muted px-2 select-none"
+              >Hình ảnh phù hợp</span
+            >
             <div class="grid grid-cols-3 gap-2 px-1">
               <button
                 *ngFor="let pin of suggestPins().slice(0, 6); let i = index"
@@ -223,13 +320,23 @@
                 [class.ring-accent]="activeSuggestionIndex() === suggestKeywords().length + i"
                 class="relative aspect-square overflow-hidden rounded-control bg-surface cursor-pointer border-none outline-none p-0 focus-visible:ring-2 focus-visible:ring-accent"
               >
-                <img [src]="pin.imageUrl" [alt]="pin.title" loading="lazy" class="w-full h-full object-cover block" />
+                <img
+                  [src]="pin.imageUrl"
+                  [alt]="pin.title"
+                  loading="lazy"
+                  class="w-full h-full object-cover block"
+                />
               </button>
             </div>
           </ng-container>
 
           <p
-            *ngIf="!suggestKeywords().length && !suggestUsers().length && !suggestPins().length && !suggestError()"
+            *ngIf="
+              !suggestKeywords().length &&
+              !suggestUsers().length &&
+              !suggestPins().length &&
+              !suggestError()
+            "
             class="text-xs text-text-muted px-2 py-1 select-none"
           >
             Không tìm thấy gợi ý nào cho "{{ searchQuery() }}".
@@ -252,23 +359,30 @@
     <button
       *ngIf="supabaseService.user()"
       (click)="navigateToNovaToken()"
-      class="hidden sm:flex h-10 items-center gap-2 px-3 rounded-full border border-accent/35 bg-surface-elevated hover:bg-surface-high text-text font-bold text-xs cursor-pointer transition-all"
-      aria-label="Mở ví NovaToken"
+      class="hidden sm:flex nf-gradient-pill px-3.5"
+      aria-label="Mở ví"
     >
-      <img src="/assets/novatoken/novatoken-coin.png" alt="" class="w-6 h-6 object-contain" />
-      <span>{{ (novaTokens.wallet()?.balance || '0') | number:'1.0-0' }} NT</span>
+      <span class="material-symbols-outlined text-base leading-none" aria-hidden="true"
+        >account_balance_wallet</span
+      >
+      <span>{{ novaTokens.wallet()?.balance || '0' | number: '1.0-0' }}đ</span>
     </button>
     <button
       *ngIf="supabaseService.user()"
       (click)="navigateToPricing()"
-      class="hidden sm:flex h-10 items-center gap-2 px-4 rounded-full border border-accent/35 bg-accent/10 hover:bg-accent/20 text-accent font-bold text-xs cursor-pointer transition-all shadow-[0_0_24px_rgba(157,99,255,.12)]"
+      class="hidden sm:flex nf-gradient-pill px-4"
       aria-label="Xem các gói thành viên"
     >
-      <span class="material-symbols-outlined text-base">diamond</span>
+      <span class="material-symbols-outlined text-base leading-none" aria-hidden="true"
+        >diamond</span
+      >
       <span>Thành viên</span>
     </button>
     <!-- Quick theme switch — visibility controlled from /settings -->
-    <app-theme-toggle *ngIf="themeService.showQuickToggle()" class="hidden sm:inline-flex"></app-theme-toggle>
+    <app-theme-toggle
+      *ngIf="themeService.showQuickToggle()"
+      class="hidden sm:inline-flex"
+    ></app-theme-toggle>
     <!-- Logged in state -->
     <div class="relative flex items-center" *ngIf="supabaseService.user() as user">
       <!-- Trigger button: avatar in soft frame + chevron down -->
@@ -280,9 +394,16 @@
         aria-haspopup="menu"
         [attr.aria-expanded]="showProfilePopup()"
       >
-        <app-user-avatar [src]="avatarUrl()" [name]="displayName()" [size]="36" [plan]="myPlan()"></app-user-avatar>
+        <app-user-avatar
+          [src]="avatarUrl()"
+          [name]="displayName()"
+          [size]="36"
+          [plan]="myPlan()"
+          [isAdmin]="myIsAdmin()"
+        ></app-user-avatar>
         <span
           class="material-symbols-outlined text-[20px] text-text-muted font-semibold leading-none select-none"
+          aria-hidden="true"
           >keyboard_arrow_down</span
         >
       </button>
@@ -294,13 +415,17 @@
         class="account-menu absolute right-0 top-12 mt-2 z-50 animate-fade-in text-left"
       >
         <!-- Header: Đang đăng nhập -->
-        <span class="account-menu-eyebrow select-none">
-          Đang đăng nhập
-        </span>
+        <span class="account-menu-eyebrow select-none"> Đang đăng nhập </span>
 
         <!-- User Card -->
         <div class="account-menu-user select-none">
-          <app-user-avatar [src]="avatarUrl()" [name]="displayName()" [size]="50" [plan]="myPlan()"></app-user-avatar>
+          <app-user-avatar
+            [src]="avatarUrl()"
+            [name]="displayName()"
+            [size]="50"
+            [plan]="myPlan()"
+            [isAdmin]="myIsAdmin()"
+          ></app-user-avatar>
           <div class="flex-1 min-w-0 flex flex-col justify-center">
             <!-- Full Name -->
             <span class="text-[15px] font-extrabold text-text truncate leading-tight font-display">
@@ -314,9 +439,7 @@
         </div>
 
         <!-- Section: Tài khoản của bạn -->
-        <span class="account-menu-section select-none">
-          Tài khoản của bạn
-        </span>
+        <span class="account-menu-section select-none"> Tài khoản của bạn </span>
 
         <!-- View Profile Option -->
         <button
@@ -325,7 +448,9 @@
           (click)="navigateToMyProfile()"
           class="account-menu-item"
         >
-          <span class="material-symbols-outlined">person</span><span>Trang cá nhân</span><i class="material-symbols-outlined">chevron_right</i>
+          <span class="material-symbols-outlined" aria-hidden="true">person</span
+          ><span>Trang cá nhân</span
+          ><i class="material-symbols-outlined" aria-hidden="true">chevron_right</i>
         </button>
 
         <!-- Settings Option -->
@@ -335,7 +460,9 @@
           (click)="navigateToSettings()"
           class="account-menu-item"
         >
-          <span class="material-symbols-outlined">settings</span><span>Cài đặt</span><i class="material-symbols-outlined">chevron_right</i>
+          <span class="material-symbols-outlined" aria-hidden="true">settings</span
+          ><span>Cài đặt</span
+          ><i class="material-symbols-outlined" aria-hidden="true">chevron_right</i>
         </button>
 
         <!-- Quick theme switch — mobile only; sm: and up already has it in
@@ -354,7 +481,15 @@
           role="menuitem"
           (click)="navigateToNovaToken()"
           class="account-menu-item account-menu-wallet"
-        ><img src="/assets/novatoken/novatoken-coin.png" alt="" /><span><b>Ví NovaToken</b><small>{{ (novaTokens.wallet()?.balance || '0') | number:'1.0-0' }} NT khả dụng</small></span><i class="material-symbols-outlined">chevron_right</i></button>
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">account_balance_wallet</span
+          ><span
+            ><b>Ví của bạn</b
+            ><small
+              >{{ novaTokens.wallet()?.balance || '0' | number: '1.0-0' }}đ khả dụng</small
+            ></span
+          ><i class="material-symbols-outlined" aria-hidden="true">chevron_right</i>
+        </button>
 
         <!-- Pricing Option -->
         <button
@@ -362,7 +497,11 @@
           role="menuitem"
           (click)="navigateToPricing()"
           class="account-menu-item account-menu-membership"
-        ><span class="material-symbols-outlined">diamond</span><span>Gói thành viên</span><em>{{ myPlan() || 'FREE' }}</em><i class="material-symbols-outlined">chevron_right</i></button>
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">diamond</span
+          ><span>Gói thành viên</span><em>{{ myPlan() || 'FREE' }}</em
+          ><i class="material-symbols-outlined" aria-hidden="true">chevron_right</i>
+        </button>
 
         <!-- Sign Out Option -->
         <button
@@ -371,7 +510,8 @@
           (click)="signOut()"
           class="account-menu-item account-menu-signout"
         >
-          <span class="material-symbols-outlined">logout</span><span>Đăng xuất</span>
+          <span class="material-symbols-outlined" aria-hidden="true">logout</span
+          ><span>Đăng xuất</span>
         </button>
       </div>
     </div>

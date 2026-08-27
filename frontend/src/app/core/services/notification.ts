@@ -30,6 +30,7 @@ export interface Notification {
     username: string;
     avatarUrl?: string;
     plan: MembershipPlan;
+    isAdmin?: boolean;
   };
   pin?: {
     id: string;
@@ -42,6 +43,30 @@ export interface NotificationsResponse {
   notifications: Notification[];
   total: number;
   unreadCount: number;
+}
+
+/**
+ * Realtime payloads are not fully uniform: some persisted notification
+ * messages already start with the sender name, while shorter messages rely
+ * on the client to add it. Keep the useful client-side prefix without
+ * rendering the same name twice.
+ */
+export function formatRealtimeNotificationMessage(
+  notification: Pick<Notification, 'content' | 'sender'>,
+): string {
+  const content = notification.content.trimStart();
+  const senderName = notification.sender?.username?.trim();
+
+  if (!senderName) return content;
+  if (!content) return senderName;
+
+  const possibleSenderPrefix = content.slice(0, senderName.length);
+  const nextCharacter = content.charAt(senderName.length);
+  const startsWithSender =
+    possibleSenderPrefix.localeCompare(senderName, 'vi', { sensitivity: 'accent' }) === 0 &&
+    (!nextCharacter || /[\s,:;.!?()[\]{}\-–—]/u.test(nextCharacter));
+
+  return startsWithSender ? content : `${senderName} ${content}`;
 }
 
 @Injectable({
@@ -99,10 +124,7 @@ export class NotificationService {
   private handleRealtimeNotification(notification: Notification): void {
     this.notificationsSubject.next([notification, ...this.notificationsSubject.value]);
     this.unreadCountSubject.next(this.unreadCountSubject.value + 1);
-    const message = notification.sender?.username
-      ? `${notification.sender.username} ${notification.content}`
-      : notification.content;
-    this.toast.notify(message);
+    this.toast.notify(formatRealtimeNotificationMessage(notification));
   }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {

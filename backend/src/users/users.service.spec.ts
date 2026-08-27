@@ -13,9 +13,10 @@ describe('UsersService profile data', () => {
     follow: { count: jest.fn(), findUnique: jest.fn() },
     followRequest: { findUnique: jest.fn() },
     like: { count: jest.fn(), findMany: jest.fn() },
-    auction: { findMany: jest.fn() },
     messageRequest: { findFirst: jest.fn() },
     conversation: { findUnique: jest.fn() },
+    auction: { findMany: jest.fn() },
+    imagePurchase: { findMany: jest.fn() },
   };
   const blocksService = { isBlocked: jest.fn(), isBlockedEitherWay: jest.fn() };
   const notificationsService = { createNotification: jest.fn() };
@@ -29,6 +30,7 @@ describe('UsersService profile data', () => {
     blocksService.isBlockedEitherWay.mockResolvedValue(false);
     prisma.auction.findMany.mockResolvedValue([]);
     membershipsService.status.mockResolvedValue({ plan: 'FREE' });
+    prisma.imagePurchase.findMany.mockResolvedValue([]);
     service = new UsersService(
       prisma as never,
       blocksService as never,
@@ -188,6 +190,31 @@ describe('UsersService profile data', () => {
     expect(result.viewer.canMessage).toBe(false);
   });
 
+  it('treats a rejected message request as retryable', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'profile-user',
+      username: 'artist',
+      avatarUrl: null,
+      bio: null,
+      createdAt: new Date('2026-01-01'),
+    });
+    prisma.pin.count.mockResolvedValue(0);
+    prisma.board.count.mockResolvedValue(0);
+    prisma.follow.count.mockResolvedValueOnce(0).mockResolvedValueOnce(0);
+    prisma.follow.findUnique.mockResolvedValue(null);
+    prisma.messageRequest.findFirst.mockResolvedValue({
+      senderId: 'viewer',
+      status: 'REJECTED',
+    });
+    prisma.conversation.findUnique.mockResolvedValue(null);
+
+    const result = await service.getUserProfile('artist', 'viewer');
+
+    expect(result.viewer.messageRequestStatus).toBe('NONE');
+    expect(result.viewer.canSendMessageRequest).toBe(true);
+    expect(result.viewer.canMessage).toBe(false);
+  });
+
   it("selects and returns the profile owner's membership plan, never their email", async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 'profile-user',
@@ -230,6 +257,61 @@ describe('UsersService profile data', () => {
     );
     expect(result.items.every((u) => !('email' in u))).toBe(true);
     expect(result.items.map((u) => u.plan)).toEqual(['PLUS', 'FREE']);
+  });
+
+  describe('profile identifier resolution', () => {
+    it('loads profile posts by Supabase UUID without treating it as a Mongo ObjectId', async () => {
+      const userId = '123e4567-e89b-42d3-a456-426614174000';
+      prisma.user.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
+        id: userId,
+        username: 'minhchi',
+        isPrivate: false,
+      });
+      prisma.pin.findMany.mockResolvedValue([]);
+      prisma.pin.count.mockResolvedValue(0);
+
+      await expect(service.getUserPosts(userId, userId)).resolves.toEqual(
+        expect.objectContaining({ items: [], total: 0 }),
+      );
+
+      expect(prisma.user.findUnique).toHaveBeenNthCalledWith(2, {
+        where: { id: userId },
+        select: { id: true, username: true, isPrivate: true },
+      });
+    });
+
+    it('resolves an encoded display name only against the signed-in user own row', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'viewer-id',
+        username: 'minhchi',
+        isPrivate: false,
+      });
+      prisma.pin.findMany.mockResolvedValue([]);
+      prisma.pin.count.mockResolvedValue(0);
+
+      await expect(
+        service.getUserPosts('Minh Chi Phạm Nguyễn', 'viewer-id'),
+      ).resolves.toEqual(expect.objectContaining({ items: [], total: 0 }));
+
+      expect(prisma.user.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'viewer-id',
+          displayName: {
+            equals: 'Minh Chi Phạm Nguyễn',
+            mode: 'insensitive',
+          },
+        },
+        select: { id: true, username: true, isPrivate: true },
+      });
+    });
+
+    it('rejects a null profile identifier before querying Prisma', async () => {
+      await expect(
+        service.getUserPosts(null as never, 'viewer-id'),
+      ).rejects.toThrow('Profile identifier is invalid');
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    });
   });
 
   it('uses the authenticated user id for the private favorites query', async () => {
@@ -365,6 +447,34 @@ describe('UsersService profile data', () => {
   });
 
   describe('syncUser', () => {
+    it('repairs a legacy display-name username into a unique URL-safe slug', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        username: 'Minh Chi Phạm Nguyễn',
+        displayName: null,
+        avatarUrl: null,
+      });
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.user.update.mockResolvedValue({});
+
+      await service.syncUser(
+        'user-1',
+        'minh@example.com',
+        'Minh Chi Phạm Nguyễn',
+        undefined,
+      );
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: {
+          email: 'minh@example.com',
+          avatarUrl: undefined,
+          username: 'minhchiphamnguyen',
+          displayName: 'Minh Chi Phạm Nguyễn',
+        },
+      });
+    });
+
     it('never overwrites an existing avatar with the OAuth-provided one on re-sync', async () => {
       // Regression test: /sync fires on every page reload (see
       // SupabaseService.syncUserWithBackend) and always carries the OAuth

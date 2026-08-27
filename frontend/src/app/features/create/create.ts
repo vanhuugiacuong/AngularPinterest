@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, ViewChild } from '@angular/core';
+import { Component, OnInit, inject, signal, ViewChild, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
@@ -183,6 +183,16 @@ export class Create implements OnInit {
     this.showBoardDropdown.update(val => !val);
   }
 
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.showBoardDropdown()) this.showBoardDropdown.set(false);
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void {
+    if (this.showBoardDropdown()) this.showBoardDropdown.set(false);
+  }
+
   selectBoard(board: Board, event: MouseEvent) {
     event.stopPropagation();
     this.selectedBoard.set(board);
@@ -204,8 +214,9 @@ export class Create implements OnInit {
     this.selectedFile = file;
     this.formError.set(null);
     this.resetImageModeration();
-    const objectUrl = URL.createObjectURL(file);
-    this.imagePreviewUrl.set(objectUrl);
+    // Ảnh KHÔNG được xem trước ở đây nữa - chỉ hiện sau khi kiểm duyệt xác
+    // nhận an toàn (xem checkSelectedImage). Ảnh 18+/bạo lực máu me phải bị
+    // chặn hoàn toàn, không được lộ ra dù chỉ trong lúc đang kiểm tra.
 
     await this.checkSelectedImage(file);
   }
@@ -242,11 +253,16 @@ export class Create implements OnInit {
 
       if (result.safe) {
         this.imageModerationStatus.set('safe');
+        // Chỉ tạo URL xem trước SAU KHI kiểm duyệt xác nhận ảnh an toàn.
+        this.imagePreviewUrl.set(URL.createObjectURL(file));
       } else {
         this.imageModerationStatus.set('unsafe');
         this.imageModerationMessage.set(
-          result.message || 'Ảnh có thể chứa nội dung không phù hợp hoặc nội dung 18+. Vui lòng chọn ảnh khác.',
+          result.message || 'Ảnh có nội dung không phù hợp. Vui lòng chọn ảnh khác.',
         );
+        // Chặn hẳn: xoá file đã chọn để không có cách nào đăng được ảnh này,
+        // và không bao giờ tạo URL xem trước cho nó.
+        this.selectedFile = null;
       }
     } catch (error) {
       console.error('Error checking image moderation (service/network failure, not a content verdict):', error);
@@ -500,6 +516,7 @@ export class Create implements OnInit {
         }
       }
 
+      this.pinService.notifyPinCreated(createdPin);
       await this.handlePublishSuccess();
     } catch (error) {
       console.error('Error uploading pin:', error);
@@ -538,7 +555,8 @@ export class Create implements OnInit {
         generationModel: this.aiModel,
       };
 
-      await this.pinService.saveAiPin(body, token);
+      const createdPin = await this.pinService.saveAiPin(body, token);
+      this.pinService.notifyPinCreated(createdPin);
       await this.membership.load();
       await this.handlePublishSuccess();
     } catch (error) {
@@ -565,10 +583,13 @@ export class Create implements OnInit {
     this.dialogStatus.set('success');
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    const username = await this.resolveOwnUsername();
+    const profileIdentifier = await this.resolveOwnProfileIdentifier();
     try {
-      if (username) {
-        const navigated = await this.router.navigate(['/profile', username]);
+      if (profileIdentifier) {
+        const navigated = await this.router.navigate([
+          '/profile',
+          profileIdentifier,
+        ]);
         if (navigated) return;
         console.error('Navigating to own profile did not complete; falling back to /feed.');
       } else {
@@ -581,10 +602,10 @@ export class Create implements OnInit {
     }
   }
 
-  /** Username for the post-publish redirect, in priority order: the synced
-   * DB user (retried briefly in case sync is still in flight), then
-   * Supabase auth metadata, then the email local-part as a last resort. */
-  private async resolveOwnUsername(): Promise<string | null> {
+  /** Canonical username for the post-publish redirect, with the authenticated
+   * Supabase UUID as the unambiguous fallback while backend sync is in flight.
+   * OAuth full_name/name is display text and must never become a route id. */
+  private async resolveOwnProfileIdentifier(): Promise<string | null> {
     const immediate = this.supabaseService.dbUser()?.username;
     if (immediate) return immediate;
 
@@ -595,14 +616,7 @@ export class Create implements OnInit {
     }
 
     const user = this.supabaseService.user();
-    if (!user) return null;
-
-    const metaUsername = (user.user_metadata?.['full_name'] || user.user_metadata?.['name'] || '').trim();
-    if (metaUsername) return metaUsername;
-
-    const email = user.email || '';
-    const prefix = email.split('@')[0];
-    return prefix || null;
+    return user?.id || null;
   }
 
   onDialogRetry(): void {

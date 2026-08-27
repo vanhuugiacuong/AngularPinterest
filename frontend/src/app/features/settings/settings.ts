@@ -16,6 +16,7 @@ import {
   WatermarkType,
 } from '../../core/services/watermark';
 import { SUPPORTED_BANKS } from '../../core/utils/vietqr';
+import { DialogService } from '../../core/services/dialog';
 
 interface ThemeOption {
   value: ThemePreference;
@@ -42,6 +43,7 @@ export class Settings implements OnInit {
   protected readonly watermark = inject(WatermarkService);
   private readonly supabaseService = inject(SupabaseService);
   private readonly userService = inject(UserService);
+  private readonly dialogService = inject(DialogService);
 
   protected readonly themeOptions: ThemeOption[] = [
     { value: 'system', label: 'Theo hệ thống', description: 'Tự động khớp với giao diện thiết bị của bạn.' },
@@ -282,11 +284,20 @@ export class Settings implements OnInit {
     this.isDefault = false;
   }
 
-  async deletePreset(id: string): Promise<void> {
+  async deletePreset(preset: WatermarkPreset): Promise<void> {
+    const confirmed = await this.dialogService.confirm({
+      variant: 'destructive',
+      title: 'Xoá cấu hình watermark?',
+      description: `"${preset.name}" sẽ bị xoá vĩnh viễn và không thể khôi phục.`,
+      confirmLabel: 'Xoá',
+      cancelLabel: 'Hủy',
+    });
+    if (!confirmed) return;
+
     this.formError.set('');
     try {
-      await this.watermark.remove(id);
-      if (this.editingId() === id) this.resetForm();
+      await this.watermark.remove(preset.id);
+      if (this.editingId() === preset.id) this.resetForm();
     } catch (e) {
       this.formError.set(e instanceof Error ? e.message : 'Không thể xoá cấu hình.');
     }

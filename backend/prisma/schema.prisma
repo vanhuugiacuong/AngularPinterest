@@ -40,6 +40,7 @@ model User {
   novaTokenTopUps     NovaTokenTopUp[]
   novaTokenEntries    NovaTokenLedger[]
   novaTokenHolds      AuctionTokenHold[]
+  demoWithdrawals     DemoWithdrawal[]
   watermarkPresets    WatermarkPreset[]
 
   pins     Pin[]
@@ -93,7 +94,8 @@ model Pin {
   id                  String          @id @default(uuid())
   title               String
   description         String?
-  imageUrl            String // URL preview công khai (bucket "pins", có thể đã qua watermark)
+  imageUrl            String // URL preview công khai (bucket "pins") - trả về cho chủ sở hữu và người xem không bị giới hạn thương mại
+  protectedImageUrl   String? // Bản preview có watermark bắt buộc, sinh khi pin bắt đầu bán/đấu giá - trả về THAY imageUrl cho người xem không phải chủ sở hữu và chưa mua (xem common/pin-access.util.ts)
   originalStoragePath String? // Path bản gốc trong bucket private "pins-original" - chỉ backend đọc được
   sourceUrl           String?
   userId              String
@@ -231,6 +233,7 @@ enum NovaTokenEntryType {
   AUCTION_SALE
   REFUND
   ADMIN_ADJUSTMENT
+  PLATFORM_FEE
 }
 
 model NovaTokenTopUp {
@@ -281,6 +284,22 @@ model AuctionTokenHold {
 
   @@unique([auctionId, bidderId])
   @@index([bidderId])
+}
+
+model DemoWithdrawal {
+  id            String   @id @default(uuid())
+  userId        String
+  amount        Decimal  @db.Decimal(18, 0)
+  bankCode      String
+  accountNumber String
+  accountName   String
+  status        String   @default("DEMO_COMPLETED")
+  note          String   @default("Mô phỏng thử nghiệm - không chuyển tiền thật")
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 enum WatermarkType {

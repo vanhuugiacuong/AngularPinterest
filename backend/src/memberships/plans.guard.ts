@@ -37,11 +37,12 @@ export class PlansGuard implements CanActivate {
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { plan: true },
+      select: { plan: true, isAdmin: true },
     });
     if (!user) throw new ForbiddenException('Không tìm thấy người dùng.');
 
-    const entitlements = PLAN_ENTITLEMENTS[user.plan];
+    // Admin luôn được coi như đang ở gói Pro - toàn quyền mọi tính năng.
+    const entitlements = PLAN_ENTITLEMENTS[user.isAdmin ? 'PRO' : user.plan];
     if (!entitlements[required]) {
       throw new ForbiddenException('Gói hiện tại của bạn không có quyền này.');
     }

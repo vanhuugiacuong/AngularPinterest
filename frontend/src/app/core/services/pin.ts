@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { ReplaySubject } from 'rxjs';
 import { API_BASE_URL } from '../api-base';
 import { safeFetch } from '../utils/http-error';
 import type { MembershipPlan } from '../models/membership-plan';
@@ -9,6 +10,7 @@ export interface PinAuthor {
   displayName?: string | null;
   avatarUrl?: string;
   plan: MembershipPlan;
+  isAdmin?: boolean;
 }
 
 export interface PinComment {
@@ -54,6 +56,11 @@ export interface Pin {
   currency?: 'VND';
   listingType?: PinListingType;
   auction?: PinAuctionSummary | null;
+  hasPurchased?: boolean;
+  category?: string;
+  promptUsed?: string | null;
+  negativePrompt?: string | null;
+  generationModel?: string | null;
 }
 
 @Injectable({
@@ -61,8 +68,22 @@ export interface Pin {
 })
 export class PinService {
   private baseUrl = `${API_BASE_URL}/api/pins`;
+  private readonly createdPinsSubject = new ReplaySubject<Pin>(20);
+  readonly createdPins$ = this.createdPinsSubject.asObservable();
 
-  private async request<T>(url: string, token: string | undefined, init: RequestInit, fallback: string): Promise<T> {
+  /** Shares successful creates with profile views, including views created
+   * only after the router leaves /create. Replay keeps recent session
+   * creates available across that component boundary. */
+  notifyPinCreated(pin: Pin): void {
+    this.createdPinsSubject.next(pin);
+  }
+
+  private async request<T>(
+    url: string,
+    token: string | undefined,
+    init: RequestInit,
+    fallback: string,
+  ): Promise<T> {
     const headers = new Headers(init.headers);
     if (token) headers.set('Authorization', `Bearer ${token}`);
     if (init.body && typeof init.body === 'string') headers.set('Content-Type', 'application/json');
@@ -97,10 +118,31 @@ export class PinService {
     return payload as T;
   }
 
-  getPins(page = 1, limit = 20, token?: string, seed?: string): Promise<Pin[]> {
+  getPins(
+    page = 1,
+    limit = 20,
+    token?: string,
+    seed?: string,
+    category?: string | null,
+  ): Promise<Pin[]> {
     let url = `${this.baseUrl}?page=${page}&limit=${limit}`;
     if (seed) url += `&seed=${seed}`;
+    // Lọc ở server: nếu lọc trên mảng đã tải thì infinite scroll không giữ được
+    // filter và sẽ kéo cạn feed để nhặt vài tấm khớp danh mục.
+    if (category) url += `&category=${encodeURIComponent(category)}`;
     return this.request<Pin[]>(url, token, {}, 'Không thể tải ảnh');
+  }
+
+  /** Danh mục có thật trong feed, kèm số pin. Nguồn để dựng chip lọc — dựng từ
+   * pin đã tải thì chip bật ra giữa lúc cuộn và danh mục ở trang chưa tải sẽ
+   * không chọn tới được. */
+  getFeedCategories(token?: string): Promise<{ code: string; count: number }[]> {
+    return this.request<{ code: string; count: number }[]>(
+      `${this.baseUrl}/categories`,
+      token,
+      {},
+      'Không thể tải danh mục',
+    );
   }
 
   searchPins(query: string, page = 1, limit = 20): Promise<Pin[]> {
@@ -129,7 +171,12 @@ export class PinService {
   }
 
   getRelatedPins(id: string, page = 1, limit = 20): Promise<Pin[]> {
-    return this.request<Pin[]>(`${this.baseUrl}/${id}/related?page=${page}&limit=${limit}`, undefined, {}, 'Không thể tải ảnh liên quan');
+    return this.request<Pin[]>(
+      `${this.baseUrl}/${id}/related?page=${page}&limit=${limit}`,
+      undefined,
+      {},
+      'Không thể tải ảnh liên quan',
+    );
   }
 
   getPinById(id: string, token?: string): Promise<Pin> {
@@ -137,7 +184,12 @@ export class PinService {
   }
 
   toggleLike(id: string, token: string): Promise<{ liked: boolean; likeCount: number }> {
-    return this.request(`${this.baseUrl}/${id}/like`, token, { method: 'POST' }, 'Không thể thích ảnh');
+    return this.request(
+      `${this.baseUrl}/${id}/like`,
+      token,
+      { method: 'POST' },
+      'Không thể thích ảnh',
+    );
   }
 
   deletePin(id: string, token: string): Promise<{ success: boolean }> {
@@ -168,7 +220,12 @@ export class PinService {
   }
 
   createUploadPin(formData: FormData, token: string): Promise<Pin> {
-    return this.request<Pin>(this.baseUrl, token, { method: 'POST', body: formData }, 'Không thể tải ảnh lên');
+    return this.request<Pin>(
+      this.baseUrl,
+      token,
+      { method: 'POST', body: formData },
+      'Không thể tải ảnh lên',
+    );
   }
 
   saveAiPin(body: unknown, token: string): Promise<Pin> {

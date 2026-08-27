@@ -85,4 +85,5 @@ export const PUBLIC_USER_SELECT = {
   avatarUrl: true,
   bio: true,
   plan: true,
+  isAdmin: true,
 } as const;

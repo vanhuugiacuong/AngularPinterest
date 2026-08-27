@@ -11,7 +11,7 @@
     (focusin)="pause(toast.id)"
     (focusout)="resume(toast.id)"
   >
-    <span class="nf-toast__icon material-symbols-outlined" aria-hidden="true">{{ iconFor(toast.kind) }}</span>
+    <span class="nf-toast__icon material-symbols-outlined" aria-hidden="true">{{ iconFor(toast) }}</span>
     <span class="nf-toast__message">{{ toast.message }}</span>
     @if (toast.action) {
       <button type="button" class="nf-toast__action" (click)="runAction(toast)">{{ toast.action.label }}</button>

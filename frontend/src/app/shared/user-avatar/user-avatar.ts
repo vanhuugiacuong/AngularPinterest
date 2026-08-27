@@ -14,6 +14,10 @@ type AvatarStatus = 'loading' | 'loaded' | 'error';
  * when `plan` is 'PLUS' or 'PRO'. `plan` must always be the *displayed
  * user's own* active plan (`User.plan`, not the viewer's) — this component
  * never looks up membership itself, so callers own that responsibility.
+ *
+ * `isAdmin` renders a distinct gold platform-admin frame instead, and takes
+ * priority over the Plus/Pro frame when both would apply (an admin's own
+ * plan tier is not the interesting fact about their avatar).
  */
 @Component({
   selector: 'app-user-avatar',
@@ -31,6 +35,7 @@ export class UserAvatar {
   /** The avatar owner's currently active plan. FREE, null, and undefined
    * are all treated identically (no frame) — only 'PLUS'/'PRO' render one. */
   plan = input<MembershipPlan | null | undefined>('FREE');
+  isAdmin = input<boolean | null | undefined>(false);
   showMembershipFrame = input<boolean>(true);
   showPlanBadge = input<boolean>(true);
 
@@ -42,16 +47,21 @@ export class UserAvatar {
     return value === 'PLUS' || value === 'PRO' ? value : null;
   });
 
-  hasFrame = computed(() => this.showMembershipFrame() && this.effectivePlan() !== null);
+  /** Admin outranks Plus/Pro — an admin never shows the membership frame. */
+  isAdminFrame = computed(() => this.showMembershipFrame() && !!this.isAdmin());
+  hasFrame = computed(
+    () => this.isAdminFrame() || (this.showMembershipFrame() && this.effectivePlan() !== null),
+  );
   /** Below 24px only the ring shape itself is legible — icon/badge become noise. */
   showIcon = computed(() => this.hasFrame() && this.size() >= 24);
   showBadge = computed(() => this.hasFrame() && this.showPlanBadge() && this.size() >= 40);
-  /** Gates the Pro shimmer to large, singular avatars (profile hero, navbar
-   * dropdown) — never at feed/list sizes, so a page with many Pro avatars
-   * never runs many concurrent animations at once. */
+  /** Gates the Pro/admin shimmer to large, singular avatars (profile hero,
+   * navbar dropdown) — never at feed/list sizes, so a page with many such
+   * avatars never runs many concurrent animations at once. */
   isLargeAvatar = computed(() => this.size() >= 40);
 
   planLabel = computed(() => {
+    if (this.isAdminFrame()) return 'Quản trị viên NovaFrame';
     const value = this.effectivePlan();
     return value === 'PRO' ? 'Thành viên Pro' : value === 'PLUS' ? 'Thành viên Plus' : null;
   });

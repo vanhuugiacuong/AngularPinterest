@@ -79,12 +79,12 @@ export interface ColorPreset {
 // Presets only set a starting point on top of DEFAULT_ADJUSTMENTS — the user
 // can still fine-tune every slider afterwards.
 export const COLOR_PRESETS: ColorPreset[] = [
-  { label: 'Original', adjustments: {} },
-  { label: 'Vivid', adjustments: { contrast: 116, saturation: 134, brightness: 104 } },
-  { label: 'Cool', adjustments: { warmth: -32, saturation: 106, brightness: 102 } },
-  { label: 'Warm', adjustments: { warmth: 30, saturation: 108 } },
-  { label: 'Mono', adjustments: { grayscale: 100, contrast: 112 } },
-  { label: 'Cinematic', adjustments: { contrast: 118, saturation: 90, warmth: 12, brightness: 96 } },
+  { label: 'Gốc', adjustments: {} },
+  { label: 'Rực rỡ', adjustments: { contrast: 116, saturation: 134, brightness: 104 } },
+  { label: 'Lạnh', adjustments: { warmth: -32, saturation: 106, brightness: 102 } },
+  { label: 'Ấm', adjustments: { warmth: 30, saturation: 108 } },
+  { label: 'Đen trắng', adjustments: { grayscale: 100, contrast: 112 } },
+  { label: 'Điện ảnh', adjustments: { contrast: 118, saturation: 90, warmth: 12, brightness: 96 } },
 ];
 
 /** Crop rectangle in coordinates normalized to the SOURCE image (0-1), not

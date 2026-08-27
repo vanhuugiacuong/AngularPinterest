@@ -2,39 +2,39 @@
    over the toast cards themselves — toasts must never lock the UI. */
 .nf-toast-region {
   position: fixed;
-  z-index: 300;
+  z-index: 9999;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-width: min(380px, calc(100vw - 32px));
+  max-width: min(420px, calc(100vw - 32px));
   pointer-events: none;
 }
 
 .nf-toast-region--top-right {
-  top: 76px;
-  right: 16px;
+  top: 80px;
+  right: 24px;
   align-items: flex-end;
 }
 
 .nf-toast-region--bottom-left {
-  bottom: 16px;
-  left: 16px;
+  bottom: 24px;
+  left: 24px;
   align-items: flex-start;
 }
 
 .nf-toast {
   pointer-events: auto;
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
   width: 100%;
-  padding: 13px 14px;
-  border-radius: var(--radius-panel);
-  background-color: color-mix(in srgb, var(--color-surface-elevated) 92%, transparent);
+  padding: 12px 18px;
+  border-radius: 9999px;
+  background-color: color-mix(in srgb, var(--color-surface-elevated) 96%, transparent);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--color-border-strong);
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
   color: var(--color-text);
   animation: nf-toast-in 220ms var(--ease-spring);
 }
@@ -49,9 +49,11 @@
 
 .nf-toast__icon {
   flex-shrink: 0;
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1;
-  margin-top: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .nf-toast--success .nf-toast__icon {

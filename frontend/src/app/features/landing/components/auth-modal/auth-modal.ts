@@ -9,13 +9,18 @@ import {
   OnDestroy,
   SimpleChanges,
   ViewChild,
-  signal
+  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 
 /** How long the closing animation runs before the dialog leaves the DOM.
  *  Must stay in step with the .nf-auth--leaving transitions in the stylesheet. */
 const EXIT_MS = 420;
+
+/** Once acknowledged, the warning step is skipped for good in this browser —
+ * a returning user should not have to clear it on every sign-in. */
+const WARNING_ACK_KEY = 'novaframe:content-warning-ack';
 
 /**
  * Presentation-only login dialog for the pre-login experience.
@@ -34,9 +39,9 @@ const EXIT_MS = 420;
 @Component({
   selector: 'app-auth-modal',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './auth-modal.html',
-  styleUrl: './auth-modal.css'
+  styleUrl: './auth-modal.css',
 })
 export class AuthModal implements OnChanges, OnDestroy {
   @Input() open = false;
@@ -58,6 +63,32 @@ export class AuthModal implements OnChanges, OnDestroy {
   public readonly visible = signal(false);
   public readonly leaving = signal(false);
 
+  /** Two steps in one panel: the content notice, then the sign-in. It lives
+   * here rather than as its own modal so a first-time visitor is not stacked
+   * two dialogs deep, and so the notice is unavoidably read before the account
+   * is created — the moment consent actually matters. */
+  public readonly step = signal<'warning' | 'signin'>('signin');
+
+  /** Every localStorage access is wrapped: a private window or blocked site
+   * data throws on read, and the notice must never be what breaks sign-in. On
+   * failure the notice simply shows again next time. */
+  private hasAcknowledgedWarning(): boolean {
+    try {
+      return localStorage.getItem(WARNING_ACK_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  acknowledgeWarning(): void {
+    try {
+      localStorage.setItem(WARNING_ACK_KEY, '1');
+    } catch {
+      // Không ghi được thì lần sau hiện lại — chấp nhận được.
+    }
+    this.step.set('signin');
+  }
+
   private readonly reducedMotion =
     typeof window !== 'undefined' && 'matchMedia' in window
       ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -66,6 +97,7 @@ export class AuthModal implements OnChanges, OnDestroy {
   private exitTimer = 0;
   private previouslyFocused: HTMLElement | null = null;
   private previousBodyOverflow: string | null = null;
+  private ownsBodyScrollLock = false;
 
   ngOnChanges(changes: SimpleChanges) {
     if (!changes['open']) return;
@@ -76,9 +108,11 @@ export class AuthModal implements OnChanges, OnDestroy {
       const wasVisible = this.visible();
       this.visible.set(true);
       if (!wasVisible) {
+        // Decided per opening, not once at construction: the acknowledgement can
+        // be written between two openings within the same page load.
+        this.step.set(this.hasAcknowledgedWarning() ? 'signin' : 'warning');
         this.previouslyFocused = (document.activeElement as HTMLElement) || null;
-        this.previousBodyOverflow = document.body.style.overflow;
-        document.body.style.overflow = 'hidden';
+        this.lockBodyScroll();
         // Panel isn't in the DOM until this change detection cycle commits.
         setTimeout(() => this.panel?.nativeElement.focus());
       }
@@ -89,9 +123,9 @@ export class AuthModal implements OnChanges, OnDestroy {
         () => {
           this.visible.set(false);
           this.leaving.set(false);
-          document.body.style.overflow = this.previousBodyOverflow ?? '';
+          this.releaseBodyScroll();
         },
-        this.reducedMotion ? 0 : EXIT_MS
+        this.reducedMotion ? 0 : EXIT_MS,
       );
     }
   }
@@ -99,7 +133,7 @@ export class AuthModal implements OnChanges, OnDestroy {
   ngOnDestroy() {
     clearTimeout(this.exitTimer);
     if (this.parallaxFrame) cancelAnimationFrame(this.parallaxFrame);
-    if (this.visible()) document.body.style.overflow = this.previousBodyOverflow ?? '';
+    this.releaseBodyScroll();
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -107,7 +141,7 @@ export class AuthModal implements OnChanges, OnDestroy {
     if (!this.open) return;
 
     if (event.key === 'Escape') {
-      this.closeModal.emit();
+      this.requestClose();
       return;
     }
 
@@ -115,7 +149,9 @@ export class AuthModal implements OnChanges, OnDestroy {
       const panel = this.panel?.nativeElement;
       if (!panel) return;
       const focusable = Array.from(
-        panel.querySelectorAll<HTMLElement>('button:not([disabled]), [tabindex]:not([tabindex="-1"])'),
+        panel.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+        ),
       );
       if (!focusable.length) return;
       const first = focusable[0];
@@ -134,7 +170,30 @@ export class AuthModal implements OnChanges, OnDestroy {
     // Ignore clicks landing during the exit animation — the dialog is already
     // on its way out and a second emit would re-run the caller's close flow.
     if (this.leaving()) return;
+    this.requestClose();
+  }
+
+  /** Release this modal's scroll lock before notifying Landing. The landing
+   * loader immediately takes its own lock for the return-to-hero animation;
+   * ownership prevents the modal's delayed exit cleanup from overwriting it. */
+  requestClose() {
+    if (!this.open || this.leaving()) return;
+    this.releaseBodyScroll();
     this.closeModal.emit();
+  }
+
+  private lockBodyScroll() {
+    if (this.ownsBodyScrollLock) return;
+    this.previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    this.ownsBodyScrollLock = true;
+  }
+
+  private releaseBodyScroll() {
+    if (!this.ownsBodyScrollLock) return;
+    document.body.style.overflow = this.previousBodyOverflow ?? '';
+    this.previousBodyOverflow = null;
+    this.ownsBodyScrollLock = false;
   }
 
   /** Very light pointer parallax on the objects drifting behind the glass. */

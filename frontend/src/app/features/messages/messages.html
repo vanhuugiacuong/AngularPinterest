@@ -4,8 +4,7 @@
   <div class="flex-1 pt-16 flex flex-col min-w-0">
     <main class="flex-1 w-full mx-auto px-0 sm:px-6 lg:px-8 py-0 sm:py-6 flex flex-col max-w-[1400px] min-h-0">
       <div
-        class="flex-1 flex min-h-0 border border-border rounded-none sm:rounded-panel overflow-hidden bg-surface shadow-card"
-        style="height: calc(100vh - 64px); height: calc(100dvh - 64px); max-height: calc(100vh - 96px); max-height: calc(100dvh - 96px);"
+        class="msg-shell flex-1 flex min-h-0 border border-border rounded-none sm:rounded-panel overflow-hidden bg-surface shadow-card"
       >
         <!-- Left panel: conversation list / requests -->
         <aside
@@ -64,7 +63,7 @@
                 </div>
               } @else if (conversationsError()) {
                 <div class="flex flex-col items-center gap-3 py-10 px-4 text-center" role="alert">
-                  <span class="material-symbols-outlined text-2xl text-error">cloud_off</span>
+                  <span class="material-symbols-outlined text-2xl text-error" aria-hidden="true">cloud_off</span>
                   <p class="text-xs text-text-muted">{{ conversationsError() }}</p>
                   <button type="button" (click)="loadConversations()" class="h-9 px-4 rounded-control bg-surface-elevated border border-border text-xs font-bold cursor-pointer">
                     Thử lại
@@ -72,7 +71,7 @@
                 </div>
               } @else if (conversations().length === 0) {
                 <div class="flex flex-col items-center gap-2 py-14 px-4 text-center">
-                  <span class="material-symbols-outlined text-2xl text-text-muted">forum</span>
+                  <span class="material-symbols-outlined text-2xl text-text-muted" aria-hidden="true">forum</span>
                   <p class="text-xs text-text-muted">Chưa có cuộc trò chuyện nào.</p>
                 </div>
               } @else {
@@ -88,6 +87,7 @@
                       [name]="conversation.otherUser.username"
                       [size]="44"
                       [plan]="conversation.otherUser.plan"
+                      [isAdmin]="conversation.otherUser.isAdmin"
                     ></app-user-avatar>
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center justify-between gap-2">
@@ -158,7 +158,7 @@
                   </div>
                 } @else if (requestsError()) {
                   <div class="flex flex-col items-center gap-3 py-10 px-4 text-center" role="alert">
-                    <span class="material-symbols-outlined text-2xl text-error">cloud_off</span>
+                    <span class="material-symbols-outlined text-2xl text-error" aria-hidden="true">cloud_off</span>
                     <p class="text-xs text-text-muted">{{ requestsError() }}</p>
                     <button type="button" (click)="loadRequests()" class="h-9 px-4 rounded-control bg-surface-elevated border border-border text-xs font-bold cursor-pointer">
                       Thử lại
@@ -167,7 +167,7 @@
                 } @else if (requestsTab() === 'incoming') {
                   @if (incomingRequests().length === 0) {
                     <div class="flex flex-col items-center gap-2 py-14 px-4 text-center">
-                      <span class="material-symbols-outlined text-2xl text-text-muted">mark_email_read</span>
+                      <span class="material-symbols-outlined text-2xl text-text-muted" aria-hidden="true">mark_email_read</span>
                       <p class="text-xs text-text-muted">Không có yêu cầu nhắn tin nào.</p>
                     </div>
                   } @else {
@@ -178,7 +178,7 @@
                           (click)="navigateToProfile(request.sender?.username)"
                           class="flex items-center gap-2.5 text-left cursor-pointer bg-transparent border-none p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
                         >
-                          <app-user-avatar [src]="request.sender?.avatarUrl" [name]="request.sender?.username || ''" [size]="40" [plan]="request.sender?.plan"></app-user-avatar>
+                          <app-user-avatar [src]="request.sender?.avatarUrl" [name]="request.sender?.username || ''" [size]="40" [plan]="request.sender?.plan" [isAdmin]="request.sender?.isAdmin"></app-user-avatar>
                           <span class="text-sm font-bold text-text hover:underline">{{ request.sender?.username }}</span>
                         </button>
                         <div class="flex items-center gap-2">
@@ -206,7 +206,7 @@
                             title="Báo cáo"
                             class="w-9 h-9 rounded-control bg-surface-elevated border border-border text-error flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            <span class="material-symbols-outlined text-base leading-none">flag</span>
+                            <span class="material-symbols-outlined text-base leading-none" aria-hidden="true">flag</span>
                           </button>
                         </div>
                       </div>
@@ -215,7 +215,7 @@
                 } @else {
                   @if (outgoingRequests().length === 0) {
                     <div class="flex flex-col items-center gap-2 py-14 px-4 text-center">
-                      <span class="material-symbols-outlined text-2xl text-text-muted">outgoing_mail</span>
+                      <span class="material-symbols-outlined text-2xl text-text-muted" aria-hidden="true">outgoing_mail</span>
                       <p class="text-xs text-text-muted">Bạn chưa gửi yêu cầu nhắn tin nào.</p>
                     </div>
                   } @else {
@@ -225,7 +225,7 @@
                         (click)="navigateToProfile(request.receiver?.username)"
                         class="w-full flex items-center gap-3 p-3 border-b border-border text-left cursor-pointer hover:bg-surface-elevated transition-colors duration-150"
                       >
-                        <app-user-avatar [src]="request.receiver?.avatarUrl" [name]="request.receiver?.username || ''" [size]="40" [plan]="request.receiver?.plan"></app-user-avatar>
+                        <app-user-avatar [src]="request.receiver?.avatarUrl" [name]="request.receiver?.username || ''" [size]="40" [plan]="request.receiver?.plan" [isAdmin]="request.receiver?.isAdmin"></app-user-avatar>
                         <div class="flex-1 min-w-0">
                           <span class="text-sm font-bold text-text truncate block">{{ request.receiver?.username }}</span>
                           <span class="text-xs text-text-muted">{{ requestStatusLabel(request.status) }}</span>
@@ -247,7 +247,7 @@
         >
           @if (!selectedConversationId()) {
             <div class="hidden sm:flex flex-1 flex-col items-center justify-center gap-3 text-center px-6">
-              <span class="material-symbols-outlined text-4xl text-text-muted">chat_bubble</span>
+              <span class="material-symbols-outlined text-4xl text-text-muted" aria-hidden="true">chat_bubble</span>
               <p class="text-sm text-text-muted">Chọn một cuộc trò chuyện để bắt đầu nhắn tin.</p>
             </div>
           } @else {
@@ -259,7 +259,7 @@
                 class="sm:hidden w-9 h-9 rounded-control flex items-center justify-center hover:bg-surface-elevated cursor-pointer"
                 aria-label="Quay lại danh sách"
               >
-                <span class="material-symbols-outlined">arrow_back</span>
+                <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
               </button>
               @if (otherUserFor(selectedConversationId()!); as otherUser) {
                 <button
@@ -267,8 +267,8 @@
                   (click)="navigateToProfile(otherUser.username)"
                   class="flex items-center gap-2.5 text-left cursor-pointer bg-transparent border-none p-0 min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
                 >
-                  <app-user-avatar [src]="otherUser.avatarUrl" [name]="otherUser.username" [size]="36" [plan]="otherUser.plan"></app-user-avatar>
-                  <span class="flex flex-col min-w-0"><span class="text-sm font-bold text-text truncate hover:underline">{{ otherUser.username }}</span><span class="text-[10px] font-medium" [class.text-success]="otherUserOnline()" [class.text-text-muted]="!otherUserOnline()"><i class="inline-block w-1.5 h-1.5 rounded-full mr-1" [class.bg-success]="otherUserOnline()" [class.bg-text-muted]="!otherUserOnline()"></i>{{ otherUserOnline() ? 'Đang hoạt động' : 'Ngoại tuyến' }}</span></span>
+                  <app-user-avatar [src]="otherUser.avatarUrl" [name]="otherUser.username" [size]="36" [plan]="otherUser.plan" [isAdmin]="otherUser.isAdmin"></app-user-avatar>
+                  <span class="flex flex-col min-w-0"><span class="text-sm font-bold text-text truncate hover:underline">{{ otherUser.username }}</span><span class="text-[10px] font-medium" [class.text-success]="otherUserOnline()" [class.text-text-muted]="!otherUserOnline()"><span class="inline-block w-1.5 h-1.5 rounded-full mr-1" aria-hidden="true" [class.bg-success]="otherUserOnline()" [class.bg-text-muted]="!otherUserOnline()"></span>{{ otherUserOnline() ? 'Đang hoạt động' : 'Ngoại tuyến' }}</span></span>
                 </button>
               }
             </div>
@@ -281,7 +281,7 @@
                 </div>
               } @else if (messagesError()) {
                 <div class="flex-1 flex flex-col items-center justify-center gap-3 text-center" role="alert">
-                  <span class="material-symbols-outlined text-2xl text-error">cloud_off</span>
+                  <span class="material-symbols-outlined text-2xl text-error" aria-hidden="true">cloud_off</span>
                   <p class="text-xs text-text-muted">{{ messagesError() }}</p>
                   <button type="button" (click)="loadMessages(selectedConversationId()!)" class="h-9 px-4 rounded-control bg-surface-elevated border border-border text-xs font-bold cursor-pointer">
                     Thử lại
@@ -307,7 +307,7 @@
 
                 @if (messages().length === 0) {
                   <div class="flex-1 flex flex-col items-center justify-center gap-2 text-center">
-                    <span class="material-symbols-outlined text-2xl text-text-muted">waving_hand</span>
+                    <span class="material-symbols-outlined text-2xl text-text-muted" aria-hidden="true">waving_hand</span>
                     <p class="text-xs text-text-muted">Chưa có tin nhắn nào. Hãy gửi lời chào đầu tiên!</p>
                   </div>
                 }
@@ -322,7 +322,7 @@
                       [class.text-text]="message.senderId !== currentUserId"
                     >
                       {{ message.content }}
-                      <div class="mono-label text-xs opacity-70 mt-1 text-right">{{ formatMessageTime(message.createdAt) }}<span *ngIf="message.senderId === currentUserId"> · {{ message.readAt ? 'Đã xem' : 'Đã gửi' }}</span></div>
+                      <div class="mono-label text-xs opacity-70 mt-1 text-right">{{ formatMessageTime(message.createdAt) }}<span *ngIf="message.senderId === currentUserId"> · {{ isOptimisticMessage(message) ? 'Đang gửi' : message.readAt ? 'Đã xem' : 'Đã gửi' }}</span></div>
                     </div>
                   </div>
                 }
@@ -335,11 +335,11 @@
             <!-- Composer -->
             <form (ngSubmit)="sendMessage()" class="flex items-end gap-2 p-3 border-t border-border shrink-0">
               <textarea
+                #messageComposer
                 name="messageDraft"
                 [(ngModel)]="messageDraft"
                 (ngModelChange)="onDraftInput()"
                 [maxlength]="maxMessageLength"
-                [disabled]="sendPending()"
                 rows="1"
                 placeholder="Nhập tin nhắn..."
                 aria-label="Nội dung tin nhắn"
@@ -348,15 +348,11 @@
               ></textarea>
               <button
                 type="submit"
-                [disabled]="sendPending() || !messageDraft.trim()"
-                [attr.aria-label]="sendPending() ? 'Đang gửi tin nhắn' : 'Gửi tin nhắn'"
+                [disabled]="!messageDraft.trim()"
+                aria-label="Gửi tin nhắn"
                 class="h-10 px-4 bg-gradient-brand cta-shape text-text-on-accent text-sm font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
               >
-                @if (sendPending()) {
-                  <span class="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" aria-hidden="true"></span>
-                } @else {
-                  Gửi
-                }
+                Gửi
               </button>
             </form>
             @if (sendError()) {

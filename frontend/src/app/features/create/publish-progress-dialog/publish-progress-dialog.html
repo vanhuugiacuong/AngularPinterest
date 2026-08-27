@@ -33,7 +33,7 @@
         class="ppd-success-pop frame-trace frame-trace-active animate-trace-sweep mx-auto mb-5 w-12 h-12 rounded-full bg-gradient-brand flex items-center justify-center"
         aria-hidden="true"
       >
-        <span class="material-symbols-outlined text-2xl text-text-on-accent">check</span>
+        <span class="material-symbols-outlined text-2xl text-text-on-accent" aria-hidden="true">check</span>
       </div>
       <h2 id="publish-dialog-title" class="nf-dialog-title">Đăng ảnh thành công</h2>
       <p id="publish-dialog-desc" class="nf-dialog-description">Đang chuyển đến trang cá nhân của bạn…</p>
@@ -42,7 +42,7 @@
     <!-- ERROR -->
     <div *ngIf="status === 'error'" aria-live="assertive">
       <div class="nf-dialog-icon nf-dialog-icon--destructive" aria-hidden="true">
-        <span class="material-symbols-outlined">error</span>
+        <span class="material-symbols-outlined" aria-hidden="true">error</span>
       </div>
       <h2 id="publish-dialog-title" class="nf-dialog-title">Đăng ảnh thất bại</h2>
       <p id="publish-dialog-desc" class="nf-dialog-description">{{ errorMessage }}</p>

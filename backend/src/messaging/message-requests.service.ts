@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../database/prisma.service';
 import { BlocksService } from '../blocks/blocks.service';
 import { ReportsService } from '../reports/reports.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import {
   PUBLIC_USER_SELECT,
   findOrCreateConversation,
@@ -21,6 +22,7 @@ export class MessageRequestsService {
     private readonly prisma: PrismaService,
     private readonly blocksService: BlocksService,
     private readonly reportsService: ReportsService,
+    private readonly supabase: SupabaseService,
   ) {}
 
   async sendRequest(senderId: string, receiverId: string) {
@@ -56,21 +58,52 @@ export class MessageRequestsService {
         ],
       },
     });
-    if (existing) {
+    if (existing && existing.status !== 'REJECTED') {
       throw new ConflictException(this.describeExistingRequestConflict(existing, senderId));
     }
 
-    try {
-      return await this.prisma.messageRequest.create({
-        data: { senderId, receiverId },
-        include: { receiver: { select: PUBLIC_USER_SELECT } },
+    let request;
+    if (existing?.status === 'REJECTED') {
+      // A rejection resolves only that attempt. Reuse the pair's unique row
+      // for a fresh request so either user can try again later.
+      request = await this.prisma.messageRequest.update({
+        where: { id: existing.id },
+        data: {
+          senderId,
+          receiverId,
+          status: 'PENDING',
+          createdAt: new Date(),
+          respondedAt: null,
+        },
+        include: {
+          receiver: { select: PUBLIC_USER_SELECT },
+          sender: { select: PUBLIC_USER_SELECT },
+        },
       });
-    } catch (error) {
-      if (isUniqueConstraintError(error)) {
-        throw new ConflictException('Bạn đã gửi yêu cầu nhắn tin cho người này rồi');
+    } else {
+      try {
+        request = await this.prisma.messageRequest.create({
+          data: { senderId, receiverId },
+          include: {
+            receiver: { select: PUBLIC_USER_SELECT },
+            sender: { select: PUBLIC_USER_SELECT },
+          },
+        });
+      } catch (error) {
+        if (isUniqueConstraintError(error)) {
+          throw new ConflictException('Bạn đã gửi yêu cầu nhắn tin cho người này rồi');
+        }
+        throw error;
       }
-      throw error;
     }
+
+    // Instant push for the receiver's incoming-requests queue — mirrors
+    // ConversationsService.sendMessage's own broadcast for regular messages.
+    // MessagesComponent's poll (every 5s) + focus/visibility refresh stay on
+    // as a silent reconciliation fallback in case this broadcast is missed.
+    void this.supabase.broadcast(`user:${receiverId}`, 'message_request', { request });
+
+    return request;
   }
 
   async listIncoming(userId: string) {

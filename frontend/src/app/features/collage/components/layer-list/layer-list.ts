@@ -1,5 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
+import {
+  CollageLayer,
+  isDrawingLayer,
+  isImageLayer,
+  isTextLayer,
+} from '../../collage.types';
 import { CollageStoreService } from '../../services/collage-store.service';
 
 @Component({
@@ -31,6 +37,30 @@ export class LayerListComponent {
 
   get orderedLayers() {
     return [...this.store.layers()].sort((a, b) => b.zIndex - a.zIndex);
+  }
+
+  /** Only image layers have a picture to show; text and drawing rows get a glyph
+   * instead, which also makes the row's kind readable at a glance. */
+  thumbUrl(layer: CollageLayer): string | null {
+    return isImageLayer(layer) ? layer.cutoutImageUrl : null;
+  }
+
+  kindIcon(layer: CollageLayer): string {
+    if (isTextLayer(layer)) return 'title';
+    if (isDrawingLayer(layer)) return 'gesture';
+    return 'image';
+  }
+
+  /** Numbered per kind, so the list reads "Văn bản 1 / Hình vẽ 1 / Phần cắt 2"
+   * rather than numbering everything off one shared counter. */
+  layerLabel(layer: CollageLayer): string {
+    const sameKind = [...this.store.layers()]
+      .filter((candidate) => candidate.kind === layer.kind)
+      .sort((a, b) => a.zIndex - b.zIndex);
+    const position = sameKind.findIndex((candidate) => candidate.id === layer.id) + 1;
+    const noun =
+      layer.kind === 'text' ? 'Văn bản' : layer.kind === 'drawing' ? 'Hình vẽ' : 'Phần cắt';
+    return `${noun} ${position}`;
   }
 
   toggle(): void {
@@ -78,6 +108,30 @@ export class LayerListComponent {
 
   cancelPointerDrag(event: PointerEvent): void {
     if (event.pointerId === this.pointerId) this.resetPointerDrag(event);
+  }
+
+  /** Keyboard/touch equivalent of dragging a row one slot up (-1, toward
+   * index 0 = further forward) or down (+1 = further back) — reuses the
+   * same reorderFromFront primitive the pointer-drag path already calls. */
+  /** Đổi thứ tự bằng bàn phím: Alt/Ctrl + mũi tên lên/xuống trên hàng đang
+   * focus. Kéo-thả không dùng được bằng bàn phím, và hàng nút lên/xuống trước
+   * đây là con đường duy nhất — gỡ nó mà không có cái này là mất hẳn khả năng
+   * đổi thứ tự cho người dùng bàn phím / trình đọc màn hình. */
+  onRowKeydown(event: KeyboardEvent, id: string): void {
+    if (!event.altKey && !event.ctrlKey && !event.metaKey) return;
+    const direction = event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0;
+    if (!direction) return;
+    event.preventDefault();
+    this.moveStep(id, direction);
+  }
+
+  moveStep(id: string, direction: -1 | 1): void {
+    const orderedIds = this.orderedLayers.map((layer) => layer.id);
+    const index = orderedIds.indexOf(id);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= orderedIds.length) return;
+    [orderedIds[index], orderedIds[targetIndex]] = [orderedIds[targetIndex], orderedIds[index]];
+    this.store.reorderFromFront(orderedIds);
   }
 
   private moveLayer(draggedId: string, targetId: string): void {

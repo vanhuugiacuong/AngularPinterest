@@ -74,8 +74,33 @@ export class ToastHost implements OnDestroy {
     this.close(toast.id);
   }
 
-  iconFor(kind: Toast['kind']): string {
-    switch (kind) {
+  iconFor(toast: Toast): string {
+    if (toast.icon) return toast.icon;
+
+    const msg = toast.message.toLowerCase();
+    if (msg.includes('bộ sưu tập') || msg.includes('lưu') || msg.includes('album') || msg.includes('bảng')) {
+      return 'bookmark';
+    }
+    if (msg.includes('thích') || msg.includes('tim') || msg.includes('like')) {
+      return 'favorite';
+    }
+    if (msg.includes('liên kết') || msg.includes('link') || msg.includes('sao chép') || msg.includes('copy')) {
+      return 'link';
+    }
+    if (msg.includes('tải') || msg.includes('download')) {
+      return 'download';
+    }
+    if (msg.includes('tin nhắn') || msg.includes('message') || msg.includes('chat')) {
+      return 'chat_bubble';
+    }
+    if (msg.includes('theo dõi') || msg.includes('follow')) {
+      return 'person_add';
+    }
+    if (msg.includes('xóa') || msg.includes('hủy') || msg.includes('delete')) {
+      return 'delete';
+    }
+
+    switch (toast.kind) {
       case 'success':
         return 'check_circle';
       case 'error':

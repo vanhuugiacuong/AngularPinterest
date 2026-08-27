@@ -17,6 +17,21 @@ export class SupabaseService implements OnModuleInit {
    * the process lifetime since topics are per-user and reused constantly. */
   private readonly broadcastChannels = new Map<string, RealtimeChannel>();
 
+  /** A single profile-page load fires a burst of authenticated requests
+   * (profile, marketplace x3, auctions x2, boards, pins, notifications...)
+   * that all carry the exact same bearer token. Verifying that token
+   * separately for each one hammers Supabase's remote Auth API with
+   * concurrent duplicate calls, and any transient hiccup on one of them
+   * used to surface as an unhandled 500 ("Internal server error") on
+   * whichever endpoint happened to lose the race. inFlightVerifications
+   * dedupes concurrent calls for the same token into one request;
+   * verificationCache lets the next request within TOKEN_CACHE_TTL_MS skip
+   * the network call entirely. TTL is short so a revoked/expired token
+   * still stops working within seconds. */
+  private readonly verificationCache = new Map<string, { payload: UserPayload; expiresAt: number }>();
+  private readonly inFlightVerifications = new Map<string, Promise<UserPayload>>();
+  private readonly TOKEN_CACHE_TTL_MS = 30_000;
+
   async onModuleInit() {
     const url = process.env.SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -68,18 +83,63 @@ export class SupabaseService implements OnModuleInit {
       );
     }
 
-    const { data, error } = await this.supabaseClient.auth.getUser(token);
-    const user = data.user;
+    const cached = this.verificationCache.get(token);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.payload;
+    }
 
+    const inFlight = this.inFlightVerifications.get(token);
+    if (inFlight) return inFlight;
+
+    const verification = this.performTokenVerification(token).finally(() => {
+      this.inFlightVerifications.delete(token);
+    });
+    this.inFlightVerifications.set(token, verification);
+    return verification;
+  }
+
+  private async performTokenVerification(token: string): Promise<UserPayload> {
+    const client = this.supabaseClient!;
+    let data: Awaited<ReturnType<typeof client.auth.getUser>>['data'];
+    let error: Awaited<ReturnType<typeof client.auth.getUser>>['error'];
+    try {
+      ({ data, error } = await client.auth.getUser(token));
+    } catch (networkError) {
+      // A network/timeout hiccup talking to Supabase's Auth API must never
+      // bubble up as an unhandled 500 — surface it as a clean 401 instead,
+      // which every caller already handles (session-expired UX).
+      console.error(
+        '[SupabaseService] Lỗi khi gọi Supabase Auth để xác thực token:',
+        networkError,
+      );
+      throw new UnauthorizedException(
+        'Không thể xác thực phiên đăng nhập, vui lòng thử lại',
+      );
+    }
+
+    const user = data.user;
     if (error || !user?.id || !user.email) {
       throw new UnauthorizedException('Invalid or expired access token');
     }
 
-    return {
+    const payload: UserPayload = {
       id: user.id,
       email: user.email,
       role: user.role,
     };
+    if (this.verificationCache.size > 500) this.evictExpiredCacheEntries();
+    this.verificationCache.set(token, {
+      payload,
+      expiresAt: Date.now() + this.TOKEN_CACHE_TTL_MS,
+    });
+    return payload;
+  }
+
+  private evictExpiredCacheEntries(): void {
+    const now = Date.now();
+    for (const [token, entry] of this.verificationCache) {
+      if (entry.expiresAt <= now) this.verificationCache.delete(token);
+    }
   }
 
   /** Best-effort delete for rollback (e.g. a DB insert fails after the file

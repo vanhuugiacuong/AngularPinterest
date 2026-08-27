@@ -98,7 +98,6 @@
     var(--nf-blue) 60%,
     color-mix(in srgb, var(--nf-blue) 80%, black 30%)
   );
-  animation: nf-drift-a 26s ease-in-out infinite;
 }
 
 .nf-auth__obj--orb-purple {
@@ -113,35 +112,6 @@
     var(--nf-purple) 58%,
     color-mix(in srgb, var(--nf-purple) 80%, black 30%)
   );
-  animation: nf-drift-b 32s ease-in-out infinite;
-}
-
-/* Loops both return exactly to their starting transform, so the restart is
-   seamless rather than a visible snap. */
-@keyframes nf-drift-a {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  33% {
-    transform: translate(180px, 90px) scale(1.12);
-  }
-  66% {
-    transform: translate(70px, 220px) scale(0.94);
-  }
-}
-
-@keyframes nf-drift-b {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  30% {
-    transform: translate(-200px, -110px) scale(0.9);
-  }
-  65% {
-    transform: translate(-90px, -260px) scale(1.1);
-  }
 }
 
 /* ==================================================================== */
@@ -463,4 +433,46 @@
   .nf-auth__spinner {
     animation: nf-auth-spin 2.4s linear infinite;
   }
+}
+
+/* --- Content-notice step ---------------------------------------------
+   Shares the panel, the type scale and the submit button with the sign-in
+   step; only the mark and the body copy differ. Reusing --nf-* tokens rather
+   than the global palette keeps it inside the landing page's own theme, which
+   is what the rest of this stylesheet is built on. */
+.nf-auth__notice-mark {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  margin-bottom: 16px;
+  border-radius: 999px;
+  font-size: 27px;
+  color: var(--nf-electric);
+  background: color-mix(in srgb, var(--nf-electric) 12%, transparent);
+}
+
+.nf-auth__notice {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 26px;
+  max-width: 36ch;
+}
+
+.nf-auth__notice p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: color-mix(in srgb, var(--nf-ink) 68%, transparent);
+}
+
+.nf-auth__notice strong {
+  color: color-mix(in srgb, var(--nf-ink) 92%, transparent);
+  font-weight: 700;
+}
+
+.nf-auth__notice-small {
+  font-size: 12.5px !important;
+  color: color-mix(in srgb, var(--nf-ink) 55%, transparent) !important;
 }

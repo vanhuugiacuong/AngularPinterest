@@ -1,1 +1,72 @@
 /* Styles for PinDetail page */
+
+/* --- Pinterest-style closeup frame -------------------------------------
+   The pin frame takes the pin's OWN, unclamped aspect ratio. `--pin-ar` is the
+   image's measured width/height (see PinDetail.detailAspectRatio), set inline.
+
+   Split (portrait/square pin on a wide viewport): image fills the left half,
+   info the right. The body gets a definite height of `--pin-ar * 2` — the image
+   is half the body's width, so doubling the ratio makes the image box land on
+   *exactly* the pin's ratio (box width W/2, box height W/(2·ar) → ratio ar).
+   Nothing is cropped, and the info panel scrolls inside that height instead of
+   stretching the frame past the pin's ratio.
+
+   Stacked (landscape pin, or any narrow viewport): image on top at its own
+   ratio, info flowing beneath — what Pinterest itself does for wide pins.
+
+   Overflow guard ("zoom nhỏ lại"): a very large or very elongated pin would
+   otherwise run past the viewport. The max-heights below cap the box, and
+   because the image is `object-fit: contain` it scales *down* to fit rather
+   than being cropped — so the region-search magnifier always sees the whole
+   picture. When the cap is not in play the box already matches the pin's
+   ratio, so `contain` is a no-op and there are no letterbox bars. */
+
+.pin-frame-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pin-frame-image {
+  position: relative;
+  width: 100%;
+  flex-shrink: 0;
+  aspect-ratio: var(--pin-ar, 0.75);
+  /* Never taller than the viewport: a tall pin scales down instead of
+     pushing the info panel and the related grid off-screen. */
+  max-height: 78vh;
+}
+
+/* A wide pin at full frame width would push the info panel below the fold. */
+.pin-frame-body.is-stacked .pin-frame-image {
+  max-height: 62vh;
+}
+
+.pin-frame-image img {
+  object-fit: contain;
+}
+
+.pin-frame-info {
+  min-width: 0;
+  min-height: 0;
+}
+
+@media (min-width: 1024px) {
+  .pin-frame-body.is-split {
+    flex-direction: row;
+    aspect-ratio: calc(var(--pin-ar, 0.75) * 2);
+    max-height: 82vh;
+  }
+
+  .pin-frame-body.is-split .pin-frame-image {
+    width: 50%;
+    height: 100%;
+    max-height: none; /* The body's own cap governs in split mode. */
+    aspect-ratio: auto;
+  }
+
+  .pin-frame-body.is-split .pin-frame-info {
+    height: 100%;
+    overflow-y: auto;
+  }
+}

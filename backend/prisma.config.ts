@@ -9,6 +9,8 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // CLI-only (migrate/generate/studio): needs the session-mode connection,
+    // not the transaction pooler the running app uses. See backend/.env.
+    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
   },
 });

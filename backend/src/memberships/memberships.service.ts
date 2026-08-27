@@ -37,7 +37,8 @@ export class MembershipsService {
       day: '2-digit',
     }).format(new Date());
     const [y, m, d] = parts.split('-').map(Number);
-    const nextLocalMidnightUtcMs = Date.UTC(y, m - 1, d + 1, 0, 0, 0) - RESET_TZ_OFFSET_MS;
+    const nextLocalMidnightUtcMs =
+      Date.UTC(y, m - 1, d + 1, 0, 0, 0) - RESET_TZ_OFFSET_MS;
     return new Date(nextLocalMidnightUtcMs);
   }
 
@@ -54,7 +55,9 @@ export class MembershipsService {
         where: { id: userId },
         data: { plan: 'FREE', planStartedAt: new Date(), planExpiresAt: null },
       });
-      await writeAuditLog(this.prisma, userId, 'PLAN_EXPIRED', { previousPlan: user.plan });
+      await writeAuditLog(this.prisma, userId, 'PLAN_EXPIRED', {
+        previousPlan: user.plan,
+      });
     }
   }
 
@@ -65,32 +68,52 @@ export class MembershipsService {
     await this.applyExpiry(userId);
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { plan: true },
+      select: { plan: true, isAdmin: true },
     });
     if (!user) throw new NotFoundException('Không tìm thấy người dùng.');
-    return user.plan;
+    // Admin luôn được coi như đang ở gói Pro - toàn quyền mọi tính năng,
+    // không phụ thuộc gói thực tế đã mua (xem status() bên dưới, nơi quyết
+    // định chính cho phần lớn luồng kiểm tra quyền lợi).
+    return user.isAdmin ? 'PRO' : user.plan;
   }
 
   async status(userId: string) {
     await this.applyExpiry(userId);
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { plan: true, ownedPlans: true, planStartedAt: true, planExpiresAt: true },
+      select: {
+        plan: true,
+        ownedPlans: true,
+        planStartedAt: true,
+        planExpiresAt: true,
+        isAdmin: true,
+      },
     });
     if (!user) throw new NotFoundException('Không tìm thấy người dùng.');
 
+    // Admin luôn được coi như đang ở gói Pro - đây là điểm duy nhất quyết
+    // định quyền lợi cho hầu hết luồng nghiệp vụ (đấu giá, bán hàng,
+    // watermark nâng cao, tải ảnh sạch, giới hạn AI...), nên ghi đè plan ở
+    // đây là đủ để admin có toàn bộ quyền lợi của mọi gói tại mọi nơi gọi
+    // status(). ownedPlans/planStartedAt/planExpiresAt giữ nguyên giá trị
+    // thật - chỉ ảnh hưởng tới quyền lợi, không giả mạo lịch sử thanh toán.
+    const effectivePlan: MembershipPlan = user.isAdmin ? 'PRO' : user.plan;
     const usage = await this.prisma.aiUsage.findUnique({
       where: { userId_usageDate: { userId, usageDate: this.todayInTz() } },
     });
-    const entitlements = PLAN_ENTITLEMENTS[user.plan];
+    const entitlements = PLAN_ENTITLEMENTS[effectivePlan];
     const used = usage?.count ?? 0;
 
     return {
       ...user,
+      plan: effectivePlan,
       ...entitlements,
       aiUsed: used,
       aiLimit: entitlements.aiDailyLimit,
-      aiRemaining: entitlements.aiDailyLimit === null ? null : Math.max(0, entitlements.aiDailyLimit - used),
+      aiRemaining:
+        entitlements.aiDailyLimit === null
+          ? null
+          : Math.max(0, entitlements.aiDailyLimit - used),
       aiResetAt: this.nextResetAt().toISOString(),
       // Giữ 2 field cũ để không phá tương thích với frontend hiện có.
       canDownloadClean: entitlements.cleanDownload,
@@ -100,7 +123,7 @@ export class MembershipsService {
 
   async changePlan(userId: string, plan: MembershipPlan) {
     if (!Object.values(MembershipPlan).includes(plan)) {
-      throw new BadRequestException('Gói không hợp lệ.');
+      throw new BadRequestException('Gói thành viên không hợp lệ.');
     }
 
     if (plan === 'FREE') {
@@ -111,7 +134,9 @@ export class MembershipsService {
       });
       if (!current) throw new NotFoundException('Không tìm thấy người dùng.');
       if (current.plan !== 'FREE') {
-        throw new ForbiddenException('Gói Plus hoặc Pro sẽ tự động chuyển về Free khi hết hạn.');
+        throw new ForbiddenException(
+          'Gói Plus hoặc Pro sẽ tự động chuyển về Free khi hết hạn.',
+        );
       }
       return this.status(userId);
     }
@@ -130,12 +155,18 @@ export class MembershipsService {
       orderBy: { expiresAt: 'desc' },
     });
     if (!activeSub) {
-      throw new ForbiddenException('Gói này đã hết hạn, vui lòng gia hạn để tiếp tục sử dụng.');
+      throw new ForbiddenException(
+        'Gói này đã hết hạn, vui lòng gia hạn để tiếp tục sử dụng.',
+      );
     }
 
     await this.prisma.user.update({
       where: { id: userId },
-      data: { plan, planStartedAt: new Date(), planExpiresAt: activeSub.expiresAt },
+      data: {
+        plan,
+        planStartedAt: new Date(),
+        planExpiresAt: activeSub.expiresAt,
+      },
     });
     await writeAuditLog(this.prisma, userId, 'PLAN_CHANGED', { plan });
     return this.status(userId);
@@ -143,30 +174,54 @@ export class MembershipsService {
 
   // Gọi sau khi 1 MembershipPayment chuyển sang PAID (webhook hoặc admin xác
   // nhận) - không bao giờ gọi trực tiếp từ 1 request do client khởi tạo.
-  async activatePlan(userId: string, plan: MembershipPlan, paymentId: string, expiresAt: Date) {
+  async activatePlan(
+    userId: string,
+    plan: MembershipPlan,
+    paymentId: string,
+    expiresAt: Date,
+  ) {
     await this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({ where: { id: userId }, select: { ownedPlans: true } });
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { ownedPlans: true },
+      });
       if (!user) throw new NotFoundException('Không tìm thấy người dùng.');
-      const ownedPlans = user.ownedPlans.includes(plan) ? user.ownedPlans : [...user.ownedPlans, plan];
+      const ownedPlans = user.ownedPlans.includes(plan)
+        ? user.ownedPlans
+        : [...user.ownedPlans, plan];
       await tx.user.update({
         where: { id: userId },
-        data: { plan, planStartedAt: new Date(), planExpiresAt: expiresAt, ownedPlans },
+        data: {
+          plan,
+          planStartedAt: new Date(),
+          planExpiresAt: expiresAt,
+          ownedPlans,
+        },
       });
       await tx.membershipSubscription.create({
         data: { userId, plan, paymentId, expiresAt },
       });
     });
-    await writeAuditLog(this.prisma, userId, 'PLAN_ACTIVATED', { plan, paymentId, expiresAt });
+    await writeAuditLog(this.prisma, userId, 'PLAN_ACTIVATED', {
+      plan,
+      paymentId,
+      expiresAt,
+    });
   }
 
   // Nguyên tử: INSERT..ON CONFLICT..WHERE đảm bảo nhiều request đồng thời
   // không thể cùng vượt hạn mức (tránh race condition đọc-rồi-ghi trước đây).
   async consumeAi(userId: string) {
     await this.applyExpiry(userId);
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { plan: true, isAdmin: true },
+    });
     if (!user) throw new NotFoundException('Không tìm thấy người dùng.');
 
-    const limit = PLAN_ENTITLEMENTS[user.plan].aiDailyLimit;
+    const limit = user.isAdmin
+      ? null
+      : PLAN_ENTITLEMENTS[user.plan].aiDailyLimit;
     const usageDate = this.todayInTz();
     const id = randomUUID();
 
@@ -203,7 +258,12 @@ export class MembershipsService {
     }
 
     const used = rows[0].count;
-    return { used, limit, remaining: limit - used, resetAt: this.nextResetAt().toISOString() };
+    return {
+      used,
+      limit,
+      remaining: limit - used,
+      resetAt: this.nextResetAt().toISOString(),
+    };
   }
 
   // Tạo (hoặc trả lại) yêu cầu mua ảnh PENDING - không bao giờ tự cấp quyền
@@ -212,25 +272,41 @@ export class MembershipsService {
   async purchase(userId: string, pinId: string) {
     const pin = await this.prisma.pin.findUnique({ where: { id: pinId } });
     if (!pin) throw new NotFoundException('Không tìm thấy ảnh.');
-    if (pin.userId === userId) throw new BadRequestException('Bạn không thể mua ảnh của chính mình.');
-    if (!pin.isForSale || !pin.price) throw new BadRequestException('Ảnh này hiện không được rao bán.');
+    if (pin.userId === userId)
+      throw new BadRequestException('Bạn không thể mua ảnh của chính mình.');
+    if (!pin.isForSale || !pin.price)
+      throw new BadRequestException('Ảnh này hiện không được rao bán.');
 
     const buyerPlan = await this.activePlan(userId);
     if (buyerPlan !== 'PLUS' && buyerPlan !== 'PRO') {
-      throw new ForbiddenException('Nâng cấp gói để mua và trao đổi tác phẩm có giá trị.');
+      throw new ForbiddenException(
+        'Nâng cấp gói để mua và trao đổi tác phẩm có giá trị.',
+      );
     }
 
     const sellerPlan = await this.activePlan(pin.userId);
     if (sellerPlan !== 'PLUS' && sellerPlan !== 'PRO') {
-      throw new ForbiddenException('Người bán không còn gói Plus hoặc Pro, sản phẩm này đang tạm dừng bán.');
+      throw new ForbiddenException(
+        'Người bán không còn gói Plus hoặc Pro, sản phẩm này đang tạm dừng bán.',
+      );
     }
 
     const seller = await this.prisma.user.findUnique({
       where: { id: pin.userId },
-      select: { payoutBankCode: true, payoutAccountNumber: true, payoutAccountName: true },
+      select: {
+        payoutBankCode: true,
+        payoutAccountNumber: true,
+        payoutAccountName: true,
+      },
     });
-    if (!seller?.payoutBankCode || !seller.payoutAccountNumber || !seller.payoutAccountName) {
-      throw new BadRequestException('Người bán chưa cấu hình thông tin nhận thanh toán.');
+    if (
+      !seller?.payoutBankCode ||
+      !seller.payoutAccountNumber ||
+      !seller.payoutAccountName
+    ) {
+      throw new BadRequestException(
+        'Người bán chưa cấu hình thông tin nhận thanh toán.',
+      );
     }
     // Người mua chuyển thẳng vào tài khoản người bán - trả kèm thông tin này
     // để frontend tạo QR đúng, không còn dùng tài khoản chung của platform.
@@ -247,7 +323,14 @@ export class MembershipsService {
 
     const paymentReference = `BUY${Date.now().toString(36).toUpperCase()}${randomUUID().replace(/-/g, '').slice(0, 6).toUpperCase()}`;
     const created = await this.prisma.imagePurchase.create({
-      data: { pinId, buyerId: userId, sellerId: pin.userId, amount: pin.price, status: 'PENDING', paymentReference },
+      data: {
+        pinId,
+        buyerId: userId,
+        sellerId: pin.userId,
+        amount: pin.price,
+        status: 'PENDING',
+        paymentReference,
+      },
     });
     return { ...created, sellerPayout };
   }
@@ -256,10 +339,19 @@ export class MembershipsService {
   async getPayoutAccount(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { payoutBankCode: true, payoutAccountNumber: true, payoutAccountName: true },
+      select: {
+        payoutBankCode: true,
+        payoutAccountNumber: true,
+        payoutAccountName: true,
+      },
     });
     if (!user) throw new NotFoundException('Không tìm thấy người dùng.');
-    if (!user.payoutBankCode || !user.payoutAccountNumber || !user.payoutAccountName) return null;
+    if (
+      !user.payoutBankCode ||
+      !user.payoutAccountNumber ||
+      !user.payoutAccountName
+    )
+      return null;
     return {
       bankCode: user.payoutBankCode,
       accountNumber: user.payoutAccountNumber,
@@ -270,18 +362,29 @@ export class MembershipsService {
   async updatePayoutAccount(userId: string, body: Record<string, unknown>) {
     const plan = await this.activePlan(userId);
     if (plan !== 'PLUS' && plan !== 'PRO') {
-      throw new ForbiddenException('Chỉ thành viên Plus hoặc Pro mới có thể cấu hình tài khoản nhận thanh toán.');
+      throw new ForbiddenException(
+        'Chỉ thành viên Plus hoặc Pro mới có thể cấu hình tài khoản nhận thanh toán.',
+      );
     }
 
-    const bankCode = typeof body.bankCode === 'string' ? body.bankCode.trim().toUpperCase() : '';
-    const accountNumber = typeof body.accountNumber === 'string' ? body.accountNumber.trim() : '';
-    const accountName = typeof body.accountName === 'string' ? body.accountName.trim() : '';
+    const bankCode =
+      typeof body.bankCode === 'string'
+        ? body.bankCode.trim().toUpperCase()
+        : '';
+    const accountNumber =
+      typeof body.accountNumber === 'string' ? body.accountNumber.trim() : '';
+    const accountName =
+      typeof body.accountName === 'string'
+        ? body.accountName.trim().toUpperCase()
+        : '';
 
     if (!isSupportedBankCode(bankCode)) {
       throw new BadRequestException('Ngân hàng không được hỗ trợ.');
     }
     if (!/^\d{6,19}$/.test(accountNumber)) {
-      throw new BadRequestException('Số tài khoản không hợp lệ (chỉ chữ số, 6-19 ký tự).');
+      throw new BadRequestException(
+        'Số tài khoản không hợp lệ (chỉ chữ số, 6-19 ký tự).',
+      );
     }
     if (!accountName || accountName.length > 100) {
       throw new BadRequestException('Vui lòng nhập tên chủ tài khoản hợp lệ.');
@@ -289,16 +392,25 @@ export class MembershipsService {
 
     await this.prisma.user.update({
       where: { id: userId },
-      data: { payoutBankCode: bankCode, payoutAccountNumber: accountNumber, payoutAccountName: accountName },
+      data: {
+        payoutBankCode: bankCode,
+        payoutAccountNumber: accountNumber,
+        payoutAccountName: accountName,
+      },
     });
-    await writeAuditLog(this.prisma, userId, 'PAYOUT_ACCOUNT_UPDATED', { bankCode });
+    await writeAuditLog(this.prisma, userId, 'PAYOUT_ACCOUNT_UPDATED', {
+      bankCode,
+    });
     return this.getPayoutAccount(userId);
   }
 
   async listPendingSales(userId: string) {
     return this.prisma.imagePurchase.findMany({
       where: { sellerId: userId, status: 'PENDING' },
-      include: { pin: { select: { id: true, title: true, imageUrl: true } }, buyer: { select: { username: true } } },
+      include: {
+        pin: { select: { id: true, title: true, imageUrl: true } },
+        buyer: { select: { username: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -306,7 +418,10 @@ export class MembershipsService {
   async listSales(userId: string) {
     const sales = await this.prisma.imagePurchase.findMany({
       where: { sellerId: userId, status: 'PAID' },
-      include: { pin: { select: { id: true, title: true, imageUrl: true } }, buyer: { select: { username: true } } },
+      include: {
+        pin: { select: { id: true, title: true, imageUrl: true } },
+        buyer: { select: { username: true } },
+      },
       orderBy: { verifiedAt: 'desc' },
     });
     const revenue = sales.reduce((sum, s) => sum + Number(s.amount), 0);
@@ -316,7 +431,10 @@ export class MembershipsService {
   async listPurchases(userId: string) {
     return this.prisma.imagePurchase.findMany({
       where: { buyerId: userId },
-      include: { pin: { select: { id: true, title: true, imageUrl: true } }, seller: { select: { username: true } } },
+      include: {
+        pin: { select: { id: true, title: true, imageUrl: true } },
+        seller: { select: { username: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }

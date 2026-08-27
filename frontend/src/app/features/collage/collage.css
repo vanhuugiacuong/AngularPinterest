@@ -9,132 +9,202 @@
 }
 .collage-main {
   width: 100%;
-  padding: 88px 22px 32px;
+  padding: 76px 22px 28px;
 }
-.workspace-header {
+
+/* --- Fit-the-viewport editor ---------------------------------------------
+   Above the stacking breakpoint the whole editor is exactly one screen tall and
+   the page itself never scrolls; each column scrolls inside its own box.
+
+   This replaces per-panel `max-height: calc(100vh - 150px)` / `- 230px`. Those
+   numbers were each guessing the space above their own panel, and they did not
+   add up: the right panel starts at 76 (top padding) + 40 (bar) + 14 (margin)
+   = 130px, so `100vh - 150px` plus the 28px bottom padding overflowed the
+   viewport by a sliver — enough to arm a scrollbar for nothing. Deriving the
+   height from the real box instead of a constant means it cannot drift again
+   when the bar or the padding changes.
+
+   Gated at 1101px, not the 761px stacking breakpoint: below 1100px the grid
+   wraps the image column onto a second row, and two rows inside a fixed height
+   would squeeze both instead of scrolling. That range keeps normal document
+   flow. */
+@media (min-width: 1101px) {
+  .collage-page {
+    height: 100vh;
+    overflow: hidden;
+  }
+  .collage-main {
+    /* Navbar is fixed at h-16 = 64px; the rest of the screen is ours. */
+    height: calc(100vh - 64px);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 12px 22px 16px;
+    margin-top: 64px;
+  }
+  /* min-height: 0 at every level, or a grid/flex child refuses to shrink below
+     its content and pushes the overflow back out.
+     `align-items: stretch` and an explicit `minmax(0, 1fr)` row matter just as
+     much: the base rule sets `align-items: start`, which leaves the single row
+     auto-sized to its tallest content — so a column's `height: 100%` resolved
+     against a row that was itself sized by that column. Circular, and the net
+     effect was that nothing was ever bounded and no panel could scroll. */
+  .workspace-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: stretch;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .layers-column,
+  .canvas-column,
+  .images-column {
+    height: 100%;
+    min-height: 0;
+    /* The base rule sticks these at top: 82px for a scrolling page. Nothing
+       scrolls at page level here, so sticky only risks fighting the fixed
+       height. */
+    position: static;
+  }
+  .canvas-column {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* --- Editor bar -----------------------------------------------------------
+   One slim row directly under the site navbar: exit · title · history ·
+   overflow · next. This replaces a two-block header (eyebrow + h1 + format
+   subtitle, then a row of five labelled buttons) that ate roughly 140px above
+   the canvas on a page whose entire purpose is the canvas. */
+.editor-bar {
   display: flex;
   max-width: 1680px;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 20px;
-  margin: 0 auto 18px;
+  align-items: center;
+  gap: 6px;
+  margin: 0 auto 14px;
 }
-.workspace-header h1 {
-  margin: 4px 0 3px;
-  font-size: clamp(24px, 3vw, 34px);
-  letter-spacing: -0.03em;
+.editor-bar__title {
+  margin: 0 4px;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
 }
-.workspace-header p {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: 11px;
+.editor-bar__spacer {
+  flex: 1 1 auto;
 }
-.workspace-eyebrow {
-  color: var(--color-accent);
-  font-family: var(--font-sans);
-  font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-.header-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 9px;
-}
-.header-actions button {
-  display: flex;
-  min-height: 42px;
+.editor-bar__icon {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 0 15px;
-  border-radius: var(--radius-control);
+  border: 0;
+  border-radius: 9999px;
   color: var(--color-text);
-  font-size: 11px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.editor-bar__icon:hover:not(:disabled) {
+  background: var(--color-surface-elevated);
+}
+.editor-bar__icon:disabled {
+  cursor: not-allowed;
+  opacity: 0.32;
+}
+.editor-bar__icon:focus-visible,
+.editor-bar__next:focus-visible,
+.canvas-tools__btn:focus-visible {
+  outline: 2px solid var(--color-nova-blue);
+  outline-offset: 2px;
+}
+.editor-bar__icon .material-symbols-outlined {
+  font-size: 21px;
+}
+
+/* Same brand gradient as every other primary CTA in the app. */
+.editor-bar__next {
+  height: 40px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 9999px;
+  color: var(--color-text-on-accent);
+  background: linear-gradient(135deg, var(--color-nova-blue) 0%, var(--color-iris-violet) 100%);
+  box-shadow: 0 6px 20px -10px color-mix(in srgb, var(--color-nova-blue) 45%, transparent);
+  font-size: 13px;
   font-weight: 800;
   cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease;
 }
-.secondary-action {
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
+.editor-bar__next:hover:not(:disabled) {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
 }
-.secondary-action:hover {
-  border-color: var(--color-border-strong);
-  background: var(--color-surface-elevated);
+.editor-bar__next:active:not(:disabled) {
+  transform: translateY(0);
 }
-/* Same signature asymmetric CTA shape as .cta-shape elsewhere (navbar
-   login, Home's Lưu button, Pin Detail's actions). */
-.primary-action {
-  border: 0;
-  border-radius: var(--radius-cta);
-  background: var(--color-nova-blue);
-  box-shadow: 0 6px 20px -10px color-mix(in srgb, var(--color-nova-blue) 45%, transparent);
-  transition: transform 0.2s var(--ease-trace);
-}
-.primary-action:hover {
-  transform: translateY(-2px);
-}
-.primary-action:active {
-  transform: translateY(0)
-}
-.header-actions .material-symbols-outlined {
-  font-size: 17px;
-}
-.editor-toolbar {
-  display: flex;
-  max-width: 1680px;
-  align-items: center;
-  gap: 5px;
-  margin: 0 auto 12px;
-  padding: 7px;
-  overflow-x: auto;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-}
-.editor-toolbar button {
-  display: flex;
-  min-width: max-content;
-  height: 36px;
-  align-items: center;
-  gap: 5px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 8px;
-  color: var(--color-text-muted);
-  background: transparent;
-  font-size: 10px;
-  font-weight: 750;
-  cursor: pointer;
-}
-.editor-toolbar button:hover:not(:disabled) {
-  color: var(--color-text);
-  background: var(--color-surface-elevated);
-}
-.editor-toolbar button.danger-tool:hover:not(:disabled) {
-  color: var(--color-error);
-}
-.editor-toolbar button:disabled,
-.header-actions button:disabled {
+.editor-bar__next:disabled {
   cursor: not-allowed;
   opacity: 0.38;
   box-shadow: none;
 }
-.editor-toolbar .material-symbols-outlined {
-  font-size: 18px;
-}
-.toolbar-divider {
-  width: 1px;
-  height: 22px;
+
+.editor-bar__overflow {
+  position: relative;
   flex: 0 0 auto;
-  margin: 0 4px;
-  background: var(--color-border);
 }
+.overflow-menu {
+  position: absolute;
+  top: 46px;
+  right: 0;
+  z-index: 30;
+  display: flex;
+  width: 232px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface-elevated);
+  box-shadow: 0 20px 50px -20px color-mix(in srgb, var(--color-ink) 60%, transparent);
+}
+.overflow-menu button {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--color-text);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+.overflow-menu button:hover:not(:disabled) {
+  background: var(--color-surface-high);
+}
+.overflow-menu button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.overflow-menu .material-symbols-outlined {
+  font-size: 19px;
+  color: var(--color-text-muted);
+}
+
+/* The right column is the widest of the three. It carries both the browse grid
+   and the cutout step, and the cutout step needs the image big enough to trace
+   an outline around a subject by hand — at the previous 280–340px that trace
+   was being done inside a thumbnail. The artboard stays comfortable because it
+   is a fixed 9:16 that scales to fit whatever it gets. */
 .workspace-grid {
   display: grid;
-  grid-template-columns: minmax(210px, 250px) minmax(360px, 1fr) minmax(260px, 320px);
+  grid-template-columns: minmax(200px, 248px) minmax(300px, 1fr) minmax(420px, 640px);
   max-width: 1680px;
   align-items: start;
   gap: 14px;
@@ -149,6 +219,56 @@
 .canvas-column {
   min-width: 0;
 }
+
+/* --- Insert tools ---------------------------------------------------------
+   Bottom-centre under the artboard: text, drawing, image. Per-layer actions are
+   NOT here — they are anchored to the selected cutout inside the canvas
+   component, so a control always sits next to what it changes. */
+.insert-tools {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 6px;
+}
+.insert-tools__btn {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 9999px;
+  color: var(--color-text);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+.insert-tools__btn:hover:not(:disabled) {
+  background: var(--color-surface-elevated);
+}
+.insert-tools__btn:focus-visible {
+  outline: 2px solid var(--color-nova-blue);
+  outline-offset: 2px;
+}
+.insert-tools__btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.34;
+}
+.insert-tools__btn .material-symbols-outlined {
+  font-size: 25px;
+}
+
+.editor-bar__status {
+  padding: 0 8px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.editor-bar__status--done {
+  color: var(--color-success, var(--color-text-muted));
+}
+
 .canvas-help {
   margin: 9px 0 0;
   color: var(--color-text-muted);
@@ -157,6 +277,7 @@
   letter-spacing: 0.01em;
   text-align: center;
 }
+
 @media (max-width: 1100px) {
   .workspace-grid {
     grid-template-columns: minmax(190px, 230px) minmax(0, 1fr);
@@ -168,18 +289,12 @@
 }
 @media (max-width: 760px) {
   .collage-main {
-    padding: 80px 10px 24px;
+    padding: 72px 10px 24px;
   }
-  .workspace-header {
-    align-items: stretch;
-    flex-direction: column;
-  }
-  .header-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-  .header-actions .primary-action {
-    grid-column: 1 / -1;
+  .editor-bar__title {
+    overflow: hidden;
+    font-size: 15px;
+    text-overflow: ellipsis;
   }
   .workspace-grid {
     display: flex;
@@ -200,7 +315,12 @@
   .images-column {
     order: 3;
   }
-  .editor-toolbar button span:last-child {
-    display: none;
-  }
+}
+
+/* Lit while that tool owns the canvas — the draw tool in particular changes what
+   a press on the artboard does, so it must be visible that it is armed. */
+.insert-tools__btn.active {
+  color: var(--color-nova-blue);
+  background: color-mix(in srgb, var(--color-nova-blue) 14%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-nova-blue) 45%, transparent);
 }

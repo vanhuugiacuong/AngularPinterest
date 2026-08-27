@@ -1,49 +1,244 @@
 /* Component-specific styles for Navbar */
 
-/* Search bar focus-sweep: a thin brand-gradient line grows in from the left
-   on focus, instead of a heavy ring around a pill. */
+/* --- Search bar ------------------------------------------------------------
+   ONE focus treatment, not two. This previously combined an accent
+   `border-color` with a separate 2px gradient bar pinned to `bottom: 0` and
+   inset 14px — that bar cut straight across the rounded corners and read as a
+   stray violet underline floating below the control rather than part of it.
+
+   Focus now lights a single brand-gradient ring that follows the pill, drawn
+   with the same two-layer background-clip technique as `.nf-gradient-pill`
+   below, so every gradient edge in the header resolves to identical stops. The
+   border stays 1.5px transparent at rest and only its *paint* changes, so the
+   bar never shifts size between states. */
 .nf-search {
   position: relative;
+  height: 48px;
+  /* Tight on the right: the trailing icon buttons carry their own padding. */
+  padding: 0 8px 0 18px;
+  border-radius: 9999px;
+  border: 1.5px solid transparent;
+  background-image:
+    linear-gradient(var(--color-surface), var(--color-surface)),
+    linear-gradient(var(--color-border), var(--color-border));
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  transition: background-image 0.2s ease, box-shadow 0.25s ease;
 }
 
-.nf-search::after {
-  content: "";
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 0;
-  height: 2px;
-  /* Same brand gradient as .bg-gradient-brand / .text-gradient-brand in
-     styles.css (rotated to horizontal), so every brand gradient in the app
-     resolves to the same token-driven stops. */
-  background: linear-gradient(90deg, var(--color-nova-blue) 0%, var(--color-iris-violet) 100%);
-  transform: scaleX(0);
-  transform-origin: left center;
-  transition: transform 0.3s ease;
+.nf-search:hover {
+  background-image:
+    linear-gradient(var(--color-surface), var(--color-surface)),
+    linear-gradient(var(--color-border-strong), var(--color-border-strong));
 }
 
 .nf-search:focus-within {
-  border-color: var(--color-accent);
+  background-image:
+    linear-gradient(var(--color-surface), var(--color-surface)),
+    linear-gradient(135deg, var(--color-nova-blue) 0%, var(--color-iris-violet) 100%);
+  /* Soft lift only — no `0 0 0 1px` ring, which would double the border. */
+  box-shadow: 0 6px 22px -10px color-mix(in srgb, var(--color-nova-blue) 55%, transparent);
 }
 
-.nf-search:focus-within::after {
-  transform: scaleX(1);
+/* Leading magnifier picks up the brand tint on focus, so the eye is drawn to
+   the field that is actually active. */
+.nf-search-icon {
+  color: var(--color-text-muted);
+  transition: color 0.2s ease;
 }
 
-.account-menu{width:350px;max-width:calc(100vw - 24px);padding:14px;border:1px solid var(--color-border);border-radius:22px;background:color-mix(in srgb,var(--color-surface-elevated) 96%,transparent);box-shadow:0 24px 70px rgba(0,0,0,.48);backdrop-filter:blur(22px);display:flex;flex-direction:column;gap:5px;color:var(--color-text)}
-.account-menu-eyebrow{padding:2px 8px 7px;font:700 9px var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--color-text-muted)}
-.account-menu-user{display:flex;align-items:center;gap:13px;padding:12px;border:1px solid var(--color-border);border-radius:16px;background:linear-gradient(135deg,color-mix(in srgb,var(--color-nova-blue) 9%,var(--color-surface)),color-mix(in srgb,var(--color-accent) 5%,var(--color-surface)))}
-.account-menu-section{padding:13px 10px 4px;font:700 9px var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--color-text-muted)}
-.account-menu-item{width:100%;min-height:46px;padding:8px 11px;border:0;border-radius:12px;background:transparent;color:var(--color-text);display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:8px;text-align:left;font-size:13px;font-weight:750;cursor:pointer;transition:background .18s,transform .18s,color .18s}
-.account-menu-item:hover{background:var(--color-surface-high);transform:translateX(2px)}
-.account-menu-item:focus-visible{outline:2px solid var(--color-accent);outline-offset:1px}
-.account-menu-item>.material-symbols-outlined:first-child{font-size:20px;color:var(--color-text-muted)}
-.account-menu-item>i{font-style:normal;font-size:18px;color:var(--color-text-muted)}
-.account-menu-wallet{margin-top:3px;background:color-mix(in srgb,var(--color-accent) 5%,transparent)}
-.account-menu-wallet>img{width:26px;height:26px;object-fit:contain;filter:drop-shadow(0 4px 7px rgba(0,0,0,.4))}
-.account-menu-wallet>span{display:flex;flex-direction:column;gap:2px}.account-menu-wallet b{font-size:13px}.account-menu-wallet small{font:650 10px var(--font-mono);color:var(--color-accent)}
-.account-menu-membership{grid-template-columns:28px minmax(0,1fr) auto auto;color:var(--color-accent)}.account-menu-membership>.material-symbols-outlined:first-child{color:var(--color-accent)}.account-menu-membership em{font:800 8px var(--font-mono);font-style:normal;padding:4px 7px;border-radius:99px;background:color-mix(in srgb,var(--color-accent) 12%,transparent);border:1px solid color-mix(in srgb,var(--color-accent) 24%,transparent)}
-.account-menu-signout{margin-top:7px;border-top:1px solid var(--color-border);border-radius:0 0 12px 12px;color:var(--color-error)}.account-menu-signout>.material-symbols-outlined:first-child{color:var(--color-error)}
+.nf-search:focus-within .nf-search-icon {
+  color: var(--color-nova-blue);
+}
+
+/* Trailing actions (clear, search-by-image) — round hit targets that only
+   reveal their surface on hover, keeping the resting bar clean. */
+.nf-search-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.nf-search-action:hover {
+  background: var(--color-surface-high);
+  color: var(--color-text);
+}
+
+.nf-search-action:focus-visible {
+  outline: 2px solid var(--color-nova-blue);
+  outline-offset: 1px;
+}
+
+.nf-search-camera:hover {
+  color: var(--color-nova-blue);
+}
+
+.nf-search-camera-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
+/* Hairline between the text field and the image-search action, so the camera
+   reads as a separate tool rather than another glyph inside the query. */
+.nf-search-divider {
+  width: 1px;
+  height: 22px;
+  flex-shrink: 0;
+  margin: 0 2px;
+  background: var(--color-border);
+}
+
+.account-menu {
+  width: 350px;
+  max-width: calc(100vw - 24px);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border: 1px solid var(--color-border);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--color-surface-elevated) 96%, transparent);
+  box-shadow: 0 24px 70px color-mix(in srgb, var(--color-ink) 48%, transparent);
+  backdrop-filter: blur(22px);
+  color: var(--color-text);
+}
+
+.account-menu-eyebrow {
+  padding: 2px 8px 7px;
+  font: 700 9px var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.account-menu-user {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-nova-blue) 9%, var(--color-surface)),
+    color-mix(in srgb, var(--color-accent) 5%, var(--color-surface))
+  );
+}
+
+.account-menu-section {
+  padding: 13px 10px 4px;
+  font: 700 9px var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.account-menu-item {
+  width: 100%;
+  min-height: 46px;
+  padding: 8px 11px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: background 0.18s, transform 0.18s, color 0.18s;
+}
+
+.account-menu-item:hover {
+  background: var(--color-surface-high);
+  transform: translateX(2px);
+}
+
+.account-menu-item:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.account-menu-item > .material-symbols-outlined:first-child {
+  font-size: 20px;
+  color: var(--color-text-muted);
+}
+
+.account-menu-item > i {
+  font-style: normal;
+  font-size: 18px;
+  color: var(--color-text-muted);
+}
+
+.account-menu-wallet {
+  margin-top: 3px;
+  background: color-mix(in srgb, var(--color-accent) 5%, transparent);
+}
+
+.account-menu-wallet > img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 7px color-mix(in srgb, var(--color-ink) 40%, transparent));
+}
+
+.account-menu-wallet > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.account-menu-wallet b {
+  font-size: 13px;
+}
+
+.account-menu-wallet small {
+  font: 650 10px var(--font-mono);
+  color: var(--color-accent);
+}
+
+.account-menu-membership {
+  grid-template-columns: 28px minmax(0, 1fr) auto auto;
+  color: var(--color-accent);
+}
+
+.account-menu-membership > .material-symbols-outlined:first-child {
+  color: var(--color-accent);
+}
+
+.account-menu-membership em {
+  font: 800 8px var(--font-mono);
+  font-style: normal;
+  padding: 4px 7px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 24%, transparent);
+}
+
+.account-menu-signout {
+  margin-top: 7px;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0 0 12px 12px;
+  color: var(--color-error);
+}
+
+.account-menu-signout > .material-symbols-outlined:first-child {
+  color: var(--color-error);
+}
 
 /* The input stays type="search" (native Enter-to-submit, form semantics),
    but the browser's own cancel/decoration glyphs would otherwise render
@@ -51,7 +246,45 @@
    WebKit/Chromium. Only our custom button (below) should remain. */
 .nf-search input[type="search"]::-webkit-search-cancel-button,
 .nf-search input[type="search"]::-webkit-search-decoration {
-  appearance: none;
   -webkit-appearance: none;
-  display: none;
+  appearance: none;
 }
+/* Signature Blue-Violet Gradient Border Pill for header buttons */
+.nf-gradient-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  border-radius: 9999px;
+  border: 1.5px solid transparent;
+  background-image:
+    linear-gradient(var(--color-surface-elevated), var(--color-surface-elevated)),
+    linear-gradient(135deg, var(--color-nova-blue) 0%, var(--color-iris-violet) 100%);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  color: var(--color-text);
+  font-weight: 700;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.nf-gradient-pill .material-symbols-outlined {
+  background-image: linear-gradient(135deg, var(--color-nova-blue) 0%, var(--color-iris-violet) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  display: inline-block;
+}
+
+.nf-gradient-pill:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px -4px color-mix(in srgb, var(--color-nova-blue) 40%, transparent);
+}
+
+.nf-gradient-pill:active {
+  transform: translateY(0);
+}
+

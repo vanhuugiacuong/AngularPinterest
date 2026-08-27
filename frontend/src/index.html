@@ -5,23 +5,26 @@
     <title>NovaFrame</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- SVG first: modern browsers prefer it, and because it is the very same
+         file the UI renders (public/logo-mark.svg) the tab icon can never drift
+         out of sync with the mark again. The raster set below stays as the
+         fallback for older browsers and the iOS home screen, and is generated
+         from that same SVG. -->
+    <link rel="icon" type="image/svg+xml" href="logo-mark.svg" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Manrope — heading/body/UI typeface for the whole app (full Vietnamese diacritics) -->
+    <!-- Inter — the single heading/body/UI typeface for the entire app -->
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
     />
-    <!-- JetBrains Mono — reserved for genuine data readouts (price, timestamp, bid count,
-         transaction id, image dimensions), never generic UI labels -->
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap"
-    />
-    <!-- Material Symbols Outlined -->
+    <!-- Material Symbols Outlined — FILL kept as a 0..1 range (not a fixed
+         point) so .icon-fill can switch individual icons to the solid glyph
+         at runtime via font-variation-settings; a fixed point bakes a
+         static outline-only font that CSS can never fill in. -->
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0"
