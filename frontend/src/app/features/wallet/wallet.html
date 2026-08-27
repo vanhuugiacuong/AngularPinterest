@@ -31,11 +31,17 @@
                       <path d="M15.5 2.8a15 15 0 0 1 0 18.4" />
                     </svg>
                   </div>
+                  <!-- MỘT số dư duy nhất: credit mua, credit tặng và credit bán
+                       ảnh gộp chung — vừa tiêu được vừa rút được. Tách hai loại
+                       gây hiểu lầm là credit kiếm được bị mất. -->
                   <div>
                     <div class="text-white/70 text-[10px] font-semibold tracking-[0.18em]">SỐ DƯ KHẢ DỤNG</div>
                     <div class="flex items-baseline gap-2 mt-0.5">
                       <span class="text-[38px] leading-none font-extrabold tabular">{{ billing.spendable() }}</span>
                       <span class="text-sm font-semibold text-white/80">credit</span>
+                    </div>
+                    <div *ngIf="billing.earnings() > 0" class="text-white/55 text-[10px] font-semibold mt-1">
+                      Đã kiếm {{ billing.earnings() }} credit từ bán ảnh
                     </div>
                   </div>
                   <div class="flex items-end justify-between gap-3">
@@ -57,8 +63,11 @@
                   <div class="bc-sig flex items-center justify-end pr-3">
                     <span class="text-[#1b1620] font-mono font-bold text-sm tracking-wider">{{ billing.spendable() }} CR</span>
                   </div>
+                  <!-- Câu cũ ghi "không quy đổi tiền mặt, không rút" — nay đã có
+                       rút tiền nên phải nói đúng. -->
                   <p class="text-white/70 text-[11px] leading-relaxed mt-3">
-                    Credit dùng để tải HD ảnh Premium của người khác. Không quy đổi tiền mặt, không rút.
+                    Credit dùng để tải HD ảnh Premium của người khác, hoặc rút về ngân hàng
+                    (tối thiểu 500 credit).
                   </p>
                   <div class="flex items-center justify-between mt-3">
                     <span class="flex items-center gap-1.5 text-white/50 text-[10px] font-semibold">
@@ -123,6 +132,156 @@
           </button>
         </div>
       </div>
+
+      <!-- ══════════ RÚT TIỀN ══════════
+           Chỉ rút được credit KIẾM ĐƯỢC từ bán ảnh (earnings), không rút được
+           credit đã mua/được tặng — xem billing.config.ts. -->
+      @if (payout(); as po) {
+        <div class="payout-box relative overflow-hidden rounded-[26px] p-6 border mb-8">
+          <div class="flex items-start justify-between gap-4 mb-5">
+            <div class="flex items-center gap-3">
+              <span class="payout-crest w-10 h-10 rounded-[13px] flex items-center justify-center shrink-0">
+                <app-icon name="bank" class="w-[19px] h-[19px]"></app-icon>
+              </span>
+              <div>
+                <h2 class="text-lg font-extrabold tracking-tight leading-tight">Rút tiền về ngân hàng</h2>
+                <p class="text-xs text-[#9a95a1] dark:text-[#8b8791] mt-0.5">
+                  Đổi credit kiếm được từ bán ảnh thành tiền mặt
+                </p>
+              </div>
+            </div>
+            <div class="text-right shrink-0">
+              <div class="text-[11px] text-[#9a95a1] dark:text-[#8b8791]">Có thể rút</div>
+              <div class="text-2xl font-extrabold tabular leading-tight">{{ po.balance }}</div>
+              <div class="text-[11px] text-[#9a95a1] dark:text-[#8b8791]">≈ {{ billing.formatVnd(po.balance * po.vndPerCredit) }}</div>
+            </div>
+          </div>
+
+          <!-- Đang có yêu cầu chờ xử lý -->
+          @if (po.pending; as req) {
+            <div class="payout-pending rounded-2xl px-4 py-3.5 flex items-start gap-3">
+              <span class="payout-dot mt-1.5 shrink-0"></span>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-bold">
+                  {{ req.status === 'APPROVED' ? 'Đã duyệt — đang chuyển khoản' : 'Đang chờ duyệt' }}
+                </div>
+                <div class="text-xs text-[#9a95a1] dark:text-[#8b8791] mt-1 leading-relaxed">
+                  Rút <b class="text-[#E8C468]">{{ req.credits }} credit</b> ({{ billing.formatVnd(req.amountVnd) }})
+                  về {{ req.bankName }} · {{ req.accountNumber }}
+                </div>
+                <div class="text-[11px] text-[#9a95a1] dark:text-[#8b8791] mt-1">
+                  Gửi lúc {{ req.createdAt | date: 'HH:mm dd/MM/yyyy' }}
+                </div>
+              </div>
+              @if (req.status === 'PENDING') {
+                <button (click)="cancelPayout(req.id)" [disabled]="payoutBusy()"
+                  class="shrink-0 h-9 px-3.5 rounded-full text-xs font-bold text-white bg-white/[0.06] border border-white/10 hover:bg-white/10 transition-colors cursor-pointer outline-none disabled:opacity-60">
+                  Huỷ
+                </button>
+              }
+            </div>
+          } @else if (po.balance < po.minCredits) {
+            <!-- Chưa đủ ngưỡng -->
+            <div class="payout-note rounded-2xl px-4 py-3.5 flex items-start gap-2.5">
+              <app-icon name="shield" class="w-[17px] h-[17px] text-[#9a95a1] shrink-0 mt-0.5"></app-icon>
+              <span class="text-xs text-[#9a95a1] dark:text-[#8b8791] leading-relaxed">
+                Cần tối thiểu <b class="text-white">{{ po.minCredits }} credit</b> mới rút được
+                (bạn đang có {{ po.balance }}). Bán ảnh Premium hoặc mua thêm credit để đạt ngưỡng.
+              </span>
+            </div>
+          } @else if (!showPayoutForm()) {
+            <button (click)="showPayoutForm.set(true)"
+              class="grad-btn w-full h-12 rounded-full text-white font-extrabold text-sm cursor-pointer border-none outline-none transition-all hover:-translate-y-0.5">
+              Gửi yêu cầu rút tiền
+            </button>
+          } @else {
+            <!-- Form gửi yêu cầu -->
+            <div class="flex flex-col gap-3">
+              <div>
+                <label class="payout-label">Số credit muốn rút</label>
+                <div class="flex items-center gap-2.5 mt-1.5">
+                  <input type="number" [(ngModel)]="payoutCredits" [min]="po.minCredits" [max]="po.balance"
+                    class="payout-input w-32 h-11 rounded-xl px-3 text-base font-extrabold text-center outline-none" />
+                  <span class="text-xs text-[#9a95a1] dark:text-[#8b8791]">
+                    credit ≈ <b class="text-[#E8C468]">{{ billing.formatVnd(payoutAmountVnd(po.vndPerCredit)) }}</b>
+                  </span>
+                  <button type="button" (click)="payoutCredits = po.balance"
+                    class="ml-auto text-xs font-bold text-[#F94083] bg-transparent border-none cursor-pointer outline-none hover:underline">
+                    Rút hết
+                  </button>
+                </div>
+                <p class="text-[11px] text-[#9a95a1] dark:text-[#8b8791] mt-1.5">
+                  Tỷ giá {{ po.vndPerCredit }}đ/credit · tối thiểu {{ po.minCredits }} credit
+                </p>
+              </div>
+
+              <div class="grid sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="payout-label">Ngân hàng</label>
+                  <input type="text" [(ngModel)]="payoutBank" placeholder="VD: Vietcombank"
+                    class="payout-input w-full h-11 rounded-xl px-3.5 text-sm outline-none mt-1.5" />
+                </div>
+                <div>
+                  <label class="payout-label">Số tài khoản</label>
+                  <input type="text" [(ngModel)]="payoutAccount" placeholder="Chỉ gồm chữ số"
+                    class="payout-input w-full h-11 rounded-xl px-3.5 text-sm outline-none mt-1.5" />
+                </div>
+              </div>
+
+              <div>
+                <label class="payout-label">Tên chủ tài khoản</label>
+                <input type="text" [(ngModel)]="payoutName" placeholder="Viết in hoa, không dấu"
+                  class="payout-input w-full h-11 rounded-xl px-3.5 text-sm outline-none mt-1.5" />
+              </div>
+
+              <div class="payout-note rounded-2xl px-4 py-3 flex items-start gap-2.5">
+                <app-icon name="shield" class="w-[16px] h-[16px] text-[#9a95a1] shrink-0 mt-0.5"></app-icon>
+                <span class="text-[11px] text-[#9a95a1] dark:text-[#8b8791] leading-relaxed">
+                  Credit sẽ được giữ lại ngay khi gửi. Đội ngũ kiểm tra và chuyển khoản
+                  trong 1–3 ngày làm việc. Nếu bị từ chối, credit được hoàn lại đầy đủ.
+                </span>
+              </div>
+
+              @if (payoutError()) {
+                <p class="text-xs text-[#ff5c7a] font-semibold">{{ payoutError() }}</p>
+              }
+
+              <div class="flex gap-2.5 justify-end">
+                <button (click)="closePayoutForm()" [disabled]="payoutBusy()"
+                  class="h-11 px-5 rounded-full text-sm font-bold text-white bg-white/[0.06] border border-white/10 hover:bg-white/10 transition-colors cursor-pointer outline-none disabled:opacity-60">
+                  Huỷ
+                </button>
+                <button (click)="submitPayout(po)" [disabled]="payoutBusy()"
+                  class="grad-btn h-11 px-6 rounded-full text-sm font-extrabold text-white cursor-pointer border-none outline-none transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:translate-y-0">
+                  {{ payoutBusy() ? 'Đang gửi…' : 'Gửi yêu cầu' }}
+                </button>
+              </div>
+            </div>
+          }
+
+          <!-- Lịch sử rút -->
+          @if (po.history.length > 0) {
+            <div class="mt-5 pt-4 border-t border-white/[0.07]">
+              <div class="payout-label mb-2.5">Lịch sử rút tiền</div>
+              <div class="flex flex-col gap-1.5">
+                @for (h of po.history; track h.id) {
+                  <div class="flex items-center gap-3 text-xs py-1.5">
+                    <span class="payout-status shrink-0" [ngClass]="payoutStatusClass(h.status)">
+                      {{ payoutStatusLabel(h.status) }}
+                    </span>
+                    <span class="tabular font-bold">{{ h.credits }} credit</span>
+                    <span class="text-[#9a95a1] dark:text-[#8b8791]">{{ billing.formatVnd(h.amountVnd) }}</span>
+                    <span class="ml-auto text-[#9a95a1] dark:text-[#8b8791] shrink-0">{{ h.createdAt | date: 'dd/MM/yy' }}</span>
+                  </div>
+                  @if (h.status === 'REJECTED' && h.rejectReason) {
+                    <p class="text-[11px] text-[#ff8098] -mt-1 mb-1 pl-1">Lý do: {{ h.rejectReason }}</p>
+                  }
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
 
       <!-- Mua thêm credit -->
       <div class="flex items-center justify-between mb-4">

@@ -43,15 +43,12 @@ import { Component, Input, signal } from '@angular/core';
         display: block;
         background: #221b28;
       }
-      /* Viền hồng đặc (có khe nền tối).
-         Vẽ BÊN TRONG kích thước avatar bằng border + background thay vì
-         box-shadow tràn ra ngoài: nhiều nơi đặt avatar trong vùng cuộn
-         (overflow-y:auto) — thứ gì tràn khỏi khung đều bị cắt, khiến viền
-         trông như bị "cắn" mất một bên. */
+      /* Viền hồng đặc — vẽ bằng thuộc tính border nên nằm TRONG kích thước avatar.
+         Không dùng box-shadow (toả ra ngoài, bị vùng overflow-y:auto cắt) và
+         không thêm khe tối bên trong bằng outline offset âm (dễ chồng lên
+         viền che mất nó, lại ăn lẹm vào ảnh làm avatar co lại). */
       .pa-ring {
-        border: 2px solid #f94083;
-        outline: 2px solid #121212;
-        outline-offset: -2px;
+        border: 2.5px solid #f94083;
         box-sizing: border-box;
       }
       .pa-crest {
@@ -72,35 +69,25 @@ import { Component, Input, signal } from '@angular/core';
         line-height: 1;
       }
 
-      /* ── Cấp gói NĂM: chrome ánh cầu vồng thay cho hồng ────────────────────
-         Cũng vẽ bên trong khung (border + outline lùi vào) để không bị vùng
-         cuộn cắt mất, giống .pa-ring. */
+      /* ── Cấp gói NĂM: viền chrome bạc thay cho hồng ────────────────────────
+         Cùng cách vẽ như .pa-ring (một vòng border, không glow, không khe tối). */
       .pa-ring-chrome {
-        border: 2px solid #cdd8ff;
-        outline: 2px solid #121212;
-        outline-offset: -2px;
+        border: 2.5px solid #dfe7ff;
         box-sizing: border-box;
-        box-shadow: 0 0 10px -2px rgba(184, 198, 255, 0.75);
       }
+      /* Huy hiệu chỉ ~18px nên gradient phải VỪA KHÍT (100%), không phóng to:
+         với background-size 220% trên vùng bé xíu, mỗi lúc chỉ lọt đúng một
+         dải màu — huy hiệu trông lúc tím lúc hồng chứ không ra ánh kim.
+         Ít điểm dừng hơn bản dùng cho chữ, để đọc được là "kim loại". */
       .pa-crest-chrome {
         background-image: linear-gradient(
-          115deg,
-          #e8f4ff 0%, #b8c6ff 16%, #d9b8ff 32%,
-          #ffc2e8 48%, #ffe0b8 62%, #b8ffe4 78%,
-          #c6d4ff 90%, #eaf4ff 100%
+          135deg,
+          #ffffff 0%, #cfd9f0 28%, #9fb0d8 50%, #e6ecfa 72%, #b9c6e4 100%
         );
-        background-size: 220% 100%;
-        color: #241d2b;
+        background-size: 100% 100%;
+        color: #1e2333;
         border-color: #121212;
-        box-shadow: 0 2px 8px rgba(184, 198, 255, 0.6);
-        animation: pa-chrome-shift 7s ease-in-out infinite;
-      }
-      @keyframes pa-chrome-shift {
-        0%, 100% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .pa-crest-chrome { animation: none; }
+        box-shadow: 0 2px 8px rgba(184, 198, 255, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.55);
       }
     `,
   ],

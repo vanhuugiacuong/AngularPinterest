@@ -1,7 +1,13 @@
 # Đặc tả trang Quản trị (Admin) — PinHub
 
 > Trạng thái: **BẢN THẢO ĐỂ DUYỆT** — chưa code. Chốt xong mới làm.
-> Nhánh dự kiến: `liem-admin` (tách riêng, không gộp vào PR #53).
+> Nhánh dự kiến: `liem-admin` (tách riêng, không gộp vào PR đang mở).
+
+### Đã chốt (28/08)
+- Dùng cột **riêng** `isPinhubAdmin`, không đụng `isAdmin` của hệ khác — mục 3.1
+- **Có** làm khoá tài khoản (thêm `isPinhubBanned`) — mục 4.2
+- **Có** thêm trạng thái cho `PinReport` (`status` + `resolvedAt`) — mục 4.1
+- Bổ sung khu vực **Rút tiền** (mục 4.5) và **Báo cáo thanh toán** (mục 4.1b)
 
 ---
 
@@ -163,6 +169,117 @@ trạng thái (PAID/PENDING/EXPIRED), mã tham chiếu (`txnRef`).
 **Hành động:** `Xem` / `Gỡ ảnh`.
 
 **Thẻ tổng quan:** tổng số ảnh, số ảnh Premium, số ảnh AI, số ảnh seed.
+
+### 4.5 Rút tiền (payout) — khu vực nhạy cảm nhất
+
+Người bán ảnh tích được credit trong `Wallet.earnings`, gửi yêu cầu rút, admin
+duyệt rồi **chuyển khoản tay** qua ngân hàng. Không tự động chuyển tiền.
+
+#### Chỉ được rút `earnings`, KHÔNG rút `spendable`
+
+Đây là ràng buộc quan trọng nhất, phải chặn ở backend:
+
+| Loại credit | Nguồn | Rút được? |
+|---|---|---|
+| `earnings` | bán ảnh Premium cho người khác | ✅ có |
+| `spendable` | **người dùng bỏ tiền mua** hoặc được tặng kèm Pro | ❌ không |
+
+Nếu cho rút `spendable`, người ta có thể **nạp tiền vào rồi rút ra** — nền tảng
+biến thành nơi chuyển tiền hộ, vừa lỗ phí thanh toán vừa rủi ro pháp lý. Chỉ
+tiền do người khác trả cho họ mới được rút.
+
+#### Luồng
+
+```
+Người dùng                     Admin
+    │                            │
+    ├─ Gửi yêu cầu rút           │
+    │  (số credit + STK + tên)   │
+    │  → earnings bị GIỮ ngay    │
+    │                            │
+    │                        ┌───┴───┐
+    │                    Duyệt    Từ chối
+    │                        │        │
+    │                   Chuyển khoản  └→ hoàn earnings về ví
+    │                    tay qua bank      + ghi lý do
+    │                        │
+    │                   Đánh dấu "Đã chuyển"
+    │                    (nhập mã GD ngân hàng)
+    │◄── nhận thông báo ─────┘
+```
+
+**Giữ credit ngay khi gửi yêu cầu** (trừ `earnings`, ghi `CreditTransaction`),
+không đợi duyệt. Nếu đợi thì người dùng có thể gửi 5 yêu cầu cùng lúc cho cùng
+một số dư, admin duyệt hết là mất tiền thật.
+
+#### Màn hình admin
+
+| Cột | Nội dung |
+|---|---|
+| Người gửi | avatar + username + tổng đã rút trước đó |
+| Số credit | số credit rút |
+| Thành tiền | quy đổi ra VNĐ theo tỷ giá |
+| Ngân hàng | tên NH + số TK + tên chủ TK (có nút sao chép) |
+| Gửi lúc | thời gian |
+| Trạng thái | Chờ duyệt / Đã duyệt / Đã chuyển / Từ chối |
+| Hành động | `Duyệt` · `Từ chối` (bắt nhập lý do) · `Đánh dấu đã chuyển` |
+
+Ô nhập **mã giao dịch ngân hàng** khi đánh dấu đã chuyển, để đối chiếu sau này.
+
+#### Màn hình người dùng (trong Ví)
+
+- Nút **"Rút tiền"** hiện khi `earnings` ≥ ngưỡng tối thiểu
+- Form: số credit muốn rút, ngân hàng, số tài khoản, tên chủ tài khoản
+- Lịch sử các lần rút + trạng thái từng lần
+- Nếu bị từ chối: hiện lý do admin ghi
+
+#### Bảng mới `PayoutRequest`
+
+Không dùng các cột `payoutBankCode` / `payoutAccountNumber` / `payoutAccountName`
+đã có sẵn trong `User` — **đó là của hệ thống khác** dùng chung DB.
+
+```sql
+CREATE TABLE IF NOT EXISTS "PayoutRequest" (
+  "id"            TEXT PRIMARY KEY,
+  "userId"        TEXT NOT NULL,
+  "credits"       INTEGER NOT NULL,      -- số credit rút
+  "amountVnd"     INTEGER NOT NULL,      -- quy đổi tại thời điểm gửi (khoá tỷ giá)
+  "bankName"      TEXT NOT NULL,
+  "accountNumber" TEXT NOT NULL,
+  "accountName"   TEXT NOT NULL,
+  "status"        TEXT NOT NULL DEFAULT 'PENDING',  -- PENDING|APPROVED|PAID|REJECTED
+  "rejectReason"  TEXT,
+  "bankRef"       TEXT,                  -- mã GD ngân hàng khi đã chuyển
+  "createdAt"     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "processedAt"   TIMESTAMP
+);
+```
+
+`amountVnd` **khoá lại tại thời điểm gửi** — nếu sau này đổi tỷ giá thì yêu cầu
+cũ vẫn giữ đúng số tiền đã hứa với người dùng.
+
+#### Ràng buộc bắt buộc (backend)
+
+1. `credits` ≤ `wallet.earnings` hiện có
+2. `credits` ≥ ngưỡng tối thiểu
+3. Mỗi người **chỉ có 1 yêu cầu đang chờ** tại một thời điểm
+4. Trừ `earnings` trong cùng transaction với việc tạo yêu cầu
+5. Từ chối → hoàn `earnings` + ghi `CreditTransaction` kiểu `REFUND`
+6. Thông tin ngân hàng **chỉ admin đọc được**, không trả về API công khai,
+   không ghi vào log
+
+#### Đã chốt & đã code (phía người dùng)
+
+- **Tỷ giá: 150đ / credit** (giá bán ~183đ, chênh ~18% bù phí chuyển khoản)
+- **Tối thiểu: 500 credit** (≈ 75.000đ) — đủ lớn để không phải chuyển khoản lặt vặt
+
+Đã xong phần người dùng:
+- `PayoutRequest` (bảng), `PAYOUT_VND_PER_CREDIT`, `PAYOUT_MIN_CREDITS` (config)
+- `GET /billing/payout` · `POST /billing/payout` · `POST /billing/payout/:id/cancel`
+- Khu vực "Rút tiền về ngân hàng" trong trang Ví: form, xác nhận, lịch sử, huỷ
+
+**Còn lại (phần admin):** màn duyệt yêu cầu — `Duyệt` / `Từ chối` (nhập lý do) /
+`Đánh dấu đã chuyển` (nhập mã GD ngân hàng).
 
 ---
 

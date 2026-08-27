@@ -10,6 +10,7 @@ import { Icon } from '../../shared/icon/icon';
 import { PinService, Pin } from '../../core/services/pin';
 import { ChatService, PublicUserSummary } from '../../core/services/chat';
 import { BillingService } from '../../core/services/billing';
+import { AdminService } from '../../core/services/admin';
 import { VisualSearchService } from '../../core/services/visual-search';
 
 // Lowercases and strips Vietnamese diacritics so "meo" matches "mèo" — same normalizer
@@ -37,6 +38,7 @@ export class Navbar {
   private notificationService = inject(NotificationService);
   private notificationSocket = inject(NotificationSocketService);
   private router = inject(Router);
+  public adminService = inject(AdminService);
   private elementRef = inject(ElementRef);
   private pinService = inject(PinService);
   private chatService = inject(ChatService);
@@ -570,6 +572,14 @@ export class Navbar {
 
   isProfilePage(): boolean {
     return this.router.url.includes('/profile');
+  }
+
+  isAdminPage(): boolean {
+    return this.router.url.startsWith('/admin');
+  }
+
+  navigateToAdmin() {
+    this.router.navigate(['/admin']);
   }
 
   isFeedPage(): boolean {

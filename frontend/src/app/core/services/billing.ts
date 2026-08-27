@@ -70,6 +70,33 @@ interface PendingPayment {
 
 export type PaymentStatus = 'PENDING' | 'PAID' | 'EXPIRED';
 
+/** Một lần yêu cầu rút tiền — khớp bảng PayoutRequest ở backend. */
+export interface PayoutRequest {
+  id: string;
+  credits: number;
+  amountVnd: number;
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+  status: 'PENDING' | 'APPROVED' | 'PAID' | 'REJECTED';
+  rejectReason?: string | null;
+  bankRef?: string | null;
+  createdAt: string;
+  processedAt?: string | null;
+}
+
+export interface PayoutInfo {
+  /** Số dư credit duy nhất — vừa tiêu được vừa rút được. */
+  balance: number;
+  /** Tổng đã kiếm từ bán ảnh (chỉ để thống kê, không phải số rút được). */
+  totalEarned: number;
+  vndPerCredit: number;
+  minCredits: number;
+  canRequest: boolean;
+  pending: PayoutRequest | null;
+  history: PayoutRequest[];
+}
+
 /**
  * Thông tin tài khoản nhận tiền để sinh VietQR.
  * TODO: thay bằng tài khoản thật của bạn (bin theo chuẩn Napas, xem danh sách ở vietqr.io).
@@ -154,6 +181,62 @@ export class BillingService {
       return await this.supa.getSessionToken();
     } catch {
       return null;
+    }
+  }
+
+  // ── Rút tiền ────────────────────────────────────────────────────────────────
+  /** Số dư kiếm được, tỷ giá, ngưỡng tối thiểu + lịch sử rút. */
+  async getPayoutInfo(): Promise<PayoutInfo | null> {
+    const token = await this.token();
+    if (!token) return null;
+    try {
+      const res = await fetch(`${this.api}/payout`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }
+
+  /** Gửi yêu cầu rút. Trả về thông báo lỗi nếu thất bại, null nếu thành công. */
+  async requestPayout(input: {
+    credits: number;
+    bankName: string;
+    accountNumber: string;
+    accountName: string;
+  }): Promise<string | null> {
+    const token = await this.token();
+    if (!token) return 'Bạn cần đăng nhập.';
+    try {
+      const res = await fetch(`${this.api}/payout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+      if (res.ok) {
+        await this.refreshMe();
+        return null;
+      }
+      const body = await res.json().catch(() => null);
+      return body?.message || 'Không gửi được yêu cầu rút tiền.';
+    } catch {
+      return 'Không kết nối được máy chủ.';
+    }
+  }
+
+  /** Huỷ yêu cầu đang chờ — credit được hoàn về ví. */
+  async cancelPayout(id: string): Promise<boolean> {
+    const token = await this.token();
+    if (!token) return false;
+    try {
+      const res = await fetch(`${this.api}/payout/${id}/cancel`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) await this.refreshMe();
+      return res.ok;
+    } catch {
+      return false;
     }
   }
 

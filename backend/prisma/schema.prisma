@@ -35,6 +35,11 @@ model User {
   /// tố pinhub vì bảng User dùng chung với hệ thống khác (đã có cột `plan`).
   /// Cột tạo bằng SQL thủ công: scratch/apply-pro-plan.cjs.
   pinhubProPlan String?
+  /// Quyền admin RIÊNG của PinHub. KHÔNG dùng cột `isAdmin` — cột đó thuộc hệ
+  /// thống khác đang dùng chung database. Tạo bằng scratch/apply-admin.cjs.
+  isPinhubAdmin  Boolean @default(false)
+  /// Tài khoản bị admin khoá.
+  isPinhubBanned Boolean @default(false)
 
   wallet        Wallet?
   subscriptions Subscription[]
@@ -137,6 +142,33 @@ model HiddenPin {
 
 // A user reported this pin ("Báo cáo Ghim") — no moderation queue UI yet,
 // just persisted so reports aren't lost and can be reviewed later.
+/// Yêu cầu rút tiền: người bán ảnh đổi credit kiếm được (Wallet.earnings) ra
+/// tiền mặt, admin duyệt rồi chuyển khoản tay. Bảng tạo bằng SQL thủ công —
+/// xem scratch/apply-payout.cjs. KHÔNG chạy prisma db push.
+///
+/// Lưu ý: KHÔNG dùng các cột payoutBankCode/payoutAccountNumber/payoutAccountName
+/// có sẵn trong User — đó là của hệ thống khác dùng chung database.
+model PayoutRequest {
+  id            String    @id @default(uuid())
+  userId        String
+  credits       Int
+  /// Số tiền khoá tại thời điểm gửi — đổi tỷ giá sau không ảnh hưởng đơn cũ.
+  amountVnd     Int
+  bankName      String
+  accountNumber String
+  accountName   String
+  /// PENDING | APPROVED | PAID | REJECTED
+  status        String    @default("PENDING")
+  rejectReason  String?
+  /// Mã giao dịch ngân hàng khi admin đã chuyển tiền, để đối chiếu sau này.
+  bankRef       String?
+  createdAt     DateTime  @default(now())
+  processedAt   DateTime?
+
+  @@index([status])
+  @@index([userId])
+}
+
 /// Người dùng báo sự cố chuyển khoản để admin xử lý (đã chuyển nhưng chưa
 /// nhận, sai số tiền, sai nội dung...). Bảng tạo bằng SQL thủ công —
 /// xem scratch/apply-payment-report.cjs. KHÔNG chạy prisma db push.
@@ -160,6 +192,9 @@ model PinReport {
   userId    String
   pinId     String
   reason    String?
+  /// OPEN | RESOLVED — không có cột này thì báo cáo đã xử lý vẫn hiện lại mãi.
+  status     String    @default("OPEN")
+  resolvedAt DateTime?
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

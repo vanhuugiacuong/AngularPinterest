@@ -12,6 +12,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { CollageModule } from './collage/collage.module';
 import { BillingModule } from './billing/billing.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { BillingModule } from './billing/billing.module';
     MessagingModule,
     CollageModule,
     BillingModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

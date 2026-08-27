@@ -1,0 +1,394 @@
+:host {
+  display: block;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Huy hiệu tiêu đề — tông tím "quản trị", tách khỏi hồng (người dùng),
+   vàng (bán ảnh) và xanh (rút tiền) để nhận ra ngay đây là khu vực riêng. */
+.admin-crest {
+  background: linear-gradient(135deg, #8b7bf0, #5b4bc4);
+  color: #fff;
+  box-shadow: 0 8px 20px -6px rgba(139, 123, 240, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+/* ── Thanh chuyển mục ─────────────────────────────────────────────────────── */
+.admin-tabs {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 2px;
+}
+.admin-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 14px;
+  border: none;
+  background: transparent;
+  color: #8b8791;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 10px 10px 0 0;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.admin-tab:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.04);
+}
+.admin-tab-on {
+  color: #fff;
+  border-bottom-color: #8b7bf0;
+}
+.admin-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ff5c7a;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Thẻ số liệu ──────────────────────────────────────────────────────────── */
+.ad-stat {
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ad-stat-v {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.ad-stat-k {
+  font-size: 12px;
+  color: #8b8791;
+}
+
+.ad-money {
+  background:
+    radial-gradient(120% 140% at 100% -10%, rgba(139, 123, 240, 0.14), transparent 58%),
+    linear-gradient(180deg, #1c1a26 0%, #17171c 72%);
+  border: 1px solid rgba(139, 123, 240, 0.28);
+  border-radius: 18px;
+  padding: 18px 20px;
+}
+.ad-money-credit {
+  background:
+    radial-gradient(120% 140% at 100% -10%, rgba(34, 197, 94, 0.12), transparent 58%),
+    linear-gradient(180deg, #16221b 0%, #141814 72%);
+  border-color: rgba(34, 197, 94, 0.26);
+}
+.ad-money-k {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8b8791;
+}
+.ad-money-v {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.15;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.ad-money-sub {
+  font-size: 11px;
+  color: #8b8791;
+  margin-top: 4px;
+}
+
+/* Ô "cần xử lý" — sáng lên khi có việc */
+.ad-todo {
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.ad-todo:hover {
+  transform: translateY(-2px);
+}
+.ad-todo-v {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+  color: #6c6674;
+  font-variant-numeric: tabular-nums;
+}
+.ad-todo-k {
+  font-size: 12px;
+  color: #8b8791;
+}
+.ad-todo-on {
+  border-color: rgba(255, 92, 122, 0.4);
+  background: rgba(255, 92, 122, 0.06);
+}
+.ad-todo-on .ad-todo-v {
+  color: #ff8098;
+}
+
+/* ── Thẻ nội dung ─────────────────────────────────────────────────────────── */
+.ad-card {
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 16px 18px;
+}
+
+.ad-empty {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 36px;
+  text-align: center;
+  font-size: 13px;
+  color: #8b8791;
+}
+
+/* Khối thông tin ngân hàng — nổi rõ vì đây là thứ admin phải chép tay */
+.ad-bank {
+  background: rgba(34, 197, 94, 0.06);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.ad-bank-k {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8b9a90;
+}
+.ad-bank-v {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fff;
+  margin-top: 2px;
+  word-break: break-all;
+}
+.ad-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.ad-copy:hover {
+  color: #5fd39a;
+}
+
+/* ── Nút ──────────────────────────────────────────────────────────────────── */
+.ad-btn {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+  outline: none;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+.ad-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.ad-btn-primary {
+  background: #8b7bf0;
+  color: #fff;
+}
+.ad-btn-primary:hover:not(:disabled) {
+  background: #7a68e8;
+}
+.ad-btn-ok {
+  background: rgba(34, 197, 94, 0.16);
+  color: #5fd39a;
+  border-color: rgba(34, 197, 94, 0.32);
+}
+.ad-btn-ok:hover:not(:disabled) {
+  background: rgba(34, 197, 94, 0.26);
+}
+.ad-btn-danger {
+  background: rgba(255, 92, 122, 0.14);
+  color: #ff8098;
+  border-color: rgba(255, 92, 122, 0.3);
+}
+.ad-btn-danger:hover:not(:disabled) {
+  background: rgba(255, 92, 122, 0.24);
+}
+.ad-btn-ghost {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+.ad-btn-ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.ad-input {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.ad-input::placeholder {
+  color: #6c6674;
+}
+.ad-input:focus {
+  border-color: #8b7bf0;
+}
+
+.ad-chip {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #8b8791;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+  white-space: nowrap;
+}
+.ad-chip:hover {
+  color: #fff;
+}
+.ad-chip-on {
+  background: rgba(139, 123, 240, 0.18);
+  border-color: rgba(139, 123, 240, 0.45);
+  color: #b3a8ff;
+}
+
+/* ── Nhãn trạng thái ──────────────────────────────────────────────────────── */
+.ad-status {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.st-pending  { background: rgba(232, 196, 104, 0.14); color: #E8C468; }
+.st-approved { background: rgba(139, 123, 240, 0.16); color: #b3a8ff; }
+.st-paid     { background: rgba(34, 197, 94, 0.14);  color: #5fd39a; }
+.st-rejected { background: rgba(255, 92, 122, 0.14); color: #ff8098; }
+.st-premium  { background: rgba(232, 196, 104, 0.16); color: #E8C468; }
+.st-pro      { background: rgba(249, 64, 131, 0.16); color: #ff6fa1; }
+.st-chrome   {
+  background: linear-gradient(135deg, #ffffff, #cfd9f0 45%, #9fb0d8);
+  color: #1e2333;
+}
+
+/* ── Bảng ─────────────────────────────────────────────────────────────────── */
+.ad-table-wrap {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  overflow-x: auto;
+  background: #1a1a1a;
+}
+.ad-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.ad-table th,
+.ad-table td {
+  padding: 11px 14px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  vertical-align: middle;
+}
+.ad-table th {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #8b8791;
+  background: rgba(255, 255, 255, 0.03);
+  white-space: nowrap;
+}
+.ad-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.ad-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ad-row-banned {
+  opacity: 0.55;
+}
+
+/* ── Biểu đồ doanh thu ────────────────────────────────────────────────────── */
+.ad-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 120px;
+}
+.ad-bar-wrap {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  min-width: 4px;
+}
+.ad-bar {
+  width: 100%;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(180deg, #8b7bf0, #5b4bc4);
+  transition: filter 0.15s ease;
+}
+.ad-bar-wrap:hover .ad-bar {
+  filter: brightness(1.35);
+}
+.ad-bar-zero {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* ── Lưới ảnh ─────────────────────────────────────────────────────────────── */
+.ad-pin {
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.ad-pin-img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  display: block;
+  cursor: pointer;
+}
