@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { API_BASE_URL } from '../api-base';
 
 export type MessageContentType = 'TEXT' | 'IMAGE' | 'GIF' | 'PIN';
@@ -85,6 +85,12 @@ export interface GifResult {
 @Injectable({ providedIn: 'root' })
 export class ChatService {
   private readonly baseUrl = `${API_BASE_URL}/api/conversations`;
+
+  /** conversationId currently open on the Chat page, or null when the user isn't
+   * looking at any conversation (including not being on /chat at all). Set/cleared
+   * by the Chat component's route subscription — read by Navbar to decide whether
+   * an incoming message needs a toast/badge bump or is already being seen live. */
+  readonly activeConversationId = signal<string | null>(null);
 
   async listConversations(token: string): Promise<ConversationSummary[]> {
     return this.request<ConversationSummary[]>(this.baseUrl, token);

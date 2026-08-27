@@ -1,8 +1,8 @@
 <div
   (click)="onClick()"
   class="flex items-center gap-3 px-3 py-2.5 rounded-2xl cursor-pointer transition-colors select-none"
-  [class.bg-[#FCEAF4]]="!notification.isRead"
-  [class.dark:bg-[#2a1a24]]="!notification.isRead"
+  [class.bg-[#FCEAF4]]="!notification.isRead && unreadHighlight"
+  [class.dark:bg-[#2a1a24]]="!notification.isRead && unreadHighlight"
   [class.hover:bg-[#f6f6f3]]="notification.isRead"
   [class.dark:hover:bg-[#2a2a2a]]="notification.isRead"
 >
@@ -17,11 +17,23 @@
       [ngClass]="typeIconImageSize"
     />
     <ng-template #iconFont>
+      <!-- Status-badge style (Messenger/Discord): small, hugging just outside the
+           avatar's corner, z-10 above the avatar's own layer, ring matching whatever
+           surface it sits on (--pinhub-surface in the toast, popup panel elsewhere)
+           so it reads as a badge floating over the avatar rather than tucked behind it. -->
       <span
-        class="absolute -bottom-1 -right-1 w-[22px] h-[22px] rounded-full flex items-center justify-center text-white border-[2.5px] border-white dark:border-[#1e1e1e] shadow-[0_1px_4px_rgba(0,0,0,0.35)]"
+        class="absolute -bottom-0.5 -right-0.5 z-10 w-4 h-4 rounded-full flex items-center justify-center text-white border-2 border-white dark:border-[#1a1a1e] shadow-[0_1px_4px_rgba(0,0,0,0.35)]"
         [ngClass]="typeIconColor"
       >
-        <span class="material-symbols-outlined text-[13px] leading-none block" style="font-variation-settings: 'FILL' 1, 'wght' 500;">{{ typeIcon }}</span>
+        <!-- 'message' uses a hand-drawn single-path bubble instead of the material-symbols
+             glyph — that font's "chat" shape carries a text-line/fold level of detail that
+             breaks up into noise at a 10px badge; a flat solid bubble stays legible that small. -->
+        <svg *ngIf="notification.type === 'message'; else materialTypeIcon" viewBox="0 0 24 24" width="9" height="9" fill="currentColor" class="block">
+          <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
+        </svg>
+        <ng-template #materialTypeIcon>
+          <span class="material-symbols-outlined text-[10px] leading-none block" style="font-variation-settings: 'FILL' 1, 'wght' 500;">{{ typeIcon }}</span>
+        </ng-template>
       </span>
     </ng-template>
   </div>
@@ -42,5 +54,5 @@
   <img *ngIf="notification.pin as pin" [src]="pin.imageUrl" [alt]="pin.title" class="w-10 h-10 rounded-lg object-cover shrink-0" />
 
   <!-- Unread dot -->
-  <span *ngIf="!notification.isRead" class="w-2.5 h-2.5 rounded-full bg-[#F94083] shrink-0"></span>
+  <span *ngIf="!notification.isRead && showUnreadDot" class="w-2.5 h-2.5 rounded-full bg-[#F94083] shrink-0"></span>
 </div>
