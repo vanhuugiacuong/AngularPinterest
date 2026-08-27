@@ -175,9 +175,34 @@
    but the browser's own cancel/decoration glyphs would otherwise render
    next to our custom NovaFrame clear button — producing two X icons in
    WebKit/Chromium. Only our custom button (below) should remain. */
-.nf-search input[type="search"]::-webkit-search-cancel-button,
-.nf-search input[type="search"]::-webkit-search-decoration {
-  appearance: none;
-  -webkit-appearance: none;
-  display: none;
+/* Signature Blue-Violet Gradient Border Pill for header buttons */
+.nf-gradient-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  border-radius: 9999px;
+  border: 1.5px solid transparent;
+  background-image:
+    linear-gradient(var(--color-surface-elevated), var(--color-surface-elevated)),
+    linear-gradient(135deg, var(--color-nova-blue) 0%, var(--color-iris-violet) 100%);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  color: var(--color-text);
+  font-weight: 700;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
+
+.nf-gradient-pill:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px -4px color-mix(in srgb, var(--color-nova-blue) 40%, transparent);
+}
+
+.nf-gradient-pill:active {
+  transform: translateY(0);
+}
+
