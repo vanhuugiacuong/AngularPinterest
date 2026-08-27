@@ -281,9 +281,9 @@
 
                     @if (pin.isAiGenerated) {
                       <span
-                        class="mono-label absolute left-2.5 z-20 flex items-center gap-1 bg-surface-high/90 border border-border-strong text-accent text-xs font-bold uppercase px-2 py-1 rounded-control pointer-events-none"
+                        class="mono-label absolute right-2.5 z-20 flex items-center gap-1 bg-surface-high/90 border border-border-strong text-accent text-xs font-bold uppercase px-2 py-1 rounded-control pointer-events-none"
                         [class.top-2.5]="!pin.listingType || pin.listingType === 'NONE'"
-                        [class.top-12]="pin.listingType && pin.listingType !== 'NONE'"
+                        [class.top-10]="pin.listingType && pin.listingType !== 'NONE'"
                       >
                         <span class="material-symbols-outlined text-[12px] leading-none" aria-hidden="true">auto_awesome</span>
                         AI
