@@ -9,6 +9,7 @@ import {
   ViewChild
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { SupabaseService } from '../../core/services/supabase';
 import { PublicHeader } from './components/public-header/public-header';
 import { AuthModal } from './components/auth-modal/auth-modal';
@@ -34,6 +35,7 @@ interface Artwork {
   standalone: true,
   imports: [
     CommonModule,
+    RouterLink,
     PublicHeader,
     AuthModal,
     NfLoader,

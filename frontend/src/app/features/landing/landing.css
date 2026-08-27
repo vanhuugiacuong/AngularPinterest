@@ -1275,7 +1275,7 @@
   object-fit: contain;
 }
 
-.nf-foot__tag,
+.nf-foot__legal,
 .nf-foot__copy {
   font-family: var(--font-sans);
   font-weight: 600;

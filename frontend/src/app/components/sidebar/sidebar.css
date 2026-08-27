@@ -57,6 +57,7 @@
 .nf-rail-brand {
   width: 44px;
   flex: 0 0 auto;
+  align-self: flex-start;
 }
 
 .nf-rail--expanded .nf-rail-brand,
@@ -110,18 +111,22 @@
 }
 
 .nf-rail-icon {
-  font-size: 20px;
-  font-weight: 400;
-  line-height: 1;
+  color: var(--color-text);
+  transition: color 160ms ease;
 }
 
-.nf-rail-brand__name {
-  background: linear-gradient(110deg, var(--color-nova-blue), var(--color-iris-violet));
-  background-clip: text;
-  color: transparent;
+.nf-rail-item--active .nf-rail-icon {
+  color: var(--color-nova-blue);
+}
+
+.nf-rail-item--disabled .nf-rail-icon {
+  color: color-mix(in srgb, var(--color-text-muted) 52%, transparent);
+}
+
+.nf-rail-label.nf-rail-brand__name {
+  color: #000;
   font-size: 15px;
   font-weight: 800;
-  -webkit-background-clip: text;
 }
 
 /* The compact rail identifies NovaFrame with the mark. In the expanded
@@ -163,7 +168,7 @@
   position: relative;
   display: flex;
   width: 100%;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .nf-rail-item {

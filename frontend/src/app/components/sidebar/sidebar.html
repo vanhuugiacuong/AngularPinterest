@@ -37,7 +37,7 @@
         aria-describedby="nf-tooltip-home"
         [attr.aria-current]="isFeedPage() ? 'page' : null"
       >
-        <span class="nf-rail-icon material-symbols-outlined" aria-hidden="true">home</span>
+        <app-sidebar-icon class="nf-rail-icon" icon="home" />
         <span class="nf-rail-label">Trang chủ</span>
       </button>
       <span id="nf-tooltip-home" role="tooltip" class="nf-tooltip">Trang chủ</span>
@@ -53,7 +53,7 @@
         aria-disabled="true"
         aria-describedby="nf-tooltip-explore"
       >
-        <span class="nf-rail-icon material-symbols-outlined" aria-hidden="true">explore</span>
+        <app-sidebar-icon class="nf-rail-icon" icon="explore" />
         <span class="nf-rail-label">Khám phá</span>
       </button>
       <span id="nf-tooltip-explore" role="tooltip" class="nf-tooltip">Khám phá · Sắp ra mắt</span>
@@ -70,7 +70,7 @@
         aria-describedby="nf-tooltip-create"
         [attr.aria-current]="isCreatePage() ? 'page' : null"
       >
-        <span class="nf-rail-icon material-symbols-outlined" aria-hidden="true">add</span>
+        <app-sidebar-icon class="nf-rail-icon" icon="create" />
         <span class="nf-rail-label">Tạo</span>
       </button>
       <span id="nf-tooltip-create" role="tooltip" class="nf-tooltip">Tạo</span>
@@ -87,7 +87,7 @@
         aria-describedby="nf-tooltip-collage"
         [attr.aria-current]="isCollagePage() ? 'page' : null"
       >
-        <span class="nf-rail-icon material-symbols-outlined" aria-hidden="true">dashboard_customize</span>
+        <app-sidebar-icon class="nf-rail-icon" icon="collage" />
         <span class="nf-rail-label">Tạo ảnh ghép</span>
       </button>
       <span id="nf-tooltip-collage" role="tooltip" class="nf-tooltip">Tạo ảnh ghép</span>
@@ -105,7 +105,7 @@
         aria-describedby="nf-tooltip-notifications"
         [attr.aria-expanded]="isNotificationOpen"
       >
-        <span class="nf-rail-icon material-symbols-outlined" aria-hidden="true">notifications</span>
+        <app-sidebar-icon class="nf-rail-icon" icon="notifications" />
         <span class="nf-rail-label">Thông báo</span>
         <span
           *ngIf="(unreadCount$ | async)! > 0"
@@ -129,7 +129,7 @@
         aria-describedby="nf-tooltip-messages"
         [attr.aria-current]="isMessagesPage() ? 'page' : null"
       >
-        <span class="nf-rail-icon material-symbols-outlined" aria-hidden="true">sms</span>
+        <app-sidebar-icon class="nf-rail-icon" icon="messages" />
         <span class="nf-rail-label">Tin nhắn</span>
         <span
           *ngIf="(unreadMessageCount$ | async)! > 0"
@@ -154,7 +154,7 @@
         aria-describedby="nf-tooltip-settings"
         [attr.aria-current]="isSettingsPage() ? 'page' : null"
       >
-        <span class="nf-rail-icon material-symbols-outlined" aria-hidden="true">settings</span>
+        <app-sidebar-icon class="nf-rail-icon" icon="settings" />
         <span class="nf-rail-label">Cài đặt</span>
       </button>
       <span id="nf-tooltip-settings" role="tooltip" class="nf-tooltip">Cài đặt</span>
@@ -406,7 +406,7 @@
     aria-label="Trang chủ"
     [attr.aria-current]="isFeedPage() ? 'page' : null"
   >
-    <span class="material-symbols-outlined text-2xl" [class.font-bold]="isFeedPage()" aria-hidden="true">home</span>
+    <app-sidebar-icon icon="home" size="mobile" />
     <span class="text-xs font-medium">Trang chủ</span>
   </button>
 
@@ -419,7 +419,7 @@
     aria-label="Tạo mới"
     [attr.aria-current]="isCreatePage() ? 'page' : null"
   >
-    <span class="material-symbols-outlined text-2xl" [class.font-bold]="isCreatePage()" aria-hidden="true">add</span>
+    <app-sidebar-icon icon="create" size="mobile" />
     <span class="text-xs font-medium">Tạo</span>
   </button>
 
@@ -433,7 +433,7 @@
     aria-controls="nf-notification-panel"
     [attr.aria-expanded]="isNotificationOpen"
   >
-    <span class="material-symbols-outlined text-2xl" [class.font-bold]="isNotificationOpen" aria-hidden="true">notifications</span>
+    <app-sidebar-icon icon="notifications" size="mobile" />
     <span class="text-xs font-medium">Thông báo</span>
     <span
       *ngIf="(unreadCount$ | async)! > 0"
@@ -453,7 +453,7 @@
     aria-label="Tin nhắn"
     [attr.aria-current]="isMessagesPage() ? 'page' : null"
   >
-    <span class="material-symbols-outlined text-2xl" [class.font-bold]="isMessagesPage()" aria-hidden="true">sms</span>
+    <app-sidebar-icon icon="messages" size="mobile" />
     <span class="text-xs font-medium">Tin nhắn</span>
     <span
       *ngIf="(unreadMessageCount$ | async)! > 0"
@@ -473,7 +473,7 @@
     aria-label="Cài đặt"
     [attr.aria-current]="isSettingsPage() ? 'page' : null"
   >
-    <span class="material-symbols-outlined text-2xl" [class.font-bold]="isSettingsPage()" aria-hidden="true">settings</span>
+    <app-sidebar-icon icon="settings" size="mobile" />
     <span class="text-xs font-medium">Cài đặt</span>
   </button>
 </nav>

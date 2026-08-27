@@ -114,6 +114,57 @@ describe('Sidebar click-only behavior', () => {
     fixture.destroy();
   });
 
+  it('renders the outline SVG icon set with theme-aware currentColor strokes', () => {
+    const fixture = TestBed.createComponent(Sidebar);
+    fixture.detectChanges();
+
+    const icons = Array.from(fixture.nativeElement.querySelectorAll('.nf-rail-icon')) as HTMLElement[];
+    const iconNames = icons.map((icon) => icon.dataset['icon']);
+
+    expect(iconNames).toEqual([
+      'home',
+      'explore',
+      'create',
+      'collage',
+      'notifications',
+      'messages',
+      'settings',
+    ]);
+    expect(
+      icons.every((icon) => icon.querySelector('[stroke="currentColor"], [fill="currentColor"]')),
+    ).toBe(true);
+    expect(fixture.nativeElement.querySelector('.nf-rail .material-symbols-outlined')).toBeNull();
+
+    const homeSvg = icons[0].querySelector('svg');
+    expect(homeSvg?.getAttribute('viewBox')).toBe('0 0 18 18');
+    expect(homeSvg?.querySelector('path')?.getAttribute('stroke-width')).toBe('1.5');
+
+    const createSvg = icons[2].querySelector('svg');
+    expect(createSvg?.getAttribute('viewBox')).toBe('0 0 18 18');
+    expect(createSvg?.querySelector('[fill-opacity="0.3"]')).toBeNull();
+
+    const collageSvg = icons[3].querySelector('svg');
+    expect(collageSvg?.getAttribute('viewBox')).toBe('0 0 18 18');
+    expect(collageSvg?.querySelector('[fill-opacity="0.3"]')).toBeNull();
+
+    const notificationsSvg = icons[4].querySelector('svg');
+    expect(notificationsSvg?.getAttribute('viewBox')).toBe('0 0 18 18');
+    expect(notificationsSvg?.querySelector('[fill-opacity="0.3"]')).toBeNull();
+
+    const mobileIcons = Array.from(
+      fixture.nativeElement.querySelectorAll('.nf-bottom-nav app-sidebar-icon'),
+    ) as HTMLElement[];
+    expect(mobileIcons.map((icon) => icon.dataset['icon'])).toEqual([
+      'home',
+      'create',
+      'notifications',
+      'messages',
+      'settings',
+    ]);
+    expect(mobileIcons.every((icon) => icon.classList.contains('sidebar-icon--mobile'))).toBe(true);
+    fixture.destroy();
+  });
+
   it('shows the overlay only while expanded and Escape returns to compact', () => {
     const fixture = TestBed.createComponent(Sidebar);
     fixture.detectChanges();
