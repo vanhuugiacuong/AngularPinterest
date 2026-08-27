@@ -3,7 +3,7 @@
 }
 
 .grad-btn {
-  background-image: linear-gradient(135deg, #f94083 0%, #b15caa 100%);
+  background-image: linear-gradient(120deg, #ff6f9c 0%, #f94083 32%, #d454a8 62%, #b15caa 100%);
 }
 
 /* Hero bán hàng — nền kem nhuốm hồng rất nhẹ + glow */
@@ -32,7 +32,7 @@
     radial-gradient(50% 70% at -6% 112%, rgba(177, 92, 170, 0.1), transparent 62%);
 }
 .ph-crest {
-  background: linear-gradient(135deg, #f94083, #b15caa);
+  background: linear-gradient(120deg, #ff6f9c 0%, #f94083 32%, #d454a8 62%, #b15caa 100%);
   box-shadow: 0 10px 24px -8px rgba(249, 64, 131, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.25);
 }
 .ph-accent {

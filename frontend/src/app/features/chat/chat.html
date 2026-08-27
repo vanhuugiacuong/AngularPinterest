@@ -141,10 +141,22 @@
 
         <!-- Right panel: thread -->
         <section
-          class="flex-1 sm:flex flex-col min-h-0 min-w-0"
+          class="relative flex-1 sm:flex flex-col min-h-0 min-w-0"
           [class.hidden]="!selectedConversationId()"
           [class.flex]="!!selectedConversationId()"
+          (dragenter)="onChatDragEnter($event)"
+          (dragover)="onChatDragOver($event)"
+          (dragleave)="onChatDragLeave($event)"
+          (drop)="onChatDrop($event)"
         >
+          @if (isDraggingChatImage()) {
+            <div class="absolute inset-0 z-30 flex items-center justify-center bg-[#F94083]/10 backdrop-blur-[2px] border-[3px] border-dashed border-[#F94083] pointer-events-none">
+              <div class="flex flex-col items-center gap-2 px-6 py-5 rounded-2xl bg-white/95 dark:bg-[#1a1a1a]/95 shadow-lg">
+                <span class="material-symbols-outlined text-4xl text-[#F94083]">cloud_upload</span>
+                <span class="text-sm font-extrabold text-[#F94083]">Thả ảnh vào đây để gửi</span>
+              </div>
+            </div>
+          }
           @if (!selectedConversationId()) {
             <div class="hidden sm:flex flex-1 flex-col items-center justify-center text-center px-6">
               <img src="illustrations/chat-empty.png" alt="" aria-hidden="true" class="w-[340px] max-w-full h-auto select-none -mb-16" />

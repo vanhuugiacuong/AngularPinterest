@@ -44,10 +44,12 @@
           <div class="w-full lg:w-[63%] flex flex-col gap-8 min-w-0">
             
             <!-- Detailed view card -->
-            <div class="bg-white dark:bg-[#1a1a1a] rounded-[32px] border border-[#dadad3] dark:border-[#333] shadow-[0_4px_24px_rgba(0,0,0,0.03)] flex flex-col md:flex-row overflow-hidden w-full min-h-[500px]">
+            <div class="bg-white dark:bg-[#1a1a1a] rounded-[32px] border border-[#dadad3] dark:border-[#333] shadow-[0_4px_24px_rgba(0,0,0,0.03)] flex flex-col md:flex-row w-full min-h-[500px]">
               <!-- Left Side: Image Display — width follows the image's own shape (up to half
-                   the card) so landscape photos aren't squeezed into a portrait-sized column -->
-              <div class="md:max-w-[50%] relative bg-white dark:bg-[#1a1a1a] p-5 flex items-center justify-center">
+                   the card) so landscape photos aren't squeezed into a portrait-sized column.
+                   Corners bo riêng (thay vì overflow-hidden ở card ngoài) để dropdown menu
+                   (chia sẻ / báo cáo) bên cột phải không bị cắt khi tràn ra ngoài card. -->
+              <div class="md:max-w-[50%] relative bg-white dark:bg-[#1a1a1a] p-5 flex items-center justify-center rounded-tl-[32px] rounded-tr-[32px] md:rounded-tr-none md:rounded-bl-[32px]">
                 <!-- Back button inside card -->
                 <button
                   (click)="goBack()"
@@ -140,7 +142,7 @@
               </div>
 
               <!-- Right Side: Details & Interaction -->
-              <div class="md:flex-1 min-w-0 p-8 flex flex-col justify-between bg-white dark:bg-[#1a1a1a]">
+              <div class="md:flex-1 min-w-0 p-8 flex flex-col justify-between bg-white dark:bg-[#1a1a1a] rounded-bl-[32px] rounded-br-[32px] md:rounded-bl-none md:rounded-tr-[32px]">
                 
                 <!-- Top Row actions -->
                 <div class="flex items-center justify-between gap-2 pb-6 border-b border-[#dadad3] dark:border-[#333]">

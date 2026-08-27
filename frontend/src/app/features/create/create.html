@@ -62,11 +62,23 @@
             <div
               *ngIf="!imagePreviewUrl()"
               class="drag-drop-area flex-1 min-h-[380px] rounded-2xl bg-[#f6f6f3] dark:bg-[#2a2a2a] flex flex-col items-center justify-center p-6 text-center cursor-pointer relative overflow-hidden"
+              [class.drag-drop-area-active]="isDraggingOverDropzone()"
               (click)="fileInput.click()"
+              (dragover)="onDropzoneDragOver($event)"
+              (dragleave)="onDropzoneDragLeave($event)"
+              (drop)="onDropzoneDrop($event)"
             >
-              <span class="material-symbols-outlined text-4xl text-gray-400 mb-3">cloud_upload</span>
-              <p class="text-xs font-bold text-gray-700 dark:text-[#ccc]">Kéo thả hoặc nhấp để chọn ảnh</p>
-              <span class="text-[10px] text-gray-500 dark:text-[#999] mt-2">Khuyên dùng: Ảnh JPG, PNG chất lượng cao có tỷ lệ dọc</span>
+              <div class="drag-drop-glow" aria-hidden="true"></div>
+              <span class="material-symbols-outlined drag-drop-spark drag-drop-spark-1" aria-hidden="true">auto_awesome</span>
+              <span class="material-symbols-outlined drag-drop-spark drag-drop-spark-2" aria-hidden="true">auto_awesome</span>
+
+              <span class="drag-drop-icon relative z-10 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+                <span class="material-symbols-outlined text-[30px] text-white">cloud_upload</span>
+              </span>
+              <p class="relative z-10 text-sm font-extrabold text-gray-800 dark:text-white">
+                {{ isDraggingOverDropzone() ? 'Thả ảnh vào đây!' : 'Kéo thả hoặc nhấp để chọn ảnh' }}
+              </p>
+              <span class="relative z-10 text-[11px] text-gray-500 dark:text-[#999] mt-1.5">Khuyên dùng: Ảnh JPG, PNG chất lượng cao có tỷ lệ dọc</span>
 
               <input
                 #fileInput

@@ -14,6 +14,14 @@ import {
   type VisualCategory,
 } from './visual-search';
 
+// Tài khoản hệ thống sở hữu ảnh nạp sẵn (vd Unsplash seed — xem
+// scratch/seed-unsplash.cjs) để feed có nội dung khi chưa nhiều người đăng.
+// getAllPins() dùng danh sách này để hạ ưu tiên nội dung nạp sẵn so với ảnh
+// người dùng thật tự đăng.
+const SEED_CONTENT_USER_IDS = new Set<string>([
+  'e5f00000-0000-4000-8000-000000000001', // unsplash
+]);
+
 @Injectable()
 export class PinsService {
   private readonly clipServiceUrl = (process.env.CLIP_SERVICE_URL || 'http://127.0.0.1:8001').replace('localhost', '127.0.0.1');
@@ -203,7 +211,7 @@ export class PinsService {
 
     const pins = await this.prisma.pin.findMany({
       where: hiddenPinIds.length > 0 ? { id: { notIn: hiddenPinIds } } : undefined,
-      select: { id: true, category: true, createdAt: true },
+      select: { id: true, category: true, createdAt: true, userId: true },
     });
 
     // 3. Sort pins using a score combining preferences, recency, and seeded random noise
@@ -224,6 +232,13 @@ export class PinsService {
       const ageInHours = (Date.now() - new Date(pin.createdAt).getTime()) / (1000 * 60 * 60);
       if (ageInHours < 48) {
         score += (48 - ageInHours) * 2;
+      }
+
+      // Nội dung do người dùng thật đăng được ưu tiên hơn ảnh nạp sẵn từ hệ
+      // thống (Unsplash seed, xem SEED_CONTENT_USER_IDS) — feed không bị lấn
+      // át bởi ảnh nền khi đã có người dùng đăng ảnh thật.
+      if (!SEED_CONTENT_USER_IDS.has(pin.userId)) {
+        score += 200;
       }
 
       // Seeded random noise (0 to 80 points) to mix/shuffle order on refresh (new seed)
