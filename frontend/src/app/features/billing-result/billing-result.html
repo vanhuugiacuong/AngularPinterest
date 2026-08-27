@@ -2,7 +2,7 @@
   <app-navbar></app-navbar>
 
   <div class="flex-1 pt-16 pl-28 pb-24 flex items-center justify-center min-w-0 px-6">
-    <div class="w-full max-w-[460px]">
+    <div class="w-full max-w-[540px]">
 
       <!-- ══════════════ QR THANH TOÁN ══════════════ -->
       @if (phase() === 'qr' && pending(); as p) {
@@ -38,7 +38,7 @@
                 </div>
                 <div class="flex justify-between gap-3 text-sm">
                   <span class="text-[#9a95a1] dark:text-[#7c7784] shrink-0">Chủ tài khoản</span>
-                  <span class="font-bold text-right truncate">{{ billing.bank.accountName }}</span>
+                  <span class="font-bold text-right">{{ billing.bank.accountName }}</span>
                 </div>
                 <div class="flex justify-between gap-3 text-sm">
                   <span class="text-[#9a95a1] dark:text-[#7c7784] shrink-0">Số tài khoản</span>
@@ -96,18 +96,35 @@
 
       <!-- ══════════════ THÀNH CÔNG ══════════════ -->
       @if (phase() === 'success') {
-        <div class="rounded-[28px] border border-[#ececef] dark:border-[#26262c] p-9 flex flex-col items-center text-center bg-white dark:bg-[#17171c] shadow-[0_20px_50px_-16px_rgba(31,157,85,0.22)] success-pop">
-          <span class="w-[68px] h-[68px] rounded-full bg-[#eafaf1] dark:bg-[#12271c] flex items-center justify-center mb-5 ring-4 ring-[#eafaf1]/60 dark:ring-[#12271c]/60">
-            <app-icon name="check" class="w-9 h-9 text-[#1f9d55]"></app-icon>
+        <div class="success-card relative overflow-hidden rounded-[28px] border p-9 flex flex-col items-center text-center success-pop">
+          <div class="success-glow" aria-hidden="true"></div>
+          <app-icon name="spark" class="success-spark success-spark-1"></app-icon>
+          <app-icon name="spark" class="success-spark success-spark-2"></app-icon>
+          <app-icon name="spark" class="success-spark success-spark-3"></app-icon>
+
+          <span class="relative z-10 w-[76px] h-[76px] rounded-full success-badge flex items-center justify-center mb-5">
+            <span class="success-badge-ring" aria-hidden="true"></span>
+            <app-icon name="check" class="relative z-10 w-10 h-10 text-[#1f9d55]"></app-icon>
           </span>
-          <h2 class="text-[22px] font-extrabold tracking-tight mb-1.5">Đã nhận thanh toán!</h2>
-          <p class="text-sm text-[#7c7784] dark:text-[#9b96a2] mb-7 max-w-xs">
+
+          <h2 class="relative z-10 text-[22px] font-extrabold tracking-tight mb-1.5">Đã nhận thanh toán!</h2>
+          <p class="relative z-10 text-sm text-[#7c7784] dark:text-[#9b96a2] mb-5 max-w-xs">
             {{ isPro ? 'Chào mừng bạn đến với PinHub Pro. Credit tặng đã được cộng vào ví.' : 'Credit đã được cộng vào ví của bạn.' }}
           </p>
-          <button (click)="goWallet()" class="w-full h-12 rounded-full grad-btn text-white font-extrabold cursor-pointer border-none outline-none mb-2 flex items-center justify-center gap-2">
+
+          @if (pending(); as pay) {
+            @if (pay.credits) {
+              <div class="success-credit-tile relative z-10 mb-6">
+                <app-icon name="coin" class="w-[18px] h-[18px]"></app-icon>
+                <span>+{{ pay.credits }} credit</span>
+              </div>
+            }
+          }
+
+          <button (click)="goWallet()" class="relative z-10 w-full h-12 rounded-full grad-btn text-white font-extrabold cursor-pointer border-none outline-none mb-2 flex items-center justify-center gap-2">
             <app-icon name="wallet" class="w-[18px] h-[18px]"></app-icon> Xem ví credit
           </button>
-          <button (click)="goFeed()" class="w-full h-11 rounded-full text-[#9a95a1] dark:text-[#7c7784] font-bold text-sm cursor-pointer border-none outline-none hover:bg-[#faf9fb] dark:hover:bg-[#101014] transition-colors">
+          <button (click)="goFeed()" class="relative z-10 w-full h-11 rounded-full text-[#6b6673] dark:text-[#c7c2cc] font-bold text-sm cursor-pointer border-none outline-none hover:bg-black/[0.03] dark:hover:bg-white/[0.06] transition-colors">
             Về trang chủ
           </button>
         </div>
@@ -122,7 +139,7 @@
           <h2 class="text-[22px] font-extrabold tracking-tight mb-1.5">Đã hủy giao dịch</h2>
           <p class="text-sm text-[#7c7784] dark:text-[#9b96a2] mb-7">Chưa có khoản nào bị trừ. Bạn có thể thử lại bất cứ lúc nào.</p>
           <button (click)="goPro()" class="w-full h-12 rounded-full bg-[#1b1620] dark:bg-white text-white dark:text-[#1b1620] font-extrabold cursor-pointer border-none outline-none mb-2">Thử lại</button>
-          <button (click)="goFeed()" class="w-full h-11 rounded-full text-[#9a95a1] dark:text-[#7c7784] font-bold text-sm cursor-pointer border-none outline-none hover:bg-[#faf9fb] dark:hover:bg-[#101014] transition-colors">Về trang chủ</button>
+          <button (click)="goFeed()" class="w-full h-11 rounded-full text-[#6b6673] dark:text-[#c7c2cc] font-bold text-sm cursor-pointer border-none outline-none hover:bg-black/[0.03] dark:hover:bg-white/[0.06] transition-colors">Về trang chủ</button>
         </div>
       }
 

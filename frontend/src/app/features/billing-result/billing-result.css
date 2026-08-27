@@ -5,3 +5,98 @@
 .icon-filled {
   font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
 }
+
+/* Nút gradient thương hiệu — class này được dùng trong billing-result.html
+   (header QR, "Xem ví credit", "Quay lại nâng cấp Pro") nhưng CHƯA từng được
+   định nghĩa ở đây: các nút đó trước giờ render trong suốt, không có nền. */
+.grad-btn {
+  background-image: linear-gradient(120deg, #ff6f9c 0%, #f94083 32%, #d454a8 62%, #b15caa 100%);
+}
+
+/* ── Thẻ "Đã nhận thanh toán" — nhuốm xanh lá + glow, để không bị hoà vào
+   nền tối (trước đây chỉ khác nền trang đúng 1 sắc độ, gần như vô hình). ── */
+.success-card {
+  background: linear-gradient(180deg, #fbfffd 0%, #ffffff 70%);
+  border-color: #dff5e6;
+  box-shadow: 0 20px 50px -16px rgba(31, 157, 85, 0.18);
+}
+:host-context(.dark) .success-card {
+  background:
+    radial-gradient(120% 140% at 50% -20%, rgba(31, 157, 85, 0.18), transparent 55%),
+    linear-gradient(180deg, #1c2420 0%, #17171c 65%);
+  border-color: rgba(31, 157, 85, 0.3);
+  box-shadow: 0 24px 60px -18px rgba(31, 157, 85, 0.4), inset 0 0 0 1px rgba(31, 157, 85, 0.06);
+}
+
+.success-glow {
+  position: absolute;
+  inset: -20% -20% auto -20%;
+  height: 60%;
+  background: radial-gradient(closest-side, rgba(31, 157, 85, 0.3), transparent 70%);
+  pointer-events: none;
+  filter: blur(10px);
+}
+
+/* Tia lấp lánh trang trí quanh thẻ */
+.success-spark {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  color: #ffcf4d;
+  opacity: 0.85;
+  animation: success-spark-twinkle 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+.success-spark-1 { top: 24px; left: 32px; animation-delay: 0s; }
+.success-spark-2 { top: 44px; right: 28px; width: 10px; height: 10px; animation-delay: 0.5s; }
+.success-spark-3 { top: 100px; left: 22px; width: 9px; height: 9px; animation-delay: 1s; }
+@keyframes success-spark-twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.85) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.15) rotate(20deg); }
+}
+
+/* Huy hiệu check + vòng xung nhịp lan toả */
+.success-badge {
+  background: #eafaf1;
+}
+:host-context(.dark) .success-badge {
+  background: radial-gradient(circle, rgba(31, 157, 85, 0.3), rgba(31, 157, 85, 0.08) 70%);
+  box-shadow: inset 0 0 0 1px rgba(31, 157, 85, 0.35);
+}
+.success-badge-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 9999px;
+  border: 2px solid rgba(31, 157, 85, 0.4);
+  animation: success-ring-pulse 1.8s ease-out infinite;
+}
+@keyframes success-ring-pulse {
+  0% { transform: scale(0.9); opacity: 0.9; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+/* Tile "+X credit" */
+.success-credit-tile {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 13px;
+  color: #1f9d55;
+  background: rgba(31, 157, 85, 0.1);
+  border: 1px solid rgba(31, 157, 85, 0.25);
+}
+
+@keyframes success-pop {
+  0% { opacity: 0; transform: scale(0.92) translateY(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.success-pop {
+  animation: success-pop 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .success-spark, .success-badge-ring, .success-pop { animation: none; }
+}

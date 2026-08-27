@@ -212,7 +212,7 @@
       <!-- Trigger button: avatar + chevron down -->
       <button
         (click)="toggleProfilePopup($event)"
-        class="flex items-center gap-1 p-1 hover:bg-[#f6f6f3] rounded-full transition-all duration-200 cursor-pointer select-none border-none outline-none focus:outline-none"
+        class="flex items-center gap-1 p-1 hover:bg-white/[0.06] rounded-full transition-all duration-200 cursor-pointer select-none border-none outline-none focus:outline-none"
         aria-label="Menu tài khoản"
       >
         <span class="relative">
@@ -268,28 +268,39 @@
           </div>
         </div>
 
-        <!-- Nâng cấp Pro / Thành viên Pro -->
+        <!-- Nâng cấp lên Pro (chưa mua) -->
         <button
+          *ngIf="!billing.isPro()"
           (click)="navigateToPro()"
-          class="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-200 cursor-pointer border-none outline-none select-none text-left"
-          [class.grad-pill]="!billing.isPro()"
-          [class.hover:bg-[#f6f6f3]]="billing.isPro()"
-          [class.dark:hover:bg-[#2a2a2a]]="billing.isPro()"
+          class="grad-pill w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-200 cursor-pointer border-none outline-none select-none text-left"
         >
-          <span class="w-9 h-9 rounded-[11px] flex items-center justify-center shrink-0 text-white"
-            [class.bg-white/20]="!billing.isPro()"
-            [class.bg-[#F94083]]="billing.isPro()"
-            [class.shadow-[0_6px_16px_-5px_rgba(249,64,131,0.7)]]="billing.isPro()">
+          <span class="w-9 h-9 rounded-[11px] bg-white/20 flex items-center justify-center shrink-0 text-white">
             <app-icon name="crown" class="w-[18px] h-[18px]"></app-icon>
           </span>
           <span class="flex-1 min-w-0">
-            <span class="block text-sm font-extrabold" [class.text-white]="!billing.isPro()" [class.text-black]="billing.isPro()" [class.dark:text-white]="billing.isPro()">
-              {{ billing.isPro() ? 'Thành viên Pro' : 'Nâng cấp lên Pro' }}
-            </span>
-            <span class="block text-[11px]" [class.text-white/85]="!billing.isPro()" [class.text-[#91918c]]="billing.isPro()" [class.dark:text-[#777]]="billing.isPro()">
-              {{ billing.isPro() ? 'Đang hoạt động' : 'AI không giới hạn · tải HD' }}
+            <span class="block text-sm font-extrabold text-white">Nâng cấp lên Pro</span>
+            <span class="block text-[11px] text-white/85">AI không giới hạn · tải HD</span>
+          </span>
+        </button>
+
+        <!-- Thẻ "Thành viên Pro" (đã mua) — kính mờ nhuốm hồng + crest gradient
+             bóng + chấm trạng thái nhấp nháy + tag PRO, đồng bộ thẻ hội viên /pro -->
+        <button
+          *ngIf="billing.isPro()"
+          (click)="navigateToPro()"
+          class="pro-chip relative overflow-hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-200 cursor-pointer border-none outline-none select-none text-left"
+        >
+          <span class="pro-chip-crest relative z-10 w-9 h-9 rounded-[11px] flex items-center justify-center shrink-0 text-white">
+            <app-icon name="crown" class="w-[18px] h-[18px]"></app-icon>
+          </span>
+          <span class="relative z-10 flex-1 min-w-0">
+            <span class="block text-sm font-extrabold text-black dark:text-white">Thành viên Pro</span>
+            <span class="inline-flex items-center gap-1.5 mt-0.5">
+              <span class="pro-dot"></span>
+              <span class="text-[11px] font-bold pro-chip-status">Đang hoạt động</span>
             </span>
           </span>
+          <span class="pro-chip-tag relative z-10 shrink-0">PRO</span>
         </button>
 
         <button

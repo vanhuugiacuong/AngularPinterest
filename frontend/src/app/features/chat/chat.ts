@@ -256,7 +256,10 @@ export class Chat implements OnInit, OnDestroy {
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
+    await this.sendImageFile(file);
+  }
 
+  private async sendImageFile(file: File) {
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
       this.imageError.set('Định dạng ảnh không được hỗ trợ. Vui lòng chọn JPEG, PNG, WEBP hoặc GIF.');
       return;
@@ -281,6 +284,43 @@ export class Chat implements OnInit, OnDestroy {
       URL.revokeObjectURL(previewUrl);
       this.imagePreviewUrl.set(null);
     }
+  }
+
+  // Kéo-thả ảnh vào khung chat để gửi. Đếm bằng counter vì dragenter/dragleave
+  // bắn liên tục khi con trỏ đi qua các phần tử con bên trong khung chat.
+  public isDraggingChatImage = signal(false);
+  private chatDragCounter = 0;
+
+  private isFileDrag(event: DragEvent): boolean {
+    return !!event.dataTransfer?.types?.includes('Files');
+  }
+
+  onChatDragEnter(event: DragEvent) {
+    if (!this.selectedConversationId() || !this.isFileDrag(event)) return;
+    event.preventDefault();
+    this.chatDragCounter++;
+    this.isDraggingChatImage.set(true);
+  }
+
+  onChatDragOver(event: DragEvent) {
+    if (!this.selectedConversationId() || !this.isFileDrag(event)) return;
+    event.preventDefault();
+  }
+
+  onChatDragLeave(event: DragEvent) {
+    if (!this.isFileDrag(event)) return;
+    event.preventDefault();
+    this.chatDragCounter = Math.max(0, this.chatDragCounter - 1);
+    if (this.chatDragCounter === 0) this.isDraggingChatImage.set(false);
+  }
+
+  async onChatDrop(event: DragEvent) {
+    if (!this.isFileDrag(event)) return;
+    event.preventDefault();
+    this.chatDragCounter = 0;
+    this.isDraggingChatImage.set(false);
+    const file = event.dataTransfer?.files?.[0];
+    if (file) await this.sendImageFile(file);
   }
 
   toggleEmojiPicker() {

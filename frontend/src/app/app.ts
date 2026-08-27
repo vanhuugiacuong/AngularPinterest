@@ -3,6 +3,7 @@ import { Router, RouterOutlet } from '@angular/router';
 import { SupabaseService } from './core/services/supabase';
 import { ThemeService } from './core/services/theme';
 import { PresenceService } from './core/services/presence';
+import { ImageProtectionService } from './core/services/image-protection';
 import { ToastContainer } from './components/toast-container/toast-container';
 import { ConfirmDialog } from './components/confirm-dialog/confirm-dialog';
 import { VisualSearchModal } from './components/visual-search-modal/visual-search-modal';
@@ -18,8 +19,11 @@ export class App {
   private router = inject(Router);
   private themeService = inject(ThemeService);
   private presenceService = inject(PresenceService);
+  private imageProtectionService = inject(ImageProtectionService);
 
   constructor() {
+    this.imageProtectionService.install();
+
     // Automatically redirect users based on authentication status changes
     effect(() => {
       const user = this.supabaseService.user();

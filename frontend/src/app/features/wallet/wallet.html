@@ -76,29 +76,49 @@
         </div>
 
         <!-- Trạng thái gói -->
-        <div class="rounded-[26px] p-6 border border-[#ececef] dark:border-[#26262c] flex flex-col justify-between bg-[#faf9fb] dark:bg-[#17171c]">
-          <div>
-            <div class="flex items-center gap-2 text-[13px] font-semibold mb-3 text-[#7c7784] dark:text-[#8b8791]">
-              <app-icon name="crown" class="w-[18px] h-[18px]" [class.text-[#F94083]]="billing.isPro()"></app-icon> Gói của bạn
+        <div
+          class="relative overflow-hidden rounded-[26px] p-6 border flex flex-col justify-between"
+          [class.plan-card-pro]="billing.isPro()"
+          [class.border-[#ececef]]="!billing.isPro()"
+          [class.dark:border-[#26262c]]="!billing.isPro()"
+          [class.bg-[#faf9fb]]="!billing.isPro()"
+          [class.dark:bg-[#17171c]]="!billing.isPro()"
+        >
+          @if (billing.isPro()) {
+            <div class="plan-card-glow" aria-hidden="true"></div>
+          }
+          <div class="relative z-10">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2.5">
+                @if (billing.isPro()) {
+                  <span class="plan-crest w-9 h-9 rounded-[12px] flex items-center justify-center shrink-0 text-white">
+                    <app-icon name="crown" class="w-[18px] h-[18px]"></app-icon>
+                  </span>
+                } @else {
+                  <app-icon name="crown" class="w-[18px] h-[18px] text-[#9a95a1] dark:text-[#7c7784]"></app-icon>
+                }
+                <span class="text-[13px] font-semibold text-[#7c7784] dark:text-[#8b8791]">Gói của bạn</span>
+              </div>
+              @if (billing.isPro()) {
+                <span class="plan-tag">PRO</span>
+              }
             </div>
             @if (billing.isPro()) {
               <div class="text-lg font-extrabold bg-gradient-to-r from-[#F94083] to-[#B15CAA] bg-clip-text text-transparent">PinHub Pro</div>
-              <div class="text-xs text-[#9a95a1] dark:text-[#7c7784] mt-1">Hiệu lực đến {{ billing.proExpiresAt() | date: 'dd/MM/yyyy' }}</div>
+              <div class="inline-flex items-center gap-1.5 mt-1.5">
+                <span class="plan-dot"></span>
+                <span class="text-xs font-semibold plan-status-text">Hiệu lực đến {{ billing.proExpiresAt() | date: 'dd/MM/yyyy' }}</span>
+              </div>
             } @else {
               <div class="text-lg font-extrabold">Miễn phí</div>
               <div class="text-xs text-[#9a95a1] dark:text-[#7c7784] mt-1">Nâng cấp để nhận credit hàng tháng</div>
             }
           </div>
           <button (click)="goPro()"
-            class="mt-5 h-11 rounded-full font-bold text-sm cursor-pointer border-none outline-none transition-all duration-200"
+            class="relative z-10 mt-5 h-11 rounded-full font-bold text-sm cursor-pointer border-none outline-none transition-all duration-200"
             [class.grad-btn]="!billing.isPro()"
             [class.text-white]="!billing.isPro()"
-            [class.bg-white]="billing.isPro()"
-            [class.dark:bg-[#22222a]]="billing.isPro()"
-            [class.text-[#F94083]]="billing.isPro()"
-            [class.border]="billing.isPro()"
-            [class.border-[#ececef]]="billing.isPro()"
-            [class.dark:border-[#2e2e36]]="billing.isPro()">
+            [class.plan-manage-btn]="billing.isPro()">
             {{ billing.isPro() ? 'Quản lý gói' : 'Nâng cấp Pro' }}
           </button>
         </div>

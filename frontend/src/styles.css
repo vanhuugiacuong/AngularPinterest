@@ -66,3 +66,12 @@ body {
   width: 0;
   height: 0;
 }
+
+/* Cản trở lưu ảnh qua kéo-thả / bôi đen (xem ImageProtectionService cho
+   phần chặn chuột phải + phím tắt). Chỉ là rào cản, không phải chặn tuyệt
+   đối — ảnh Premium được bảo vệ thật ở tầng backend (bucket riêng tư). */
+img {
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
