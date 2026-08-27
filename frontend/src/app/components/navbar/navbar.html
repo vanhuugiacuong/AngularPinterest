@@ -276,9 +276,10 @@
           [class.hover:bg-[#f6f6f3]]="billing.isPro()"
           [class.dark:hover:bg-[#2a2a2a]]="billing.isPro()"
         >
-          <span class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-            [class.bg-white/20]="!billing.isPro()" [class.text-white]="!billing.isPro()"
-            [class.bg-[#fdeef4]]="billing.isPro()" [class.dark:bg-[#2a151f]]="billing.isPro()" [class.text-[#F94083]]="billing.isPro()">
+          <span class="w-9 h-9 rounded-[11px] flex items-center justify-center shrink-0 text-white"
+            [class.bg-white/20]="!billing.isPro()"
+            [class.bg-[#F94083]]="billing.isPro()"
+            [class.shadow-[0_6px_16px_-5px_rgba(249,64,131,0.7)]]="billing.isPro()">
             <app-icon name="crown" class="w-[18px] h-[18px]"></app-icon>
           </span>
           <span class="flex-1 min-w-0">
