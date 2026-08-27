@@ -51,10 +51,10 @@
 
   /* Soft asymmetric shape language — NovaFrame signature (see design proposal) */
   --radius-control: 10px;
-  --radius-frame: 28px 12px 28px 12px;
-  --radius-frame-alt: 12px 28px 12px 28px;
-  --radius-cta: 22px 10px 22px 10px;
-  --radius-panel: 26px 26px 26px 10px;
+  --radius-frame: 16px;
+  --radius-frame-alt: 16px;
+  --radius-cta: 10px;
+  --radius-panel: 16px;
 
   --shadow-card: 0 8px 30px -12px rgba(3, 5, 16, 0.55);
   --shadow-glow: 0 0 28px 0 color-mix(in srgb, var(--color-nova-blue) 35%, transparent);
