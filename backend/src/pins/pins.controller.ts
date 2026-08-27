@@ -29,11 +29,31 @@ export class PinsController {
     @Query('page') page: string,
     @Query('limit') limit: string,
     @Query('seed') seed?: string,
+    @Query('category') category?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
 
-    return this.pinsService.getAllPins(pageNum, limitNum, user?.id, seed);
+    return this.pinsService.getAllPins(
+      pageNum,
+      limitNum,
+      user?.id,
+      seed,
+      category,
+    );
+  }
+
+  /** Danh mục có thật trong feed mà người xem được phép thấy, kèm số lượng.
+   * Frontend dựng chip từ đây thay vì từ các pin đã tải — nếu dựng từ pin đã
+   * tải thì chip bật ra giữa lúc cuộn, và danh mục nằm ở trang chưa tải sẽ
+   * không bao giờ chọn tới được.
+   *
+   * Phải khai báo TRƯỚC `@Get(':id')` bên dưới, không thì 'categories' bị bắt
+   * làm id. */
+  @Get('categories')
+  @UseGuards(OptionalSupabaseAuthGuard)
+  async getFeedCategories(@CurrentUser() user: UserPayload | undefined) {
+    return this.pinsService.getFeedCategories(user?.id);
   }
 
   @Get('search')

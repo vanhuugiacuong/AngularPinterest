@@ -409,6 +409,7 @@ export class PinsService {
     limit: number = 20,
     userId?: string,
     seed?: string,
+    category?: string,
   ) {
     const skip = (page - 1) * limit;
 
@@ -418,7 +419,14 @@ export class PinsService {
 
     const [pins, likes, boardPins] = await Promise.all([
       this.prisma.pin.findMany({
-        where: this.visibilityFilter(userId),
+        // Lọc danh mục ngay ở DB: trước đây frontend lọc trên mảng đã tải, nên
+        // infinite scroll cứ nạp tiếp trang mới mà không giữ filter — lưới lọc
+        // còn vài tấm khiến sentinel luôn nằm trong viewport và kéo cạn feed.
+        // Prisma AND các field cùng cấp, nên `category` giao với OR của
+        // visibilityFilter đúng như mong đợi.
+        where: category
+          ? { ...this.visibilityFilter(userId), category }
+          : this.visibilityFilter(userId),
         orderBy: { createdAt: 'desc' },
         take: candidateLimit,
         include: {
@@ -538,6 +546,25 @@ export class PinsService {
    * accepted as a follower. Reused by every pin-listing query (feed, search,
    * related) so a private account's pins never surface outside its own
    * profile to non-followers - enforced server-side, not just hidden by CSS. */
+  /** Danh mục có thật trong feed người xem được thấy, kèm số pin, nhiều nhất
+   * trước. Nguồn duy nhất để frontend dựng chip lọc — nhờ vậy chip ổn định khi
+   * cuộn và mọi danh mục đều chọn tới được, kể cả khi pin của nó nằm ở trang
+   * chưa tải. */
+  async getFeedCategories(
+    viewerId?: string,
+  ): Promise<{ code: string; count: number }[]> {
+    const grouped = await this.prisma.pin.groupBy({
+      by: ['category'],
+      where: this.visibilityFilter(viewerId),
+      _count: { _all: true },
+    });
+
+    return grouped
+      .filter((row) => !!row.category)
+      .map((row) => ({ code: row.category, count: row._count._all }))
+      .sort((a, b) => b.count - a.count);
+  }
+
   private visibilityFilter(viewerId?: string) {
     return {
       OR: [

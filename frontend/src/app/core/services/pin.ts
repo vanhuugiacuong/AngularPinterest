@@ -80,10 +80,31 @@ export class PinService {
     return response.json() as Promise<T>;
   }
 
-  getPins(page = 1, limit = 20, token?: string, seed?: string): Promise<Pin[]> {
+  getPins(
+    page = 1,
+    limit = 20,
+    token?: string,
+    seed?: string,
+    category?: string | null,
+  ): Promise<Pin[]> {
     let url = `${this.baseUrl}?page=${page}&limit=${limit}`;
     if (seed) url += `&seed=${seed}`;
+    // Lọc ở server: nếu lọc trên mảng đã tải thì infinite scroll không giữ được
+    // filter và sẽ kéo cạn feed để nhặt vài tấm khớp danh mục.
+    if (category) url += `&category=${encodeURIComponent(category)}`;
     return this.request<Pin[]>(url, token, {}, 'Không thể tải ảnh');
+  }
+
+  /** Danh mục có thật trong feed, kèm số pin. Nguồn để dựng chip lọc — dựng từ
+   * pin đã tải thì chip bật ra giữa lúc cuộn và danh mục ở trang chưa tải sẽ
+   * không chọn tới được. */
+  getFeedCategories(token?: string): Promise<{ code: string; count: number }[]> {
+    return this.request<{ code: string; count: number }[]>(
+      `${this.baseUrl}/categories`,
+      token,
+      {},
+      'Không thể tải danh mục',
+    );
   }
 
   searchPins(query: string, page = 1, limit = 20): Promise<Pin[]> {

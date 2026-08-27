@@ -116,8 +116,11 @@
           </div>
         }
 
-        <!-- Category chips — built only from categories present in the loaded feed, hidden entirely in search mode -->
-        @if (!isSearchActive() && categoryChips().length > 0) {
+        <!-- Category chips — from GET /api/pins/categories (counted over the
+             whole visible feed, not just loaded pins); hidden in search mode and
+             whenever there are fewer than 2 categories, since a single chip
+             returns the same set as "Tất cả". -->
+        @if (!isSearchActive() && showCategoryChips()) {
           <div class="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1" role="tablist" aria-label="Lọc theo danh mục">
             <button
               type="button"

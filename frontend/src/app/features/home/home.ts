@@ -159,25 +159,28 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  /** Categories actually present in the currently loaded feed — never a
-   * fixed/fake list, and hidden entirely while a search is active. */
-  public categoryChips = computed(() => {
-    const seen = new Map<string, number>();
-    for (const pin of this.pins()) {
-      if (!pin.category) continue;
-      seen.set(pin.category, (seen.get(pin.category) || 0) + 1);
-    }
-    return Array.from(seen.keys())
-      .sort((a, b) => (seen.get(b) || 0) - (seen.get(a) || 0))
-      .map((code) => ({ code, label: CATEGORY_LABELS[code] || code }));
-  });
+  /** Danh mục có thật trong feed, lấy từ `GET /api/pins/categories` (đếm trên
+   * toàn bộ feed người xem thấy được), KHÔNG suy ra từ các pin đã tải: suy ra
+   * từ pin đã tải thì chip bật/tắt giữa lúc cuộn, và danh mục nằm ở trang chưa
+   * tải sẽ không bao giờ chọn tới được. */
+  private feedCategories = signal<{ code: string; count: number }[]>([]);
 
-  public filteredPins = computed(() => {
-    const category = this.activeCategory();
-    const list = this.pins();
-    if (!category) return list;
-    return list.filter((p) => p.category === category);
-  });
+  public categoryChips = computed(() =>
+    this.feedCategories().map(({ code, count }) => ({
+      code,
+      count,
+      label: CATEGORY_LABELS[code] || code,
+    })),
+  );
+
+  /** Chip lọc chỉ có nghĩa khi có từ 2 danh mục trở lên — một danh mục duy nhất
+   * thì "Tất cả" và chip đó trả về đúng cùng một tập, hàng chip chiếm chỗ mà
+   * không phân loại được gì. */
+  public readonly showCategoryChips = computed(() => this.categoryChips().length >= 2);
+
+  /** Server đã lọc theo `activeCategory` nên `pins()` vốn đã là tập đúng. Giữ
+   * tên này vì template và nhiều helper đang dùng. */
+  public filteredPins = computed(() => this.pins());
 
   /** True while either a text search or a reverse-image search is active —
    * gates the feed-only UI (greeting, recent creations, category chips)
@@ -187,6 +190,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   async ngOnInit() {
     this.updateNumColumns();
     void this.loadBoards();
+    void this.loadFeedCategories();
 
     // Query params are the single source of truth for search mode — reached
     // via a direct link (/feed?q=...) or the navbar's Enter/suggestion-click
@@ -318,17 +322,26 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  async loadPins() {
+  /** `resetCategory` mặc định true để mọi lời gọi cũ (mở trang, thử lại, thoát
+   * tìm kiếm) giữ nguyên hành vi đưa feed về "Tất cả"; setActiveCategory truyền
+   * false để tải lại feed mà KHÔNG xoá chip vừa chọn. */
+  async loadPins(resetCategory = true) {
     this.isLoading.set(true);
     this.loadError.set(null);
     this.currentPage = 1;
     this.hasMore = true;
+    if (resetCategory) this.activeCategory.set(null);
     try {
       const token = await this.supabaseService.getSessionToken() || undefined;
-      const apiPins = await this.pinService.getPins(this.currentPage, this.limit, token, this.feedSeed);
+      const apiPins = await this.pinService.getPins(
+        this.currentPage,
+        this.limit,
+        token,
+        this.feedSeed,
+        this.activeCategory(),
+      );
       const mapped = this.mapPins(apiPins || []);
       this.pins.set(mapped);
-      this.activeCategory.set(null);
       if (!apiPins || apiPins.length < this.limit) {
         this.hasMore = false;
       }
@@ -348,7 +361,15 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     this.currentPage++;
     try {
       const token = await this.supabaseService.getSessionToken() || undefined;
-      const apiPins = await this.pinService.getPins(this.currentPage, this.limit, token, this.feedSeed);
+      // Giữ filter khi nạp trang tiếp — thiếu tham số này thì trang sau trả về
+      // pin của mọi danh mục và người dùng thấy lưới "lọc" lẫn ảnh không khớp.
+      const apiPins = await this.pinService.getPins(
+        this.currentPage,
+        this.limit,
+        token,
+        this.feedSeed,
+        this.activeCategory(),
+      );
       if (apiPins && apiPins.length > 0) {
         const mapped = this.mapPins(apiPins);
         this.pins.update(current => {
@@ -439,8 +460,25 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     await this.loadPins();
   }
 
+  /** Đổi chip = tải lại feed từ trang 1 với danh mục mới, vì việc lọc nằm ở
+   * server. Bấm lại chip đang chọn thì bỏ lọc (về "Tất cả"). */
   setActiveCategory(code: string | null) {
-    this.activeCategory.set(this.activeCategory() === code ? null : code);
+    const next = this.activeCategory() === code ? null : code;
+    if (next === this.activeCategory()) return;
+    this.activeCategory.set(next);
+    void this.loadPins(false);
+  }
+
+  /** Nạp danh mục cho hàng chip. Lỗi ở đây không được chặn feed — mất chip thì
+   * chỉ là không lọc được, còn ảnh vẫn xem bình thường. */
+  private async loadFeedCategories(): Promise<void> {
+    try {
+      const token = (await this.supabaseService.getSessionToken()) || undefined;
+      this.feedCategories.set(await this.pinService.getFeedCategories(token));
+    } catch (error) {
+      console.error('Error fetching feed categories:', error);
+      this.feedCategories.set([]);
+    }
   }
 
   retryLoad() {
