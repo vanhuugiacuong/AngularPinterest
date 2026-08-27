@@ -2,18 +2,21 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
+import { CreatePostModalComponent } from '../../components/create-post-modal/create-post-modal';
+import { EditImageComponent, EditResult } from '../../components/edit-image/edit-image';
 import { PinService } from '../../core/services/pin';
 import { BoardService, Board } from '../../core/services/board';
 import { SupabaseService } from '../../core/services/supabase';
 import { ToastService } from '../../core/services/toast';
 import { ModerationService } from '../../core/services/moderation';
 import { BillingService, PREMIUM_PRICE_MIN, PREMIUM_PRICE_MAX } from '../../core/services/billing';
+import { CreateDraftService } from '../../core/services/create-draft';
 import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-create',
   standalone: true,
-  imports: [CommonModule, Navbar, FormsModule],
+  imports: [CommonModule, Navbar, FormsModule, CreatePostModalComponent, EditImageComponent],
   templateUrl: './create.html',
   styleUrl: './create.css'
 })
@@ -25,6 +28,7 @@ export class Create implements OnInit {
   private moderationService = inject(ModerationService);
   public supabaseService = inject(SupabaseService);
   public billing = inject(BillingService);
+  private draft = inject(CreateDraftService);
 
   // Form Fields
   public title = '';
@@ -54,6 +58,8 @@ export class Create implements OnInit {
   // Upload mode fields
   public selectedFile: File | null = null;
   public imagePreviewUrl = signal<string | null>(null);
+  // Object URL for an image handed back from "Chỉnh sửa" — tracked so we can revoke it.
+  private editedPreviewUrl: string | null = null;
 
   // AI mode fields
   public aiPrompt = '';
@@ -76,7 +82,28 @@ export class Create implements OnInit {
   public isCreatingBoard = signal(false);
 
   async ngOnInit() {
+    // Restore first (local IndexedDB/sessionStorage reads) so a reloaded edit session
+    // reappears immediately, without waiting on the boards network request.
+    await this.restoreEditDraft();
     await this.loadBoards();
+  }
+
+  // Re-open the "Chỉnh sửa" step with the same images if this page just reloaded mid-edit
+  // (e.g. the Vite dev server forced a reload after a tab switch).
+  private async restoreEditDraft() {
+    const saved = this.draft.loadCropState();
+    if (!saved) {
+      this.draft.clear();
+      return;
+    }
+    const files = await this.draft.loadFiles();
+    if (!this.draft.filesMatch(files, saved.fileMeta)) {
+      this.draft.clear();
+      return;
+    }
+    this.createPostFiles.set(files);
+    this.showCreatePostModal.set(true);
+    this.createPostStep.set('edit');
   }
 
   async loadBoards() {
@@ -97,8 +124,73 @@ export class Create implements OnInit {
     }
   }
 
-  goToCollage() {
-    this.router.navigate(['/collage']);
+  // "Sửa ảnh" tab opens the multi-file create-post modal in place,
+  // instead of navigating to the old standalone collage editor route.
+  public showCreatePostModal = signal(false);
+  // The crop step was removed — picking images now goes straight to "Chỉnh sửa".
+  public createPostStep = signal<'select' | 'edit'>('select');
+  public createPostFiles = signal<File[]>([]);
+
+  openCreatePostModal() {
+    this.showCreatePostModal.set(true);
+  }
+
+  closeCreatePostModal() {
+    this.showCreatePostModal.set(false);
+    this.createPostStep.set('select');
+    this.createPostFiles.set([]);
+    this.draft.clear();
+  }
+
+  onCreatePostFilesSelected(files: File[]) {
+    // Skip the old crop screen entirely — the picked images go through at their original
+    // size, straight to the "Chỉnh sửa" step.
+    this.createPostFiles.set(files);
+    this.createPostStep.set('edit');
+    void this.draft.saveFiles(files);
+    // Seed a draft record so a reload mid-edit restores the right step + images.
+    // `step: 'crop'` here is a legacy sentinel the draft service still checks for — it no
+    // longer means the crop screen; restoreEditDraft() reopens at the 'edit' step.
+    this.draft.saveCropState({
+      step: 'crop',
+      currentIndex: 0,
+      aspectKeys: files.map(() => 'original'),
+      transforms: files.map(() => ({ scale: 1, translateUnit: 'px' })),
+      cropperPositions: files.map(() => undefined),
+      fileMeta: this.draft.metaFor(files),
+    });
+  }
+
+  onEditBack() {
+    this.createPostStep.set('select');
+    this.draft.clear();
+  }
+
+  onEditNext(result: EditResult) {
+    // The flattened image (original + text + strokes + stickers) becomes the pin photo,
+    // exactly as if the user had picked it in the "Đăng ảnh thường" tab. This fills the
+    // "HÌNH ẢNH GHIM" box and the "XEM TRƯỚC" panel (both read imagePreviewUrl on this tab).
+    this.releaseEditedPreview();
+    this.editedPreviewUrl = URL.createObjectURL(result.file);
+    this.selectedFile = result.file;
+    this.imagePreviewUrl.set(this.editedPreviewUrl);
+    this.activeTab.set('upload');
+    this.closeCreatePostModal();
+  }
+
+  // Drop the current upload image (the "Thay đổi ảnh khác" button) — kept as a method so the
+  // object URL from "Chỉnh sửa" gets revoked instead of leaked.
+  clearUploadImage() {
+    this.imagePreviewUrl.set(null);
+    this.selectedFile = null;
+    this.releaseEditedPreview();
+  }
+
+  private releaseEditedPreview() {
+    if (this.editedPreviewUrl) {
+      URL.revokeObjectURL(this.editedPreviewUrl);
+      this.editedPreviewUrl = null;
+    }
   }
 
   goToFeed() {
@@ -243,6 +335,7 @@ export class Create implements OnInit {
       if (token) {
         await this.moderationService.checkImage(file, token);
       }
+      this.releaseEditedPreview();
       this.selectedFile = file;
       const objectUrl = URL.createObjectURL(file);
       this.imagePreviewUrl.set(objectUrl);
