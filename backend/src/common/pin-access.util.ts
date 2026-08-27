@@ -17,12 +17,22 @@ export interface RestrictablePinImage {
   isForSale: boolean;
 }
 
+/** Same-origin path to the server-rendered blurred stand-in for a locked pin.
+ * A relative path on purpose: it is served by our own API, and the frontend
+ * prefixes it for local dev (see PinService.request's normalizeImageUrls). */
+export function lockedPinPreviewPath(pinId: string): string {
+  return `/api/pins/${pinId}/locked-preview`;
+}
+
 /** Picks which image URL one specific viewer should receive for one pin.
- * Falls back to the real imageUrl if a protected variant hasn't been
- * generated yet (e.g. a pin that became restricted before this system
- * existed) — better to show the same preview it always showed than to
- * throw or show a broken image; PinPreviewProtectionService generates the
- * protected variant lazily on the next commerce-state change. */
+ *
+ * The last line used to fall back to the real `imageUrl` when no protected
+ * variant had been generated yet, reasoning that showing the previous preview
+ * beat showing a broken image. That handed the clear CDN asset to a viewer with
+ * no entitlement — CSS blur on the frontend does not help, because the browser
+ * has already downloaded the original and it is one glance at the Network panel
+ * away. It now falls back to a blurred preview rendered by us, which carries no
+ * recoverable original and still never breaks the image. */
 export function resolveViewablePinImageUrl(
   pin: RestrictablePinImage,
   opts: { viewerId?: string; hasAuction: boolean; hasPaidPurchase: boolean },
@@ -30,7 +40,7 @@ export function resolveViewablePinImageUrl(
   if (opts.viewerId && opts.viewerId === pin.userId) return pin.imageUrl;
   if (!isPinCommerceRestricted(pin.isForSale, opts.hasAuction)) return pin.imageUrl;
   if (opts.hasPaidPurchase) return pin.imageUrl;
-  return pin.protectedImageUrl ?? pin.imageUrl;
+  return pin.protectedImageUrl ?? lockedPinPreviewPath(pin.id);
 }
 
 type PinAccessClient = Pick<PrismaClient, 'auction' | 'imagePurchase'>;

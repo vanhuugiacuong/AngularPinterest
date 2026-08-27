@@ -379,14 +379,22 @@ export class PinsService {
     ]);
     return pins.map((p) => {
       const { originalStoragePath, ...rest } = p;
+      const auction = auctionMap.get(p.id);
       return {
         ...rest,
+        // Entitlement stays in resolveViewablePinImageUrl (owner / not
+        // restricted / PAID purchase). The kai branch computed restriction from
+        // the membership plan alone here, which would have handed a blurred
+        // preview to someone who had actually BOUGHT the pin. Its real fix —
+        // never letting a restricted viewer see the clear CDN URL — now lives
+        // in that helper's fallback instead, so every caller gets it, not just
+        // this one.
         imageUrl: resolveViewablePinImageUrl(p, {
           viewerId,
-          hasAuction: Boolean(auctionMap.get(p.id)),
+          hasAuction: Boolean(auction),
           hasPaidPurchase: purchasedIds.has(p.id),
         }),
-        ...this.marketFieldsFor(p.isForSale, auctionMap.get(p.id)),
+        ...this.marketFieldsFor(p.isForSale, auction),
         isLiked: likedIds.has(p.id),
       };
     });
@@ -1271,6 +1279,14 @@ export class PinsService {
       throw new NotFoundException('Pin not found');
     }
     const hasAuction = (await this.fetchLatestAuctionsByPinIds([pin.id])).has(pin.id);
+    /* Entitlement is decided by WHICH url we resolve, not by rejecting the
+       request. The kai branch added a plan check that threw Forbidden here; it
+       is dropped for two reasons. It gated on membership plan alone, so a viewer
+       who had PAID for the pin would have been refused — and this endpoint is
+       the canvas-safe proxy behind the region-select image search, so a 403
+       breaks that tool outright for restricted pins instead of letting it work
+       on the preview the viewer is allowed to see. resolveSinglePinImageUrl
+       already guarantees we never fetch bytes the viewer is not entitled to. */
     const imageUrl = await resolveSinglePinImageUrl(this.prisma, pin, viewerId, hasAuction);
 
     try {
@@ -1285,6 +1301,34 @@ export class PinsService {
       if (error instanceof ServiceUnavailableException) throw error;
       console.error('Image proxy fetch error:', error);
       throw new ServiceUnavailableException('Không thể tải ảnh gốc lúc này.');
+    }
+  }
+
+  /** Public, deliberately lossy preview for locked market pins. It never
+   * exposes the stored CDN URL and rasterises the blur into the bytes. */
+  async getLockedPinPreview(pinId: string): Promise<Buffer> {
+    const pin = await this.prisma.pin.findUnique({
+      where: { id: pinId },
+      select: { imageUrl: true, isForSale: true },
+    });
+    if (!pin) throw new NotFoundException('Pin not found');
+
+    const auction = (await this.fetchLatestAuctionsByPinIds([pinId])).get(pinId);
+    if (!auction && !pin.isForSale) throw new NotFoundException('Locked preview not found');
+
+    try {
+      const response = await fetch(pin.imageUrl);
+      if (!response.ok) throw new Error(`Image fetch failed (${response.status})`);
+      const source = Buffer.from(await response.arrayBuffer());
+      return await sharp(source, { limitInputPixels: 60_000_000 })
+        .rotate()
+        .resize({ width: 480, height: 480, fit: 'inside', withoutEnlargement: true })
+        .blur(24)
+        .jpeg({ quality: 52, progressive: true })
+        .toBuffer();
+    } catch (error) {
+      console.error('Locked preview render error:', error);
+      throw new ServiceUnavailableException('Không thể tạo ảnh xem trước lúc này.');
     }
   }
 

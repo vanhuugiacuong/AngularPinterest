@@ -139,10 +139,26 @@ export class PinsController {
     const { buffer, contentType } =
       await this.pinsService.getPinImageForProxy(id, user?.id);
     res.setHeader('Content-Type', contentType);
-    // Was public/shared max-age=3600 — a commerce-restricted pin's protected
-    // bytes must not be cached and replayed across different viewers who
-    // may have different purchase/ownership eligibility.
-    res.setHeader('Cache-Control', 'private, max-age=3600');
+    // Both branches independently moved this off a shared `public` cache, for
+    // the same reason: this response can hold the clear asset once the
+    // entitlement check passes, so it must never be replayed to another viewer.
+    // `no-store` over `private, max-age=3600` because entitlement can be lost
+    // (a plan lapses, a purchase is refunded) and a browser-cached copy would
+    // keep serving the clear bytes past that point.
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.send(buffer);
+  }
+
+  /** Public, deliberately lossy stand-in for a locked market pin. Safe to cache
+   * shared: the bytes are already blurred for everyone, and the real CDN URL
+   * never reaches the client. Two path segments, so it cannot collide with the
+   * `@Get(':id')` route below. */
+  @Get(':id/locked-preview')
+  async lockedPinPreview(@Param('id') id: string, @Res() res: Response) {
+    const buffer = await this.pinsService.getLockedPinPreview(id);
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.send(buffer);
   }
 
