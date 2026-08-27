@@ -67,6 +67,13 @@ export class Navbar {
 
   private unreadPollTimer: any = null;
 
+  // Messenger-style unread badge on the "Nhắn tin" rail icon — count comes from the
+  // conversations list (server-tracked read state), refreshed on login/poll/route
+  // change, and bumped instantly by a lightweight realtime subscription so a new
+  // message shows up without waiting for the next poll.
+  public chatUnreadCount = signal(0);
+  private chatUnreadChannel: any = null;
+
   constructor() {
     this.notificationSocket.onNotification((notification) => {
       this.unreadCount.update((count) => count + 1);
@@ -80,18 +87,33 @@ export class Navbar {
       const user = this.supabaseService.user();
       if (user) {
         this.refreshUnreadCount();
+        this.refreshChatUnreadCount();
         void this.billing.refreshMe();
         this.notificationSocket.connect();
+        this.connectChatUnreadChannel(user.id);
         if (!this.unreadPollTimer) {
-          this.unreadPollTimer = setInterval(() => this.refreshUnreadCount(), 30000);
+          this.unreadPollTimer = setInterval(() => {
+            this.refreshUnreadCount();
+            this.refreshChatUnreadCount();
+          }, 30000);
         }
       } else {
         this.unreadCount.set(0);
+        this.chatUnreadCount.set(0);
         this.notificationSocket.disconnect();
+        this.disconnectChatUnreadChannel();
         if (this.unreadPollTimer) {
           clearInterval(this.unreadPollTimer);
           this.unreadPollTimer = null;
         }
+      }
+    });
+
+    // Leaving the chat page usually means whatever was open just got marked read —
+    // re-sync the badge so it doesn't keep counting a conversation you just read.
+    this.router.events.subscribe((event) => {
+      if (event instanceof NavigationEnd && !event.urlAfterRedirects.startsWith('/chat')) {
+        this.refreshChatUnreadCount();
       }
     });
 
@@ -121,6 +143,40 @@ export class Navbar {
       this.unreadCount.set(await this.notificationService.getUnreadCount(token));
     } catch (error) {
       console.error('Error fetching unread notification count:', error);
+    }
+  }
+
+  private async refreshChatUnreadCount() {
+    const token = await this.supabaseService.getSessionToken();
+    if (!token) return;
+    try {
+      const conversations = await this.chatService.listConversations(token);
+      this.chatUnreadCount.set(conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0));
+    } catch (error) {
+      console.error('Error fetching unread chat count:', error);
+    }
+  }
+
+  // Instant badge bump when a message lands on this user's own inbox channel — the
+  // exact-count refresh above still runs on the next poll/navigation to correct it
+  // (e.g. if the message was on a conversation already open in another tab).
+  private connectChatUnreadChannel(userId: string) {
+    if (this.chatUnreadChannel) return;
+    const client = this.supabaseService.getRealtimeClient();
+    this.chatUnreadChannel = client
+      .channel(`chat-user:${userId}`, { config: { broadcast: { self: false } } })
+      .on('broadcast', { event: 'message' }, () => {
+        if (!this.isChatPage()) {
+          this.chatUnreadCount.update((count) => count + 1);
+        }
+      })
+      .subscribe();
+  }
+
+  private disconnectChatUnreadChannel() {
+    if (this.chatUnreadChannel) {
+      void this.supabaseService.getRealtimeClient().removeChannel(this.chatUnreadChannel);
+      this.chatUnreadChannel = null;
     }
   }
 

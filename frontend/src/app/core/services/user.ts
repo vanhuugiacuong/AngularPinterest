@@ -38,7 +38,7 @@ export class UserService {
     }
   }
 
-  async updateProfile(updates: { username?: string; bio?: string }, token: string): Promise<any> {
+  async updateProfile(updates: { username?: string; bio?: string; showAllPins?: boolean }, token: string): Promise<any> {
     const response = await fetch(`${this.baseUrl}/me`, {
       method: 'PATCH',
       headers: {

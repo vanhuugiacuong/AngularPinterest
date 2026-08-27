@@ -82,28 +82,39 @@
               *ngIf="!imagePreviewUrl()"
               class="drag-drop-area flex-1 min-h-[380px] rounded-2xl bg-[#f6f6f3] dark:bg-[#2a2a2a] flex flex-col items-center justify-center p-6 text-center cursor-pointer relative overflow-hidden transition-colors"
               [class.drag-drop-area-active]="isDraggingOverDropzone()"
+              [class.pointer-events-none]="isCheckingImage()"
               (click)="fileInput.click()"
               (dragover)="onDropzoneDragOver($event)"
               (dragleave)="onDropzoneDragLeave($event)"
               (drop)="onDropzoneDrop($event)"
             >
-              <div class="drag-drop-glow" aria-hidden="true"></div>
-              <span class="material-symbols-outlined drag-drop-spark drag-drop-spark-1" aria-hidden="true">auto_awesome</span>
-              <span class="material-symbols-outlined drag-drop-spark drag-drop-spark-2" aria-hidden="true">auto_awesome</span>
+              <ng-container *ngIf="!isCheckingImage()">
+                <div class="drag-drop-glow" aria-hidden="true"></div>
+                <span class="material-symbols-outlined drag-drop-spark drag-drop-spark-1" aria-hidden="true">auto_awesome</span>
+                <span class="material-symbols-outlined drag-drop-spark drag-drop-spark-2" aria-hidden="true">auto_awesome</span>
 
-              <span class="drag-drop-icon relative z-10 w-16 h-16 rounded-full flex items-center justify-center mb-4">
-                <span class="material-symbols-outlined text-[30px] text-white">cloud_upload</span>
-              </span>
-              <p class="relative z-10 text-sm font-extrabold text-gray-800 dark:text-white">
-                {{ isDraggingOverDropzone() ? 'Thả ảnh vào đây!' : 'Kéo thả hoặc nhấp để chọn ảnh' }}
-              </p>
-              <span class="relative z-10 text-[11px] text-gray-500 dark:text-[#999] mt-1.5">Khuyên dùng: Ảnh JPG, PNG chất lượng cao có tỷ lệ dọc</span>
+                <span class="drag-drop-icon relative z-10 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+                  <span class="material-symbols-outlined text-[30px] text-white">cloud_upload</span>
+                </span>
+                <p class="relative z-10 text-sm font-extrabold text-gray-800 dark:text-white">
+                  {{ isDraggingOverDropzone() ? 'Thả ảnh vào đây!' : 'Kéo thả hoặc nhấp để chọn ảnh' }}
+                </p>
+                <span class="relative z-10 text-[11px] text-gray-500 dark:text-[#999] mt-1.5">Khuyên dùng: Ảnh JPG, PNG chất lượng cao có tỷ lệ dọc</span>
+                <span class="relative z-10 text-[10px] text-gray-400 dark:text-[#777] mt-3 px-4 leading-relaxed">
+                  Lưu ý: Hệ thống kiểm duyệt tự động đôi khi có thể nhầm lẫn ảnh nhạy cảm. Nếu bạn phát hiện sai sót, hãy liên hệ với chúng tôi để đưa ra đề xuất.
+                </span>
+              </ng-container>
+              <ng-container *ngIf="isCheckingImage()">
+                <span class="material-symbols-outlined text-4xl text-[#F94083] mb-3 animate-spin">progress_activity</span>
+                <p class="text-xs font-bold text-gray-700 dark:text-[#ccc]">Đang kiểm duyệt ảnh...</p>
+              </ng-container>
 
               <input
                 #fileInput
                 type="file"
                 accept="image/*"
                 class="hidden"
+                [disabled]="isCheckingImage()"
                 (change)="onFileSelected($event)"
               />
             </div>

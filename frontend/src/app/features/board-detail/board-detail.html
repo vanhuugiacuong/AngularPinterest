@@ -4,7 +4,7 @@
 
   <!-- Main Content Area: padded down to clear fixed header, padded up to clear floating bottom bar -->
   <div class="flex-1 pt-16 pl-28 pb-24 flex flex-col min-w-0">
-    <main class="flex-1 w-full mx-auto px-8 py-8 flex flex-col max-w-none items-center">
+    <main class="flex-1 w-full mx-auto px-8 py-8 flex flex-col max-w-none items-start">
 
       <!-- Back to Profile Button -->
       <div class="w-full flex justify-start mb-6">
@@ -18,68 +18,205 @@
       </div>
 
       <!-- Loading State -->
-      <div *ngIf="isLoading()" class="flex-1 flex flex-col items-center justify-center py-20">
+      <div *ngIf="isLoading()" class="w-full flex-1 flex flex-col items-center justify-center py-20">
         <div class="w-10 h-10 border-4 border-[#F94083] border-t-transparent rounded-full animate-spin"></div>
         <p class="text-xs text-[#62625b] dark:text-[#999] mt-4 font-semibold">Đang tải chi tiết bảng...</p>
       </div>
 
       <ng-container *ngIf="!isLoading() && board() as b">
         <!-- Board Header -->
-        <div class="flex flex-col items-center gap-2 max-w-[600px] mb-12 text-center">
-          <div class="flex items-center gap-2.5">
-            <h1 class="text-3xl font-extrabold text-[#211922] dark:text-white tracking-tight">{{ b.name }}</h1>
-            <span
-              *ngIf="b.isSecret"
-              class="material-symbols-outlined text-xl text-gray-500 dark:text-[#999] font-bold"
-              title="Bảng bí mật (chỉ bạn xem được)"
-            >
-              lock
-            </span>
+        <div class="w-full mb-6 text-left">
 
-            <!-- Owner options: rename / delete -->
-            <div class="relative" *ngIf="isOwner()">
+          <div class="flex items-start justify-between gap-4 w-full">
+            <h1 class="text-[36px] md:text-[42px] font-extrabold text-[#211922] dark:text-white tracking-tight leading-tight">
+              {{ b.name }}
+            </h1>
+
+            <div class="flex items-center gap-2 shrink-0 mt-1">
               <button
-                (click)="toggleOptionsMenu($event)"
-                class="w-9 h-9 rounded-full hover:bg-gray-100 dark:hover:bg-[#2a2a2a] flex items-center justify-center cursor-pointer border-none outline-none text-[#211922] dark:text-white"
-                title="Tùy chọn bảng"
+                (click)="shareBoard()"
+                class="h-12 px-5 rounded-full bg-[#f0f0f0] dark:bg-[#2a2a2a] hover:bg-[#e1e1da] dark:hover:bg-[#333] text-black dark:text-white font-bold text-base flex items-center gap-2 cursor-pointer border-none outline-none transition-colors"
               >
-                <span class="material-symbols-outlined text-xl">more_horiz</span>
+                <span class="material-symbols-outlined text-xl">ios_share</span>
+                Chia sẻ
               </button>
 
-              <div
-                *ngIf="showOptionsMenu()"
-                class="absolute left-1/2 -translate-x-1/2 top-11 w-52 bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-50 text-left animate-fade-in"
-              >
+              <!-- Owner options: rename / delete -->
+              <div class="relative" *ngIf="isOwner()">
                 <button
-                  (click)="openEditModal($event)"
-                  class="w-full text-left px-4 py-2.5 text-sm font-bold text-black dark:text-white hover:bg-gray-50 dark:hover:bg-[#2a2a2a] cursor-pointer border-none outline-none bg-transparent flex items-center gap-2.5"
+                  (click)="toggleOptionsMenu($event)"
+                  class="w-12 h-12 rounded-full bg-[#f0f0f0] dark:bg-[#2a2a2a] hover:bg-[#e1e1da] dark:hover:bg-[#333] flex items-center justify-center cursor-pointer border-none outline-none text-[#211922] dark:text-white transition-colors"
+                  title="Tùy chọn bảng"
                 >
-                  <span class="material-symbols-outlined text-[18px]">edit</span>
-                  Đổi tên / chỉnh sửa
+                  <span class="material-symbols-outlined text-2xl">more_horiz</span>
                 </button>
-                <button
-                  (click)="deleteCurrentBoard($event)"
-                  class="w-full text-left px-4 py-2.5 text-sm font-bold text-[#DC2626] hover:bg-gray-50 dark:hover:bg-[#2a2a2a] cursor-pointer border-none outline-none bg-transparent flex items-center gap-2.5"
+
+                <div *ngIf="showOptionsMenu()" class="fixed inset-0 z-40" (click)="showOptionsMenu.set(false)"></div>
+                <div
+                  *ngIf="showOptionsMenu()"
+                  class="absolute right-0 top-14 w-52 bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-50 text-left animate-fade-in"
+                  (click)="$event.stopPropagation()"
                 >
-                  <span class="material-symbols-outlined text-[18px]">delete</span>
-                  Xóa bảng
-                </button>
+                  <button
+                    (click)="openEditModal($event)"
+                    class="w-full text-left px-4 py-2.5 text-sm font-bold text-black dark:text-white hover:bg-gray-50 dark:hover:bg-[#2a2a2a] cursor-pointer border-none outline-none bg-transparent flex items-center gap-2.5"
+                  >
+                    <span class="material-symbols-outlined text-[18px]">edit</span>
+                    Đổi tên bảng
+                  </button>
+                  <button
+                    (click)="deleteCurrentBoard($event)"
+                    class="w-full text-left px-4 py-2.5 text-sm font-bold text-[#DC2626] hover:bg-gray-50 dark:hover:bg-[#2a2a2a] cursor-pointer border-none outline-none bg-transparent flex items-center gap-2.5"
+                  >
+                    <span class="material-symbols-outlined text-[18px]">delete</span>
+                    Xóa bảng
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-          <p class="text-sm text-[#62625b] dark:text-[#999] font-medium max-w-[450px] leading-relaxed mt-1" *ngIf="b.description">
+
+          <!-- Visibility + pin count pill -->
+          <div class="flex items-center gap-2 mt-2">
+            <button
+              type="button"
+              (click)="openVisibilityModal($event)"
+              [disabled]="!isOwner()"
+              class="inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-[#f0f0f0] dark:bg-[#2a2a2a] text-xs font-bold text-[#211922] dark:text-white select-none border-none outline-none"
+              [class.cursor-pointer]="isOwner()"
+              [class.hover:bg-[#e1e1da]]="isOwner()"
+              [class.dark:hover:bg-[#333]]="isOwner()"
+              [class.cursor-default]="!isOwner()"
+            >
+              <span class="material-symbols-outlined text-[15px]">{{ b.isSecret ? 'lock' : 'public' }}</span>
+              {{ b.isSecret ? 'Bảng riêng tư' : 'Bảng công khai' }}
+            </button>
+            <span class="text-xs font-bold text-gray-400 dark:text-[#777]">· {{ pins().length }} Ghim</span>
+          </div>
+
+          <p class="text-sm text-[#62625b] dark:text-[#999] font-medium max-w-[550px] leading-relaxed mt-2" *ngIf="b.description">
             {{ b.description }}
           </p>
-          <span class="text-xs font-bold text-gray-400 dark:text-[#777] mt-2 uppercase tracking-wide">
-            {{ pins().length }} ý tưởng / hình ảnh
-          </span>
+
+          <!-- Avatars + invite -->
+          <div class="flex items-center gap-1.5 mt-4" *ngIf="isOwner() || collaborators.length > 0">
+            <span class="flex items-center -space-x-2 cursor-pointer" (click)="openCollaboratorsModal($event)">
+              <img
+                [src]="b.user?.avatarUrl || supabaseService.dbUser()?.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'"
+                alt=""
+                class="w-9 h-9 rounded-full border-2 border-white dark:border-[#121212] object-cover"
+              />
+              <img
+                *ngFor="let c of collaborators.slice(0, 4)"
+                [src]="c.user.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'"
+                alt=""
+                class="w-9 h-9 rounded-full border-2 border-white dark:border-[#121212] object-cover"
+              />
+            </span>
+            <button
+              *ngIf="isOwner()"
+              type="button"
+              (click)="openCollaboratorsModal($event)"
+              class="w-9 h-9 rounded-full bg-[#f0f0f0] dark:bg-[#2a2a2a] hover:bg-[#e1e1da] dark:hover:bg-[#333] flex items-center justify-center cursor-pointer border-none outline-none text-[#211922] dark:text-white transition-colors"
+              title="Mời cộng tác viên"
+            >
+              <span class="material-symbols-outlined text-lg">person_add</span>
+            </button>
+          </div>
+
+          <!-- Quick actions -->
+          <div class="flex items-center gap-6 mt-6">
+            <button type="button" (click)="goToOrganizePins()" class="flex flex-col items-center gap-1.5 cursor-pointer border-none outline-none bg-transparent select-none">
+              <span class="w-20 h-20 rounded-2xl bg-[#f0f0f0] dark:bg-[#2a2a2a] hover:bg-[#e1e1da] dark:hover:bg-[#333] flex items-center justify-center text-[#211922] dark:text-white transition-colors">
+                <span class="material-symbols-outlined text-3xl">sort</span>
+              </span>
+              <span class="text-sm font-bold text-[#211922] dark:text-white">Sắp xếp</span>
+            </button>
+            <button type="button" (click)="goExploreMoreIdeas()" class="flex flex-col items-center gap-1.5 cursor-pointer border-none outline-none bg-transparent select-none">
+              <span class="w-20 h-20 rounded-2xl bg-[#f0f0f0] dark:bg-[#2a2a2a] hover:bg-[#e1e1da] dark:hover:bg-[#333] flex items-center justify-center text-[#211922] dark:text-white transition-colors">
+                <span class="material-symbols-outlined text-3xl">grid_view</span>
+              </span>
+              <span class="text-sm font-bold text-[#211922] dark:text-white">Ý tưởng khác</span>
+            </button>
+            <button type="button" (click)="goToCollageEditor()" class="flex flex-col items-center gap-1.5 cursor-pointer border-none outline-none bg-transparent select-none">
+              <span class="w-20 h-20 rounded-2xl bg-[#f0f0f0] dark:bg-[#2a2a2a] hover:bg-[#e1e1da] dark:hover:bg-[#333] flex items-center justify-center text-[#211922] dark:text-white transition-colors">
+                <span class="material-symbols-outlined text-3xl">content_cut</span>
+              </span>
+              <span class="text-sm font-bold text-[#211922] dark:text-white">Ảnh ghép</span>
+            </button>
+          </div>
+
+          <!-- Search this board + sort -->
+          <div class="relative flex items-center justify-between gap-2 mt-6">
+            <div class="w-full max-w-[560px] relative">
+              <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-lg text-[#62625b] dark:text-[#999] pointer-events-none">search</span>
+              <input
+                type="text"
+                [ngModel]="boardSearchQuery()"
+                (ngModelChange)="boardSearchQuery.set($event)"
+                placeholder="Tìm kiếm bảng này"
+                class="w-full bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-[#333] focus:border-gray-300 dark:focus:border-[#444] outline-none rounded-full pl-11 pr-4 h-12 text-sm text-black dark:text-white transition-all"
+              />
+            </div>
+            <button
+              type="button"
+              (click)="toggleFilterMenu($event)"
+              class="w-12 h-12 shrink-0 rounded-full border border-gray-200 dark:border-[#333] hover:bg-gray-50 dark:hover:bg-[#2a2a2a] flex items-center justify-center cursor-pointer outline-none bg-white dark:bg-[#1e1e1e] text-[#211922] dark:text-white transition-colors"
+              title="Lọc & tùy chọn xem"
+            >
+              <span class="material-symbols-outlined text-xl">tune</span>
+            </button>
+
+            <div *ngIf="showFilterMenu()" class="fixed inset-0 z-40" (click)="showFilterMenu.set(false)"></div>
+            <div
+              *ngIf="showFilterMenu()"
+              class="absolute right-0 bottom-[calc(100%+8px)] w-64 bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#333] py-2 z-50 text-left animate-fade-in"
+              (click)="$event.stopPropagation()"
+            >
+              <span class="text-xs font-bold text-gray-400 dark:text-[#999] px-4 block mb-1">Lọc theo loại</span>
+              <button type="button" (click)="setPinFilter('all', $event)" class="w-full flex items-center justify-between px-4 py-2.5 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#2a2a2a] border-none bg-transparent text-sm font-bold text-black dark:text-white">
+                Tất cả các Ghim
+                <span *ngIf="pinFilter() === 'all'" class="material-symbols-outlined text-lg leading-none">check</span>
+              </button>
+              <button type="button" (click)="setPinFilter('favorites', $event)" class="w-full flex items-center justify-between px-4 py-2.5 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#2a2a2a] border-none bg-transparent text-sm font-bold text-black dark:text-white">
+                Yêu thích
+                <span *ngIf="pinFilter() === 'favorites'" class="material-symbols-outlined text-lg leading-none">check</span>
+              </button>
+
+              <div class="border-t border-gray-100 dark:border-[#333] my-2"></div>
+
+              <span class="text-xs font-bold text-gray-400 dark:text-[#999] px-4 block mb-1">Xem các tùy chọn</span>
+              <button type="button" (click)="setViewMode('default', $event)" class="w-full flex items-center justify-between px-4 py-2.5 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#2a2a2a] border-none bg-transparent text-sm font-bold text-black dark:text-white">
+                Mặc định
+                <span *ngIf="viewMode() === 'default'" class="material-symbols-outlined text-lg leading-none">check</span>
+              </button>
+              <button type="button" (click)="setViewMode('compact', $event)" class="w-full flex items-center justify-between px-4 py-2.5 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#2a2a2a] border-none bg-transparent text-sm font-bold text-black dark:text-white">
+                Thu gọn
+                <span *ngIf="viewMode() === 'compact'" class="material-symbols-outlined text-lg leading-none">check</span>
+              </button>
+            </div>
+          </div>
+
         </div>
 
         <!-- Pins Masonry Grid inside the Board -->
         <div class="w-full">
-          <div class="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-4 w-full">
+
+          <div
+            class="gap-4 w-full"
+            [class.columns-2]="viewMode() === 'default'"
+            [class.sm:columns-3]="viewMode() === 'default'"
+            [class.md:columns-4]="viewMode() === 'default'"
+            [class.lg:columns-5]="viewMode() === 'default'"
+            [class.xl:columns-6]="viewMode() === 'default'"
+            [class.columns-3]="viewMode() === 'compact'"
+            [class.sm:columns-4]="viewMode() === 'compact'"
+            [class.md:columns-6]="viewMode() === 'compact'"
+            [class.lg:columns-7]="viewMode() === 'compact'"
+            [class.xl:columns-8]="viewMode() === 'compact'"
+          >
             <div
-              *ngFor="let pin of pins()"
+              *ngFor="let pin of visiblePins()"
               (click)="navigateToPin(pin.id)"
               class="break-inside-avoid mb-4 group cursor-pointer flex flex-col"
             >
@@ -92,7 +229,7 @@
                 />
 
                 <!-- Hover Overlay -->
-                <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 text-white z-10">
+                <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col p-3 text-white z-10">
                   <!-- Remove from Board action -->
                   <div class="flex justify-end">
                     <button
@@ -103,23 +240,28 @@
                       Gỡ khỏi bảng
                     </button>
                   </div>
-
-                  <!-- Bottom Info -->
-                  <div class="flex items-center justify-end w-full min-w-0">
-                    <button
-                      (click)="$event.stopPropagation()"
-                      class="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-100 cursor-pointer border-none outline-none animate-fade-in"
-                    >
-                      <span class="material-symbols-outlined text-sm font-bold">more_horiz</span>
-                    </button>
-                  </div>
                 </div>
               </div>
 
-              <!-- Metadata title -->
-              <span class="mt-2 px-1 text-xs font-bold text-[#211922] dark:text-white truncate block">
-                {{ pin.title }}
-              </span>
+              <!-- Metadata: title + favorite star to its right -->
+              <div class="mt-2 px-1 flex items-center justify-between gap-2">
+                <span class="text-xs font-bold text-[#211922] dark:text-white truncate min-w-0">
+                  {{ pin.title }}
+                </span>
+                <button
+                  (click)="toggleFavoritePin(pin.id, $event)"
+                  class="shrink-0 w-6 h-6 rounded-full flex items-center justify-center cursor-pointer border-none outline-none bg-transparent transition-colors"
+                  [title]="pin.isFavorite ? 'Bỏ yêu thích' : 'Đánh dấu yêu thích'"
+                >
+                  <span
+                    class="material-symbols-outlined text-base"
+                    [class.text-[#B15CAA]]="pin.isFavorite"
+                    [class.text-gray-300]="!pin.isFavorite"
+                    [class.dark:text-[#555]]="!pin.isFavorite"
+                    [style.font-variation-settings]="pin.isFavorite ? '\'FILL\' 1' : '\'FILL\' 0'"
+                  >star</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -136,6 +278,20 @@
             >
               Khám phá ảnh trên Feed
             </a>
+          </div>
+
+          <!-- Search found nothing (board itself isn't empty — just this query) -->
+          <div
+            *ngIf="pins().length > 0 && visiblePins().length === 0"
+            class="py-16 flex flex-col items-center justify-center text-center gap-2 w-full"
+          >
+            <span class="material-symbols-outlined text-4xl text-gray-400">{{ pinFilter() === 'favorites' ? 'star' : 'search_off' }}</span>
+            <p class="text-xs font-semibold text-gray-500 dark:text-[#999]" *ngIf="boardSearchQuery().trim()">
+              Không tìm thấy Ghim nào khớp với "{{ boardSearchQuery() }}".
+            </p>
+            <p class="text-xs font-semibold text-gray-500 dark:text-[#999]" *ngIf="!boardSearchQuery().trim() && pinFilter() === 'favorites'">
+              Chưa có Ghim nào được đánh dấu yêu thích trong bảng này.
+            </p>
           </div>
         </div>
       </ng-container>
@@ -219,6 +375,200 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Visibility Modal (public/secret quick toggle) -->
+  <div
+    *ngIf="showVisibilityModal() && board() as vb"
+    class="fixed inset-0 bg-black/50 z-[999] flex items-center justify-center p-4 backdrop-blur-sm"
+    (click)="closeVisibilityModal()"
+  >
+    <div
+      class="bg-white dark:bg-[#1e1e1e] w-full max-w-[520px] rounded-[32px] p-8 shadow-2xl flex flex-col gap-6 text-left border border-gray-100 dark:border-[#333] animate-fade-in"
+      (click)="$event.stopPropagation()"
+    >
+      <!-- Title/description/toggle label all describe the board's real, saved state
+           (vb.isSecret) — fixed for the life of this modal session — so they don't
+           confusingly chase the switch as the user is still deciding whether to flip it.
+           Only the switch's own position reflects the pending choice (flipVisibilityRequested()). -->
+      <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-extrabold text-[#211922] dark:text-white">
+          {{ vb.isSecret ? 'Bảng này là riêng tư' : 'Bảng này được công khai' }}
+        </h2>
+        <button
+          (click)="closeVisibilityModal()"
+          class="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-[#2a2a2a] flex items-center justify-center cursor-pointer border-none outline-none text-black dark:text-white select-none shrink-0"
+        >
+          <span class="material-symbols-outlined font-bold text-lg">close</span>
+        </button>
+      </div>
+
+      <p class="text-sm text-[#62625b] dark:text-[#999] leading-relaxed">
+        {{
+          vb.isSecret
+            ? 'Chỉ các cộng tác viên mới có thể xem bảng này. Bảng này sẽ không xuất hiện trên hồ sơ của bạn, trong tìm kiếm hoặc bất cứ nơi nào khác trên PinHub.'
+            : 'Bất cứ ai cũng có thể xem bảng này. Bảng này sẽ xuất hiện trên hồ sơ của bạn và có thể xuất hiện trong tìm kiếm và các địa điểm khác trên PinHub.'
+        }}
+      </p>
+
+      <div class="flex items-center justify-between gap-6">
+        <div class="flex flex-col gap-1">
+          <span class="text-base font-bold text-black dark:text-white">
+            {{ vb.isSecret ? 'Đặt bảng này là công khai' : 'Đặt bảng này là riêng tư' }}
+          </span>
+          <span class="text-sm text-[#62625b] dark:text-[#999] leading-relaxed">
+            {{ vb.isSecret ? 'Bất kỳ ai cũng có thể xem bảng này' : 'Chỉ các cộng tác viên mới có thể xem bảng này' }}
+          </span>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          [attr.aria-checked]="flipVisibilityRequested()"
+          (click)="toggleVisibilityModalSecret()"
+          class="relative shrink-0 w-12 h-7 rounded-full border-none outline-none cursor-pointer transition-colors"
+          [class.bg-[#B15CAA]]="flipVisibilityRequested()"
+          [class.bg-gray-300]="!flipVisibilityRequested()"
+          [class.dark:bg-[#444]]="!flipVisibilityRequested()"
+        >
+          <span class="absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow-md transition-transform" [class.translate-x-5]="flipVisibilityRequested()"></span>
+        </button>
+      </div>
+
+      <div class="flex items-center justify-end gap-3">
+        <button
+          type="button"
+          (click)="closeVisibilityModal()"
+          class="h-11 px-6 rounded-full text-sm font-bold bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] text-black dark:text-white cursor-pointer transition-colors border-none outline-none select-none"
+          [disabled]="isSavingVisibility()"
+        >
+          Hủy
+        </button>
+        <button
+          type="button"
+          (click)="saveVisibility()"
+          class="h-11 px-6 rounded-full text-sm font-bold bg-[#B15CAA] hover:bg-[#8F4A8B] text-white cursor-pointer transition-all active:scale-95 border-none outline-none disabled:opacity-60"
+          [disabled]="isSavingVisibility() || !flipVisibilityRequested()"
+        >
+          {{ isSavingVisibility() ? 'Đang lưu...' : 'Lưu' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Collaborators Modal -->
+  <div
+    *ngIf="showCollaboratorsModal() && board() as b"
+    class="fixed inset-0 bg-black/50 z-[999] flex items-center justify-center p-4 backdrop-blur-sm"
+    (click)="closeCollaboratorsModal()"
+  >
+    <div
+      class="bg-white dark:bg-[#1e1e1e] w-full max-w-[560px] rounded-[32px] p-10 shadow-2xl flex flex-col gap-5 text-left border border-gray-100 dark:border-[#333] animate-fade-in"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-extrabold text-[#211922] dark:text-white">Cộng tác trên bảng</h2>
+        <button
+          (click)="closeCollaboratorsModal()"
+          class="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-[#2a2a2a] flex items-center justify-center cursor-pointer border-none outline-none text-black dark:text-white select-none"
+        >
+          <span class="material-symbols-outlined font-bold text-lg">close</span>
+        </button>
+      </div>
+
+      <!-- Invite box: owner only. Search-as-you-type — lists matching users below the
+           input as soon as they start typing, rather than requiring the exact full
+           username before anything shows up. -->
+      <div *ngIf="isOwner()" class="relative">
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-lg text-[#62625b] dark:text-[#999] pointer-events-none">search</span>
+          <input
+            type="text"
+            name="inviteUsername"
+            [(ngModel)]="inviteUsername"
+            (ngModelChange)="onInviteUsernameInput()"
+            placeholder="Tìm theo tên người dùng..."
+            autocomplete="off"
+            class="w-full bg-[#f6f6f3] dark:bg-[#2a2a2a] border border-transparent focus:border-gray-200 dark:focus:border-[#444] focus:bg-white dark:focus:bg-[#2a2a2a] outline-none rounded-full pl-11 pr-4 h-11 text-sm text-black dark:text-white transition-all"
+            [disabled]="isInviting()"
+          />
+        </div>
+
+        <!-- Results dropdown -->
+        <div
+          *ngIf="inviteUsername.trim().length > 0"
+          class="absolute left-0 right-0 top-[calc(100%+6px)] bg-white dark:bg-[#242424] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-50 max-h-[220px] overflow-y-auto"
+        >
+          <div *ngIf="isSearchingUsers()" class="px-4 py-3 text-xs font-semibold text-gray-400 dark:text-[#999]">Đang tìm...</div>
+
+          <button
+            *ngFor="let candidate of inviteSearchResults()"
+            type="button"
+            (click)="selectInviteCandidate(candidate)"
+            [disabled]="isInviting()"
+            class="w-full flex items-center gap-3 px-4 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333] border-none bg-transparent disabled:opacity-60"
+          >
+            <img [src]="candidate.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'" alt="" class="w-8 h-8 rounded-full object-cover" />
+            <span class="text-sm font-bold text-black dark:text-white truncate">{{ candidate.username }}</span>
+          </button>
+
+          <div
+            *ngIf="!isSearchingUsers() && inviteSearchResults().length === 0"
+            class="px-4 py-3 text-xs font-semibold text-gray-400 dark:text-[#999]"
+          >
+            Không tìm thấy người dùng nào.
+          </div>
+        </div>
+      </div>
+
+      <!-- Collaborators list -->
+      <div class="flex flex-col gap-1">
+        <!-- Owner row (always shown first, never removable) -->
+        <div class="flex items-center gap-3 py-2">
+          <img
+            [src]="b.user?.avatarUrl || supabaseService.dbUser()?.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'"
+            alt=""
+            class="w-10 h-10 rounded-full object-cover"
+          />
+          <div class="flex-1 flex flex-col min-w-0">
+            <span class="text-sm font-bold text-black dark:text-white truncate">{{ b.user?.username || 'Bạn' }}</span>
+            <span class="text-xs text-[#62625b] dark:text-[#999]">Chủ bảng</span>
+          </div>
+        </div>
+
+        <div
+          *ngFor="let c of collaborators"
+          class="flex items-center gap-3 py-2"
+        >
+          <img [src]="c.user.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'" alt="" class="w-10 h-10 rounded-full object-cover" />
+          <div class="flex-1 flex flex-col min-w-0">
+            <span class="text-sm font-bold text-black dark:text-white truncate">{{ c.user.username }}</span>
+            <span class="text-xs text-[#62625b] dark:text-[#999]">Cộng tác viên</span>
+          </div>
+          <button
+            *ngIf="isOwner() || c.userId === supabaseService.user()?.id"
+            type="button"
+            (click)="removeCollaboratorUser(c.userId, $event)"
+            [disabled]="removingCollaboratorId() === c.userId"
+            class="h-8 px-3 rounded-full text-xs font-bold bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] text-black dark:text-white cursor-pointer transition-colors border-none outline-none disabled:opacity-60 shrink-0"
+          >
+            {{ c.userId === supabaseService.user()?.id ? 'Rời khỏi' : 'Gỡ' }}
+          </button>
+        </div>
+
+        <!-- Empty state promo: owner only, no collaborators yet -->
+        <div *ngIf="isOwner() && collaborators.length === 0" class="flex flex-col items-center text-center py-4">
+          <img
+            src="/illustrations/board-collab.png"
+            alt=""
+            class="w-full max-w-[280px] select-none pointer-events-none rounded-2xl"
+          />
+          <h4 class="mt-4 text-lg font-extrabold text-[#211922] dark:text-white leading-normal">Cộng tác trên một bảng</h4>
+          <p class="mt-1.5 text-sm text-[#62625b] dark:text-[#999] leading-relaxed max-w-[420px]">
+            Thêm cộng tác viên vào bảng để bạn có thể lưu Ghim, gắn thẻ yêu thích và sắp xếp ý tưởng của các bạn cùng nhau.
+          </p>
+        </div>
+      </div>
     </div>
   </div>
 </div>

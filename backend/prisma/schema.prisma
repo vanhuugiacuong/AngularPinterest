@@ -24,6 +24,7 @@ model User {
   email        String    @unique
   avatarUrl    String?
   bio          String?
+  showAllPins  Boolean   @default(true)
   createdAt    DateTime  @default(now())
 
   // Thương mại hoá (Pro + Credit)
@@ -38,6 +39,7 @@ model User {
 
   pins         Pin[]
   boards       Board[]
+  boardCollaborations BoardCollaborator[]
   likes        Like[]
   comments     Comment[]
 
@@ -84,6 +86,7 @@ model Pin {
   promptUsed      String?
   negativePrompt  String?
   generationModel String?
+  isCollage       Boolean     @default(false) // published from the Ảnh ghép (collage) editor
   category        String      @default("other")
   embedding       Unsupported("vector(512)")? // pgvector similarity embedding, managed outside Prisma
   // NOTE: a "visualCategory" TEXT column also exists on this table, managed outside Prisma
@@ -166,12 +169,28 @@ model Board {
 
   user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   boardPins       BoardPin[]
+  collaborators   BoardCollaborator[]
+}
+
+// A user (not the owner) invited to co-manage a board — can add/remove Pins on it,
+// same as the owner, but cannot rename/delete the board or manage other collaborators.
+model BoardCollaborator {
+  boardId String
+  userId  String
+  addedAt DateTime @default(now())
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([boardId, userId])
 }
 
 model BoardPin {
   boardId   String
   pinId     String
   addedAt   DateTime @default(now())
+  sortOrder Int?     // manual drag-reorder position from the "Chọn và sắp xếp lại" screen; null = not yet manually placed, falls back to addedAt desc
+  isFavorite Boolean @default(false) // starred within this board, for the "Yêu thích" filter
 
   board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
   pin       Pin      @relation(fields: [pinId], references: [id], onDelete: Cascade)

@@ -8,7 +8,7 @@ const NOTIFICATION_INCLUDE = {
   pin: { select: { id: true, imageUrl: true, title: true } },
 } as const;
 
-export type NotificationType = 'like' | 'comment' | 'follow' | 'save' | 'new_pin' | 'message_request' | 'message';
+export type NotificationType = 'like' | 'comment' | 'follow' | 'save' | 'new_pin' | 'message_request' | 'message' | 'board_invite';
 
 const CONTENT_BY_TYPE: Record<NotificationType, (extra?: string) => string> = {
   like: () => 'đã thích ảnh của bạn',
@@ -18,6 +18,7 @@ const CONTENT_BY_TYPE: Record<NotificationType, (extra?: string) => string> = {
   new_pin: () => 'vừa đăng một ảnh ghim mới',
   message_request: () => 'muốn nhắn tin với bạn',
   message: () => 'đã gửi cho bạn một tin nhắn',
+  board_invite: () => 'đã mời bạn cộng tác trên một bảng',
 };
 
 // Types where it makes sense to merge several rows into one line ("X and 4 others liked your pin").

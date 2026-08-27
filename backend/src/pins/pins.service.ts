@@ -325,6 +325,7 @@ export class PinsService {
     boardId?: string,
     isPremium?: boolean,
     priceCredits?: number,
+    isCollage?: boolean,
   ) {
     this.moderationService.checkTextIsSafe(title, description);
     await this.moderationService.checkImageIsSafe(file.buffer, file.originalname, file.mimetype);
@@ -353,6 +354,7 @@ export class PinsService {
         category,
         isPremium: premium.isPremium,
         priceCredits: premium.priceCredits,
+        isCollage: !!isCollage,
       },
     });
 

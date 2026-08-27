@@ -9,6 +9,7 @@ export interface Pin {
   userId: string;
   createdAt: string;
   isAiGenerated: boolean;
+  isCollage?: boolean;
   user: {
     id: string;
     username: string;

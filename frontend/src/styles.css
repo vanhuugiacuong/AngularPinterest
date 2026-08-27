@@ -2,48 +2,16 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* PinHub dark design system — shared by the create-post flow (upload modal,
-   crop step, etc.) so every step reuses the same palette. */
+/* Tells the browser this page is intentionally light/dark, so it stops applying its own
+   forced-dark/autofill heuristics to form controls (inputs/textareas) — without this,
+   some browsers keep rendering black typed text in a custom-dark-styled textarea even
+   though `dark:text-white` is correctly applied, because the control's OWN native
+   rendering doesn't know the surrounding page has gone dark. */
 :root {
-  --pinhub-bg: #141416;
-  --pinhub-surface: #1a1a1e;
-  --pinhub-accent: #ff2e8e;
-  --pinhub-text-primary: #ffffff;
-  --pinhub-text-secondary: #9c9ca3;
-  --pinhub-border: #2a2a2e;
+  color-scheme: light;
 }
-
-/* ── Design tokens (dark-only, hồng là màu chính) ──────────────────────────
-   Dùng như utility: bg-surface, text-brand, border-hairline, text-muted... */
-@theme {
-  --color-brand: #f94083;
-  --color-brand-2: #b15caa;
-  --color-brand-soft: #ff6fa1;
-
-  --color-bg: #0f0d13;
-  --color-surface: #17131c;
-  --color-surface-2: #201826;
-  --color-elevated: #262030;
-
-  --color-hairline: rgba(255, 255, 255, 0.08);
-  --color-hairline-strong: rgba(255, 255, 255, 0.14);
-
-  --color-ink: #ffffff;
-  --color-muted: #a29aac;
-  --color-faint: #6c6674;
-}
-
-/* Nền tối toàn site (dark-only). Có ánh sáng hồng/tím rất nhẹ ở 2 góc cho sang. */
-html,
-body {
-  background-color: #0f0d13;
-  color: #ffffff;
-}
-body {
-  background-image:
-    radial-gradient(60% 55% at 100% 0%, rgba(249, 64, 131, 0.08), transparent 60%),
-    radial-gradient(55% 55% at 0% 100%, rgba(177, 92, 170, 0.08), transparent 60%);
-  background-attachment: fixed;
+html.dark {
+  color-scheme: dark;
 }
 }
 

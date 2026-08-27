@@ -32,6 +32,23 @@ export class BoardService {
     }
   }
 
+  async getGroupBoards(token: string): Promise<Board[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/group`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch group boards: ${response.statusText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching group boards in BoardService:', error);
+      throw error;
+    }
+  }
+
   async getBoardById(id: string, token: string): Promise<any> {
     try {
       const response = await fetch(`${this.baseUrl}/${id}`, {
@@ -137,6 +154,64 @@ export class BoardService {
     } catch (error) {
       console.error(`Error removing pin ${pinId} from board ${boardId}:`, error);
       throw error;
+    }
+  }
+
+  async toggleFavoritePin(boardId: string, pinId: string, token: string): Promise<{ isFavorite: boolean }> {
+    const response = await fetch(`${this.baseUrl}/${boardId}/pins/${pinId}/favorite`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      throw new Error(errorBody?.message || `Failed to toggle favorite: ${response.statusText}`);
+    }
+    return await response.json();
+  }
+
+  async reorderPins(boardId: string, pinIds: string[], token: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/${boardId}/pins/order`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ pinIds })
+    });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      throw new Error(errorBody?.message || `Failed to reorder pins: ${response.statusText}`);
+    }
+  }
+
+  async addCollaborator(boardId: string, username: string, token: string): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/${boardId}/collaborators`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ username })
+    });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      throw new Error(errorBody?.message || `Failed to add collaborator: ${response.statusText}`);
+    }
+    return await response.json();
+  }
+
+  async removeCollaborator(boardId: string, userId: string, token: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/${boardId}/collaborators/${userId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      throw new Error(errorBody?.message || `Failed to remove collaborator: ${response.statusText}`);
     }
   }
 }
