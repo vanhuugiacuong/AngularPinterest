@@ -862,7 +862,13 @@ export class SubjectSelectorComponent implements AfterViewInit, OnDestroy {
 
     hctx.save();
     hctx.drawImage(mask, 0, 0);
-    if (photo?.naturalWidth) {
+    /* Checking the element type, not just a truthy naturalWidth: anything
+       shaped like an image passes that test, and drawImage then throws
+       "Image or Canvas expected" and takes the whole stroke handler down with
+       it. Verified instead, a source that cannot be drawn simply leaves the
+       mask on its own — the selection still shows, without the photo
+       composited into it. */
+    if (photo instanceof HTMLImageElement && photo.naturalWidth > 0) {
       hctx.globalCompositeOperation = 'source-in';
       hctx.drawImage(photo, 0, 0, width, height);
     }
