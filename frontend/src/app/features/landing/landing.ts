@@ -13,6 +13,7 @@ import { SupabaseService } from '../../core/services/supabase';
 import { PublicHeader } from './components/public-header/public-header';
 import { AuthModal } from './components/auth-modal/auth-modal';
 import { LoaderMode, NfLoader } from './components/loader/loader';
+import { LandingCtaButton } from './components/landing-cta-button/landing-cta-button';
 import { ScrollScenes } from './scroll-scenes';
 
 /** One artwork in the exhibition strip.
@@ -31,7 +32,7 @@ interface Artwork {
 @Component({
   selector: 'app-landing',
   standalone: true,
-  imports: [CommonModule, PublicHeader, AuthModal, NfLoader],
+  imports: [CommonModule, PublicHeader, AuthModal, NfLoader, LandingCtaButton],
   templateUrl: './landing.html',
   styleUrl: './landing.css'
 })
@@ -79,6 +80,17 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
     { src: '/landing/work-04.jpg', title: 'Corgi mặc áo mưa màu vàng chói lóa', meta: 'NF-004 · Meme' },
     { src: '/landing/work-06.jpg', title: 'Phố đêm Tokyo lung linh ánh điện', meta: 'NF-006 · Anime' },
     { src: '/landing/work-12.jpg', title: 'Họa sĩ sáng tác tranh khổ lớn', meta: 'NF-012 · Drawing' }
+  ];
+
+  /**
+   * The first and last entries are repeated as silent edge frames. They keep
+   * a neighbouring artwork visible on both sides while the six real works
+   * travel through the centre of the curved exhibition.
+   */
+  public readonly orbitArtworks: Artwork[] = [
+    this.artworks[this.artworks.length - 1],
+    ...this.artworks,
+    this.artworks[0]
   ];
 
   // Keep the showcase choreography enabled in desktop preview browsers.
@@ -181,21 +193,6 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
     const target = event.currentTarget as HTMLElement;
     target.style.setProperty('--mx', '0');
     target.style.setProperty('--my', '0');
-  }
-
-  /** Magnetic hover — a few px of pull toward the pointer, spring back on
-   *  leave. Capped small so it reads as attraction, not a jump. */
-  onMagneticMove(event: MouseEvent) {
-    if (this.reducedMotion) return;
-    const target = event.currentTarget as HTMLElement;
-    const rect = target.getBoundingClientRect();
-    const x = (event.clientX - rect.left) / rect.width - 0.5;
-    const y = (event.clientY - rect.top) / rect.height - 0.5;
-    target.style.transform = `translate(${(x * 14).toFixed(1)}px, ${(y * 8).toFixed(1)}px)`;
-  }
-
-  onMagneticLeave(event: MouseEvent) {
-    (event.currentTarget as HTMLElement).style.transform = '';
   }
 
   // --- Scroll choreography ------------------------------------------------

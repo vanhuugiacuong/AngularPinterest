@@ -93,6 +93,90 @@ describe('Home — save to board toast feedback', () => {
   });
 });
 
+describe('Home — optimistic like feedback', () => {
+  it('accepts repeated clicks immediately and syncs them to the API in order', async () => {
+    const toggleResolvers: Array<
+      (value: { liked: boolean; likeCount: number }) => void
+    > = [];
+    const pinService = {
+      toggleLike: vi.fn().mockImplementation(
+        () =>
+          new Promise<{ liked: boolean; likeCount: number }>((resolve) => {
+            toggleResolvers.push(resolve);
+          }),
+      ),
+    };
+
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: ActivatedRoute, useValue: { queryParamMap: of() } },
+        { provide: Router, useValue: { navigate: vi.fn() } },
+        { provide: PinService, useValue: pinService },
+        { provide: BoardService, useValue: {} },
+        { provide: UserService, useValue: {} },
+        {
+          provide: SupabaseService,
+          useValue: {
+            dbUser: () => null,
+            user: () => ({ id: 'user-1' }),
+            getSessionToken: vi.fn().mockResolvedValue('token'),
+          },
+        },
+        {
+          provide: ImageSearchStore,
+          useValue: {
+            previewUrl: () => null,
+            isLoading: () => false,
+            error: () => null,
+            results: () => [],
+          },
+        },
+      ],
+    });
+
+    const component = TestBed.runInInjectionContext(() => new Home());
+    const pin: {
+      id: string;
+      isLiked: boolean;
+      likes: number;
+      likeQueuedToggles?: number;
+      likeSyncing?: boolean;
+    } = {
+      id: 'pin-1',
+      isLiked: false,
+      likes: 2,
+    };
+    component.pins.set([pin]);
+
+    const firstRequest = component.toggleLike(pin, new MouseEvent('click'));
+
+    expect(pin.isLiked).toBe(true);
+    expect(pin.likes).toBe(3);
+    expect(pin.likeSyncing).toBe(true);
+
+    const secondRequest = component.toggleLike(pin, new MouseEvent('click'));
+
+    expect(pin.isLiked).toBe(false);
+    expect(pin.likes).toBe(2);
+
+    await Promise.resolve();
+    expect(toggleResolvers).toHaveLength(1);
+    toggleResolvers[0]({ liked: true, likeCount: 3 });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(toggleResolvers).toHaveLength(2);
+    toggleResolvers[1]({ liked: false, likeCount: 2 });
+
+    await Promise.all([firstRequest, secondRequest]);
+
+    expect(pin.isLiked).toBe(false);
+    expect(pin.likes).toBe(2);
+    expect(pin.likeSyncing).toBe(false);
+    expect(pinService.toggleLike).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('Home — tác phẩm có giá trị (badge & gating trên feed)', () => {
   let component: Home;
   let router: { navigate: ReturnType<typeof vi.fn> };
@@ -140,14 +224,14 @@ describe('Home — tác phẩm có giá trị (badge & gating trên feed)', () =
     expect(component.valueBadgeText(normalPin)).toBe('');
   });
 
-  it('shows the real formatted VND fixed price on the badge — never hard-coded', () => {
-    expect(component.valueBadgeText(fixedPin)).toContain('2.500.000');
+  it('shows the converted NovaToken fixed price on the badge', () => {
+    expect(component.valueBadgeText(fixedPin)).toContain('2.500 NT');
   });
 
   it('shows "Giá hiện tại · ..." with the real current price for an active auction', () => {
     const text = component.valueBadgeText(auctionPin);
     expect(text).toContain('Giá hiện tại');
-    expect(text).toContain('2.500.000');
+    expect(text).toContain('2.500 NT');
   });
 
   it('opens a normal pin directly regardless of plan — no gating for non-monetized pins', () => {
@@ -157,24 +241,38 @@ describe('Home — tác phẩm có giá trị (badge & gating trên feed)', () =
     expect(dialogService.confirm).not.toHaveBeenCalled();
   });
 
-  it('shows the upgrade dialog instead of navigating for a FREE viewer opening a valuable pin', () => {
+  it('blurs and blocks a fixed-price pin for a FREE viewer', () => {
     membershipStatus = { plan: 'FREE' };
     component.navigateToPin(fixedPin);
     expect(dialogService.confirm).toHaveBeenCalled();
     expect(router.navigate).not.toHaveBeenCalled();
   });
 
-  it('navigates to /pricing once the viewer confirms the upgrade dialog', async () => {
-    membershipStatus = { plan: 'FREE' };
-    dialogService.confirm.mockResolvedValue(true);
+  it('opens a fixed-price pin for a PLUS viewer', () => {
+    membershipStatus = { plan: 'PLUS' };
     component.navigateToPin(fixedPin);
+    expect(router.navigate).toHaveBeenCalledWith(['/pin', 'p2']);
+    expect(dialogService.confirm).not.toHaveBeenCalled();
+  });
+
+  it('navigates to /pricing once a PLUS viewer confirms the auction upgrade dialog', async () => {
+    membershipStatus = { plan: 'PLUS' };
+    dialogService.confirm.mockResolvedValue(true);
+    component.navigateToPin(auctionPin);
     await Promise.resolve();
     await Promise.resolve();
     expect(router.navigate).toHaveBeenCalledWith(['/pricing']);
   });
 
-  it('opens the pin directly for a PLUS/PRO viewer — no dialog', () => {
+  it('blocks an auction for a PLUS viewer', () => {
     membershipStatus = { plan: 'PLUS' };
+    component.navigateToPin(auctionPin);
+    expect(dialogService.confirm).toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
+
+  it('opens an auction directly for a PRO viewer', () => {
+    membershipStatus = { plan: 'PRO' };
     component.navigateToPin(auctionPin);
     expect(router.navigate).toHaveBeenCalledWith(['/pin', 'p3']);
     expect(dialogService.confirm).not.toHaveBeenCalled();

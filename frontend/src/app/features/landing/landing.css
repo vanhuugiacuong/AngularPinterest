@@ -13,6 +13,10 @@
  * ====================================================================== */
 
 :host {
+  --nf-landing-font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: var(--nf-landing-font);
+  --font-mono: var(--nf-landing-font);
+
   --paper: var(--color-bg);
   --paper-lift: var(--color-surface);
   --ink: var(--color-text);
@@ -29,19 +33,72 @@
   --shadow-soft: 0 30px 60px -30px color-mix(in srgb, var(--color-nova-blue) 45%, transparent);
   --shadow-lift: 0 18px 40px -22px color-mix(in srgb, var(--color-iris-violet) 40%, transparent);
 
+  --story-panel: color-mix(in srgb, var(--color-surface) 72%, transparent);
+  --story-panel-soft: color-mix(in srgb, var(--color-bg) 82%, transparent);
+  --story-orbit: color-mix(in srgb, var(--color-nova-blue) 14%, transparent);
+  --story-orbit-alt: color-mix(in srgb, var(--color-iris-violet) 12%, transparent);
+
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
 
   display: block;
+  font-family: var(--nf-landing-font);
 }
 
 .nf {
   position: relative;
-  background: var(--paper);
+  isolation: isolate;
+  background: linear-gradient(180deg, var(--paper), var(--color-bg-secondary) 48%, var(--paper));
   color: var(--ink);
   /* No overflow clipping here on purpose: an overflow value on an ancestor
      turns it into a scroll container and silently breaks `position: sticky`
      in every pinned scene below. Clipping happens per-scene instead. */
+}
+
+/* One fixed visual field sits behind every scene. The panels below remain
+   translucent, so switching between hero, explore, collect, studio and CTA
+   never replaces the atmosphere with an unrelated background. */
+.nf-atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.nf-atmosphere span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(92vw, 1320px);
+  aspect-ratio: 1;
+  border: clamp(42px, 7vw, 104px) solid var(--story-orbit);
+  border-radius: 44% 56% 52% 48%;
+  opacity: 0.72;
+  transform: translate(-50%, -50%) rotate(-24deg) scale(1.14, 0.48);
+  animation: nf-atmosphere-orbit 28s linear infinite;
+}
+
+.nf-atmosphere span:nth-child(2) {
+  width: min(68vw, 980px);
+  border-width: clamp(28px, 4vw, 66px);
+  border-color: var(--story-orbit-alt);
+  animation-duration: 36s;
+}
+
+@keyframes nf-atmosphere-orbit {
+  0% {
+    transform: translate(-50%, -50%) rotate(-24deg) scale(1.14, 0.48);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(336deg) scale(1.14, 0.48);
+  }
+}
+
+.nf-scene,
+.nf-foot {
+  position: relative;
+  z-index: 1;
 }
 
 /* The hero is rendered from the first paint behind the loader. GSAP reveals
@@ -74,6 +131,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+  background: var(--story-panel-soft);
 }
 
 /* Scroll length of each pinned scene = how much room its animation gets. */
@@ -81,7 +139,7 @@
   height: 260vh;
 }
 .nf-scene--explore {
-  height: 320vh;
+  height: 560vh;
 }
 .nf-scene--collect {
   height: 240vh;
@@ -140,7 +198,7 @@
   gap: 8px;
   height: 56px;
   padding: 0 30px;
-  border-radius: 999px;
+  border-radius: var(--radius-cta);
   border: 1px solid transparent;
   cursor: pointer;
   font: inherit;
@@ -426,7 +484,7 @@
   font-size: clamp(15px, 1.5vw, 19px);
   line-height: 1.6;
   color: var(--ink-soft);
-  margin-bottom: 26px;
+  margin-bottom: 0;
   max-width: 38ch;
 }
 
@@ -439,159 +497,436 @@
 
 .nf-hero__cue {
   position: absolute;
-  right: clamp(20px, 6vw, 80px);
-  bottom: clamp(48px, 9vh, 96px);
+  top: calc(50% + min(29vh, 264px));
+  left: 0;
+  right: 0;
   z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  width: max-content;
+  margin-inline: auto;
+  gap: 7px;
   font-family: var(--font-sans);
   font-weight: 700;
   font-size: 12px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-faint);
   opacity: calc(1 - var(--p) * 3);
 }
 
-.nf-hero__cue-line {
-  width: 1px;
-  height: 62px;
-  background: linear-gradient(180deg, var(--ink-faint), transparent);
-  overflow: hidden;
-  position: relative;
+.nf-hero__cue-arrow {
+  font-size: 25px;
+  line-height: 1;
+  color: var(--electric);
+  animation: nf-cue-arrow 1.6s ease-in-out infinite;
 }
 
-.nf-hero__cue-line::after {
-  content: "";
-  position: absolute;
-  inset-inline: 0;
-  height: 22px;
-  background: var(--electric);
-  animation: nf-cue 2s ease-in-out infinite;
-}
-
-@keyframes nf-cue {
-  0% {
-    transform: translateY(-100%);
-  }
+@keyframes nf-cue-arrow {
+  0%,
   100% {
-    transform: translateY(300%);
+    opacity: 0.45;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(7px);
   }
 }
 
 @media (max-width: 860px) {
-  .nf-hero__cue {
-    display: none;
-  }
-
   .nf-hero__foot {
     right: clamp(20px, 6vw, 80px);
   }
 }
 
+@media (max-width: 640px) {
+  .nf-hero__cue {
+    top: 65vh;
+    font-size: 11px;
+  }
+}
+
 /* ====================================================================== */
-/* SCENE 02 — Khám phá: the moving exhibition                             */
+/* SCENE 02 — Khám phá: curved, scroll-driven exhibition                  */
 /* ====================================================================== */
+
+.nf-scene--explore {
+  --track-p: min(calc(var(--p) * 1.2821), 1);
+  --focus-p: clamp(0, calc((var(--p) - 0.78) * 4.5455), 1);
+  --orbit-step: 42vw;
+  --card-width: min(54vw, 760px);
+  --card-height: min(51vh, 510px);
+  --focus-scale-x: 0.54;
+  --focus-scale-y: 0.8;
+  color: var(--ink);
+}
 
 .nf-scene--explore .nf-scene__pin {
-  justify-content: center;
-  gap: clamp(20px, 4vh, 44px);
-  background: linear-gradient(180deg, var(--paper), var(--paper-lift));
+  isolation: isolate;
+  perspective: 1500px;
+  background:
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--electric) 10%, transparent), transparent 34%),
+    linear-gradient(180deg, var(--story-panel-soft), var(--story-panel) 55%, var(--story-panel-soft));
 }
 
-.nf-scene--explore .nf-scene__head {
-  flex: none;
-  opacity: calc(1 - var(--p) * 1.5);
-  transform: translateY(calc(var(--p) * -30px));
+.nf-explore__defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
 }
 
-/* The exhibition wall and its heading share one 100vh pin, so the heading
-   runs a size down from the other scenes' display type — otherwise the
-   artworks and their captions get clipped at the bottom edge. */
-.nf-scene--explore .nf-scene__title {
-  font-size: clamp(38px, 6vw, 82px);
-  margin-bottom: 14px;
+.nf-explore__head {
+  position: absolute;
+  top: clamp(66px, 9vh, 104px);
+  left: 50%;
+  z-index: 40;
+  width: min(92vw, 860px);
+  text-align: center;
+  pointer-events: none;
+  opacity: clamp(0, calc(1 - var(--focus-p) * 1.35), 1);
+  transform: translate3d(-50%, calc(var(--focus-p) * -64px), 0);
+  transition:
+    opacity 0.18s linear,
+    transform 0.18s linear;
 }
 
-.nf-scene--explore .nf-scene__lede {
-  font-size: clamp(14px, 1.3vw, 17px);
-}
-
-.nf-gallery {
-  --travel: 96vw;
-  display: flex;
-  align-items: center;
-  gap: clamp(20px, 3vw, 44px);
-  padding-inline: clamp(20px, 6vw, 80px);
-  width: max-content;
-  transform: translate3d(calc(var(--p) * var(--travel) * -1), 0, 0);
-  will-change: transform;
-}
-
-.nf-gallery__item {
-  position: relative;
-  flex: none;
-  width: clamp(160px, 19vw, 268px);
-  margin: 0;
-}
-
-/* Alternating vertical offset so the wall reads as a hung exhibition
-   rather than a conveyor of equal tiles. */
-.nf-gallery__item:nth-child(even) {
-  transform: translateY(clamp(16px, 3vh, 38px));
-}
-
-.nf-gallery__item img {
+.nf-explore__index {
   display: block;
-  width: 100%;
-  /* Height is capped against the viewport too, so the wall always fits
-     inside the pinned 100vh no matter how wide the window is. */
-  height: min(calc(100vw * 0.19 * 1.28), 44vh);
-  aspect-ratio: 4 / 5;
-  object-fit: cover;
-  border-radius: 20px;
-  border: 1px solid var(--glass-edge);
-  box-shadow: var(--shadow-soft);
-  transition: transform 0.5s var(--ease-out), box-shadow 0.5s ease;
-}
-
-.nf-gallery__item:hover img {
-  transform: translateY(-8px) scale(1.02);
-  box-shadow: var(--shadow-lift);
-}
-
-.nf-gallery__item figcaption {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding-top: 14px;
-}
-
-.nf-gallery__title {
-  font-size: 15px;
+  margin-bottom: clamp(7px, 1.1vh, 14px);
+  font-family: var(--font-mono);
+  font-size: clamp(9px, 0.8vw, 11px);
   font-weight: 700;
-}
-
-.nf-gallery__meta {
-  font-family: var(--font-sans);
-  font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--ink-faint);
 }
 
-@media (max-width: 1100px) {
-  .nf-gallery {
-    --travel: 150vw;
+.nf-explore__title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  color: var(--ink);
+}
+
+.nf-explore__title span {
+  position: relative;
+  z-index: 1;
+  font-size: clamp(50px, 7vw, 98px);
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 0.62;
+  transform: translateX(-0.12em);
+}
+
+.nf-explore__title strong {
+  font-size: clamp(82px, 12vw, 170px);
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  line-height: 0.75;
+}
+
+.nf-explore__lede {
+  max-width: 54ch;
+  margin: clamp(13px, 2vh, 20px) auto 0;
+  font-size: clamp(11px, 1vw, 14px);
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.nf-gallery {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.nf-gallery__item {
+  --slot: calc(var(--i) - 1 - var(--track-p) * 5);
+  --distance: max(var(--slot), calc(var(--slot) * -1));
+  --depth: min(var(--distance), 2.4);
+  position: absolute;
+  top: 58%;
+  left: 50%;
+  width: var(--card-width);
+  height: var(--card-height);
+  margin: 0;
+  opacity: clamp(0, calc(1.08 - var(--distance) * 0.22 - var(--focus-p) * 1.8), 1);
+  filter: drop-shadow(0 34px 48px color-mix(in srgb, var(--color-ink) 48%, transparent));
+  transform-style: preserve-3d;
+  transform: translate3d(
+      calc(-50% + var(--slot) * var(--orbit-step)),
+      calc(-50% + var(--depth) * 4.2vh),
+      calc(var(--depth) * -190px)
+    )
+    rotateY(calc(var(--slot) * -16deg)) rotateZ(calc(var(--slot) * 1.2deg))
+    scale(calc(1 - var(--depth) * 0.13));
+  transition:
+    transform 0.18s linear,
+    opacity 0.18s linear;
+  will-change: transform, opacity;
+}
+
+.nf-gallery__media {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--paper-lift);
+  clip-path: url('#nf-explore-arc');
+  box-shadow: inset 0 0 0 1px var(--edge);
+}
+
+.nf-gallery__media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 62%, color-mix(in srgb, var(--color-ink) 42%, transparent));
+  clip-path: url('#nf-explore-arc');
+}
+
+.nf-gallery__media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.045) translateX(calc(var(--slot) * -1.4%));
+  transition: transform 0.18s linear;
+}
+
+.nf-gallery__item figcaption {
+  position: absolute;
+  top: calc(100% + 15px);
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: min(88%, 520px);
+  text-align: center;
+  opacity: clamp(0, calc(1 - var(--distance) * 2.4), 1);
+  transform: translateX(-50%);
+}
+
+.nf-gallery__title {
+  font-size: clamp(13px, 1.2vw, 17px);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.nf-gallery__meta {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: clamp(9px, 0.72vw, 11px);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* The last real frame stays in the centre after the orbit finishes and opens
+   from the same card into the wide feature image seen in the reference. */
+.nf-gallery__item--focus {
+  width: 100vw;
+  height: 64vh;
+  opacity: 1;
+  z-index: 30;
+  transform: translate3d(
+      calc(-50% + var(--slot) * var(--orbit-step)),
+      calc(-50% - var(--focus-p) * 1.5vh),
+      0
+    )
+    rotateY(calc(var(--slot) * -16deg))
+    scaleX(calc(var(--focus-scale-x) + var(--focus-p) * (1 - var(--focus-scale-x))))
+    scaleY(calc(var(--focus-scale-y) + var(--focus-p) * (1 - var(--focus-scale-y))));
+}
+
+.nf-gallery__item--focus .nf-gallery__media {
+  clip-path: inset(calc((1 - var(--focus-p)) * 0%) round calc((1 - var(--focus-p)) * 26px));
+}
+
+.nf-gallery__item--focus .nf-gallery__media::after {
+  clip-path: inset(calc((1 - var(--focus-p)) * 0%) round calc((1 - var(--focus-p)) * 26px));
+  background: linear-gradient(
+    180deg,
+    transparent 38%,
+    color-mix(in srgb, var(--color-ink) 78%, transparent) 100%
+  );
+}
+
+.nf-gallery__item--focus figcaption {
+  opacity: clamp(0, calc(1 - var(--focus-p) * 4), 1);
+}
+
+.nf-gallery__item--clone figcaption {
+  display: none;
+}
+
+.nf-explore__focus-copy {
+  position: absolute;
+  left: clamp(20px, 6vw, 80px);
+  bottom: clamp(96px, 13vh, 132px);
+  z-index: 44;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-width: min(76vw, 720px);
+  padding: 18px 22px;
+  color: #f8fbff;
+  background: rgba(4, 14, 28, 0.82);
+  border-radius: 18px;
+  opacity: clamp(0, calc(var(--focus-p) * 2.4 - 1.1), 1);
+  transform: translateY(calc((1 - var(--focus-p)) * 28px));
+  transition:
+    opacity 0.18s linear,
+    transform 0.18s linear;
+  pointer-events: none;
+}
+
+.nf-explore__focus-copy span {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #ffd2ad;
+}
+
+.nf-explore__focus-copy strong {
+  font-size: clamp(30px, 4.2vw, 62px);
+  font-weight: 700;
+  line-height: 1.04;
+  text-wrap: balance;
+  text-shadow: 0 4px 18px #000;
+}
+
+.nf-explore__progress {
+  position: absolute;
+  right: clamp(20px, 3vw, 48px);
+  bottom: clamp(24px, 4vh, 44px);
+  z-index: 46;
+  display: grid;
+  grid-template-columns: auto clamp(42px, 7vw, 104px) auto;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.nf-explore__progress i {
+  position: relative;
+  display: block;
+  height: 1px;
+  overflow: hidden;
+  background: var(--edge);
+}
+
+.nf-explore__progress i::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--electric), var(--purple));
+  transform: scaleX(var(--p));
+  transform-origin: left center;
+}
+
+.nf-explore__progress strong {
+  color: var(--ink);
+}
+
+@media (max-width: 900px) {
+  .nf-scene--explore {
+    --orbit-step: 58vw;
+    --card-width: 68vw;
+    --card-height: min(48vh, 470px);
+    --focus-scale-x: 0.68;
+    --focus-scale-y: 0.75;
+  }
+
+  .nf-explore__head {
+    top: clamp(72px, 10vh, 96px);
+  }
+
+  .nf-gallery__item {
+    top: 58%;
   }
 }
 
 @media (max-width: 640px) {
-  .nf-gallery {
-    --travel: 300vw;
+  .nf-scene--explore {
+    --orbit-step: 77vw;
+    --card-width: 82vw;
+    --card-height: min(43vh, 400px);
+    --focus-scale-x: 0.82;
+    --focus-scale-y: 0.68;
+  }
+
+  .nf-explore__head {
+    top: clamp(76px, 12vh, 100px);
+  }
+
+  .nf-explore__index {
+    margin-bottom: 8px;
+  }
+
+  .nf-explore__title span {
+    font-size: clamp(43px, 15vw, 64px);
+  }
+
+  .nf-explore__title strong {
+    font-size: clamp(72px, 24vw, 108px);
+  }
+
+  .nf-explore__lede {
+    max-width: 35ch;
+    padding-inline: 16px;
+  }
+
+  .nf-gallery__item {
+    top: 59%;
+    transform: translate3d(
+        calc(-50% + var(--slot) * var(--orbit-step)),
+        calc(-50% + var(--depth) * 2.8vh),
+        calc(var(--depth) * -120px)
+      )
+      rotateY(calc(var(--slot) * -11deg)) rotateZ(calc(var(--slot) * 0.8deg))
+      scale(calc(1 - var(--depth) * 0.1));
+  }
+
+  .nf-gallery__item--focus {
+    height: 64vh;
+    transform: translate3d(
+        calc(-50% + var(--slot) * var(--orbit-step)),
+        calc(-50% - var(--focus-p) * 1.5vh),
+        0
+      )
+      rotateY(calc(var(--slot) * -11deg))
+      scaleX(calc(var(--focus-scale-x) + var(--focus-p) * (1 - var(--focus-scale-x))))
+      scaleY(calc(var(--focus-scale-y) + var(--focus-p) * (1 - var(--focus-scale-y))));
+  }
+
+  .nf-explore__focus-copy {
+    right: 20px;
+    bottom: 88px;
+    max-width: none;
+  }
+
+  .nf-explore__progress {
+    right: 20px;
+    bottom: 28px;
+    grid-template-columns: 34px auto;
+  }
+
+  .nf-explore__progress span,
+  .nf-explore__progress i {
+    display: none;
   }
 }
 
@@ -600,7 +935,7 @@
 /* ====================================================================== */
 
 .nf-scene--collect .nf-scene__pin {
-  background: var(--paper-lift);
+  background: color-mix(in srgb, var(--paper-lift) 68%, transparent);
 }
 
 .nf-collect {
@@ -670,7 +1005,11 @@
 
 .nf-scene--creation .nf-scene__pin {
   gap: clamp(18px, 3.5vh, 40px);
-  background: linear-gradient(180deg, var(--paper-lift), var(--paper));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--paper-lift) 70%, transparent),
+    color-mix(in srgb, var(--paper) 78%, transparent)
+  );
 }
 
 /* Heading and the layer stack share one 100vh pin, so the display type runs
@@ -770,7 +1109,7 @@
 /* ====================================================================== */
 
 .nf-scene--ai .nf-scene__pin {
-  background: var(--paper);
+  background: color-mix(in srgb, var(--paper) 78%, transparent);
 }
 
 .nf-ai {
@@ -868,7 +1207,11 @@
   display: grid;
   place-items: center;
   padding: clamp(80px, 14vh, 160px) clamp(20px, 6vw, 80px);
-  background: radial-gradient(ellipse 70% 60% at 50% 45%, var(--paper-lift), var(--paper) 70%);
+  background: radial-gradient(
+    ellipse 70% 60% at 50% 45%,
+    color-mix(in srgb, var(--paper-lift) 74%, transparent),
+    color-mix(in srgb, var(--paper) 82%, transparent) 70%
+  );
   text-align: center;
 }
 
@@ -958,7 +1301,7 @@
 
 .nf-foot {
   border-top: 1px solid var(--edge);
-  background: var(--paper);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
 }
 
 .nf-foot__row {
@@ -1000,6 +1343,12 @@
 /* Reduced motion                                                         */
 /* ====================================================================== */
 
+@media (prefers-reduced-motion: reduce) {
+  .nf-atmosphere span {
+    animation: none;
+  }
+}
+
 /* ScrollScenes parks --p at a neutral value and never attaches a scroll
    listener in this mode; these rules drop the remaining transforms so every
    scene renders in its resolved, readable state. */
@@ -1037,18 +1386,50 @@
   }
 
   .nf-gallery {
+    position: relative;
+    inset: auto;
+    display: flex;
+    gap: 18px;
     transform: none !important;
     width: 100%;
+    padding: 24px;
     overflow-x: auto;
     scroll-snap-type: x proximity;
   }
 
   .nf-gallery__item {
+    position: relative;
+    top: auto;
+    left: auto;
+    flex: 0 0 min(76vw, 620px);
+    width: min(76vw, 620px);
+    height: min(52vh, 460px);
+    opacity: 1;
+    transform: none !important;
     scroll-snap-align: start;
   }
 
-  .nf-gallery__item:nth-child(even) {
+  .nf-gallery__item figcaption {
+    position: static;
+    width: 100%;
+    padding-top: 12px;
+    opacity: 1;
     transform: none;
+  }
+
+  .nf-explore__head {
+    position: relative;
+    top: auto;
+    left: auto;
+    margin: 0 auto 24px;
+    opacity: 1;
+    transform: none;
+  }
+
+  .nf-explore__focus-copy,
+  .nf-explore__progress,
+  .nf-gallery__item--clone {
+    display: none;
   }
 
   .nf-cta__shard {
@@ -1064,7 +1445,7 @@
     opacity: 1;
   }
 
-  .nf-hero__cue-line::after {
+  .nf-hero__cue-arrow {
     animation: none;
   }
 

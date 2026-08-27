@@ -98,7 +98,6 @@
     var(--nf-blue) 60%,
     color-mix(in srgb, var(--nf-blue) 80%, black 30%)
   );
-  animation: nf-drift-a 26s ease-in-out infinite;
 }
 
 .nf-auth__obj--orb-purple {
@@ -113,35 +112,6 @@
     var(--nf-purple) 58%,
     color-mix(in srgb, var(--nf-purple) 80%, black 30%)
   );
-  animation: nf-drift-b 32s ease-in-out infinite;
-}
-
-/* Loops both return exactly to their starting transform, so the restart is
-   seamless rather than a visible snap. */
-@keyframes nf-drift-a {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  33% {
-    transform: translate(180px, 90px) scale(1.12);
-  }
-  66% {
-    transform: translate(70px, 220px) scale(0.94);
-  }
-}
-
-@keyframes nf-drift-b {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  30% {
-    transform: translate(-200px, -110px) scale(0.9);
-  }
-  65% {
-    transform: translate(-90px, -260px) scale(1.1);
-  }
 }
 
 /* ==================================================================== */

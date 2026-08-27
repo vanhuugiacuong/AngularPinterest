@@ -1,24 +1,43 @@
 import { CommonModule } from '@angular/common';
-import { Component, HostListener, inject, OnInit, signal } from '@angular/core';
+import { Component, HostListener, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Navbar } from '../../components/navbar/navbar';
 import { MembershipPlan, MembershipPayment, MembershipService } from '../../core/services/membership';
 import { DialogService } from '../../core/services/dialog';
 type PaidPlan = 'PLUS' | 'PRO'; type PaymentMethod = 'bank' | 'momo' | 'card';
 @Component({ selector: 'app-pricing', standalone: true, imports: [CommonModule, FormsModule, Navbar], templateUrl: './pricing.html', styleUrls: ['./pricing.css', './payment-feedback.css'] })
-export class Pricing implements OnInit {
+export class Pricing implements OnInit, OnDestroy {
   membership = inject(MembershipService); private dialogService = inject(DialogService); selectedPlan = signal<PaidPlan | null>(null); method = signal<PaymentMethod>('bank'); processing = signal(false); message = signal('');
   fieldErrors = signal<Record<string, string>>({});
   membershipLoading = signal(true);
+  membershipLoadError = signal('');
   currentPayment = signal<MembershipPayment | null>(null); paymentLoading = signal(false);
   cardNumber = ''; cardName = ''; expiry = ''; cvv = '';
   private checkoutReturnFocus: HTMLElement | null = null;
+  private automaticPaymentTimer?: ReturnType<typeof setInterval>;
+  private automaticCheckInFlight = false;
   readonly plans = [
-    { id: 'FREE' as const, name: 'Free', price: 0, kicker: 'Khởi đầu', description: 'Dành cho những ý tưởng đầu tiên.', features: ['3 lượt tạo AI mỗi ngày', 'Đăng, lưu và khám phá tác phẩm', 'Tải ảnh tiêu chuẩn'] },
-    { id: 'PLUS' as const, name: 'Plus', price: 99000, kicker: 'Được yêu thích', description: 'Không gian rộng hơn cho người sáng tạo.', features: ['10 lượt tạo AI mỗi ngày', 'Tải ảnh nguyên bản, không watermark', 'Không chèn tên hoặc ID tác giả'] },
-    { id: 'PRO' as const, name: 'Pro', price: 199000, kicker: 'Studio chuyên nghiệp', description: 'Biến tác phẩm thành một cửa hàng.', features: ['20 lượt tạo AI mỗi ngày', 'Toàn bộ quyền lợi Plus', 'Đặt giá và bán ảnh của bạn', 'Theo dõi giao dịch mua tác phẩm'] }
+    { id: 'FREE' as const, name: 'Free', price: 0, kicker: 'Khởi đầu cảm hứng', description: 'Nơi mọi ý tưởng đầu tiên được tự do cất cánh.', features: ['3 lượt sáng tạo với AI mỗi ngày', 'Đăng tải, lưu giữ và khám phá tác phẩm', 'Tải ảnh chất lượng tiêu chuẩn'], recommended: false },
+    { id: 'PLUS' as const, name: 'Plus', price: 99000, kicker: 'Sáng tạo & Kinh doanh', description: 'Mở rộng sức sáng tạo và biến tác phẩm thành cơ hội.', features: ['10 lượt sáng tạo với AI mỗi ngày', 'Tải ảnh nguyên bản chất lượng cao, không watermark', 'Mở bán tác phẩm với mức giá cố định', 'Quản lý doanh thu và theo dõi mọi giao dịch'], recommended: true },
+    { id: 'PRO' as const, name: 'Pro', price: 199000, kicker: 'Đặc quyền nghệ sĩ', description: 'Không giới hạn sáng tạo, nâng tầm giá trị từng tác phẩm.', features: ['Sáng tạo hình ảnh AI không giới hạn', 'Trọn bộ đặc quyền của gói Plus', 'Độc quyền mở, khám phá và tham gia đấu giá tác phẩm'], recommended: false }
   ];
-  async ngOnInit() { try { await this.membership.load(); } finally { this.membershipLoading.set(false); } }
+  async ngOnInit() { await this.loadMembership(); }
+
+  async retryLoadMembership() {
+    this.membershipLoading.set(true);
+    await this.loadMembership();
+  }
+
+  private async loadMembership() {
+    try {
+      this.membershipLoadError.set('');
+      await this.membership.load();
+    } catch (error) {
+      this.membershipLoadError.set(error instanceof Error ? error.message : 'Không thể tải thông tin gói thành viên.');
+    } finally {
+      this.membershipLoading.set(false);
+    }
+  }
   async openCheckout(plan: PaidPlan) {
     this.checkoutReturnFocus = document.activeElement as HTMLElement;
     this.selectedPlan.set(plan); this.method.set('bank'); this.message.set(''); this.fieldErrors.set({}); this.currentPayment.set(null);
@@ -28,6 +47,7 @@ export class Pricing implements OnInit {
   }
   closeCheckout() {
     if (this.processing()) return;
+    this.stopAutomaticPaymentCheck();
     this.selectedPlan.set(null); this.currentPayment.set(null); document.body.style.overflow = '';
     this.checkoutReturnFocus?.focus();
     this.checkoutReturnFocus = null;
@@ -83,11 +103,14 @@ export class Pricing implements OnInit {
     }
   }
   priceOf(plan: PaidPlan | null) { return plan === 'PRO' ? 199000 : 99000; }
-  chooseFree() { void this.activate('FREE'); }
   ownsPlan(plan: PaidPlan) { return this.membership.status()?.ownedPlans?.includes(plan) === true; }
   choosePaid(plan: PaidPlan) { if (this.ownsPlan(plan)) void this.activate(plan); else void this.openCheckout(plan); }
-  paidButtonText(plan: PaidPlan, name: string) { if (this.membershipLoading()) return 'Đang kiểm tra gói…'; if (this.membership.status()?.plan === plan) return 'Gói hiện tại'; return this.ownsPlan(plan) ? `Dùng lại ${name}` : `Chọn ${name}`; }
-  selectMethod(method: PaymentMethod) { this.method.set(method); this.message.set(''); }
+  paidButtonText(plan: PaidPlan, name: string) { if (this.membershipLoading()) return 'Đang kiểm tra gói…'; if (this.membership.status()?.plan === plan) return 'Đã mua'; return this.ownsPlan(plan) ? `Kích hoạt lại ${name}` : `Chọn ${name}`; }
+  selectMethod(method: PaymentMethod) {
+    this.method.set(method); this.message.set('');
+    if (method === 'bank' && this.currentPayment()) this.startAutomaticPaymentCheck();
+    else this.stopAutomaticPaymentCheck();
+  }
   clearError(field: string) { const next = { ...this.fieldErrors() }; delete next[field]; this.fieldErrors.set(next); this.message.set(''); }
   hasErrors() { return Object.keys(this.fieldErrors()).length > 0; }
   formatCard() { this.clearError('cardNumber'); this.cardNumber = this.cardNumber.replace(/\D/g, '').slice(0, 19).replace(/(.{4})/g, '$1 ').trim(); }
@@ -104,7 +127,10 @@ export class Pricing implements OnInit {
     const existing = this.currentPayment();
     if (existing && existing.plan === plan && existing.status === 'PENDING') return;
     this.paymentLoading.set(true); this.message.set('');
-    try { this.currentPayment.set(await this.membership.createPayment(plan)); }
+    try {
+      this.currentPayment.set(await this.membership.createPayment(plan));
+      this.startAutomaticPaymentCheck();
+    }
     catch (e) { this.message.set(e instanceof Error ? e.message : 'Không thể tạo giao dịch.'); }
     finally { this.paymentLoading.set(false); }
   }
@@ -115,6 +141,52 @@ export class Pricing implements OnInit {
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
     return this.membership.getPayment(id);
+  }
+
+  private startAutomaticPaymentCheck() {
+    this.stopAutomaticPaymentCheck();
+    this.automaticPaymentTimer = setInterval(() => void this.checkPaymentAutomatically(), 3_000);
+  }
+
+  private stopAutomaticPaymentCheck() {
+    if (this.automaticPaymentTimer) clearInterval(this.automaticPaymentTimer);
+    this.automaticPaymentTimer = undefined;
+  }
+
+  private async checkPaymentAutomatically() {
+    const payment = this.currentPayment();
+    const plan = this.selectedPlan();
+    if (!payment || !plan || this.method() !== 'bank' || this.processing() || this.automaticCheckInFlight) return;
+    this.automaticCheckInFlight = true;
+    try {
+      const latest = await this.membership.getPayment(payment.id);
+      this.currentPayment.set(latest);
+      if (latest.status !== 'PAID') return;
+      this.stopAutomaticPaymentCheck();
+      this.processing.set(true);
+      await this.membership.load();
+      this.selectedPlan.set(null);
+      this.currentPayment.set(null);
+      document.body.style.overflow = '';
+      const planName = plan === 'PRO' ? 'Pro' : 'Plus';
+      await this.dialogService.confirm({
+        variant: 'information',
+        size: 'large',
+        title: `Đã kích hoạt gói ${planName}`,
+        description: 'Thanh toán đã được SePay xác nhận. Toàn bộ quyền lợi của gói đã sẵn sàng để sử dụng.',
+        confirmLabel: 'Bắt đầu trải nghiệm',
+      });
+    } catch {
+      // Lỗi mạng tạm thời không làm gián đoạn checkout; vòng tiếp theo sẽ thử lại.
+    } finally {
+      this.processing.set(false);
+      this.automaticCheckInFlight = false;
+    }
+  }
+
+  ngOnDestroy() {
+    this.stopAutomaticPaymentCheck();
+    document.body.style.overflow = '';
   }
   private luhnValid(value: string) { let sum = 0; let double = false; for (let i = value.length - 1; i >= 0; i--) { let digit = Number(value[i]); if (double) { digit *= 2; if (digit > 9) digit -= 9; } sum += digit; double = !double; } return sum % 10 === 0; }
   private collectCardErrors() {
@@ -138,6 +210,7 @@ export class Pricing implements OnInit {
     }
     const payment = this.currentPayment();
     if (!payment) { this.message.set('Không tìm thấy giao dịch, vui lòng đóng và mở lại.'); return; }
+    this.stopAutomaticPaymentCheck();
     this.processing.set(true); this.message.set('Đang kiểm tra trạng thái giao dịch…');
     try {
       const result = await this.pollPayment(payment.id);

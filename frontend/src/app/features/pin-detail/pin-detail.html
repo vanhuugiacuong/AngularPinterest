@@ -19,7 +19,7 @@
       @if (!isLoading() && loadError()) {
         <div class="flex-1 flex flex-col items-center justify-center gap-4 py-24 text-center" role="alert">
           <div class="w-14 h-14 rounded-full bg-error/10 flex items-center justify-center">
-            <span class="material-symbols-outlined text-2xl text-error">cloud_off</span>
+            <span class="material-symbols-outlined text-2xl text-error" aria-hidden="true">cloud_off</span>
           </div>
           <div class="flex flex-col gap-1.5 max-w-sm">
             <h2 class="text-sm font-bold text-text">Không thể mở tác phẩm</h2>
@@ -62,7 +62,7 @@
                   title="Quay lại"
                   aria-label="Quay lại"
                 >
-                  <span class="material-symbols-outlined text-xl font-bold">arrow_back</span>
+                  <span class="material-symbols-outlined text-xl font-bold" aria-hidden="true">arrow_back</span>
                 </button>
 
                 @if (!showImageSearch()) {
@@ -81,7 +81,7 @@
                       class="flex items-center gap-1 bg-surface-high/90 hover:bg-surface-high text-text px-3.5 py-2 rounded-control text-xs font-bold shadow-card cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
                       aria-label="Tìm kiếm bằng một vùng của ảnh này"
                     >
-                      <span class="material-symbols-outlined text-sm leading-none font-bold"
+                      <span class="material-symbols-outlined text-sm leading-none font-bold" aria-hidden="true"
                         >search</span
                       >
                       <span>Tìm kiếm hình ảnh</span>
@@ -133,7 +133,7 @@
                     <div
                       class="mono-label flex items-center gap-1.5 text-xs uppercase text-text font-bold"
                     >
-                      <span class="material-symbols-outlined text-sm leading-none text-accent"
+                      <span class="material-symbols-outlined text-sm leading-none text-accent" aria-hidden="true"
                         >auto_awesome</span
                       >
                       <span>AI · {{ p.generationModel || 'Model' }}</span>
@@ -152,32 +152,12 @@
                 >
                   <div class="flex items-center gap-2.5">
                     <!-- Like -->
-                    <button
-                      (click)="toggleLike()"
-                      class="h-10 px-4 bg-surface-elevated hover:bg-surface-high rounded-control flex items-center gap-1.5 cursor-pointer transition-colors duration-200 active:scale-95 border-none outline-none select-none text-text focus-visible:ring-2 focus-visible:ring-accent"
-                      [title]="isLikedByUser() ? 'Bỏ thích' : 'Thích'"
-                      [attr.aria-label]="(isLikedByUser() ? 'Bỏ thích ' : 'Thích ') + p.title"
-                      [attr.aria-pressed]="isLikedByUser()"
-                    >
-                      <span class="relative inline-flex items-center justify-center">
-                        <span
-                          class="material-symbols-outlined text-lg leading-none font-bold"
-                          [class.text-accent]="isLikedByUser()"
-                          [class.text-text-muted]="!isLikedByUser()"
-                        >
-                          favorite
-                        </span>
-                        <span
-                          class="material-symbols-outlined icon-fill text-accent text-lg leading-none font-bold absolute inset-0 flex items-center justify-center"
-                          [style.opacity]="isLikedByUser() ? 1 : 0"
-                        >
-                          favorite
-                        </span>
-                      </span>
-                      <span class="mono-label text-xs font-bold">{{
-                        p.likeCount ?? p._count?.likes ?? 0
-                      }}</span>
-                    </button>
+                    <app-like-button
+                      [liked]="isLikedByUser()"
+                      [count]="p.likeCount ?? p._count?.likes ?? 0"
+                      [ariaLabel]="(isLikedByUser() ? 'Bỏ thích ' : 'Thích ') + p.title"
+                      (toggled)="toggleLike()"
+                    ></app-like-button>
 
                     <!-- Share -->
                     <select *ngIf="membership.status()?.customWatermark && watermarkService.presets().length > 0"
@@ -187,17 +167,9 @@
                       <option *ngFor="let preset of watermarkService.presets()" [ngValue]="preset.id">Watermark: {{ preset.name }}</option>
                     </select>
                     <button type="button" (click)="downloadPin()" [disabled]="downloading()" class="h-10 px-4 rounded-control bg-gradient-brand text-text-on-accent font-bold text-xs border-none cursor-pointer disabled:opacity-50">
-                      {{ p.isForSale && p.user?.id !== supabaseService.user()?.id ? ('Mua & tải · ' + (p.price | number) + 'đ') : 'Tải ảnh' }}
+                      {{ p.isForSale && p.user?.id !== supabaseService.user()?.id ? ('Mua & tải · ' + formatNovaToken(vndToNovaToken(p.price))) : 'Tải ảnh' }}
                     </button>
                     <span *ngIf="downloadMessage()" class="text-[10px] text-text-muted">{{ downloadMessage() }}</span>
-                    <div *ngIf="pendingPurchase() as pay" class="flex flex-col items-start gap-1 mt-1">
-                      @if (bankQrFor(pay); as qrUrl) {
-                        <img [src]="qrUrl" alt="QR chuyển khoản mua ảnh" class="w-32 h-32 rounded-control border border-border object-contain bg-surface" />
-                        <span class="text-[10px] text-text-muted">Nội dung: <strong>{{ pay.paymentReference }}</strong></span>
-                      } @else {
-                        <p class="text-[10px] text-error">Người bán chưa cấu hình thông tin nhận thanh toán. Vui lòng liên hệ người bán.</p>
-                      }
-                    </div>
 
                     <!-- Trao đổi với chủ sở hữu — chỉ hiện với tác phẩm có
                          giá trị và không phải chính chủ; tái sử dụng luồng
@@ -215,21 +187,58 @@
 
                     <!-- Share -->
                     <button
+                      type="button"
+                      (click)="share()"
                       class="w-10 h-10 rounded-control bg-surface-elevated hover:bg-surface-high flex items-center justify-center cursor-pointer transition-colors duration-200 active:scale-90 border-none outline-none select-none text-text focus-visible:ring-2 focus-visible:ring-accent"
                       aria-label="Chia sẻ tác phẩm"
+                      title="Chia sẻ tác phẩm"
                     >
-                      <span class="material-symbols-outlined text-lg leading-none">upload</span>
+                      <span class="material-symbols-outlined text-lg leading-none" aria-hidden="true">upload</span>
                     </button>
 
                     <!-- Option menu -->
-                    <button
-                      class="w-10 h-10 rounded-control bg-surface-elevated hover:bg-surface-high flex items-center justify-center cursor-pointer transition-colors duration-200 active:scale-90 border-none outline-none select-none text-text focus-visible:ring-2 focus-visible:ring-accent"
-                      aria-label="Thêm tùy chọn"
-                    >
-                      <span class="material-symbols-outlined text-lg leading-none font-bold"
-                        >more_horiz</span
+                    <div class="relative">
+                      <button
+                        type="button"
+                        (click)="toggleMoreMenu($event)"
+                        class="w-10 h-10 rounded-control bg-surface-elevated hover:bg-surface-high flex items-center justify-center cursor-pointer transition-colors duration-200 active:scale-90 border-none outline-none select-none text-text focus-visible:ring-2 focus-visible:ring-accent"
+                        aria-label="Thêm tùy chọn"
+                        title="Thêm tùy chọn"
+                        aria-haspopup="menu"
+                        [attr.aria-expanded]="showMoreMenu()"
                       >
-                    </button>
+                        <span class="material-symbols-outlined text-lg leading-none font-bold" aria-hidden="true"
+                          >more_horiz</span
+                        >
+                      </button>
+                      @if (showMoreMenu()) {
+                        <div
+                          role="menu"
+                          aria-label="Thêm tùy chọn"
+                          (click)="$event.stopPropagation()"
+                          class="absolute right-0 top-11 z-[110] w-56 rounded-panel border border-border-strong bg-surface-elevated shadow-card p-1.5 flex flex-col gap-0.5"
+                        >
+                          <button
+                            type="button"
+                            role="menuitem"
+                            (click)="copyLink()"
+                            class="flex items-center gap-2.5 h-10 px-3 rounded-control text-sm font-semibold text-text hover:bg-surface-high cursor-pointer border-none bg-transparent text-left focus-visible:ring-2 focus-visible:ring-accent"
+                          >
+                            <span class="material-symbols-outlined text-lg" aria-hidden="true">link</span>
+                            Sao chép liên kết
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            (click)="reportPin()"
+                            class="flex items-center gap-2.5 h-10 px-3 rounded-control text-sm font-semibold text-error hover:bg-error/10 cursor-pointer border-none bg-transparent text-left focus-visible:ring-2 focus-visible:ring-accent"
+                          >
+                            <span class="material-symbols-outlined text-lg" aria-hidden="true">flag</span>
+                            Báo cáo tác phẩm này
+                          </button>
+                        </div>
+                      }
+                    </div>
                   </div>
 
                   <!-- Collection save -->
@@ -241,14 +250,14 @@
                       [attr.aria-expanded]="showBoardDropdown()"
                     >
                       <span>{{ getSelectedBoardName() }}</span>
-                      <span class="material-symbols-outlined text-base leading-none"
+                      <span class="material-symbols-outlined text-base leading-none" aria-hidden="true"
                         >keyboard_arrow_down</span
                       >
                     </button>
 
                     @if (showBoardDropdown()) {
                       <div
-                        class="absolute right-0 top-11 w-48 glass-elevated rounded-panel shadow-card py-1.5 z-50 text-left"
+                        class="absolute right-0 top-11 w-48 glass-elevated rounded-panel shadow-card py-1.5 z-[100] text-left"
                         role="listbox"
                       >
                         <span class="text-xs font-semibold text-text-muted px-4 py-1 block"
@@ -295,15 +304,15 @@
                       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-control bg-surface-elevated border border-border">
                         <div class="flex flex-col gap-0.5">
                           <span class="text-[10px] uppercase font-bold text-text-muted">Giá khởi điểm</span>
-                          <span class="text-sm font-bold text-text mono-label">{{ formatVnd(a.startingPrice) }}</span>
+                          <span class="text-sm font-bold text-text mono-label">{{ formatNovaToken(vndToNovaToken(a.startingPrice)) }}</span>
                         </div>
                         <div class="flex flex-col gap-0.5">
                           <span class="text-[10px] uppercase font-bold text-text-muted">Giá hiện tại</span>
-                          <span class="text-sm font-bold text-accent mono-label">{{ formatVnd(a.currentPrice) }}</span>
+                          <span class="text-sm font-bold text-accent mono-label">{{ formatNovaToken(vndToNovaToken(a.currentPrice)) }}</span>
                         </div>
                         <div class="flex flex-col gap-0.5">
                           <span class="text-[10px] uppercase font-bold text-text-muted">Bước giá tối thiểu</span>
-                          <span class="text-sm font-bold text-text mono-label">{{ formatVnd(a.minimumIncrement) }}</span>
+                          <span class="text-sm font-bold text-text mono-label">{{ formatNovaToken(vndToNovaToken(a.minimumIncrement)) }}</span>
                         </div>
                         <div class="flex flex-col gap-0.5">
                           <span class="text-[10px] uppercase font-bold text-text-muted">Lượt đặt giá</span>
@@ -318,7 +327,7 @@
                       } @else if (a.status === 'ENDED') {
                         <p class="text-xs text-text-muted">
                           @if (a.winnerId) {
-                            Phiên đấu giá đã kết thúc. Người thắng cần hoàn tất thanh toán trước khi tải bản gốc.
+                            Phiên đấu giá đã kết thúc. NovaToken của người thắng được thanh toán tự động và an toàn.
                           } @else {
                             Phiên đấu giá đã kết thúc mà không có lượt đặt giá nào.
                           }
@@ -332,7 +341,7 @@
                         <div class="flex flex-col gap-2 p-4 rounded-control bg-surface-elevated border border-accent/40">
                           <span class="text-sm font-bold text-accent">Bạn đã thắng phiên đấu giá này!</span>
                           @if (mp.status === 'PAID') {
-                            <p class="text-xs text-text-muted">Người bán đã xác nhận nhận được thanh toán — bạn có thể tải bản gốc.</p>
+                            <p class="text-xs text-text-muted">NovaToken đã được chuyển tự động cho người bán — bạn có thể tải bản gốc ngay.</p>
                             <button
                               type="button"
                               (click)="downloadAuctionOriginal()"
@@ -341,16 +350,6 @@
                             >
                               {{ downloading() ? 'Đang tải...' : 'Tải bản gốc' }}
                             </button>
-                          } @else {
-                            <p class="text-xs text-text-muted">
-                              Vui lòng chuyển khoản {{ formatVnd(mp.amount) }} cho người bán, sau đó chờ người bán xác nhận. Bấm "Trao đổi với chủ sở hữu" ở trên để liên hệ trực tiếp.
-                            </p>
-                            @if (auctionPaymentQr(mp); as qrUrl) {
-                              <img [src]="qrUrl" alt="QR chuyển khoản cho người bán" class="w-32 h-32 rounded-control border border-border object-contain bg-surface" />
-                              <span class="text-[10px] text-text-muted">Nội dung: <strong>{{ mp.paymentReference }}</strong></span>
-                            } @else {
-                              <p class="text-[10px] text-error">Người bán chưa cấu hình thông tin nhận thanh toán. Vui lòng liên hệ người bán.</p>
-                            }
                           }
                           @if (downloadMessage()) {
                             <span class="text-[10px] text-text-muted">{{ downloadMessage() }}</span>
@@ -360,12 +359,12 @@
 
                       @if (canPlaceBid()) {
                         <form (submit)="submitBid(); $event.preventDefault()" class="flex flex-wrap items-center gap-2">
-                          <label class="sr-only" for="bidAmount">Giá đặt (VNĐ)</label>
+                          <label class="sr-only" for="bidAmount">Giá đặt (NovaToken)</label>
                           <input
                             id="bidAmount"
                             type="number"
-                            step="1000"
-                            [min]="minAcceptableBid()"
+                            step="1"
+                            [min]="vndToNovaToken(minAcceptableBid())"
                             [(ngModel)]="bidAmount"
                             name="bidAmount"
                             [placeholder]="'Tối thiểu ' + minAcceptableBidLabel()"
@@ -390,7 +389,7 @@
                         <p class="text-xs text-text-muted">Bạn là người bán — không thể tự đặt giá cho tác phẩm của mình.</p>
                       } @else if (a.status === 'ACTIVE') {
                         <p class="text-xs text-text-muted">
-                          Chỉ thành viên Plus hoặc Pro mới có thể đặt giá.
+                          Chỉ thành viên Pro mới có thể đặt giá.
                           <button type="button" (click)="goToPricing()" class="text-accent hover:underline bg-transparent border-none p-0 cursor-pointer font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control">Nâng cấp ngay</button>
                         </p>
                       }
@@ -430,11 +429,11 @@
                     }
 
                     @for (comment of p.comments; track comment.id) {
-                      <div class="flex gap-2.5 items-start">
+                      <div class="flex gap-3 items-start">
                         <button
                           type="button"
                           (click)="navigateToProfile(comment.user?.username)"
-                          class="bg-transparent border-none p-0 cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full"
+                          class="bg-transparent border-none p-0.5 cursor-pointer shrink-0 overflow-visible focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full flex items-center justify-center"
                           [attr.aria-label]="'Xem trang cá nhân của ' + comment.user?.username"
                         >
                           <app-user-avatar
@@ -445,7 +444,7 @@
                           ></app-user-avatar>
                         </button>
                         <div
-                          class="flex flex-col bg-surface-elevated rounded-control px-3 py-2 flex-1 min-w-0"
+                          class="flex flex-col bg-surface-elevated rounded-control px-3.5 py-2 flex-1 min-w-0"
                         >
                           <button
                             type="button"
@@ -466,7 +465,9 @@
 
                   <!-- Comment input form -->
                   <div class="pt-4 border-t border-border flex items-center gap-3">
-                    <app-user-avatar [src]="myAvatarUrl()" [name]="myDisplayName()" [size]="36" [plan]="myPlan()"></app-user-avatar>
+                    <div class="shrink-0 overflow-visible flex items-center justify-center p-0.5">
+                      <app-user-avatar [src]="myAvatarUrl()" [name]="myDisplayName()" [size]="32" [plan]="myPlan()"></app-user-avatar>
+                    </div>
 
                     <form
                       (submit)="submitComment(); $event.preventDefault()"
@@ -551,7 +552,7 @@
                              exactly like every other pin card in the app. -->
                         <div class="group cursor-pointer flex flex-col mb-1">
                           <div
-                            (click)="navigateToPin(rel.id)"
+                            (click)="navigateToPin(rel)"
                             class="relative overflow-hidden bg-surface shadow-card glow-hover rounded-frame"
                             [style.aspect-ratio]="rel.aspectRatio || '0.75'"
                           >
@@ -560,12 +561,32 @@
                               [alt]="rel.title"
                               loading="lazy"
                               fetchpriority="low"
-                              class="w-full h-full object-cover block transition-transform duration-500 ease-spring group-hover:scale-[1.04]"
+                              class="w-full h-full object-cover block transition-all duration-500 ease-spring group-hover:scale-[1.04]"
+                              [class.blur-xl]="isAuctionRestricted(rel)"
+                              [class.scale-110]="isAuctionRestricted(rel)"
                             />
 
+                            @if (rel.listingType === 'AUCTION') {
+                              <span class="absolute top-2.5 left-2.5 z-20 w-8 h-8 rounded-full bg-surface-high/95 border border-border-strong text-accent flex items-center justify-center shadow-card pointer-events-none" aria-label="Tác phẩm đấu giá">
+                                <span class="material-symbols-outlined text-[19px] leading-none" aria-hidden="true">crown</span>
+                              </span>
+                            } @else if (rel.listingType === 'FIXED_PRICE') {
+                              <span class="absolute top-2.5 left-2.5 z-20 w-8 h-8 rounded-full bg-surface-high/95 border border-border-strong text-accent flex items-center justify-center shadow-card pointer-events-none" aria-label="Tác phẩm bán giá cố định">
+                                <span class="material-symbols-outlined text-[19px] leading-none" aria-hidden="true">star</span>
+                              </span>
+                            }
+
+                            @if (isAuctionRestricted(rel)) {
+                              <div class="absolute inset-0 z-10 flex items-center justify-center bg-bg/20 pointer-events-none">
+                                <span class="px-3 py-2 rounded-control bg-surface-high/95 border border-border-strong text-text text-xs font-bold shadow-card">
+                                  {{ rel.listingType === 'AUCTION' ? 'Chỉ dành cho Pro' : 'Dành cho Plus & Pro' }}
+                                </span>
+                              </div>
+                            }
+
                             @if (rel.isAiGenerated) {
-                              <span class="mono-label absolute top-2.5 left-2.5 z-10 flex items-center gap-1 bg-surface-high/90 border border-border-strong text-accent text-xs font-bold uppercase px-2 py-1 rounded-control pointer-events-none">
-                                <span class="material-symbols-outlined text-[12px] leading-none">auto_awesome</span>
+                              <span class="mono-label absolute top-12 left-2.5 z-20 flex items-center gap-1 bg-surface-high/90 border border-border-strong text-accent text-xs font-bold uppercase px-2 py-1 rounded-control pointer-events-none">
+                                <span class="material-symbols-outlined text-[12px] leading-none" aria-hidden="true">auto_awesome</span>
                                 AI
                               </span>
                             }
@@ -583,43 +604,19 @@
                                   aria-haspopup="listbox"
                                   [attr.aria-expanded]="relatedActiveDropdownPinId() === rel.id"
                                 >
-                                  <span class="material-symbols-outlined text-[14px] leading-none shrink-0">bookmark_add</span>
+                                  <span class="material-symbols-outlined text-[14px] leading-none shrink-0" aria-hidden="true">bookmark_add</span>
                                   <span class="truncate min-w-0">{{ getRelatedSelectedBoardName(rel.id) }}</span>
-                                  <span class="material-symbols-outlined text-[12px] leading-none shrink-0">keyboard_arrow_down</span>
+                                  <span class="material-symbols-outlined text-[12px] leading-none shrink-0" aria-hidden="true">keyboard_arrow_down</span>
                                 </button>
-
-                                @if (relatedActiveDropdownPinId() === rel.id) {
-                                  <div class="absolute left-0 bottom-10 w-44 glass-elevated rounded-panel shadow-card py-1.5 z-[100] text-left" role="listbox">
-                                    <span class="text-xs font-semibold text-text-muted px-3.5 py-1 block">Lưu vào bộ sưu tập</span>
-                                    <div class="max-h-[140px] overflow-y-auto">
-                                      @for (b of boards(); track b.id) {
-                                        <button
-                                          type="button"
-                                          (click)="selectRelatedBoardForPin(rel.id, b, $event)"
-                                          class="w-full text-left px-3.5 py-2 text-xs font-bold text-text hover:bg-surface-elevated cursor-pointer truncate border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                                        >
-                                          {{ b.name }}
-                                        </button>
-                                      }
-                                    </div>
-                                  </div>
-                                }
                               </div>
 
                               <div class="flex items-center gap-1.5 shrink-0">
-                                <button
-                                  (click)="toggleRelatedLike(rel, $event)"
-                                  class="w-8 h-8 rounded-control bg-surface-high/95 border border-border-strong flex items-center justify-center hover:text-accent transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                                  [class.text-accent]="rel.isLiked"
-                                  [class.text-text-muted]="!rel.isLiked"
-                                  [attr.aria-pressed]="!!rel.isLiked"
-                                  [attr.aria-label]="(rel.isLiked ? 'Bỏ thích ' : 'Thích ') + rel.title"
-                                >
-                                  <span class="relative inline-flex items-center justify-center">
-                                    <span class="material-symbols-outlined text-[16px] leading-none">favorite</span>
-                                    <span class="material-symbols-outlined icon-fill text-[16px] leading-none absolute inset-0 flex items-center justify-center" [style.opacity]="rel.isLiked ? 1 : 0">favorite</span>
-                                  </span>
-                                </button>
+                                <app-like-button
+                                  size="compact"
+                                  [liked]="rel.isLiked === true"
+                                  [ariaLabel]="(rel.isLiked ? 'Bỏ thích ' : 'Thích ') + rel.title"
+                                  (toggled)="toggleRelatedLike(rel, $event)"
+                                ></app-like-button>
                                 <button
                                   (click)="saveRelatedPinToBoard(rel.id, $event)"
                                   class="h-8 px-3.5 bg-gradient-brand cta-shape text-text-on-accent font-bold text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
@@ -645,9 +642,9 @@
                               <div class="mono-label flex items-center gap-2 shrink-0 text-xs text-text-muted">
                                 @if (rel.likes) {
                                   <span class="flex items-center gap-0.5">
-                                    <span class="relative inline-flex items-center justify-center text-accent">
-                                      <span class="material-symbols-outlined text-[12px] leading-none">favorite</span>
-                                      <span class="material-symbols-outlined icon-fill text-[12px] leading-none absolute inset-0 flex items-center justify-center" [style.opacity]="rel.isLiked ? 1 : 0">favorite</span>
+                                    <span class="relative inline-flex items-center justify-center text-error">
+                                      <span class="material-symbols-outlined text-[12px] leading-none" aria-hidden="true">favorite</span>
+                                      <span class="material-symbols-outlined icon-fill text-[12px] leading-none absolute inset-0 flex items-center justify-center" [style.opacity]="rel.isLiked ? 1 : 0" aria-hidden="true">favorite</span>
                                     </span>
                                     {{ rel.likes }}
                                   </span>
@@ -702,4 +699,31 @@
       <div #scrollSentinel class="w-full h-2"></div>
     </main>
   </div>
+
+  <!-- Related-pin board-picker dropdown — fixed-position portal outside the
+       related card's overflow-hidden frame, same fix as Home's own dropdown
+       (see home.html for the full rationale). -->
+  @if (activeRelatedDropdownPin(); as rel) {
+    <div
+      (click)="$event.stopPropagation()"
+      class="fixed w-44 glass-elevated rounded-panel shadow-card py-1.5 z-[100] text-left"
+      [style.left.px]="relatedDropdownAnchor()?.left"
+      [style.top.px]="relatedDropdownAnchor()?.top"
+      [style.transform]="'translateY(-100%) translateY(-8px)'"
+      role="listbox"
+    >
+      <span class="text-xs font-semibold text-text-muted px-3.5 py-1 block">Lưu vào bộ sưu tập</span>
+      <div class="max-h-[140px] overflow-y-auto">
+        @for (b of boards(); track b.id) {
+          <button
+            type="button"
+            (click)="selectRelatedBoardForPin(rel.id, b, $event)"
+            class="w-full text-left px-3.5 py-2 text-xs font-bold text-text hover:bg-surface-elevated cursor-pointer truncate border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            {{ b.name }}
+          </button>
+        }
+      </div>
+    </div>
+  }
 </div>

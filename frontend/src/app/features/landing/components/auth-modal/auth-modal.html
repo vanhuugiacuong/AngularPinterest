@@ -32,8 +32,8 @@
     aria-modal="true"
     aria-labelledby="nf-auth-title"
   >
-    <button type="button" class="nf-auth__close" (click)="closeModal.emit()" aria-label="Đóng">
-      <span class="material-symbols-outlined">close</span>
+    <button type="button" class="nf-auth__close" (click)="requestClose()" aria-label="Đóng">
+      <span class="material-symbols-outlined" aria-hidden="true">close</span>
     </button>
 
     <div class="nf-auth__body">
@@ -61,7 +61,7 @@
         (click)="loginRequested.emit()"
       >
         @if (isSigningIn) {
-          <span class="nf-auth__spinner material-symbols-outlined">progress_activity</span>
+          <span class="nf-auth__spinner material-symbols-outlined" aria-hidden="true">progress_activity</span>
           <span>Đang kết nối với Google…</span>
         } @else {
           <svg class="nf-auth__gicon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -96,7 +96,8 @@
 
       <p class="nf-auth__fine">
         Bằng việc tiếp tục, bạn đồng ý với
-        <a href="#">Điều khoản Dịch vụ</a> và <a href="#">Chính sách Bảo mật</a> của chúng tôi.
+        <a routerLink="/terms">Điều khoản Dịch vụ</a> và
+        <a routerLink="/privacy">Chính sách Bảo mật</a> của chúng tôi.
       </p>
     </div>
   </div>

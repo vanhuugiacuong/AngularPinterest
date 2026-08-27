@@ -82,6 +82,7 @@ export class Messages implements OnInit, OnDestroy {
   private reportBodyOverflow?: string;
 
   private routeSubscription?: Subscription;
+  private incomingRequestSubscription?: Subscription;
   private realtimeChannel?: RealtimeChannel;
   private typingTimer?: ReturnType<typeof setTimeout>;
   private messagesRequestVersion = 0;
@@ -92,7 +93,7 @@ export class Messages implements OnInit, OnDestroy {
    * The backend/database is the source of truth — this only re-fetches it. */
   private requestsPollTimer?: ReturnType<typeof setInterval>;
   private isRefreshingLive = false;
-  private readonly REQUESTS_POLL_INTERVAL_MS = 15000;
+  private readonly REQUESTS_POLL_INTERVAL_MS = 5000;
   private onWindowFocus = () => void this.refreshLiveState();
   private onVisibilityChange = () => {
     if (document.visibilityState === 'visible') void this.refreshLiveState();
@@ -130,6 +131,17 @@ export class Messages implements OnInit, OnDestroy {
 
     await Promise.all([this.loadConversations(), this.loadRequests()]);
 
+    // Instant push — MessagingService's realtime channel emits the moment
+    // the backend broadcasts a new incoming request, so the requests queue
+    // updates immediately instead of waiting for the next poll tick.
+    this.incomingRequestSubscription = this.messagingService.incomingRequest$.subscribe(
+      (request) => {
+        this.incomingRequests.update((current) =>
+          current.some((r) => r.id === request.id) ? current : [request, ...current],
+        );
+      },
+    );
+
     if (typeof window !== 'undefined') {
       window.addEventListener('focus', this.onWindowFocus);
       document.addEventListener('visibilitychange', this.onVisibilityChange);
@@ -142,6 +154,7 @@ export class Messages implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.routeSubscription?.unsubscribe();
+    this.incomingRequestSubscription?.unsubscribe();
     this.messagingService.activeConversationId = null;
     void this.disconnectRealtime();
     if (this.typingTimer) clearTimeout(this.typingTimer);

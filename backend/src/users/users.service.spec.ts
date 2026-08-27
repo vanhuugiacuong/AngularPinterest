@@ -15,6 +15,8 @@ describe('UsersService profile data', () => {
     like: { count: jest.fn(), findMany: jest.fn() },
     messageRequest: { findFirst: jest.fn() },
     conversation: { findUnique: jest.fn() },
+    auction: { findMany: jest.fn() },
+    imagePurchase: { findMany: jest.fn() },
   };
   const blocksService = { isBlocked: jest.fn(), isBlockedEitherWay: jest.fn() };
   const notificationsService = { createNotification: jest.fn() };
@@ -25,6 +27,10 @@ describe('UsersService profile data', () => {
     jest.clearAllMocks();
     blocksService.isBlocked.mockResolvedValue(false);
     blocksService.isBlockedEitherWay.mockResolvedValue(false);
+    // Default: no pin in these tests is commerce-restricted — none of them
+    // exercise the pin-image-protection feature.
+    prisma.auction.findMany.mockResolvedValue([]);
+    prisma.imagePurchase.findMany.mockResolvedValue([]);
     service = new UsersService(
       prisma as never,
       blocksService as never,

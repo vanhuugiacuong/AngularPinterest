@@ -9,7 +9,7 @@
   height: 100%;
   place-items: center;
   padding: 18px;
-  background: rgba(3, 3, 12, 0.78);
+  background: color-mix(in srgb, var(--color-ink) 78%, transparent);
   backdrop-filter: blur(12px);
 }
 .selector-dialog {
@@ -18,8 +18,8 @@
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-panel);
   color: var(--color-text);
-  background: rgba(19, 19, 41, 0.98);
-  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.65);
+  background: color-mix(in srgb, var(--color-ink) 92%, var(--color-iris-violet) 6%);
+  box-shadow: 0 28px 90px color-mix(in srgb, var(--color-ink) 65%, transparent);
 }
 header,
 footer {
@@ -69,7 +69,7 @@ h2 {
   overflow: hidden;
   padding: 0 16px;
   background:
-    radial-gradient(circle at 50% 45%, rgba(139, 44, 255, 0.18), transparent 60%),
+    radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--color-iris-violet) 18%, transparent), transparent 60%),
     var(--color-bg-secondary);
 }
 /* Fills the entire preview-stage instead of shrink-wrapping to the image's
@@ -229,7 +229,7 @@ h2 {
   padding: 10px 14px;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-control);
-  background: rgba(12, 12, 30, 0.88);
+  background: color-mix(in srgb, var(--color-ink) 88%, transparent);
   text-align: center;
   pointer-events: none;
   transform: translateX(-50%);
@@ -252,7 +252,7 @@ h2 {
   flex-direction: column;
   gap: 11px;
   padding: 28px;
-  background: rgba(7, 7, 18, 0.78);
+  background: color-mix(in srgb, var(--color-ink) 78%, transparent);
   text-align: center;
 }
 .processing-overlay strong,
@@ -300,7 +300,7 @@ h2 {
   border: 1px solid currentColor;
   border-radius: var(--radius-control);
   color: var(--color-error);
-  background: rgba(18, 8, 20, 0.94);
+  background: color-mix(in srgb, var(--color-ink) 90%, var(--color-error) 8%);
   text-align: center;
   transform: translateX(-50%);
 }
@@ -348,13 +348,17 @@ h2 {
 }
 .primary-button {
   border: 0;
-  color: var(--color-text);
-  background: linear-gradient(
-    135deg,
-    var(--color-secondary),
-    var(--color-primary),
-    var(--color-primary-neon)
-  );
+  border-radius: var(--radius-cta);
+  color: var(--color-text-on-accent);
+  background: var(--color-nova-blue);
+  box-shadow: 0 6px 20px -10px color-mix(in srgb, var(--color-nova-blue) 45%, transparent);
+  transition: transform 0.2s var(--ease-trace);
+}
+.primary-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+.primary-button:active:not(:disabled) {
+  transform: translateY(0);
 }
 button:disabled {
   cursor: not-allowed;

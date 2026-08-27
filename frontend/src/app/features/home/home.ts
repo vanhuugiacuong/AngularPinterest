@@ -8,11 +8,13 @@ import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
 import { UserService, ProfilePin } from '../../core/services/user';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
+import { LikeButton } from '../../shared/like-button/like-button';
 import { ImageSearchStore } from '../../core/services/image-search-store';
 import { ToastService } from '../../core/services/toast';
 import { MembershipService } from '../../core/services/membership';
 import { DialogService } from '../../core/services/dialog';
 import { formatVnd } from '../../core/utils/currency';
+import { formatNovaToken, vndToNovaToken } from '../../core/utils/novatoken';
 
 /** Vietnamese labels for the category codes the backend's auto-classifier
  * assigns (see PinsService.classifyCategory) — chips are only ever built
@@ -31,7 +33,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, Navbar, UserAvatar],
+  imports: [CommonModule, Navbar, UserAvatar, LikeButton],
   templateUrl: './home.html',
   styleUrl: './home.css'
 })
@@ -52,6 +54,18 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   public pins = signal<any[]>([]);
   public boards = signal<Board[]>([]);
   public activeDropdownPinId = signal<string | null>(null);
+  /** Screen position of the currently-open board dropdown's trigger button.
+   * The dropdown itself renders as a `position: fixed` portal outside the
+   * pin card's `overflow-hidden` frame (see home.html) instead of as an
+   * absolutely-positioned descendant of it — otherwise a dropdown taller
+   * than the remaining space above its anchor gets silently clipped by the
+   * card's own rounded-corner mask. */
+  public dropdownAnchor = signal<{ top: number; left: number } | null>(null);
+  public readonly activeDropdownPin = computed(() => {
+    const id = this.activeDropdownPinId();
+    if (!id) return null;
+    return this.filteredPins().find((pin) => pin.id === id) ?? null;
+  });
   public selectedBoardMap = signal<Record<string, Board>>({});
   public isLoading = signal<boolean>(true);
   public isScrollingLoad = signal<boolean>(false);
@@ -196,6 +210,17 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   @HostListener('window:resize')
   onResize() {
     this.updateNumColumns();
+    this.closeBoardDropdown();
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.activeDropdownPinId()) this.closeBoardDropdown();
+  }
+
+  @HostListener('window:scroll')
+  onWindowScroll(): void {
+    if (this.activeDropdownPinId()) this.closeBoardDropdown();
   }
 
   updateNumColumns() {
@@ -460,7 +485,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
         authorAvatarUrl: p.user?.avatarUrl || null,
         authorPlan: p.user?.plan || 'FREE',
         likes,
-        isLiked: p.isLiked ?? false,
+        isLiked: p.isLiked === true,
         isAiGenerated: p.isAiGenerated,
         category: p.category,
         aspectRatio,
@@ -476,46 +501,54 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   /** Text hiển thị trong badge vương miện — '' nếu pin không phải tác phẩm
    * có giá trị (template ẩn badge hoàn toàn trong trường hợp đó). */
   valueBadgeText(pin: any): string {
-    if (pin.listingType === 'FIXED_PRICE') return formatVnd(pin.price);
+    if (pin.listingType === 'FIXED_PRICE') return formatNovaToken(vndToNovaToken(pin.price));
     if (pin.listingType === 'AUCTION' && pin.auction) {
       const a = pin.auction;
       if (a.status === 'SCHEDULED') return 'Sắp diễn ra';
       if (a.status === 'ENDED' || a.status === 'CANCELLED') return 'Đã kết thúc';
-      return `Giá hiện tại · ${formatVnd(a.currentPrice)}`;
+      return `Giá hiện tại · ${formatNovaToken(vndToNovaToken(a.currentPrice))}`;
     }
     return '';
   }
 
   valueBadgeAriaLabel(pin: any): string {
-    if (pin.listingType === 'FIXED_PRICE') return `Tác phẩm bán giá cố định, giá ${formatVnd(pin.price)}`;
+    if (pin.listingType === 'FIXED_PRICE') return `Tác phẩm bán giá cố định, giá ${formatNovaToken(vndToNovaToken(pin.price))}`;
     if (pin.listingType === 'AUCTION' && pin.auction) {
       const a = pin.auction;
       if (a.status === 'SCHEDULED') return 'Tác phẩm đấu giá, phiên sắp diễn ra';
       if (a.status === 'ENDED' || a.status === 'CANCELLED') return 'Tác phẩm đấu giá, phiên đã kết thúc';
-      return `Tác phẩm đấu giá, giá hiện tại ${formatVnd(a.currentPrice)}`;
+      return `Tác phẩm đấu giá, giá hiện tại ${formatNovaToken(vndToNovaToken(a.currentPrice))}`;
     }
     return '';
   }
 
-  /** true khi cần chặn mở chi tiết và hiện dialog nâng cấp thay vì điều
-   * hướng — chủ sở hữu luôn được mở, Plus/Pro còn hiệu lực luôn được mở.
+  /** Giá cố định yêu cầu Plus/Pro; đấu giá yêu cầu Pro.
    * Đây chỉ là lớp UX; backend (GET /api/pins/:id) là lớp chặn thật. */
   private requiresUpgradeToOpen(pin: any): boolean {
-    if (!pin.listingType || pin.listingType === 'NONE') return false;
+    if (pin.listingType !== 'AUCTION' && pin.listingType !== 'FIXED_PRICE') return false;
     const currentUserId = this.supabaseService.user()?.id;
     if (currentUserId && pin.ownerId && currentUserId === pin.ownerId) return false;
     // Navbar loads MembershipService asynchronously. During that short gap,
     // use the already-synced database user plan so a paid member is not shown
     // a false upgrade dialog just because they clicked quickly after routing.
     const plan = this.membership.status()?.plan ?? this.supabaseService.dbUser()?.plan;
-    return plan !== 'PLUS' && plan !== 'PRO';
+    return pin.listingType === 'AUCTION'
+      ? plan !== 'PRO'
+      : plan !== 'PLUS' && plan !== 'PRO';
   }
 
-  private async showUpgradeDialog(): Promise<void> {
+  isAuctionRestricted(pin: any): boolean {
+    return this.requiresUpgradeToOpen(pin);
+  }
+
+  private async showUpgradeDialog(pin: any): Promise<void> {
+    const isAuction = pin.listingType === 'AUCTION';
     const goToPricing = await this.dialogService.confirm({
       variant: 'information',
-      title: 'Nâng cấp gói để xem chi tiết',
-      description: 'Nâng cấp gói để xem chi tiết và trao đổi với chủ sở hữu.',
+      title: isAuction ? 'Cần gói Pro để xem đấu giá' : 'Khám phá tác phẩm cùng Plus',
+      description: isAuction
+        ? 'Ảnh và trang chi tiết của tác phẩm đấu giá chỉ dành cho thành viên Pro.'
+        : 'Nâng cấp Plus hoặc Pro để xem rõ và mở chi tiết tác phẩm bán giá cố định.',
       confirmLabel: 'Xem các gói',
       cancelLabel: 'Để sau',
     });
@@ -524,7 +557,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
 
   navigateToPin(pin: any) {
     if (this.requiresUpgradeToOpen(pin)) {
-      void this.showUpgradeDialog();
+      void this.showUpgradeDialog(pin);
       return;
     }
     this.router.navigate(['/pin', pin.id]);
@@ -545,37 +578,69 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     const currentUser = this.supabaseService.user();
     if (!currentUser) return;
 
-    // Optimistic update - lật trạng thái ngay trên UI thay vì đợi round-trip
-    // API mới phản hồi (đây là phần khiến việc bấm tim cảm giác chậm), rồi
-    // hoàn tác nếu request thất bại.
-    const previousLiked = !!pin.isLiked;
-    const previousLikes = pin.likes ?? 0;
+    const previousLiked = pin.isLiked === true;
+    const previousLikes = Number(pin.likes) || 0;
     pin.isLiked = !previousLiked;
-    pin.likes = pin.isLiked ? previousLikes + 1 : Math.max(0, previousLikes - 1);
-    this.pins.update(current => [...current]);
+    pin.likes = Math.max(0, previousLikes + (previousLiked ? -1 : 1));
+    pin.likeQueuedToggles = (pin.likeQueuedToggles || 0) + 1;
+    this.pins.update((current) => [...current]);
+
+    await this.flushLikeQueue(pin);
+  }
+
+  private async flushLikeQueue(pin: any): Promise<void> {
+    if (pin.likeSyncing) return;
+    pin.likeSyncing = true;
 
     try {
-      const token = await this.supabaseService.getSessionToken();
-      if (!token) throw new Error('no session token');
-      const result = await this.pinService.toggleLike(pin.id, token);
-      pin.isLiked = result.liked;
-      pin.likes = result.likeCount;
-      this.pins.update(current => [...current]);
-    } catch (error) {
-      console.error('Error toggling like:', error);
-      pin.isLiked = previousLiked;
-      pin.likes = previousLikes;
-      this.pins.update(current => [...current]);
+      while ((pin.likeQueuedToggles || 0) > 0) {
+        pin.likeQueuedToggles--;
+
+        try {
+          const token = await this.supabaseService.getSessionToken();
+          if (!token) throw new Error('Không tìm thấy phiên đăng nhập.');
+
+          const result = await this.pinService.toggleLike(pin.id, token);
+          if (pin.likeQueuedToggles === 0) {
+            pin.isLiked = result.liked;
+            pin.likes = result.likeCount;
+          }
+        } catch (error) {
+          const currentLiked = pin.isLiked === true;
+          pin.isLiked = !currentLiked;
+          pin.likes = Math.max(
+            0,
+            (Number(pin.likes) || 0) + (currentLiked ? -1 : 1),
+          );
+          console.error('Error toggling like:', error);
+        }
+
+        this.pins.update((current) => [...current]);
+      }
+    } finally {
+      pin.likeSyncing = false;
+      this.pins.update((current) => [...current]);
     }
   }
 
   toggleBoardDropdown(pinId: string, event: MouseEvent) {
     event.stopPropagation();
     if (this.activeDropdownPinId() === pinId) {
-      this.activeDropdownPinId.set(null);
-    } else {
-      this.activeDropdownPinId.set(pinId);
+      this.closeBoardDropdown();
+      return;
     }
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const dropdownWidth = 176; // w-44
+    this.dropdownAnchor.set({
+      top: rect.top,
+      left: Math.min(rect.left, window.innerWidth - dropdownWidth - 12),
+    });
+    this.activeDropdownPinId.set(pinId);
+  }
+
+  closeBoardDropdown(): void {
+    this.activeDropdownPinId.set(null);
+    this.dropdownAnchor.set(null);
   }
 
   selectBoardForPin(pinId: string, board: Board, event: MouseEvent) {
@@ -584,7 +649,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       ...current,
       [pinId]: board
     }));
-    this.activeDropdownPinId.set(null);
+    this.closeBoardDropdown();
   }
 
   getSelectedBoardName(pinId: string): string {

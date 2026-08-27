@@ -8,6 +8,8 @@
     <section
       #panel
       class="nf-dialog-panel"
+      [class.nf-dialog-panel--large]="dialog.size === 'large'"
+      [class.nf-dialog-panel--warning]="dialog.variant === 'warning'"
       [class.nf-dialog-panel--destructive]="dialog.variant === 'destructive'"
       tabindex="-1"
       [attr.role]="roleFor(dialog.variant)"
@@ -17,7 +19,7 @@
       (click)="$event.stopPropagation()"
     >
       <div class="nf-dialog-icon" [class]="'nf-dialog-icon--' + dialog.variant" aria-hidden="true">
-        <span class="material-symbols-outlined">{{ iconFor(dialog.variant) }}</span>
+        <span class="material-symbols-outlined" aria-hidden="true">{{ iconFor(dialog.variant) }}</span>
       </div>
 
       <h2 id="nf-dialog-title" class="nf-dialog-title">{{ dialog.title }}</h2>

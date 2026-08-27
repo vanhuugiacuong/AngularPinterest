@@ -115,6 +115,9 @@ export class NfLoader implements OnInit, AfterViewInit, OnDestroy {
   public readonly assemblyFragments = ASSEMBLY_FRAGMENTS;
 
   private readonly host = inject(ElementRef<HTMLElement>);
+  // Same real prefers-reduced-motion check as public-header.ts/auth-modal.ts
+  // in this folder — a vestibular-disorder user's actual OS setting must
+  // win here too; this is every visitor's first screen.
   private readonly reducedMotion =
     typeof window !== 'undefined' && 'matchMedia' in window
       ? window.matchMedia('(prefers-reduced-motion: reduce)').matches

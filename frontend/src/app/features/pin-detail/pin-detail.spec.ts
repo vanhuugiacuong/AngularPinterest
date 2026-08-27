@@ -154,6 +154,81 @@ describe('PinDetail — save to board toast feedback', () => {
   });
 });
 
+describe('PinDetail — optimistic like feedback', () => {
+  let component: PinDetail;
+  let resolveToggle: (value: { liked: boolean; likeCount: number }) => void = () => {};
+
+  beforeEach(() => {
+    const pinService = {
+      toggleLike: vi.fn().mockReturnValue(
+        new Promise<{ liked: boolean; likeCount: number }>((resolve) => {
+          resolveToggle = resolve;
+        }),
+      ),
+    };
+
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: ActivatedRoute, useValue: { paramMap: of() } },
+        { provide: Router, useValue: { navigate: vi.fn() } },
+        { provide: PinService, useValue: pinService },
+        { provide: BoardService, useValue: {} },
+        {
+          provide: SupabaseService,
+          useValue: {
+            dbUser: () => null,
+            user: () => ({ id: 'user-1' }),
+            getSessionToken: vi.fn().mockResolvedValue('token'),
+          },
+        },
+        { provide: MembershipService, useValue: { status: () => null } },
+        { provide: AuctionService, useValue: {} },
+        { provide: UserService, useValue: {} },
+        { provide: MessagingService, useValue: {} },
+      ],
+    });
+
+    component = TestBed.runInInjectionContext(() => new PinDetail());
+  });
+
+  it('updates the main pin before the API responds', async () => {
+    component.pin.set({ ...makePin('pin-1'), isLiked: false, likeCount: 2 });
+
+    const request = component.toggleLike();
+
+    expect(component.pin()?.isLiked).toBe(true);
+    expect(component.pin()?.likeCount).toBe(3);
+    expect(component.likePending()).toBe(true);
+
+    resolveToggle({ liked: true, likeCount: 3 });
+    await request;
+
+    expect(component.likePending()).toBe(false);
+  });
+
+  it('updates a related pin before the API responds', async () => {
+    const relatedPin: {
+      id: string;
+      likes: number;
+      isLiked: boolean;
+      likeQueuedToggles?: number;
+      likeSyncing?: boolean;
+    } = { id: 'related-1', likes: 4, isLiked: false };
+    component.relatedPins.set([relatedPin]);
+
+    const request = component.toggleRelatedLike(relatedPin, new MouseEvent('click'));
+
+    expect(relatedPin.isLiked).toBe(true);
+    expect(relatedPin.likes).toBe(5);
+    expect(relatedPin.likeSyncing).toBe(true);
+
+    resolveToggle({ liked: true, likeCount: 5 });
+    await request;
+
+    expect(relatedPin.likeSyncing).toBe(false);
+  });
+});
+
 describe('PinDetail — nâng cấp gói khi mở tác phẩm có giá trị', () => {
   let component: PinDetail;
   let router: { navigate: ReturnType<typeof vi.fn> };
@@ -192,7 +267,7 @@ describe('PinDetail — nâng cấp gói khi mở tác phẩm có giá trị', (
 
   it('shows the upgrade dialog — not a generic error — when the backend blocks a FREE/anonymous viewer (defense-in-depth for direct URL access)', async () => {
     pinService.getPinById.mockRejectedValue(
-      new Error('Nâng cấp gói để xem chi tiết và trao đổi với chủ sở hữu.'),
+      new Error('Chỉ thành viên Pro mới có thể xem chi tiết tác phẩm đấu giá.'),
     );
 
     await component.loadPinDetail('pin-1');
@@ -203,7 +278,7 @@ describe('PinDetail — nâng cấp gói khi mở tác phẩm có giá trị', (
 
   it('navigates to /pricing once the viewer confirms the upgrade dialog', async () => {
     pinService.getPinById.mockRejectedValue(
-      new Error('Nâng cấp gói để xem chi tiết và trao đổi với chủ sở hữu.'),
+      new Error('Chỉ thành viên Pro mới có thể xem chi tiết tác phẩm đấu giá.'),
     );
     dialogService.confirm.mockResolvedValue(true);
 
@@ -285,18 +360,18 @@ describe('PinDetail — form đặt giá đấu giá (validation, không optimis
   });
 
   it('rejects a bid below the starting price without calling the backend (client-side pre-validation)', async () => {
-    component.bidAmount = 500_000;
+    component.bidAmount = 500;
 
     await component.submitBid();
 
     expect(auctionService.placeBid).not.toHaveBeenCalled();
-    expect(component.bidError()).toContain('1.000.000');
+    expect(component.bidError()).toContain('1.000 NT');
   });
 
   it('disables further submits while a bid is in flight', async () => {
     let resolveBid: (value: any) => void = () => {};
     auctionService.placeBid.mockReturnValue(new Promise((resolve) => (resolveBid = resolve)));
-    component.bidAmount = 1_000_000;
+    component.bidAmount = 1_000;
 
     const submitPromise = component.submitBid();
     expect(component.bidSubmitting()).toBe(true);
@@ -308,7 +383,7 @@ describe('PinDetail — form đặt giá đấu giá (validation, không optimis
   });
 
   it('updates currentPrice only from the real backend response — never optimistically before the call resolves', async () => {
-    component.bidAmount = 1_000_000;
+    component.bidAmount = 1_000;
     auctionService.placeBid.mockResolvedValue({
       ...component.auction(),
       currentPrice: '1100000',
@@ -328,7 +403,7 @@ describe('PinDetail — form đặt giá đấu giá (validation, không optimis
   });
 
   it('shows a friendly error and does not crash when the backend rejects the bid (e.g. optimistic-lock conflict)', async () => {
-    component.bidAmount = 1_100_000;
+    component.bidAmount = 1_100;
     auctionService.placeBid.mockRejectedValue(new Error('Đã có người đặt giá khác, vui lòng thử lại.'));
 
     await component.submitBid();

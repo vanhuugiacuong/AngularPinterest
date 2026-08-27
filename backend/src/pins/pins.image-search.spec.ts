@@ -99,27 +99,27 @@ describe('PinsService.searchPinsByImage', () => {
     // matching what Postgres actually returns.
     queryRawUnsafe.mockResolvedValue([
       makeRow({ id: 'best', similarity: 0.92, imageUrl: 'https://cdn.example.com/a.jpg' }),
-      makeRow({ id: 'good', similarity: 0.85, imageUrl: 'https://cdn.example.com/b.jpg' }),
+      makeRow({ id: 'good', similarity: 0.75, imageUrl: 'https://cdn.example.com/b.jpg' }),
       // Same image URL as "good" but a lower score — must be deduped out, not returned as a second hit.
-      makeRow({ id: 'dup-url', similarity: 0.8, imageUrl: 'https://cdn.example.com/b.jpg' }),
-      // Clears the absolute floor (0.75 default) but too far from the best match (gap > 0.12 default).
-      makeRow({ id: 'too-far', similarity: 0.76, imageUrl: 'https://cdn.example.com/c.jpg' }),
+      makeRow({ id: 'dup-url', similarity: 0.7, imageUrl: 'https://cdn.example.com/b.jpg' }),
+      // Clears the absolute floor (0.45 default) but too far from the best match (gap > 0.25 default).
+      makeRow({ id: 'too-far', similarity: 0.6, imageUrl: 'https://cdn.example.com/c.jpg' }),
       // Below the absolute floor entirely.
-      makeRow({ id: 'irrelevant', similarity: 0.4, imageUrl: 'https://cdn.example.com/d.jpg' }),
+      makeRow({ id: 'irrelevant', similarity: 0.3, imageUrl: 'https://cdn.example.com/d.jpg' }),
     ]);
 
     const results = await service.searchPinsByImage(makeFile(), 1, 20);
 
     expect(results.map((r) => r.id)).toEqual(['best', 'good']);
     expect(results[0].similarity).toBeGreaterThanOrEqual(results[1].similarity);
-    expect(results.every((r) => r.similarity >= 0.75)).toBe(true);
+    expect(results.every((r) => r.similarity >= 0.45)).toBe(true);
   });
 
   it('returns an empty array — not weaker fallback matches — when nothing clears the threshold', async () => {
     mockClipEmbedSuccess();
     queryRawUnsafe.mockResolvedValue([
-      makeRow({ id: 'weak-1', similarity: 0.5 }),
-      makeRow({ id: 'weak-2', similarity: 0.3 }),
+      makeRow({ id: 'weak-1', similarity: 0.3 }),
+      makeRow({ id: 'weak-2', similarity: 0.2 }),
     ]);
 
     const results = await service.searchPinsByImage(makeFile(), 1, 20);

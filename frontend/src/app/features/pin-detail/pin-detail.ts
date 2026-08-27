@@ -3,6 +3,7 @@ import {
   OnInit,
   inject,
   signal,
+  computed,
   ViewChild,
   ElementRef,
   AfterViewInit,
@@ -17,6 +18,7 @@ import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
 import { FormsModule } from '@angular/forms';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
+import { LikeButton } from '../../shared/like-button/like-button';
 import { MembershipService } from '../../core/services/membership';
 import type { MembershipPlan } from '../../core/models/membership-plan';
 import { ImageRegionSearch } from './image-region-search/image-region-search';
@@ -27,19 +29,21 @@ import { DialogService } from '../../core/services/dialog';
 import { AuctionService, AuctionDetail } from '../../core/services/auction';
 import { UserService, ProfileViewerState } from '../../core/services/user';
 import { MessagingService } from '../../core/services/messaging';
-import { PayoutAccount } from '../../core/services/membership';
 import { formatVnd } from '../../core/utils/currency';
-import { buildVietQrUrl } from '../../core/utils/vietqr';
+import { NovaTokenService } from '../../core/services/novatoken';
+import { formatNovaToken, vndToNovaToken } from '../../core/utils/novatoken';
+import { SafetyService } from '../../core/services/safety';
 
 /** Phải khớp chính xác với thông báo ForbiddenException của
  * PinsService.getPinById ở backend — dùng để phân biệt "cần nâng cấp gói"
  * với các lỗi tải pin khác (404, mất mạng...). */
-const UPGRADE_REQUIRED_MESSAGE = 'Nâng cấp gói để xem chi tiết và trao đổi với chủ sở hữu.';
+const UPGRADE_REQUIRED_MESSAGE = 'Chỉ thành viên Pro mới có thể xem chi tiết tác phẩm đấu giá.';
+const FIXED_PRICE_REQUIRED_MESSAGE = 'Chỉ thành viên Plus hoặc Pro mới có thể xem chi tiết tác phẩm bán giá cố định.';
 
 @Component({
   selector: 'app-pin-detail',
   standalone: true,
-  imports: [CommonModule, Navbar, FormsModule, UserAvatar, ImageRegionSearch],
+  imports: [CommonModule, Navbar, FormsModule, UserAvatar, ImageRegionSearch, LikeButton],
   templateUrl: './pin-detail.html',
   styleUrl: './pin-detail.css',
 })
@@ -52,14 +56,16 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   public supabaseService = inject(SupabaseService);
   public membership = inject(MembershipService);
   public downloadMessage = signal('');
-  public pendingPurchase = signal<{ paymentReference: string; amount: string; sellerPayout: PayoutAccount | null } | null>(null);
   public downloading = signal(false);
+  public novaTokens = inject(NovaTokenService);
   public watermarkService = inject(WatermarkService);
   public selectedWatermarkPresetId = signal<string | null>(null);
   private dialogService = inject(DialogService);
   private auctionService = inject(AuctionService);
   private userService = inject(UserService);
   private messagingService = inject(MessagingService);
+  private safetyService = inject(SafetyService);
+  public showMoreMenu = signal(false);
 
   // --- Đấu giá ---
   public auction = signal<AuctionDetail | null>(null);
@@ -82,6 +88,8 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   /** Field tham chiếu hàm thuần để template gọi trực tiếp — tránh phải bọc
    * từng chỗ dùng bằng một method component riêng. */
   public formatVnd = formatVnd;
+  public formatNovaToken = formatNovaToken;
+  public vndToNovaToken = vndToNovaToken;
 
   goToPricing(): void {
     this.router.navigate(['/pricing']);
@@ -99,6 +107,8 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   public isLoading = signal<boolean>(true);
   public isRelatedLoading = signal<boolean>(true);
   public isScrollingLoad = signal<boolean>(false);
+  public likePending = signal(false);
+  private likeQueuedToggles = 0;
   public isLandscape = signal<boolean>(false);
   public numRelatedColumns = signal<number>(2);
   public showImageSearch = signal<boolean>(false);
@@ -138,6 +148,24 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   @HostListener('window:resize')
   onResize() {
     this.calculateColumns();
+    this.closeRelatedBoardDropdown();
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.showMoreMenu()) this.showMoreMenu.set(false);
+    if (this.relatedActiveDropdownPinId()) this.closeRelatedBoardDropdown();
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void {
+    if (this.showMoreMenu()) this.showMoreMenu.set(false);
+    if (this.relatedActiveDropdownPinId()) this.closeRelatedBoardDropdown();
+  }
+
+  @HostListener('window:scroll')
+  onWindowScroll(): void {
+    if (this.relatedActiveDropdownPinId()) this.closeRelatedBoardDropdown();
   }
 
   calculateColumns() {
@@ -188,20 +216,6 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     await this.loadBoards();
   }
 
-  /** QR chuyển khoản thẳng vào tài khoản NGƯỜI BÁN — không còn dùng tài
-   * khoản chung của platform. Trả null nếu chưa có sellerPayout (dữ liệu cũ
-   * hiếm gặp trước khi tính năng này bắt buộc cấu hình tài khoản). */
-  bankQrFor(purchase: { paymentReference: string; amount: string; sellerPayout: PayoutAccount | null }): string | null {
-    if (!purchase.sellerPayout) return null;
-    return buildVietQrUrl(
-      purchase.sellerPayout.bankCode,
-      purchase.sellerPayout.accountNumber,
-      Number(purchase.amount),
-      purchase.paymentReference,
-      purchase.sellerPayout.accountName,
-    );
-  }
-
   async downloadPin() {
     const p = this.pin(); if (!p || this.downloading()) return;
     this.downloadMessage.set('Đang chuẩn bị ảnh...');
@@ -209,14 +223,8 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     try {
       const isOwner = p.user?.id === this.supabaseService.user()?.id;
       if (p.isForSale && !isOwner) {
-        const purchase = await this.membership.purchase(p.id);
-        if (purchase.status !== 'PAID') {
-          this.pendingPurchase.set(purchase);
-          this.downloadMessage.set('Cần thanh toán trước khi tải ảnh gốc — quét mã bên dưới rồi bấm lại "Mua & tải" để kiểm tra.');
-          return;
-        }
+        await this.novaTokens.purchase(p.id);
       }
-      this.pendingPurchase.set(null);
       await this.fetchAndSaveDownload(p.id, p.title);
       this.downloadMessage.set('Đã tải ảnh.');
     } catch (e) {
@@ -268,6 +276,60 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     if (this.currentPinId) {
       this.loadPinDetail(this.currentPinId);
     }
+  }
+
+  async share(): Promise<void> {
+    const current = this.pin();
+    if (!current) return;
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: current.title, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        this.toast.success('Đã sao chép liên kết.');
+      }
+    } catch {
+      // Người dùng hủy hộp thoại chia sẻ của hệ điều hành — không phải lỗi.
+    }
+  }
+
+  toggleMoreMenu(event?: Event): void {
+    event?.stopPropagation();
+    this.showMoreMenu.update((open) => !open);
+  }
+
+  closeMoreMenu(): void {
+    this.showMoreMenu.set(false);
+  }
+
+  async copyLink(): Promise<void> {
+    this.showMoreMenu.set(false);
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      this.toast.success('Đã sao chép liên kết.');
+    } catch {
+      this.toast.error('Không thể sao chép liên kết.');
+    }
+  }
+
+  async reportPin(): Promise<void> {
+    this.showMoreMenu.set(false);
+    const current = this.pin();
+    if (!current) return;
+    const confirmed = await this.dialogService.confirm({
+      variant: 'destructive',
+      title: 'Báo cáo tác phẩm này?',
+      description: 'Đội ngũ NovaFrame sẽ xem xét tác phẩm và tài khoản đã đăng nó.',
+      confirmLabel: 'Báo cáo',
+      cancelLabel: 'Hủy',
+      onConfirm: async () => {
+        const token = await this.supabaseService.getSessionToken();
+        if (!token) throw new Error('Vui lòng đăng nhập lại để báo cáo.');
+        await this.safetyService.reportUser(current.userId, 'INAPPROPRIATE_CONTENT', undefined, token);
+      },
+    });
+    if (confirmed) this.toast.success('Đã gửi báo cáo. Cảm ơn bạn đã phản hồi.');
   }
 
   async loadBoards() {
@@ -345,19 +407,23 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       // Free user gọi thẳng URL/bookmark tới tác phẩm có giá trị — backend
       // đã chặn (ForbiddenException), đây là lớp phòng thủ cuối cùng trên
       // frontend hiển thị đúng dialog thay vì lỗi tải chung chung.
-      if (error instanceof Error && error.message === UPGRADE_REQUIRED_MESSAGE) {
-        void this.handleUpgradeRequired();
+      if (
+        error instanceof Error &&
+        (error.message === UPGRADE_REQUIRED_MESSAGE || error.message === FIXED_PRICE_REQUIRED_MESSAGE)
+      ) {
+        void this.handleUpgradeRequired(error.message);
         return;
       }
       this.loadError.set('Không thể tải tác phẩm này. Có thể đường liên kết không còn tồn tại hoặc mạng đang gặp sự cố.');
     }
   }
 
-  private async handleUpgradeRequired(): Promise<void> {
+  private async handleUpgradeRequired(message = UPGRADE_REQUIRED_MESSAGE): Promise<void> {
+    const isAuction = message === UPGRADE_REQUIRED_MESSAGE;
     const goToPricing = await this.dialogService.confirm({
       variant: 'information',
-      title: 'Nâng cấp gói để xem chi tiết',
-      description: UPGRADE_REQUIRED_MESSAGE,
+      title: isAuction ? 'Cần gói Pro để xem đấu giá' : 'Khám phá tác phẩm cùng Plus',
+      description: message,
       confirmLabel: 'Xem các gói',
       cancelLabel: 'Để sau',
     });
@@ -372,8 +438,21 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     this.router.navigate(['/feed']);
   }
 
-  navigateToPin(pinId: string) {
-    this.router.navigate(['/pin', pinId]);
+  navigateToPin(pinOrId: string | { id: string; listingType?: string }) {
+    const pin = typeof pinOrId === 'string' ? null : pinOrId;
+    if (pin && this.isAuctionRestricted(pin)) {
+      const message = pin.listingType === 'AUCTION' ? UPGRADE_REQUIRED_MESSAGE : FIXED_PRICE_REQUIRED_MESSAGE;
+      void this.handleUpgradeRequired(message);
+      return;
+    }
+    this.router.navigate(['/pin', typeof pinOrId === 'string' ? pinOrId : pinOrId.id]);
+  }
+
+  isAuctionRestricted(pin: { listingType?: string }): boolean {
+    const plan = this.myPlan();
+    if (pin.listingType === 'AUCTION') return plan !== 'PRO';
+    if (pin.listingType === 'FIXED_PRICE') return plan !== 'PLUS' && plan !== 'PRO';
+    return false;
   }
 
   /** Receives real CLIP matches from the region selector and swaps only the
@@ -414,41 +493,68 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     const currentUser = this.supabaseService.user();
     if (!currentPin || !currentUser) return;
 
-    const previousLiked = (currentPin as any).isLiked === true;
-    const previousCount = currentPin.likeCount ?? currentPin._count?.likes ?? 0;
-    const optimisticLiked = !previousLiked;
-    const optimisticCount = optimisticLiked ? previousCount + 1 : Math.max(0, previousCount - 1);
+    const previousLiked = currentPin.isLiked === true;
+    const previousLikeCount = currentPin.likeCount ?? currentPin._count?.likes ?? 0;
+    const optimisticLikeCount = Math.max(
+      0,
+      previousLikeCount + (previousLiked ? -1 : 1),
+    );
 
-    // Optimistic update - phản hồi ngay trên UI, gọi API ở nền, hoàn tác nếu lỗi.
     this.pin.set({
       ...currentPin,
-      isLiked: optimisticLiked,
-      likeCount: optimisticCount,
-      _count: { ...currentPin._count, likes: optimisticCount },
+      isLiked: !previousLiked,
+      likeCount: optimisticLikeCount,
+      _count: { ...currentPin._count, likes: optimisticLikeCount },
     });
+    this.likeQueuedToggles++;
+
+    await this.flushLikeQueue(currentPin.id);
+  }
+
+  private async flushLikeQueue(pinId: string): Promise<void> {
+    if (this.likePending()) return;
+    this.likePending.set(true);
 
     try {
-      const token = await this.supabaseService.getSessionToken();
-      if (!token) throw new Error('no session token');
-      const result = await this.pinService.toggleLike(currentPin.id, token);
-      const latest = this.pin();
-      if (!latest || latest.id !== currentPin.id) return;
-      this.pin.set({
-        ...latest,
-        isLiked: result.liked,
-        likeCount: result.likeCount,
-        _count: { ...latest._count, likes: result.likeCount },
-      });
-    } catch (error) {
-      console.error('Error toggling like:', error);
-      const latest = this.pin();
-      if (!latest || latest.id !== currentPin.id) return;
-      this.pin.set({
-        ...latest,
-        isLiked: previousLiked,
-        likeCount: previousCount,
-        _count: { ...latest._count, likes: previousCount },
-      });
+      while (this.likeQueuedToggles > 0) {
+        this.likeQueuedToggles--;
+
+        try {
+          const token = await this.supabaseService.getSessionToken();
+          if (!token) throw new Error('Không tìm thấy phiên đăng nhập.');
+
+          const result = await this.pinService.toggleLike(pinId, token);
+          const latestPin = this.pin();
+          if (latestPin?.id === pinId && this.likeQueuedToggles === 0) {
+            this.pin.set({
+              ...latestPin,
+              isLiked: result.liked,
+              likeCount: result.likeCount,
+              _count: { ...latestPin._count, likes: result.likeCount },
+            });
+          }
+        } catch (error) {
+          const latestPin = this.pin();
+          if (latestPin?.id === pinId) {
+            const currentLiked = latestPin.isLiked === true;
+            const rolledBackLiked = !currentLiked;
+            const currentLikeCount = latestPin.likeCount ?? latestPin._count?.likes ?? 0;
+            const rolledBackLikeCount = Math.max(
+              0,
+              currentLikeCount + (rolledBackLiked ? 1 : -1),
+            );
+            this.pin.set({
+              ...latestPin,
+              isLiked: rolledBackLiked,
+              likeCount: rolledBackLikeCount,
+              _count: { ...latestPin._count, likes: rolledBackLikeCount },
+            });
+          }
+          console.error('Error toggling like:', error);
+        }
+      }
+    } finally {
+      this.likePending.set(false);
     }
   }
 
@@ -548,42 +654,103 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
    * stripped-down hover-only preview. */
   public relatedActiveDropdownPinId = signal<string | null>(null);
   public relatedSelectedBoardMap = signal<Record<string, Board>>({});
+  /** Screen position of the open related-pin dropdown's trigger — see
+   * home.ts's dropdownAnchor for why this renders as a fixed-position
+   * portal instead of nesting inside the related card's overflow-hidden
+   * frame (which silently clipped it). */
+  public relatedDropdownAnchor = signal<{ top: number; left: number } | null>(null);
+  public readonly activeRelatedDropdownPin = computed(() => {
+    const id = this.relatedActiveDropdownPinId();
+    if (!id) return null;
+    return this.relatedPins().find((rel: { id: string }) => rel.id === id) ?? null;
+  });
 
-  async toggleRelatedLike(rel: { id: string; likes: number; isLiked?: boolean }, event: MouseEvent) {
+  async toggleRelatedLike(
+    rel: {
+      id: string;
+      likes: number;
+      isLiked?: boolean;
+      likeQueuedToggles?: number;
+      likeSyncing?: boolean;
+    },
+    event: MouseEvent,
+  ) {
     event.stopPropagation();
     const currentUser = this.supabaseService.user();
     if (!currentUser) return;
 
-    const previousLiked = !!rel.isLiked;
-    const previousLikes = rel.likes ?? 0;
+    const previousLiked = rel.isLiked === true;
+    const previousLikes = rel.likes || 0;
     rel.isLiked = !previousLiked;
-    rel.likes = rel.isLiked ? previousLikes + 1 : Math.max(0, previousLikes - 1);
+    rel.likes = Math.max(0, previousLikes + (previousLiked ? -1 : 1));
+    rel.likeQueuedToggles = (rel.likeQueuedToggles || 0) + 1;
     this.relatedPins.update((current) => [...current]);
 
+    await this.flushRelatedLikeQueue(rel);
+  }
+
+  private async flushRelatedLikeQueue(rel: {
+    id: string;
+    likes: number;
+    isLiked?: boolean;
+    likeQueuedToggles?: number;
+    likeSyncing?: boolean;
+  }): Promise<void> {
+    if (rel.likeSyncing) return;
+    rel.likeSyncing = true;
+
     try {
-      const token = await this.supabaseService.getSessionToken();
-      if (!token) throw new Error('no session token');
-      const result = await this.pinService.toggleLike(rel.id, token);
-      rel.isLiked = result.liked;
-      rel.likes = result.likeCount;
-      this.relatedPins.update((current) => [...current]);
-    } catch (error) {
-      console.error('Error toggling like:', error);
-      rel.isLiked = previousLiked;
-      rel.likes = previousLikes;
+      while ((rel.likeQueuedToggles || 0) > 0) {
+        rel.likeQueuedToggles = (rel.likeQueuedToggles || 0) - 1;
+
+        try {
+          const token = await this.supabaseService.getSessionToken();
+          if (!token) throw new Error('Không tìm thấy phiên đăng nhập.');
+
+          const result = await this.pinService.toggleLike(rel.id, token);
+          if (rel.likeQueuedToggles === 0) {
+            rel.isLiked = result.liked;
+            rel.likes = result.likeCount;
+          }
+        } catch (error) {
+          const currentLiked = rel.isLiked === true;
+          rel.isLiked = !currentLiked;
+          rel.likes = Math.max(0, rel.likes + (currentLiked ? -1 : 1));
+          console.error('Error toggling like:', error);
+        }
+
+        this.relatedPins.update((current) => [...current]);
+      }
+    } finally {
+      rel.likeSyncing = false;
       this.relatedPins.update((current) => [...current]);
     }
   }
 
   toggleRelatedBoardDropdown(pinId: string, event: MouseEvent) {
     event.stopPropagation();
-    this.relatedActiveDropdownPinId.update((current) => (current === pinId ? null : pinId));
+    if (this.relatedActiveDropdownPinId() === pinId) {
+      this.closeRelatedBoardDropdown();
+      return;
+    }
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const dropdownWidth = 176; // w-44
+    this.relatedDropdownAnchor.set({
+      top: rect.top,
+      left: Math.min(rect.left, window.innerWidth - dropdownWidth - 12),
+    });
+    this.relatedActiveDropdownPinId.set(pinId);
+  }
+
+  closeRelatedBoardDropdown(): void {
+    this.relatedActiveDropdownPinId.set(null);
+    this.relatedDropdownAnchor.set(null);
   }
 
   selectRelatedBoardForPin(pinId: string, board: Board, event: MouseEvent) {
     event.stopPropagation();
     this.relatedSelectedBoardMap.update((current) => ({ ...current, [pinId]: board }));
-    this.relatedActiveDropdownPinId.set(null);
+    this.closeRelatedBoardDropdown();
   }
 
   getRelatedSelectedBoardName(pinId: string): string {
@@ -665,9 +832,11 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
         authorAvatarUrl: p.user?.avatarUrl || null,
         authorPlan: p.user?.plan || 'FREE',
         likes: p._count?.likes ?? 0,
-        isLiked: (p as any).isLiked ?? false,
+        isLiked: p.isLiked === true,
         isAiGenerated: p.isAiGenerated,
         aspectRatio,
+        listingType: p.listingType ?? 'NONE',
+        auction: p.auction ?? null,
       };
     });
   }
@@ -786,20 +955,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   }
 
   minAcceptableBidLabel(): string {
-    return formatVnd(this.minAcceptableBid());
-  }
-
-  /** QR chuyển khoản cho người bán khi đã thắng đấu giá — null nếu người
-   * bán chưa cấu hình tài khoản nhận tiền (hiếm, dữ liệu cũ). */
-  auctionPaymentQr(mp: NonNullable<AuctionDetail['myPurchase']>): string | null {
-    if (!mp.sellerPayout) return null;
-    return buildVietQrUrl(
-      mp.sellerPayout.bankCode,
-      mp.sellerPayout.accountNumber,
-      Number(mp.amount),
-      mp.paymentReference ?? '',
-      mp.sellerPayout.accountName,
-    );
+    return formatNovaToken(vndToNovaToken(this.minAcceptableBid()));
   }
 
   isAuctionOwner(): boolean {
@@ -813,7 +969,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     if (!a || a.status !== 'ACTIVE') return false;
     if (this.isAuctionOwner()) return false;
     const plan = this.membership.status()?.plan;
-    return plan === 'PLUS' || plan === 'PRO';
+    return plan === 'PRO';
   }
 
   async submitBid(): Promise<void> {
@@ -823,20 +979,20 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     this.bidSuccessMessage.set(null);
 
     const amount = this.bidAmount;
-    const min = this.minAcceptableBid();
-    if (!amount || !Number.isInteger(amount) || amount < min) {
-      this.bidError.set(`Giá đặt phải là số nguyên VND, tối thiểu ${formatVnd(min)}.`);
+    const minTokens = vndToNovaToken(this.minAcceptableBid());
+    if (!amount || !Number.isInteger(amount) || amount < minTokens) {
+      this.bidError.set(`Giá đặt phải là số NovaToken nguyên, tối thiểu ${formatNovaToken(minTokens)}.`);
       return;
     }
 
     this.bidSubmitting.set(true);
     try {
       const requestKey = crypto.randomUUID();
-      const updated = await this.auctionService.placeBid(a.id, amount, requestKey);
+      const updated = await this.auctionService.placeBid(a.id, amount * 1000, requestKey);
       this.auction.set(updated);
       this.applyServerTimeOffset(updated.serverNow);
       this.bidAmount = null;
-      this.bidSuccessMessage.set('Đặt giá thành công.');
+      this.bidSuccessMessage.set(`${formatNovaToken(amount)} đã được giữ an toàn cho lượt đặt giá.`);
       this.scheduleAuctionPolling();
     } catch (e) {
       this.bidError.set(e instanceof Error ? e.message : 'Không thể đặt giá lúc này. Vui lòng thử lại.');

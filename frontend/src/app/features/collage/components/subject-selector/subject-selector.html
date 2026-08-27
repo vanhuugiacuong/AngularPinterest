@@ -19,8 +19,9 @@
         (click)="cancelled.emit()"
         [disabled]="adding()"
         title="Đóng"
+        aria-label="Đóng"
       >
-        <span class="material-symbols-outlined">close</span>
+        <span class="material-symbols-outlined" aria-hidden="true">close</span>
       </button>
     </header>
 
@@ -103,7 +104,7 @@
       </div>
 
       <div *ngIf="error()" class="error-state" role="alert">
-        <span class="material-symbols-outlined">image_not_supported</span>
+        <span class="material-symbols-outlined" aria-hidden="true">image_not_supported</span>
         <strong>{{ error() }}</strong>
       </div>
     </div>
@@ -125,7 +126,7 @@
         [disabled]="adding() || preparingWhole()"
         title="Thêm ngay toàn bộ ảnh, không tách nền"
       >
-        <span class="material-symbols-outlined">select_all</span>
+        <span class="material-symbols-outlined" aria-hidden="true">select_all</span>
         {{ preparingWhole() ? 'Đang thêm…' : 'Chọn tất cả' }}
       </button>
       <button

@@ -36,6 +36,7 @@ describe('Messages', () => {
       reportRequest: vi.fn(),
       sendMessage: vi.fn(),
       markRead: vi.fn().mockResolvedValue({ success: true }),
+      incomingRequest$: of<MessageRequestRecord>(),
       ...overrides.messagingService,
     };
     const router = { navigate: vi.fn().mockResolvedValue(true) };

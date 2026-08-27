@@ -1,17 +1,17 @@
 <div class="subject-page" role="dialog" aria-modal="true" aria-labelledby="layer-crop-title">
   <header class="subject-page-header">
     <button type="button" class="back-button" (click)="cancel()" aria-label="Hủy">
-      <span class="material-symbols-outlined">arrow_back</span>
+      <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
     </button>
 
     <h2 id="layer-crop-title" class="sr-only">Chọn lại phần cắt</h2>
 
     <div class="header-actions">
       <button type="button" class="secondary-button" (click)="reset()">
-        <span class="material-symbols-outlined">crop_free</span>Nguyên ảnh
+        <span class="material-symbols-outlined" aria-hidden="true">crop_free</span>Nguyên ảnh
       </button>
       <button type="button" class="primary-button" (click)="apply()">
-        <span class="material-symbols-outlined">check</span>Áp dụng
+        <span class="material-symbols-outlined" aria-hidden="true">check</span>Áp dụng
       </button>
     </div>
   </header>

@@ -1,0 +1,102 @@
+<main class="nf-legal">
+  <header class="nf-legal__header">
+    <a routerLink="/" class="nf-legal__brand" aria-label="Về trang giới thiệu NovaFrame">
+      <img src="/logo-mark.svg" alt="" aria-hidden="true" />
+      <span>NovaFrame</span>
+    </a>
+
+    <nav class="nf-legal__document-nav" aria-label="Tài liệu pháp lý">
+      <a
+        routerLink="/terms"
+        routerLinkActive="nf-legal__document-link--active"
+        class="nf-legal__document-link"
+      >
+        Điều khoản
+      </a>
+      <a
+        routerLink="/privacy"
+        routerLinkActive="nf-legal__document-link--active"
+        class="nf-legal__document-link"
+      >
+        Bảo mật
+      </a>
+    </nav>
+
+    <div class="nf-legal__header-actions">
+      <app-theme-toggle />
+      <a routerLink="/" class="nf-legal__back">
+        <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+        <span>Trang chủ</span>
+      </a>
+    </div>
+  </header>
+
+  <section class="nf-legal__hero" aria-labelledby="nf-legal-title">
+    <div class="nf-legal__hero-copy">
+      <span class="nf-legal__eyebrow">NovaFrame · Tài liệu pháp lý</span>
+      <h1 id="nf-legal-title">{{ legalDocument.title }}</h1>
+      <p>{{ legalDocument.summary }}</p>
+      <span class="nf-legal__updated">Cập nhật ngày {{ updatedAt }}</span>
+    </div>
+
+    <div class="nf-legal__status" role="note" aria-label="Trạng thái tài liệu">
+      <span class="material-symbols-outlined" aria-hidden="true">info</span>
+      <div>
+        <strong>Bản dự thảo sản phẩm</strong>
+        <p>
+          Không đủ dữ liệu để xác minh tên pháp nhân hoặc cá nhân vận hành, địa chỉ, mã đăng ký kinh
+          doanh hoặc mã số thuế và kênh liên hệ pháp lý. Các thông tin này cần được bổ sung trước
+          khi dùng tài liệu cho hoạt động thương mại.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="nf-legal__layout">
+    <aside class="nf-legal__toc" aria-label="Mục lục {{ legalDocument.label }}">
+      <span>Mục lục</span>
+      <nav>
+        @for (section of legalDocument.sections; track section.id) {
+          <button
+            type="button"
+            [attr.aria-controls]="section.id"
+            (click)="scrollToSection(section.id)"
+          >
+            {{ section.title }}
+          </button>
+        }
+      </nav>
+    </aside>
+
+    <article class="nf-legal__content">
+      @for (section of legalDocument.sections; track section.id) {
+        <section [id]="section.id" class="nf-legal__section">
+          <h2>{{ section.title }}</h2>
+
+          @for (paragraph of section.paragraphs; track $index) {
+            <p>{{ paragraph }}</p>
+          }
+
+          @if (section.bullets?.length) {
+            <ul>
+              @for (bullet of section.bullets; track $index) {
+                <li>{{ bullet }}</li>
+              }
+            </ul>
+          }
+        </section>
+      }
+    </article>
+  </div>
+
+  <footer class="nf-legal__footer">
+    <a routerLink="/" class="nf-legal__brand nf-legal__brand--footer">
+      <img src="/logo-mark.svg" alt="" aria-hidden="true" />
+      <span>NovaFrame</span>
+    </a>
+    <nav aria-label="Liên kết pháp lý cuối trang">
+      <a routerLink="/terms">Điều khoản Dịch vụ</a>
+      <a routerLink="/privacy">Chính sách Bảo mật</a>
+    </nav>
+  </footer>
+</main>

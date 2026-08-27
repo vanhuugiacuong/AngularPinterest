@@ -13,7 +13,7 @@
   /* ---- Brand hues — "Light Rail": Nova Blue → Iris Violet ---- */
   --color-nova-blue: #6987ff;
   --color-iris-violet: #9475ff;
-  --color-studio-aqua: #31c7c2;
+  --color-studio-aqua: #4fb2ff;
 
   /* ---- Surfaces & text (Đêm Lam) ---- */
   --color-bg: #070910;
@@ -60,6 +60,10 @@
   --shadow-glow: 0 0 28px 0 color-mix(in srgb, var(--color-nova-blue) 35%, transparent);
   --shadow-glow-soft:
     0 18px 34px -16px color-mix(in srgb, var(--color-nova-blue) 38%, transparent);
+  /* Compact selected-state glow for small controls (theme swatch, tab,
+     selected chip) where --shadow-glow's 28px spread reads too heavy. */
+  --shadow-glow-sm: 0 0 0 1px color-mix(in srgb, var(--color-nova-blue) 45%, transparent),
+    0 4px 12px -4px color-mix(in srgb, var(--color-nova-blue) 40%, transparent);
 
   /* One typeface for heading/body/UI everywhere in the app — Manrope, full
      Vietnamese diacritic coverage. --font-mono is reserved for genuine data
@@ -145,6 +149,23 @@
 }
 
 /* =============================================================================
+   Breakpoint reference (documentation only — CSS custom properties cannot
+   be used inside @media conditions, so this cannot be enforced as a real
+   token). New component media queries should match Tailwind's own scale,
+   which the app shell (sidebar/navbar) already switches on via `md:` etc.:
+     sm   640px
+     md   768px  — shell rail/bottom-nav breakpoint
+     lg   1024px
+     xl   1280px
+   A number of older component stylesheets predate this convention and use
+   one-off values instead (640/720/760/800/860/900/1024/1100 across
+   pricing.css, profile.css, collage.css, novatoken-wallet-dialog.css and
+   others) — retro-fitting those to this scale is a real layout change that
+   needs visual verification per breakpoint before it ships, so it is left
+   alone here rather than renumbered blind.
+   ========================================================================== */
+
+/* =============================================================================
    Theme resolution
    Default (bare :root, matches @theme above) = Đêm Lam (dark).
    - System preference light wins unless the user has explicitly forced dark.
@@ -174,7 +195,7 @@
 
     --color-nova-blue: #3659d9;
     --color-iris-violet: #6947d4;
-    --color-studio-aqua: #087f83;
+    --color-studio-aqua: #1d7fd6;
 
     --color-success: #0e9f6e;
     --color-warning: #b4740e;
@@ -203,7 +224,7 @@
 
   --color-nova-blue: #3659d9;
   --color-iris-violet: #6947d4;
-  --color-studio-aqua: #087f83;
+  --color-studio-aqua: #1d7fd6;
 
   --color-success: #0e9f6e;
   --color-warning: #b4740e;
@@ -231,7 +252,7 @@
 
   --color-nova-blue: #6987ff;
   --color-iris-violet: #9475ff;
-  --color-studio-aqua: #31c7c2;
+  --color-studio-aqua: #4fb2ff;
 
   --color-success: #34d399;
   --color-warning: #f2b84b;
@@ -369,6 +390,13 @@
   }
 }
 
+/* Solid/filled variant of a Material Symbol — the font is loaded with the
+   FILL axis (see index.html), unfilled (0) by default. Reserved for state
+   that reads as "on" at a glance (liked heart, etc.), not decorative icons. */
+.icon-fill {
+  font-variation-settings: "FILL" 1;
+}
+
 /* Accessible, theme-aware focus ring — ordinary keyboard focus everywhere.
    Distinct from .frame-trace, which is a decorative flourish reserved for
    the handful of moments named above. */
@@ -432,6 +460,15 @@ select {
    copy these rules into a component stylesheet — reference the classes
    directly so backdrop/panel/button styling stays visually identical and
    theme-aware everywhere a dialog appears.
+
+   App-wide z-index ladder (document here so new overlays pick a tier
+   instead of an arbitrary number):
+     0-40   in-flow content, sticky/fixed shell (rail/bottom-nav/backdrop
+            30, header/search-dropdown/notification drawer 40-50)
+     100-190 in-page feature overlays (board-picker popovers, collage side
+            panels/pickers) — must stay below the app dialog layer
+     200    .nf-dialog-backdrop / .nf-dialog-panel — the one app-modal layer
+     300    .nf-toast-region — always above a dialog, never blocked by one
    ========================================================================== */
 .nf-dialog-backdrop {
   position: fixed;
@@ -462,6 +499,31 @@ select {
   color: var(--color-text);
   text-align: center;
   animation: nf-panel-in 220ms var(--ease-spring);
+}
+
+.nf-dialog-panel--large {
+  max-width: 600px;
+  padding: 42px 46px;
+}
+
+.nf-dialog-panel--large .nf-dialog-icon {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 22px;
+}
+
+.nf-dialog-panel--large .nf-dialog-icon .material-symbols-outlined {
+  font-size: 36px;
+}
+
+.nf-dialog-panel--large .nf-dialog-title {
+  font-size: 1.55rem;
+}
+
+.nf-dialog-panel--large .nf-dialog-description {
+  font-size: 0.95rem;
+  margin: 12px auto 28px;
+  max-width: 440px;
 }
 
 .nf-dialog-panel:focus-visible,
@@ -675,3 +737,4 @@ select {
     animation: none;
   }
 }
+

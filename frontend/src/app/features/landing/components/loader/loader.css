@@ -4,7 +4,7 @@
   --nf-electric: var(--color-nova-blue, #6987ff);
   --nf-blue: var(--color-nova-blue, #6987ff);
   --nf-purple: var(--color-iris-violet, #9475ff);
-  --nf-cyan: var(--color-studio-aqua, #31c7c2);
+  --nf-cyan: var(--color-studio-aqua, #4fb2ff);
   display: contents;
 }
 
@@ -35,7 +35,7 @@
   height: calc(50% + 1px);
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 100%, rgba(36, 84, 255, 0.035), transparent 42%), var(--nf-paper);
+    radial-gradient(circle at 50% 100%, color-mix(in srgb, var(--nf-blue) 3.5%, transparent), transparent 42%), var(--nf-paper);
   will-change: transform;
 }
 
@@ -57,7 +57,7 @@
 .nf-loader__curtain--bottom {
   bottom: 0;
   background:
-    radial-gradient(circle at 50% 0%, rgba(124, 60, 255, 0.04), transparent 42%), var(--nf-paper);
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--nf-purple) 4%, transparent), transparent 42%), var(--nf-paper);
   clip-path: inset(0 0 0 0);
 }
 
@@ -130,9 +130,9 @@
   width: 100%;
   overflow: hidden;
   border-radius: 20px;
-  border: 1px solid rgba(17, 17, 17, 0.16);
-  background: #ecece7;
-  box-shadow: 0 22px 48px -32px rgba(17, 17, 17, 0.52);
+  border: 1px solid color-mix(in srgb, var(--nf-ink) 16%, transparent);
+  background: color-mix(in srgb, var(--nf-ink) 6%, var(--nf-paper));
+  box-shadow: 0 22px 48px -32px color-mix(in srgb, var(--nf-ink) 52%, transparent);
 }
 
 .nf-loader__media::after {
@@ -142,9 +142,9 @@
   pointer-events: none;
   background: linear-gradient(
     145deg,
-    rgba(36, 84, 255, 0.12),
+    color-mix(in srgb, var(--nf-blue) 12%, transparent),
     transparent 48%,
-    rgba(124, 60, 255, 0.1)
+    color-mix(in srgb, var(--nf-purple) 10%, transparent)
   );
   mix-blend-mode: soft-light;
 }
@@ -178,7 +178,7 @@
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.16em;
-  color: rgba(17, 17, 17, 0.42);
+  color: color-mix(in srgb, var(--nf-ink) 42%, transparent);
 }
 
 .nf-loader:not(.nf-loader--hidden) .nf-loader__strip,
@@ -241,7 +241,7 @@
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.9);
   background: #fff;
-  box-shadow: 0 14px 30px -16px rgba(36, 84, 255, 0.62);
+  box-shadow: 0 14px 30px -16px color-mix(in srgb, var(--nf-blue) 62%, transparent);
   transform: translate3d(var(--from-x), var(--from-y), 0) rotate(var(--from-r));
   transform-origin: 50% 50%;
 }
@@ -310,7 +310,7 @@
   }
 
   .nf-loader__media {
-    box-shadow: 0 14px 26px -22px rgba(17, 17, 17, 0.48);
+    box-shadow: 0 14px 26px -22px color-mix(in srgb, var(--nf-ink) 48%, transparent);
   }
 
   .nf-loader__caption {
@@ -330,7 +330,10 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+/* Only collapse the loader on displays that genuinely cannot animate (for
+   example e-ink). A normal Windows display may report reduced motion when
+   window animations are disabled; it should still receive the landing film. */
+@media (prefers-reduced-motion: reduce) and (update: none) {
   .nf-loader__streams {
     inset: 8vh 12vw;
     display: grid;

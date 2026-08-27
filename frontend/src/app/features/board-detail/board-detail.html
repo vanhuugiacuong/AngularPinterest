@@ -14,7 +14,7 @@
           title="Quay lại trang cá nhân"
           aria-label="Quay lại trang cá nhân"
         >
-          <span class="material-symbols-outlined text-xl font-semibold">arrow_back</span>
+          <span class="material-symbols-outlined text-xl font-semibold" aria-hidden="true">arrow_back</span>
         </button>
       </div>
 
@@ -27,7 +27,7 @@
       <!-- Error state — a real fetch failure, not just an empty board -->
       <div *ngIf="!isLoading() && loadError()" class="flex-1 flex flex-col items-center justify-center gap-4 py-24 text-center" role="alert">
         <div class="w-14 h-14 rounded-full bg-error/10 flex items-center justify-center">
-          <span class="material-symbols-outlined text-2xl text-error">{{ loadErrorKind() === 'not-found' ? 'lock' : loadErrorKind() === 'auth' ? 'login' : 'cloud_off' }}</span>
+          <span class="material-symbols-outlined text-2xl text-error" aria-hidden="true">{{ loadErrorKind() === 'not-found' ? 'lock' : loadErrorKind() === 'auth' ? 'login' : 'cloud_off' }}</span>
         </div>
         <div class="flex flex-col gap-1.5 max-w-sm">
           <h2 class="text-sm font-bold text-text">Không thể mở bộ sưu tập</h2>
@@ -58,8 +58,8 @@
           <div class="w-full flex items-start justify-between gap-3">
             <span class="text-xs font-semibold text-accent select-none">NovaFrame · Collection Archive</span>
             <div class="flex items-center gap-2" *ngIf="isOwner() && !isEditing()">
-              <button type="button" (click)="startEdit()" class="h-9 px-3 rounded-control bg-surface-elevated hover:bg-surface-high text-xs font-bold text-text border-none cursor-pointer">Sửa</button>
-              <button type="button" (click)="openDeleteConfirm()" class="h-9 px-3 rounded-control bg-surface-elevated hover:bg-error/20 text-xs font-bold text-error border-none cursor-pointer">Xoá</button>
+              <button type="button" (click)="startEdit()" class="h-9 px-3 rounded-control bg-surface-elevated hover:bg-surface-high text-xs font-bold text-text border-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">Sửa</button>
+              <button type="button" (click)="openDeleteConfirm()" class="h-9 px-3 rounded-control bg-surface-elevated hover:bg-error/20 text-xs font-bold text-error border-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">Xoá</button>
             </div>
           </div>
 
@@ -70,6 +70,7 @@
                 *ngIf="b.isSecret"
                 class="material-symbols-outlined text-lg text-text-muted font-bold"
                 title="Bộ sưu tập bí mật (chỉ bạn xem được)"
+                aria-hidden="true"
               >
                 lock
               </span>
@@ -125,6 +126,7 @@
                 <img
                   [src]="pin.image"
                   [alt]="pin.title"
+                  loading="lazy"
                   class="w-full object-cover block transition-transform duration-500 ease-spring group-hover:scale-[1.04]"
                 />
 
@@ -138,7 +140,7 @@
                   title="Gỡ ảnh này khỏi bộ sưu tập"
                   aria-label="Gỡ ảnh này khỏi bộ sưu tập"
                 >
-                  <span class="material-symbols-outlined text-base leading-none">close</span>
+                  <span class="material-symbols-outlined text-base leading-none" aria-hidden="true">close</span>
                 </button>
               </div>
 
@@ -154,11 +156,11 @@
             *ngIf="pins().length === 0"
             class="py-20 flex flex-col items-center justify-center text-center gap-3 bg-surface-elevated rounded-panel border border-dashed border-border w-full"
           >
-            <span class="material-symbols-outlined text-4xl text-text-muted">photo_library</span>
+            <span class="material-symbols-outlined text-4xl text-text-muted" aria-hidden="true">photo_library</span>
             <p class="text-xs font-semibold text-text-muted">Bộ sưu tập này hiện chưa lưu hình ảnh nào.</p>
             <a
-              href="/feed"
-              class="mt-2 h-9 px-4 bg-gradient-brand cta-shape text-text-on-accent text-xs font-bold flex items-center justify-center cursor-pointer decoration-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              [routerLink]="['/feed']"
+              class="mt-2 h-9 px-4 bg-gradient-brand cta-shape text-text-on-accent text-xs font-bold flex items-center justify-center cursor-pointer no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               Khám phá trong Không gian khám phá
             </a>
@@ -166,19 +168,5 @@
         </div>
       </ng-container>
     </main>
-  </div>
-
-  <!-- Delete confirmation dialog -->
-  <div *ngIf="deleteConfirmOpen()" class="fixed inset-0 bg-bg/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" role="alertdialog" aria-modal="true">
-    <div class="bg-surface border border-border rounded-panel p-6 max-w-sm w-full flex flex-col gap-3">
-      <h2 class="text-base font-bold text-text">Xoá bộ sưu tập này?</h2>
-      <p class="text-xs text-text-muted leading-relaxed">Hành động này không thể hoàn tác. Các ảnh trong bộ sưu tập vẫn được giữ nguyên, chỉ bộ sưu tập bị xoá.</p>
-      <div class="flex gap-2 mt-2">
-        <button type="button" (click)="confirmDelete()" [disabled]="deleting()" class="h-10 px-4 rounded-control bg-error text-text-on-accent text-xs font-bold border-none cursor-pointer disabled:opacity-50">
-          {{ deleting() ? 'Đang xoá...' : 'Xoá vĩnh viễn' }}
-        </button>
-        <button type="button" (click)="cancelDelete()" class="h-10 px-4 rounded-control bg-surface-elevated hover:bg-surface-high text-xs font-bold text-text border-none cursor-pointer">Huỷ</button>
-      </div>
-    </div>
   </div>
 </div>

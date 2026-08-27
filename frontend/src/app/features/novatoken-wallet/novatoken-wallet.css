@@ -1,0 +1,359 @@
+/* Page-level styles for the /novatoken route (hero, packages, ledger).
+   Dialog-only styles live in novatoken-wallet-dialog.css — keep that
+   boundary: this file must never define a selector that only ever renders
+   inside .topup-dialog, and vice versa, or the two stylesheets silently
+   interleave into a single element's computed style again. */
+:host {
+  display: block;
+  min-height: 100vh;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.token-page {
+  position: relative;
+  overflow: hidden;
+  min-height: 100vh;
+  padding: 132px 5vw 80px;
+}
+
+.token-aurora {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(110px);
+  opacity: 0.16;
+  pointer-events: none;
+}
+.token-aurora-a {
+  width: 520px;
+  height: 520px;
+  background: var(--color-accent);
+  top: -180px;
+  left: -160px;
+}
+.token-aurora-b {
+  width: 560px;
+  height: 560px;
+  background: var(--color-iris-violet);
+  right: -220px;
+  top: 180px;
+}
+
+.wallet-hero {
+  position: relative;
+  z-index: 1;
+  max-width: 1180px;
+  margin: 0 auto 72px;
+  display: grid;
+  grid-template-columns: minmax(300px, 0.85fr) 1.15fr;
+  align-items: center;
+  gap: 72px;
+}
+
+.coin-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 410px;
+}
+.coin-stage img {
+  position: relative;
+  width: min(420px, 90%);
+  filter: drop-shadow(0 32px 45px rgba(0, 0, 0, 0.55));
+  animation: token-float 6s ease-in-out infinite;
+}
+.coin-halo {
+  position: absolute;
+  width: 70%;
+  aspect-ratio: 1;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 50%, transparent);
+  border-radius: 50%;
+  box-shadow:
+    0 0 80px color-mix(in srgb, var(--color-accent) 25%, transparent),
+    inset 0 0 80px color-mix(in srgb, var(--color-iris-violet) 18%, transparent);
+}
+
+/* Decorative section tagline — shared with the dialog header's own
+   "NẠP NOVATOKEN" label, kept in the page file since it isn't defined
+   anywhere in the dialog stylesheet. Sans, not mono: this is a label, not
+   a data readout (see --font-mono's documented scope in styles.css). */
+.eyebrow {
+  font: 800 11px var(--font-sans);
+  letter-spacing: 0.18em;
+  color: var(--color-accent);
+}
+
+.hero-copy h1 {
+  font-size: clamp(54px, 7vw, 96px);
+  line-height: 0.95;
+  letter-spacing: -0.07em;
+  margin: 18px 0;
+}
+.hero-copy h1 span {
+  color: var(--color-accent);
+}
+.hero-copy > p {
+  max-width: 680px;
+  color: var(--color-text-muted);
+  font-size: 17px;
+  line-height: 1.75;
+}
+
+.balance-card {
+  margin-top: 34px;
+  padding: 24px 28px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 42%, var(--color-border));
+  border-radius: var(--radius-panel);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 13%, var(--color-surface-elevated)), var(--color-surface));
+  box-shadow: var(--shadow-glow-soft);
+  display: grid;
+  gap: 5px;
+}
+/* Label, not data — sans. The number right below it is the genuine
+   readout and keeps --font-mono. */
+.balance-card span {
+  font: 700 10px var(--font-sans);
+  letter-spacing: 0.15em;
+  color: var(--color-text-muted);
+}
+.balance-card strong {
+  font-family: var(--font-mono);
+  font-size: 42px;
+  letter-spacing: -0.04em;
+}
+.balance-card small {
+  font-size: 16px;
+  color: var(--color-accent);
+}
+.balance-card em {
+  font-style: normal;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.token-section {
+  position: relative;
+  z-index: 1;
+  max-width: 1180px;
+  margin: 0 auto 70px;
+}
+.section-heading {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+.section-heading > span {
+  font: 700 11px var(--font-mono);
+  color: var(--color-accent);
+  padding-top: 8px;
+}
+.section-heading h2 {
+  font-size: 30px;
+  margin: 0;
+}
+.section-heading p {
+  color: var(--color-text-muted);
+  margin: 5px 0 0;
+}
+
+/* Effective column count today is 3 (not 5) — the previous split between
+   this file and novatoken-wallet-dialog.css meant the dialog stylesheet's
+   `repeat(3, 1fr)` silently won the cascade over this rule for the *page*
+   grid (this class is never used inside the dialog). Kept at 3 to match
+   what has actually been rendering; the 5-column value was dead. */
+.package-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.token-package {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-frame);
+  background: linear-gradient(155deg, var(--color-surface-elevated), var(--color-surface));
+  color: var(--color-text);
+  cursor: pointer;
+  transition: 0.25s transform, 0.25s border-color, 0.25s box-shadow;
+}
+.token-package:hover {
+  transform: translateY(-7px);
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-glow-soft);
+}
+.token-package img {
+  width: 82px;
+  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.5));
+}
+.token-package strong {
+  font-size: 21px;
+  margin-top: 10px;
+}
+.token-package span {
+  font: 600 12px var(--font-mono);
+  color: var(--color-text-muted);
+  margin: 5px 0 16px;
+}
+.token-package em {
+  font-style: normal;
+  font-weight: 800;
+  font-size: 12px;
+  color: var(--color-accent);
+}
+
+.ledger {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.ledger-row {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+.ledger-row:last-child {
+  border: 0;
+}
+.ledger-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-surface-elevated);
+  display: grid;
+  place-items: center;
+}
+.ledger-icon img {
+  width: 34px;
+}
+.ledger-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ledger-copy strong {
+  font-size: 13px;
+}
+/* Timestamp — genuine data, mono. */
+.ledger-copy span {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+.ledger-amount small {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+/* Amount readout. Default color is neutral text, not --color-error: most
+   rows here are ordinary spends (buying/bidding), not failures, and
+   reusing the error token for routine activity dilutes what "error" means
+   everywhere else it appears (validation, destructive dialogs). The +/-
+   sign from entrySign() already carries the credit/debit distinction. */
+.ledger-amount {
+  text-align: right;
+  font: 800 13px var(--font-mono);
+  color: var(--color-text);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ledger-amount.positive {
+  color: var(--color-accent);
+}
+
+.empty-ledger,
+.loading-state {
+  padding: 48px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+.empty-ledger {
+  font-style: italic;
+}
+
+.wallet-error {
+  position: relative;
+  z-index: 2;
+  max-width: 1180px;
+  margin: -40px auto 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  color: var(--color-error);
+}
+.wallet-error-retry {
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid color-mix(in srgb, var(--color-error) 40%, transparent);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+  color: var(--color-error);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.wallet-error-retry:hover {
+  background: color-mix(in srgb, var(--color-error) 20%, transparent);
+}
+.wallet-error-retry:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-nova-blue);
+}
+
+@keyframes token-float {
+  50% {
+    transform: translateY(-13px) rotate(1.5deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .coin-stage img {
+    animation: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .wallet-hero {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .coin-stage {
+    min-height: 300px;
+  }
+  .coin-stage img {
+    width: 300px;
+  }
+  .package-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .token-page {
+    padding: 100px 16px 50px;
+  }
+  .package-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .ledger-row {
+    grid-template-columns: 38px 1fr;
+  }
+  .ledger-amount {
+    grid-column: 2;
+    text-align: left;
+  }
+  .wallet-hero {
+    margin-bottom: 48px;
+  }
+}
