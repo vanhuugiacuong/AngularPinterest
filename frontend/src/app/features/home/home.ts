@@ -15,6 +15,7 @@ import { MembershipService } from '../../core/services/membership';
 import { DialogService } from '../../core/services/dialog';
 import { formatVnd } from '../../core/utils/currency';
 import { formatNovaToken, vndToNovaToken } from '../../core/utils/novatoken';
+import { masonryColumnCount, masonryContentWidth } from '../../core/utils/masonry';
 
 /** Vietnamese labels for the category codes the backend's auto-classifier
  * assigns (see PinsService.classifyCategory) — chips are only ever built
@@ -29,6 +30,11 @@ const CATEGORY_LABELS: Record<string, string> = {
   fashion: 'Thời trang',
   other: 'Khác',
 };
+
+/** Tỉ lệ tạm dùng cho khung ảnh trước khi đo được tỉ lệ thật. Backend không
+ * lưu kích thước ảnh nên tỉ lệ chỉ biết sau khi ảnh tải xong; 0.75 là dáng dọc
+ * phổ biến nhất, giúp lưới ít nhảy nhất khi tỉ lệ thật được áp vào. */
+const PLACEHOLDER_RATIO = 0.75;
 
 @Component({
   selector: 'app-home',
@@ -224,21 +230,12 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   }
 
   updateNumColumns() {
-    // 4-5 columns is the sweet spot for readable card sizes; 6 is reserved
-    // for genuinely very wide screens (≥1920px) rather than an ordinary
-    // 1440-1536px laptop, so artwork doesn't shrink to thumbnails.
-    const width = window.innerWidth;
-    if (width >= 1920) {
-      this.numColumns.set(6);
-    } else if (width >= 1440) {
-      this.numColumns.set(5);
-    } else if (width >= 1024) {
-      this.numColumns.set(4);
-    } else if (width >= 640) {
-      this.numColumns.set(3);
-    } else {
-      this.numColumns.set(2);
-    }
+    if (typeof document === 'undefined') return;
+    // clientWidth: đã trừ scrollbar, khác với innerWidth.
+    const viewport = document.documentElement.clientWidth;
+    // Khớp padding ngang của <main>: px-4 (32) / sm:px-6 (48) / lg:px-8 (64).
+    const padding = viewport >= 1024 ? 64 : viewport >= 640 ? 48 : 32;
+    this.numColumns.set(masonryColumnCount(masonryContentWidth(viewport, padding)));
   }
 
   getColumnsArray(): number[] {
@@ -463,39 +460,43 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private mapPins(apiPins: any[]): any[] {
-    return apiPins.map(p => {
-      const author = p.user?.username || 'NovaFrame AI';
-      const likes = (p as any)._count?.likes ?? 0;
+    return apiPins.map(p => ({
+      id: p.id,
+      title: p.title,
+      image: p.imageUrl,
+      author: p.user?.username || 'NovaFrame AI',
+      authorAvatarUrl: p.user?.avatarUrl || null,
+      authorPlan: p.user?.plan || 'FREE',
+      likes: (p as any)._count?.likes ?? 0,
+      isLiked: p.isLiked === true,
+      isAiGenerated: p.isAiGenerated,
+      category: p.category,
+      /** Tỉ lệ thật, đo từ ảnh khi tải xong (onPinImageLoad) — backend chưa
+       * lưu kích thước ảnh, nên null cho tới lúc đó và khung dùng tỉ lệ tạm
+       * PLACEHOLDER_RATIO. Trước đây chỗ này bốc một tỉ lệ ngẫu nhiên từ hash
+       * của id, nên mọi pin trong lưới đều hiển thị sai hình dạng. */
+      aspectRatio: null as number | null,
+      ownerId: p.userId,
+      price: p.price ?? null,
+      currency: p.currency ?? null,
+      listingType: p.listingType ?? 'NONE',
+      auction: p.auction ?? null,
+    }));
+  }
 
-      let idHash = 0;
-      for (let i = 0; i < p.id.length; i++) {
-        idHash += p.id.charCodeAt(i);
-      }
-      const hasBottomBar = (idHash % 10) < 6;
+  /** Tỉ lệ tạm cho khung pin chưa đo được — template đọc trực tiếp. */
+  public readonly placeholderRatio = PLACEHOLDER_RATIO;
 
-      const ratios = [0.65, 0.7, 0.75, 0.8, 1.0, 1.2];
-      const aspectRatio = ratios[idHash % ratios.length];
-
-      return {
-        id: p.id,
-        title: p.title,
-        image: p.imageUrl,
-        hasBottomBar,
-        author,
-        authorAvatarUrl: p.user?.avatarUrl || null,
-        authorPlan: p.user?.plan || 'FREE',
-        likes,
-        isLiked: p.isLiked === true,
-        isAiGenerated: p.isAiGenerated,
-        category: p.category,
-        aspectRatio,
-        ownerId: p.userId,
-        price: p.price ?? null,
-        currency: p.currency ?? null,
-        listingType: p.listingType ?? 'NONE',
-        auction: p.auction ?? null,
-      };
-    });
+  /** Ghi lại tỉ lệ thật của một pin ngay khi ảnh tải xong, để khung ảnh khớp
+   * đúng hình dạng gốc thay vì bị cắt theo một tỉ lệ áp đặt. */
+  onPinImageLoad(pin: { aspectRatio: number | null }, img: HTMLImageElement): void {
+    if (pin.aspectRatio !== null) return;
+    const { naturalWidth: w, naturalHeight: h } = img;
+    if (!w || !h) return;
+    pin.aspectRatio = w / h;
+    // Cùng kiểu cập nhật như toggleLike: pin là object thường được mutate tại
+    // chỗ, nên phải phát lại signal để template đọc lại.
+    this.pins.update((current) => [...current]);
   }
 
   /** Text hiển thị trong badge vương miện — '' nếu pin không phải tác phẩm

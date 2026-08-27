@@ -179,6 +179,8 @@ export class ImageRegionSearch implements OnDestroy {
     this.selection.set(clampNormalizedRect({ x, y, width, height }));
   }
 
+  private searchDebounceTimer?: ReturnType<typeof setTimeout>;
+
   onDragPointerUp(event: PointerEvent) {
     if (!this.drag) return;
     this.drag = null;
@@ -187,6 +189,17 @@ export class ImageRegionSearch implements OnDestroy {
     } catch {
       // Pointer capture may already have been released by the browser — harmless.
     }
+    // Tự động kích hoạt tìm kiếm với debounce khi kết thúc kéo thả/thay đổi kích thước khung
+    this.triggerDebouncedSearch(300);
+  }
+
+  private triggerDebouncedSearch(delayMs = 300) {
+    if (this.searchDebounceTimer) {
+      clearTimeout(this.searchDebounceTimer);
+    }
+    this.searchDebounceTimer = setTimeout(() => {
+      void this.submitSearch();
+    }, delayMs);
   }
 
   onSelectionKeydown(event: KeyboardEvent) {
@@ -200,6 +213,7 @@ export class ImageRegionSearch implements OnDestroy {
             event.shiftKey ? { ...current, height: current.height - step } : { ...current, y: current.y - step },
           ),
         );
+        this.triggerDebouncedSearch(300);
         break;
       case 'ArrowDown':
         event.preventDefault();
@@ -208,6 +222,7 @@ export class ImageRegionSearch implements OnDestroy {
             event.shiftKey ? { ...current, height: current.height + step } : { ...current, y: current.y + step },
           ),
         );
+        this.triggerDebouncedSearch(300);
         break;
       case 'ArrowLeft':
         event.preventDefault();
@@ -216,6 +231,7 @@ export class ImageRegionSearch implements OnDestroy {
             event.shiftKey ? { ...current, width: current.width - step } : { ...current, x: current.x - step },
           ),
         );
+        this.triggerDebouncedSearch(300);
         break;
       case 'ArrowRight':
         event.preventDefault();
@@ -224,6 +240,7 @@ export class ImageRegionSearch implements OnDestroy {
             event.shiftKey ? { ...current, width: current.width + step } : { ...current, x: current.x + step },
           ),
         );
+        this.triggerDebouncedSearch(300);
         break;
       case 'Enter':
         event.preventDefault();
@@ -237,6 +254,10 @@ export class ImageRegionSearch implements OnDestroy {
   }
 
   async submitSearch() {
+    if (this.searchDebounceTimer) {
+      clearTimeout(this.searchDebounceTimer);
+      this.searchDebounceTimer = undefined;
+    }
     if (this.isSubmitting()) return;
     this.isSubmitting.set(true);
     this.submitError.set(null);
@@ -270,11 +291,14 @@ export class ImageRegionSearch implements OnDestroy {
     }
 
     this.searchCompleted.emit(this.imageSearchStore.results());
-    this.closed.emit();
+    // Giữ nguyên khung chọn để người dùng tiếp tục di chuyển / co kéo tìm kiếm tiếp
     return true;
   }
 
   ngOnDestroy() {
+    if (this.searchDebounceTimer) {
+      clearTimeout(this.searchDebounceTimer);
+    }
     this.resizeObserver?.disconnect();
   }
 }

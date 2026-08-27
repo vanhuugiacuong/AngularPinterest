@@ -1,37 +1,51 @@
-<div class="relative w-full flex items-center justify-center select-none">
+<div class="relative w-full h-full flex items-center justify-center select-none">
+  <!-- Thu nhỏ cho vừa khung chứa (kể cả khi khung bị chặn chiều cao) thay vì
+       ép theo chiều rộng — nếu ảnh tràn ra ngoài thì toạ độ vùng chọn sẽ lệch
+       và người dùng không thấy được toàn bộ ảnh để chọn vùng. -->
   <img
     #stageImg
     [src]="imageUrl"
     alt="Ảnh đang chọn vùng để tìm kiếm"
-    class="w-full h-auto max-h-[720px] object-contain block pointer-events-none"
+    class="max-w-full max-h-full w-auto h-auto object-contain block pointer-events-none"
     (load)="onImageLoad(stageImg)"
   />
+
+  <!-- Top Right Close Button -->
+  <button
+    type="button"
+    (click)="cancel()"
+    class="absolute top-3 right-3 z-30 w-9 h-9 rounded-full bg-ink/80 hover:bg-ink text-white flex items-center justify-center cursor-pointer transition-all duration-200 shadow-md border border-white/20 outline-none hover:scale-105 active:scale-95"
+    aria-label="Thoát tìm kiếm vùng ảnh"
+    title="Thoát tìm kiếm vùng ảnh (Esc)"
+  >
+    <span class="material-symbols-outlined text-xl leading-none" aria-hidden="true">close</span>
+  </button>
 
   @if (containedRect().width > 0) {
     <!-- Dim mask around the selection — image stays fully visible underneath -->
     <div
-      class="absolute bg-ink/70 pointer-events-none"
+      class="absolute bg-ink/60 pointer-events-none"
       [style.left.px]="0"
       [style.top.px]="0"
       [style.right.px]="0"
       [style.height.px]="selectionPixelRect().y"
     ></div>
     <div
-      class="absolute bg-ink/70 pointer-events-none"
+      class="absolute bg-ink/60 pointer-events-none"
       [style.left.px]="0"
       [style.bottom.px]="0"
       [style.right.px]="0"
       [style.top.px]="selectionPixelRect().y + selectionPixelRect().height"
     ></div>
     <div
-      class="absolute bg-ink/70 pointer-events-none"
+      class="absolute bg-ink/60 pointer-events-none"
       [style.left.px]="0"
       [style.top.px]="selectionPixelRect().y"
       [style.width.px]="selectionPixelRect().x"
       [style.height.px]="selectionPixelRect().height"
     ></div>
     <div
-      class="absolute bg-ink/70 pointer-events-none"
+      class="absolute bg-ink/60 pointer-events-none"
       [style.right.px]="0"
       [style.top.px]="selectionPixelRect().y"
       [style.left.px]="selectionPixelRect().x + selectionPixelRect().width"
@@ -43,7 +57,7 @@
       class="absolute border-2 border-accent cursor-move touch-none rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       tabindex="0"
       role="group"
-      aria-label="Vùng ảnh đã chọn. Kéo để di chuyển, dùng phím mũi tên để tinh chỉnh vị trí, giữ Shift và phím mũi tên để đổi kích thước, Enter để tìm kiếm, Escape để hủy."
+      aria-label="Vùng ảnh đã chọn. Kéo để di chuyển, dùng phím mũi tên để tinh chỉnh vị trí, giữ Shift và phím mũi tên để đổi kích thước."
       [style.left.px]="selectionPixelRect().x"
       [style.top.px]="selectionPixelRect().y"
       [style.width.px]="selectionPixelRect().width"
@@ -54,6 +68,15 @@
       (pointercancel)="onDragPointerUp($event)"
       (keydown)="onSelectionKeydown($event)"
     >
+      <!-- Submitting Overlay Spinner -->
+      @if (isSubmitting()) {
+        <div class="absolute inset-0 bg-ink/30 backdrop-blur-[1px] flex items-center justify-center z-10 pointer-events-none rounded-sm">
+          <div class="w-9 h-9 rounded-full bg-surface-high/90 shadow-glow-sm flex items-center justify-center text-accent">
+            <span class="material-symbols-outlined text-lg animate-spin" aria-hidden="true">progress_activity</span>
+          </div>
+        </div>
+      }
+
       @for (handle of resizeHandles; track handle) {
         <div
           class="crop-handle"
@@ -71,53 +94,9 @@
     </div>
   }
 
-  <!-- Toolbar -->
-  <div
-    class="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-wrap items-center justify-center gap-2 bg-surface-high/95 backdrop-blur-md rounded-control shadow-card px-3 py-2 z-20 max-w-[95%]"
-  >
-    <button
-      type="button"
-      (click)="submitSearch()"
-      [disabled]="isSubmitting()"
-      class="h-9 px-4 bg-gradient-brand rounded-control text-text-on-accent text-xs font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
-    >
-      @if (isSubmitting()) {
-        <span class="material-symbols-outlined text-base animate-spin leading-none" aria-hidden="true">progress_activity</span>
-        Đang tìm...
-      } @else {
-        <span class="material-symbols-outlined text-base leading-none" aria-hidden="true">search</span>
-        Tìm vùng đã chọn
-      }
-    </button>
-    <button
-      type="button"
-      (click)="selectFullImage()"
-      [disabled]="isSubmitting()"
-      class="h-9 px-3.5 rounded-control bg-surface-elevated hover:bg-surface text-xs font-bold text-text cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
-    >
-      Chọn toàn bộ ảnh
-    </button>
-    <button
-      type="button"
-      (click)="resetSelection()"
-      [disabled]="isSubmitting()"
-      class="h-9 px-3.5 rounded-control bg-surface-elevated hover:bg-surface text-xs font-bold text-text cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
-    >
-      Đặt lại
-    </button>
-    <button
-      type="button"
-      (click)="cancel()"
-      [disabled]="isSubmitting()"
-      class="h-9 px-3.5 rounded-control bg-surface-elevated hover:bg-surface text-xs font-bold text-text-muted hover:text-text cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none outline-none focus-visible:ring-2 focus-visible:ring-accent"
-    >
-      Hủy
-    </button>
-  </div>
-
   @if (submitError()) {
     <p
-      class="absolute top-3 left-1/2 -translate-x-1/2 max-w-[90%] text-center text-xs font-semibold text-white bg-error/90 px-3 py-1.5 rounded-control z-20"
+      class="absolute top-3 left-1/2 -translate-x-1/2 max-w-[90%] text-center text-xs font-semibold text-white bg-error/90 px-3.5 py-1.5 rounded-control z-30 shadow-md"
       role="alert"
     >
       {{ submitError() }}

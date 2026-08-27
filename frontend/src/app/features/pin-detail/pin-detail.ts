@@ -33,12 +33,19 @@ import { formatVnd } from '../../core/utils/currency';
 import { NovaTokenService } from '../../core/services/novatoken';
 import { formatNovaToken, vndToNovaToken } from '../../core/utils/novatoken';
 import { SafetyService } from '../../core/services/safety';
+import { masonryColumnCount, masonryContentWidth } from '../../core/utils/masonry';
 
 /** Phải khớp chính xác với thông báo ForbiddenException của
  * PinsService.getPinById ở backend — dùng để phân biệt "cần nâng cấp gói"
  * với các lỗi tải pin khác (404, mất mạng...). */
 const UPGRADE_REQUIRED_MESSAGE = 'Chỉ thành viên Pro mới có thể xem chi tiết tác phẩm đấu giá.';
 const FIXED_PRICE_REQUIRED_MESSAGE = 'Chỉ thành viên Plus hoặc Pro mới có thể xem chi tiết tác phẩm bán giá cố định.';
+
+/** Tỉ lệ tạm dùng cho khung ảnh trước khi đo được tỉ lệ thật. Backend không
+ * lưu kích thước ảnh nên tỉ lệ chỉ biết sau khi ảnh tải xong; 0.75 là dáng
+ * dọc phổ biến nhất, giúp layout ít nhảy nhất khi tỉ lệ thật được áp vào. */
+const RELATED_PLACEHOLDER_RATIO = 0.75;
+
 
 @Component({
   selector: 'app-pin-detail',
@@ -112,6 +119,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   public isLandscape = signal<boolean>(false);
   public numRelatedColumns = signal<number>(2);
   public showImageSearch = signal<boolean>(false);
+  public showFullscreenImage = signal<boolean>(false);
   public isVisualSearchResults = signal<boolean>(false);
   public newCommentText = '';
   public isSubmittingComment = false;
@@ -168,19 +176,54 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     if (this.relatedActiveDropdownPinId()) this.closeRelatedBoardDropdown();
   }
 
+  /** Số cột masonry trên toàn bộ chiều rộng nội dung; khung pin chiếm
+   * `detailCardSpan()` cột đầu, phần còn lại chạy dọc bên cạnh khung. Dùng
+   * chung công thức với lưới Khám phá (core/utils/masonry.ts) để ảnh liên quan
+   * ở đây và ảnh ở trang Khám phá luôn cùng một cỡ. */
   calculateColumns() {
-    if (typeof window === 'undefined') return;
-    const width = window.innerWidth;
-    if (width >= 1440) {
-      this.numRelatedColumns.set(5);
-    } else if (width >= 1024) {
-      this.numRelatedColumns.set(4);
-    } else if (width >= 768) {
-      this.numRelatedColumns.set(3);
-    } else {
-      this.numRelatedColumns.set(2);
-    }
+    if (typeof document === 'undefined') return;
+    // clientWidth: đã trừ scrollbar, khác với innerWidth.
+    const viewport = document.documentElement.clientWidth;
+    // Khớp padding ngang của <main> trong template: px-4 (32) / sm:px-6 (48).
+    const padding = viewport >= 640 ? 48 : 32;
+    this.numRelatedColumns.set(masonryColumnCount(masonryContentWidth(viewport, padding)));
   }
+
+  /** How many masonry columns the detail card spans. Sized so the card lands
+   * near Pinterest's own ~1000px closeup width, which leaves room for the
+   * related pins to run alongside it instead of only below. */
+  public readonly detailCardSpan = computed(() => {
+    const total = this.numRelatedColumns();
+    if (total >= 4) return 3;
+    if (total === 3) return 2;
+    return total; // Narrow viewport: card takes the full width, related pins go below.
+  });
+
+  /** Masonry columns that run *beside* the detail card (empty when the card
+   * spans everything). Deliberately the low indices so the earliest — i.e.
+   * best-matching — related pins land in that prominent top-right area. */
+  public readonly besideColumnIndices = computed(() => {
+    const total = this.numRelatedColumns();
+    return Array.from({ length: total - this.detailCardSpan() }, (_, i) => i);
+  });
+
+  /** Masonry columns that continue *below* the detail card. */
+  public readonly belowColumnIndices = computed(() => {
+    const total = this.numRelatedColumns();
+    const beside = total - this.detailCardSpan();
+    return Array.from({ length: this.detailCardSpan() }, (_, i) => beside + i);
+  });
+
+  /** Tỉ lệ THẬT (width/height) của ảnh pin hiện tại — khung lấy đúng tỉ lệ
+   * này, không bó vào một khoảng cho phép. Ảnh quá lớn/quá dài không làm tràn
+   * khung: CSS chặn chiều cao tối đa và ảnh được thu nhỏ (object-contain) cho
+   * vừa, nên kính lúp tìm-theo-vùng luôn thấy toàn bộ ảnh. */
+  public detailAspectRatio = signal<number>(RELATED_PLACEHOLDER_RATIO);
+
+  /** `--pin-ar` as an explicit string — a bare number can be dropped when set
+   * through `CSSStyleDeclaration.setProperty`, which is how Angular applies
+   * custom-property style bindings. */
+  public readonly detailAspectRatioVar = computed(() => String(this.detailAspectRatio()));
 
   private currentPage = 1;
   private limit = 20;
@@ -351,6 +394,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     this.isLoading.set(true);
     this.isRelatedLoading.set(true);
     this.isLandscape.set(false); // reset
+    this.detailAspectRatio.set(RELATED_PLACEHOLDER_RATIO); // reset until measured
     this.loadError.set(null);
     try {
       // 1. Fetch details
@@ -373,13 +417,15 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
         void this.loadContactState(detailPin);
       }
 
-      // Check if image is horizontal landscape
+      // Measure the real image so the detail card can take the pin's own ratio.
       if (detailPin && detailPin.imageUrl) {
         const img = new Image();
         img.src = detailPin.imageUrl;
         img.onload = () => {
           if (this.currentPinId !== id) return;
-          this.isLandscape.set(img.naturalWidth > img.naturalHeight);
+          const { naturalWidth: w, naturalHeight: h } = img;
+          this.isLandscape.set(w > h);
+          if (w > 0 && h > 0) this.detailAspectRatio.set(w / h);
         };
       }
 
@@ -470,7 +516,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     this.isRelatedLoading.set(false);
     this.isVisualSearchResults.set(true);
     this.relatedPins.set(this.mapRelatedPins(matches));
-    this.showImageSearch.set(false);
+    // Giữ khung tìm kiếm hiển thị để người dùng kéo thả liên tục
 
     setTimeout(() => {
       const behavior =
@@ -817,28 +863,39 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private mapRelatedPins(pins: Pin[]): any[] {
-    return pins.map((p) => {
-      let idHash = 0;
-      for (let i = 0; i < p.id.length; i++) {
-        idHash += p.id.charCodeAt(i);
-      }
-      const ratios = [0.65, 0.7, 0.75, 0.8, 1.0, 1.2];
-      const aspectRatio = ratios[idHash % ratios.length];
-      return {
-        id: p.id,
-        title: p.title,
-        image: p.imageUrl,
-        author: p.user?.username || 'NovaFrame AI',
-        authorAvatarUrl: p.user?.avatarUrl || null,
-        authorPlan: p.user?.plan || 'FREE',
-        likes: p._count?.likes ?? 0,
-        isLiked: p.isLiked === true,
-        isAiGenerated: p.isAiGenerated,
-        aspectRatio,
-        listingType: p.listingType ?? 'NONE',
-        auction: p.auction ?? null,
-      };
-    });
+    return pins.map((p) => ({
+      id: p.id,
+      title: p.title,
+      image: p.imageUrl,
+      author: p.user?.username || 'NovaFrame AI',
+      authorAvatarUrl: p.user?.avatarUrl || null,
+      authorPlan: p.user?.plan || 'FREE',
+      likes: p._count?.likes ?? 0,
+      isLiked: p.isLiked === true,
+      isAiGenerated: p.isAiGenerated,
+      /** Tỉ lệ thật, đo từ ảnh khi tải xong (onRelatedImageLoad) — backend
+       * chưa lưu kích thước ảnh, nên null cho tới lúc đó và khung dùng tỉ lệ
+       * tạm RELATED_PLACEHOLDER_RATIO. Trước đây chỗ này bốc một tỉ lệ ngẫu
+       * nhiên từ hash của id, nên mọi pin đều hiển thị sai hình dạng. */
+      aspectRatio: null as number | null,
+      listingType: p.listingType ?? 'NONE',
+      auction: p.auction ?? null,
+    }));
+  }
+
+  /** Tỉ lệ tạm cho khung pin liên quan chưa đo được — template đọc trực tiếp. */
+  public readonly placeholderRatio = RELATED_PLACEHOLDER_RATIO;
+
+  /** Ghi lại tỉ lệ thật của một pin liên quan ngay khi ảnh tải xong, để khung
+   * ảnh khớp đúng hình dạng gốc thay vì bị cắt theo một tỉ lệ áp đặt. */
+  onRelatedImageLoad(rel: { aspectRatio: number | null }, img: HTMLImageElement): void {
+    if (rel.aspectRatio !== null) return;
+    const { naturalWidth: w, naturalHeight: h } = img;
+    if (!w || !h) return;
+    rel.aspectRatio = w / h;
+    // Cùng kiểu cập nhật như flushRelatedLikeQueue: pin liên quan là object
+    // thường được mutate tại chỗ, nên phải phát lại signal để template đọc lại.
+    this.relatedPins.update((current) => [...current]);
   }
 
   ngAfterViewInit() {

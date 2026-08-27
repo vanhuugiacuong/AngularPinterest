@@ -111,7 +111,7 @@
           </div>
         } @else {
           <div class="flex items-baseline gap-2.5 select-none">
-            <span class="text-xs font-semibold text-accent">NovaFrame</span>
+            <span class="text-xs font-bold text-gradient-brand">NovaFrame</span>
             <h1 class="text-lg sm:text-xl font-extrabold text-text tracking-tight">Khám phá</h1>
           </div>
         }
@@ -124,11 +124,13 @@
               role="tab"
               [attr.aria-selected]="activeCategory() === null"
               (click)="setActiveCategory(null)"
-              [class.bg-text]="activeCategory() === null"
-              [class.text-bg]="activeCategory() === null"
+              [class.bg-gradient-brand]="activeCategory() === null"
+              [class.text-text-on-accent]="activeCategory() === null"
+              [class.border-transparent]="activeCategory() === null"
+              [class.shadow-glow-sm]="activeCategory() === null"
               [class.bg-surface]="activeCategory() !== null"
               [class.text-text-muted]="activeCategory() !== null"
-              class="shrink-0 h-9 px-4 rounded-control border border-border hover:border-border-strong text-xs font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              class="shrink-0 h-9 px-4 rounded-control border border-border hover:border-border-strong text-xs font-bold cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               Tất cả
             </button>
@@ -138,11 +140,13 @@
                 role="tab"
                 [attr.aria-selected]="activeCategory() === chip.code"
                 (click)="setActiveCategory(chip.code)"
-                [class.bg-text]="activeCategory() === chip.code"
-                [class.text-bg]="activeCategory() === chip.code"
+                [class.bg-gradient-brand]="activeCategory() === chip.code"
+                [class.text-text-on-accent]="activeCategory() === chip.code"
+                [class.border-transparent]="activeCategory() === chip.code"
+                [class.shadow-glow-sm]="activeCategory() === chip.code"
                 [class.bg-surface]="activeCategory() !== chip.code"
                 [class.text-text-muted]="activeCategory() !== chip.code"
-                class="shrink-0 h-9 px-4 rounded-control border border-border hover:border-border-strong text-xs font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                class="shrink-0 h-9 px-4 rounded-control border border-border hover:border-border-strong text-xs font-bold cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 {{ chip.label }}
               </button>
@@ -249,13 +253,17 @@
                   <div
                     (click)="navigateToPin(pin)"
                     class="relative overflow-hidden bg-surface shadow-card glow-hover rounded-frame"
-                    [style.aspect-ratio]="pin.aspectRatio || '0.75'"
+                    [style.aspect-ratio]="pin.aspectRatio || placeholderRatio"
                   >
+                    <!-- Khung lấy tỉ lệ thật của ảnh ngay khi đo được, nên
+                         `cover` không cắt gì: hộp và ảnh cùng hình dạng. -->
                     <img
+                      #pinImg
                       [src]="pin.image"
                       [alt]="pin.title"
                       loading="lazy"
                       fetchpriority="low"
+                      (load)="onPinImageLoad(pin, pinImg)"
                       class="w-full h-full object-cover block transition-all duration-500 ease-spring group-hover:scale-[1.04]"
                       [class.blur-xl]="isAuctionRestricted(pin)"
                       [class.scale-110]="isAuctionRestricted(pin)"
