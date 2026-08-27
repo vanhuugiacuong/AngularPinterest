@@ -112,14 +112,13 @@
                   [class.bg-[#f6f6f3]]="selectedConversationId() === conversation.id"
                   [class.dark:bg-[#242424]]="selectedConversationId() === conversation.id"
                 >
-                  <img
-                    [src]="conversation.otherUser.avatarUrl || ('https://api.dicebear.com/7.x/bottts/svg?seed=' + conversation.otherUser.username)"
-                    alt=""
-                    class="w-11 h-11 rounded-full object-cover border border-[#dadad3] dark:border-[#333] shrink-0"
-                  />
+                  <app-pro-avatar class="shrink-0" [src]="conversation.otherUser.avatarUrl" [isPro]="!!conversation.otherUser.isPro" [size]="44" [alt]="conversation.otherUser.username"></app-pro-avatar>
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center justify-between gap-2">
-                      <span class="text-sm font-bold text-black dark:text-white truncate">{{ conversation.otherUser.username }}</span>
+                      <span class="flex items-center gap-1.5 min-w-0">
+                        <span class="text-sm font-bold text-black dark:text-white truncate">{{ conversation.otherUser.username }}</span>
+                        <span *ngIf="conversation.otherUser.isPro" class="px-1 py-0.5 rounded bg-[#F94083]/15 text-[#F94083] text-[8px] font-extrabold tracking-wider leading-none shrink-0">PRO</span>
+                      </span>
                       <span class="text-[10px] text-[#91918c] dark:text-[#777] shrink-0">{{ formatConversationTime(conversation.updatedAt) }}</span>
                     </div>
                     <div class="flex items-center justify-between gap-2 mt-0.5">
@@ -169,13 +168,12 @@
                   (click)="navigateToProfile(otherUser.username)"
                   class="flex items-center gap-2.5 text-left cursor-pointer bg-transparent border-none p-0 min-w-0 outline-none"
                 >
-                  <img
-                    [src]="otherUser.avatarUrl || ('https://api.dicebear.com/7.x/bottts/svg?seed=' + otherUser.username)"
-                    alt=""
-                    class="w-9 h-9 rounded-full object-cover border border-[#dadad3] dark:border-[#333]"
-                  />
+                  <app-pro-avatar [src]="otherUser.avatarUrl" [isPro]="!!otherUser.isPro" [size]="36" [alt]="otherUser.username"></app-pro-avatar>
                   <span class="flex flex-col min-w-0">
-                    <span class="text-sm font-bold text-black dark:text-white truncate hover:underline">{{ otherUser.username }}</span>
+                    <span class="flex items-center gap-1.5">
+                      <span class="text-sm font-bold text-black dark:text-white truncate hover:underline">{{ otherUser.username }}</span>
+                      <span *ngIf="otherUser.isPro" class="px-1 py-0.5 rounded bg-[#F94083]/15 text-[#F94083] text-[8px] font-extrabold tracking-wider leading-none shrink-0">PRO</span>
+                    </span>
                     <span class="text-[10px] font-medium flex items-center gap-1" [class.text-[#22c55e]]="otherUserOnline()" [class.text-[#91918c]]="!otherUserOnline()" [class.dark:text-[#999]]="!otherUserOnline()">
                       <i class="inline-block w-1.5 h-1.5 rounded-full" [class.bg-[#22c55e]]="otherUserOnline()" [class.bg-[#91918c]]="!otherUserOnline()" [class.dark:bg-[#777]]="!otherUserOnline()"></i>
                       {{ otherUserOnline() ? 'Đang hoạt động' : 'Ngoại tuyến' }}

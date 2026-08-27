@@ -306,13 +306,12 @@
                     (click)="navigateToAuthorProfile()"
                     class="flex items-center gap-3 text-left cursor-pointer border-none bg-transparent p-0 outline-none"
                   >
-                    <img
-                      [src]="p.user?.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'"
-                      alt="Avatar"
-                      class="w-11 h-11 rounded-full border border-gray-200 object-cover"
-                    />
+                    <app-pro-avatar [src]="p.user?.avatarUrl" [isPro]="!!p.user?.isPro" [size]="44" alt="Avatar"></app-pro-avatar>
                     <div class="flex flex-col text-left">
-                      <span class="text-sm font-bold text-black dark:text-white hover:underline">{{ p.user?.username }}</span>
+                      <span class="flex items-center gap-1.5">
+                        <span class="text-sm font-bold text-black dark:text-white hover:underline">{{ p.user?.username }}</span>
+                        <span *ngIf="p.user?.isPro" class="px-1.5 py-0.5 rounded bg-[#F94083]/15 text-[#F94083] text-[9px] font-extrabold tracking-wider leading-none">PRO</span>
+                      </span>
                       <span class="text-[11px] text-[#62625b] dark:text-[#999] font-medium">Người đăng tải</span>
                     </div>
                   </button>
@@ -355,13 +354,12 @@
                       <!-- Comment items -->
                       @for (comment of p.comments; track comment.id) {
                         <div class="flex gap-2.5 items-start text-left">
-                          <img 
-                            [src]="comment.user?.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'" 
-                            alt="Avatar" 
-                            class="w-8 h-8 rounded-full border border-gray-200 object-cover shrink-0"
-                          />
+                          <app-pro-avatar class="shrink-0" [src]="comment.user?.avatarUrl" [isPro]="!!comment.user?.isPro" [size]="32" alt="Avatar"></app-pro-avatar>
                           <div class="flex flex-col bg-gray-50 dark:bg-[#2a2a2a] rounded-2xl px-3 py-2 flex-1 min-w-0">
-                            <span class="text-xs font-bold text-black dark:text-white truncate">{{ comment.user?.username }}</span>
+                            <span class="flex items-center gap-1.5">
+                              <span class="text-xs font-bold text-black dark:text-white truncate">{{ comment.user?.username }}</span>
+                              <span *ngIf="comment.user?.isPro" class="px-1 py-0.5 rounded bg-[#F94083]/15 text-[#F94083] text-[8px] font-extrabold tracking-wider leading-none shrink-0">PRO</span>
+                            </span>
                             <p class="text-xs text-[#211922] dark:text-white mt-0.5 leading-relaxed break-words whitespace-pre-line">{{ comment.content }}</p>
                           </div>
                         </div>

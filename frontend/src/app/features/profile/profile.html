@@ -56,13 +56,14 @@
           <div class="flex items-center gap-4 shrink-0 ml-auto md:ml-0">
             <!-- User Info: Avatar next to Name and followers -->
             <div class="flex items-center gap-3 select-none">
-              <img 
-                [src]="p.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg'" 
-                alt="Avatar" 
-                class="w-16 h-16 rounded-full border border-[#dadad3] dark:border-[#333] object-cover shadow-sm"
-              />
+              <app-pro-avatar [src]="p.avatarUrl" [isPro]="!!p.isPro" [size]="64" alt="Avatar"></app-pro-avatar>
               <div class="flex flex-col text-left justify-center gap-0.5">
-                <span class="text-xl font-extrabold text-black dark:text-white leading-tight">{{ p.username }}</span>
+                <span class="flex items-center gap-2">
+                  <span class="text-xl font-extrabold text-black dark:text-white leading-tight">{{ p.username }}</span>
+                  <span *ngIf="p.isPro" class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F94083]/15 text-[#F94083] text-[10px] font-extrabold tracking-wide">
+                    <span class="material-symbols-outlined text-[13px] leading-none" style="font-variation-settings:'FILL' 1">workspace_premium</span> PRO
+                  </span>
+                </span>
                 <span class="text-xs text-[#62625b] dark:text-[#999] font-medium">
                   {{ p._count?.followers || 0 }} người đang theo dõi
                 </span>

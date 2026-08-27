@@ -10,12 +10,13 @@ import { ConfirmService } from '../../core/services/confirm';
 import { ChatService, ConversationSummary } from '../../core/services/chat';
 import { BillingService } from '../../core/services/billing';
 import { ImageCropper, CropBox } from '../../components/image-cropper/image-cropper';
+import { ProAvatar } from '../../shared/pro-avatar/pro-avatar';
 import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-pin-detail',
   standalone: true,
-  imports: [CommonModule, Navbar, FormsModule, ImageCropper],
+  imports: [CommonModule, Navbar, FormsModule, ImageCropper, ProAvatar],
   templateUrl: './pin-detail.html',
   styleUrl: './pin-detail.css'
 })
