@@ -21,13 +21,22 @@
     <ng-container *ngIf="!visualSearchService.previewUrl()">
       <div
         class="drag-drop-area rounded-2xl bg-[#f6f6f3] dark:bg-[#2a2a2a] hover:bg-[#eaeae6] dark:hover:bg-[#333] flex flex-col items-center justify-center p-12 min-h-[260px] text-center cursor-pointer transition-all border-2 border-dashed border-transparent hover:border-[#F94083]/40"
+        [class.pointer-events-none]="visualSearchService.isCheckingImage()"
         (click)="uploadInput.click()"
         (dragover)="onDragOver($event)"
         (drop)="onDrop($event)"
       >
-        <span class="material-symbols-outlined text-5xl text-gray-400 dark:text-gray-500 mb-4">cloud_upload</span>
-        <p class="text-sm font-bold text-gray-800 dark:text-[#eee]">Kéo thả hoặc nhấp để tải ảnh lên</p>
-        <span class="text-xs text-gray-500 dark:text-[#aaa] mt-2">Hỗ trợ JPG, PNG, WEBP</span>
+        <ng-container *ngIf="!visualSearchService.isCheckingImage()">
+          <span class="material-symbols-outlined text-5xl text-gray-400 dark:text-gray-500 mb-4">cloud_upload</span>
+          <p class="text-sm font-bold text-gray-800 dark:text-[#eee]">Kéo thả hoặc nhấp để tải ảnh lên</p>
+          <span class="text-xs text-gray-500 dark:text-[#aaa] mt-2">Hỗ trợ JPG, PNG, WEBP</span>
+        </ng-container>
+
+        <ng-container *ngIf="visualSearchService.isCheckingImage()">
+          <span class="material-symbols-outlined text-5xl text-[#F94083] mb-4 animate-spin">progress_activity</span>
+          <p class="text-sm font-bold text-gray-800 dark:text-[#eee]">Đang kiểm duyệt hình ảnh...</p>
+          <span class="text-xs text-gray-500 dark:text-[#aaa] mt-2">Đang quét an toàn nội dung với CLIP AI</span>
+        </ng-container>
       </div>
 
       <input

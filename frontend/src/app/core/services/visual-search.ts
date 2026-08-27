@@ -2,6 +2,8 @@ import { Injectable, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { PinService, Pin } from './pin';
 import { ToastService } from './toast';
+import { ModerationService } from './moderation';
+import { SupabaseService } from './supabase';
 
 @Injectable({
   providedIn: 'root'
@@ -10,10 +12,13 @@ export class VisualSearchService {
   private router = inject(Router);
   private pinService = inject(PinService);
   private toastService = inject(ToastService);
+  private moderationService = inject(ModerationService);
+  private supabaseService = inject(SupabaseService);
 
   public isOpen = signal<boolean>(false);
   public previewUrl = signal<string | null>(null);
   public isLoading = signal<boolean>(false);
+  public isCheckingImage = signal<boolean>(false);
 
   // Kept separate from `previewUrl`/`results` above (which are the modal's own working
   // state and get cleared every time the modal reopens) so the search page can still show
@@ -40,18 +45,32 @@ export class VisualSearchService {
     this.previewUrl.set(null);
     this.selectedFile = null;
     this.isLoading.set(false);
+    this.isCheckingImage.set(false);
   }
 
-  selectFile(file: File) {
+  async selectFile(file: File) {
     if (!file.type.startsWith('image/')) {
       this.toastService.error('Vui lòng chọn một tệp hình ảnh.');
       return;
     }
-    if (this.previewUrl()) {
-      URL.revokeObjectURL(this.previewUrl()!);
+
+    this.isCheckingImage.set(true);
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (token) {
+        await this.moderationService.checkImage(file, token);
+      }
+      if (this.previewUrl()) {
+        URL.revokeObjectURL(this.previewUrl()!);
+      }
+      this.selectedFile = file;
+      this.previewUrl.set(URL.createObjectURL(file));
+    } catch (error: any) {
+      this.toastService.error(error?.message || 'Hình ảnh không hợp lệ hoặc vi phạm tiêu chuẩn cộng đồng.');
+      this.reset();
+    } finally {
+      this.isCheckingImage.set(false);
     }
-    this.selectedFile = file;
-    this.previewUrl.set(URL.createObjectURL(file));
   }
 
   async submit() {
