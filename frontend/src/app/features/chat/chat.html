@@ -19,7 +19,7 @@
                 type="button"
                 (click)="toggleCompose()"
                 title="Nhắn tin cho ai đó"
-                class="w-9 h-9 rounded-full bg-[#B15CAA] hover:bg-[#8F4A8B] text-white flex items-center justify-center cursor-pointer border-none outline-none"
+                class="w-9 h-9 rounded-full bg-[#F94083] hover:bg-[#dc2f6d] text-white flex items-center justify-center cursor-pointer border-none outline-none"
               >
                 <span class="material-symbols-outlined text-lg leading-none">edit_square</span>
               </button>
@@ -125,7 +125,7 @@
                     <div class="flex items-center justify-between gap-2 mt-0.5">
                       <span class="text-xs text-[#62625b] dark:text-[#999] truncate">{{ lastMessagePreview(conversation) }}</span>
                       @if (conversation.unreadCount > 0) {
-                        <span class="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-[#B15CAA] text-white text-[10px] font-bold flex items-center justify-center">
+                        <span class="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-[#F94083] text-white text-[10px] font-bold flex items-center justify-center">
                           {{ conversation.unreadCount }}
                         </span>
                       }
@@ -191,7 +191,7 @@
                 (click)="scrollToMessage(pinned.id)"
                 class="flex items-center gap-2 px-4 py-2 border-b border-[#dadad3] dark:border-[#333] bg-[#faf5f9] dark:bg-[#241f27] hover:bg-[#f6eef4] dark:hover:bg-[#2c2530] text-left cursor-pointer border-none w-full shrink-0 outline-none"
               >
-                <span class="material-symbols-outlined text-base text-[#B15CAA] shrink-0">push_pin</span>
+                <span class="material-symbols-outlined text-base text-[#F94083] shrink-0">push_pin</span>
                 <span class="flex-1 min-w-0 text-xs text-[#62625b] dark:text-[#999] truncate">
                   <span class="font-bold text-black dark:text-white">Đã ghim: </span>{{ replyPreviewLabel(pinned) }}
                 </span>
@@ -209,7 +209,7 @@
             <div #messageList class="flex-1 overflow-y-auto min-h-0 p-4 flex flex-col gap-2 bg-[#fafaf8] dark:bg-[#151515]">
               @if (messagesLoading()) {
                 <div class="flex-1 flex items-center justify-center">
-                  <div class="w-8 h-8 border-4 border-[#B15CAA] border-t-transparent rounded-full animate-spin"></div>
+                  <div class="w-8 h-8 border-4 border-[#F94083] border-t-transparent rounded-full animate-spin"></div>
                 </div>
               } @else if (messagesError()) {
                 <div class="flex-1 flex flex-col items-center justify-center gap-3 text-center">
@@ -250,7 +250,7 @@
                           (click)="scrollToMessage(message.replyToId)"
                           class="max-w-[75%] flex items-stretch gap-2 pl-0 pr-3 py-1.5 rounded-[14px] bg-[#efefec] dark:bg-[#242424] hover:bg-[#e6e6e2] dark:hover:bg-[#2a2a2a] text-left cursor-pointer border border-[#dadad3] dark:border-[#333] overflow-hidden outline-none"
                         >
-                          <span class="w-[3px] shrink-0 bg-[#B15CAA] rounded-full"></span>
+                          <span class="w-[3px] shrink-0 bg-[#F94083] rounded-full"></span>
                           <span class="text-[11px] text-[#62625b] dark:text-[#999] font-medium truncate block py-0.5">{{ replyPreviewLabel(message.replyTo) }}</span>
                         </button>
                       </div>
@@ -417,7 +417,7 @@
                             type="button"
                             (click)="reactToMessage(message, group.emoji, $event)"
                             class="h-6 px-1.5 rounded-full border text-[11px] flex items-center gap-1 cursor-pointer outline-none text-black dark:text-white"
-                            [class.border-[#B15CAA]]="group.reactedByMe"
+                            [class.border-[#F94083]]="group.reactedByMe"
                             [class.bg-[#F7E4F5]]="group.reactedByMe"
                             [class.dark:bg-[#4a2f47]]="group.reactedByMe"
                             [class.border-[#dadad3]]="!group.reactedByMe"
@@ -443,7 +443,7 @@
 
             @if (replyingTo(); as reply) {
               <div class="flex items-center gap-2 px-4 pt-2.5 border-t border-[#dadad3] dark:border-[#333] shrink-0">
-                <span class="material-symbols-outlined text-base text-[#B15CAA]">reply</span>
+                <span class="material-symbols-outlined text-base text-[#F94083]">reply</span>
                 <span class="flex-1 min-w-0 text-xs text-[#62625b] dark:text-[#999] truncate">
                   Đang trả lời: <span class="font-bold text-black dark:text-white">{{ replyPreviewLabel(reply) }}</span>
                 </span>
@@ -564,7 +564,7 @@
               <button
                 type="submit"
                 [disabled]="sendPending() || !messageDraft.trim()"
-                class="h-10 px-4 bg-[#B15CAA] hover:bg-[#8F4A8B] text-white rounded-full text-sm font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0 border-none outline-none"
+                class="h-10 px-4 bg-[#F94083] hover:bg-[#dc2f6d] text-white rounded-full text-sm font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0 border-none outline-none"
               >
                 @if (sendPending()) {
                   <span class="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></span>

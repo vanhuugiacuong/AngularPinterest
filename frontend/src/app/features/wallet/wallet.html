@@ -79,7 +79,7 @@
         <div class="rounded-[26px] p-6 border border-[#ececef] dark:border-[#26262c] flex flex-col justify-between bg-[#faf9fb] dark:bg-[#17171c]">
           <div>
             <div class="flex items-center gap-2 text-[13px] font-semibold mb-3 text-[#7c7784] dark:text-[#8b8791]">
-              <app-icon name="crown" class="w-[18px] h-[18px]" [class.text-[#B15CAA]]="billing.isPro()"></app-icon> Gói của bạn
+              <app-icon name="crown" class="w-[18px] h-[18px]" [class.text-[#F94083]]="billing.isPro()"></app-icon> Gói của bạn
             </div>
             @if (billing.isPro()) {
               <div class="text-lg font-extrabold bg-gradient-to-r from-[#F94083] to-[#B15CAA] bg-clip-text text-transparent">PinHub Pro</div>
@@ -95,7 +95,7 @@
             [class.text-white]="!billing.isPro()"
             [class.bg-white]="billing.isPro()"
             [class.dark:bg-[#22222a]]="billing.isPro()"
-            [class.text-[#B15CAA]]="billing.isPro()"
+            [class.text-[#F94083]]="billing.isPro()"
             [class.border]="billing.isPro()"
             [class.border-[#ececef]]="billing.isPro()"
             [class.dark:border-[#2e2e36]]="billing.isPro()">

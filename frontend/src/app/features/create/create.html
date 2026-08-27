@@ -34,7 +34,7 @@
           [class.opacity-60]="activeTab() !== 'ai'"
         >
           <span class="text-[13px] font-bold text-black dark:text-white flex items-center gap-1">
-            <span class="material-symbols-outlined text-sm leading-none text-[#B15CAA] font-bold">auto_awesome</span>
+            <span class="material-symbols-outlined text-sm leading-none text-[#F94083] font-bold">auto_awesome</span>
             Tạo ảnh nghệ thuật AI
           </span>
           <div *ngIf="activeTab() === 'ai'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-[#F94083] dark:bg-[#FF6F9C] rounded-full"></div>
@@ -42,7 +42,7 @@
 
         <div (click)="goToCollage()" class="relative cursor-pointer transition-all pb-1 opacity-60 hover:opacity-100">
           <span class="text-[13px] font-bold text-black dark:text-white flex items-center gap-1">
-            <span class="material-symbols-outlined text-sm leading-none text-[#B15CAA] font-bold">content_cut</span>
+            <span class="material-symbols-outlined text-sm leading-none text-[#F94083] font-bold">content_cut</span>
             Ảnh ghép
           </span>
         </div>
@@ -270,7 +270,7 @@
                   <div class="border-t border-gray-100 dark:border-[#333] mt-1.5 pt-1.5">
                     <div
                       (click)="openNewBoardInput($event)"
-                      class="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-[#B15CAA] dark:text-[#e6a8d4] hover:bg-gray-50 dark:hover:bg-[#333] cursor-pointer"
+                      class="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-[#F94083] dark:text-[#e6a8d4] hover:bg-gray-50 dark:hover:bg-[#333] cursor-pointer"
                     >
                       <span class="material-symbols-outlined text-base leading-none">add</span>
                       Tạo bảng mới
@@ -287,7 +287,7 @@
                     placeholder="Tên bảng mới..."
                     autofocus
                     [disabled]="isCreatingBoard()"
-                    class="w-full bg-[#f6f6f3] dark:bg-[#2a2a2a] border border-[#dadad3] dark:border-[#444] rounded-lg px-3 py-2 text-xs text-black dark:text-white outline-none focus:border-[#B15CAA]"
+                    class="w-full bg-[#f6f6f3] dark:bg-[#2a2a2a] border border-[#dadad3] dark:border-[#444] rounded-lg px-3 py-2 text-xs text-black dark:text-white outline-none focus:border-[#F94083]"
                   />
                   <span *ngIf="newBoardError()" class="text-[11px] text-red-500 font-semibold">{{ newBoardError() }}</span>
                   <div class="flex items-center justify-end gap-2 mt-0.5">
@@ -417,25 +417,25 @@
           <span class="panel-label mb-3 block">Mẹo để ghim nổi bật hơn</span>
           <ul *ngIf="activeTab() === 'upload'" class="flex flex-col gap-2.5">
             <li class="flex items-start gap-2 text-xs text-[#494946] dark:text-[#ccc]">
-              <span class="material-symbols-outlined text-[16px] leading-none text-[#B15CAA] shrink-0 mt-0.5">check_circle</span>
+              <span class="material-symbols-outlined text-[16px] leading-none text-[#F94083] shrink-0 mt-0.5">check_circle</span>
               <span>Chọn ảnh dọc (cao hơn rộng) để hiển thị đẹp nhất trên bảng tin.</span>
             </li>
             <li class="flex items-start gap-2 text-xs text-[#494946] dark:text-[#ccc]">
-              <span class="material-symbols-outlined text-[16px] leading-none text-[#B15CAA] shrink-0 mt-0.5">check_circle</span>
+              <span class="material-symbols-outlined text-[16px] leading-none text-[#F94083] shrink-0 mt-0.5">check_circle</span>
               <span>Đặt tiêu đề ngắn gọn, dưới 100 ký tự để dễ đọc.</span>
             </li>
           </ul>
           <ul *ngIf="activeTab() === 'ai'" class="flex flex-col gap-2.5">
             <li class="flex items-start gap-2 text-xs text-[#494946] dark:text-[#ccc]">
-              <span class="material-symbols-outlined text-[16px] leading-none text-[#B15CAA] shrink-0 mt-0.5">check_circle</span>
+              <span class="material-symbols-outlined text-[16px] leading-none text-[#F94083] shrink-0 mt-0.5">check_circle</span>
               <span>Mô tả càng chi tiết (ánh sáng, góc nhìn, phong cách nghệ thuật) thì ảnh AI càng đúng ý bạn.</span>
             </li>
             <li class="flex items-start gap-2 text-xs text-[#494946] dark:text-[#ccc]">
-              <span class="material-symbols-outlined text-[16px] leading-none text-[#B15CAA] shrink-0 mt-0.5">check_circle</span>
+              <span class="material-symbols-outlined text-[16px] leading-none text-[#F94083] shrink-0 mt-0.5">check_circle</span>
               <span>Nếu ảnh ra chưa ưng ý, hãy thử đổi sang phong cách nghệ thuật khác ở mục bên trên.</span>
             </li>
             <li class="flex items-start gap-2 text-xs text-[#494946] dark:text-[#ccc]">
-              <span class="material-symbols-outlined text-[16px] leading-none text-[#B15CAA] shrink-0 mt-0.5">check_circle</span>
+              <span class="material-symbols-outlined text-[16px] leading-none text-[#F94083] shrink-0 mt-0.5">check_circle</span>
               <span>Có thể tạo lại nhiều lần để chọn ra bức ảnh ưng ý nhất.</span>
             </li>
           </ul>

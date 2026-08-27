@@ -9,7 +9,7 @@
       <!-- Loading State -->
       @if (isLoading()) {
         <div class="flex-1 flex flex-col items-center justify-center py-20">
-          <div class="w-10 h-10 border-4 border-[#B15CAA] border-t-transparent rounded-full animate-spin"></div>
+          <div class="w-10 h-10 border-4 border-[#F94083] border-t-transparent rounded-full animate-spin"></div>
           <p class="text-xs text-[#62625b] dark:text-[#999] mt-4 font-semibold">Đang tải chi tiết ảnh...</p>
         </div>
       }
@@ -123,7 +123,7 @@
                     (click)="toggleCropMode()"
                     [title]="cropMode() ? 'Thoát chế độ chọn vùng' : 'Chọn một vùng trên ảnh để tìm ảnh tương đồng'"
                     class="w-8 h-8 rounded-full flex items-center justify-center shadow-md cursor-pointer transition-colors active:scale-90 border-none outline-none select-none"
-                    [ngClass]="cropMode() ? 'bg-[#B15CAA] text-white' : 'bg-white text-black hover:bg-gray-100'"
+                    [ngClass]="cropMode() ? 'bg-[#F94083] text-white' : 'bg-white text-black hover:bg-gray-100'"
                   >
                     <span class="material-symbols-outlined text-base font-bold">{{ cropMode() ? 'close' : 'crop' }}</span>
                   </button>
@@ -153,7 +153,7 @@
                     >
                       <span
                         class="material-symbols-outlined text-lg leading-none font-bold"
-                        [class.text-[#B15CAA]]="isLikedByUser()"
+                        [class.text-[#F94083]]="isLikedByUser()"
                         [class.text-black]="!isLikedByUser()"
                         [class.dark:text-white]="!isLikedByUser()"
                         [style.font-variation-settings]="isLikedByUser() ? &quot;'FILL' 1&quot; : &quot;'FILL' 0&quot;"
@@ -242,7 +242,7 @@
                           @if (isOwner()) {
                             <button
                               (click)="deleteCurrentPin()"
-                              class="w-full text-left px-4 py-2 text-xs font-bold text-[#B15CAA] hover:bg-gray-50 dark:hover:bg-[#333] cursor-pointer border-none outline-none bg-transparent"
+                              class="w-full text-left px-4 py-2 text-xs font-bold text-[#F94083] hover:bg-gray-50 dark:hover:bg-[#333] cursor-pointer border-none outline-none bg-transparent"
                             >
                               Xóa ảnh
                             </button>
@@ -290,7 +290,7 @@
                     <!-- Save button -->
                     <button
                       (click)="savePinToBoard()"
-                      class="h-10 px-6 bg-[#B15CAA] hover:bg-[#8F4A8B] text-white rounded-full text-sm font-bold cursor-pointer active:scale-95 border-none outline-none shrink-0"
+                      class="h-10 px-6 bg-[#F94083] hover:bg-[#dc2f6d] text-white rounded-full text-sm font-bold cursor-pointer active:scale-95 border-none outline-none shrink-0"
                     >
                       Lưu
                     </button>
@@ -408,7 +408,7 @@
                 @if (cropMode()) {
                   Kết quả cho vùng đã chọn
                   @if (regionLoading()) {
-                    <span class="w-4 h-4 border-2 border-[#B15CAA] border-t-transparent rounded-full animate-spin inline-block"></span>
+                    <span class="w-4 h-4 border-2 border-[#F94083] border-t-transparent rounded-full animate-spin inline-block"></span>
                   }
                 } @else {
                   Khám phá thêm các hình ảnh tương tự
@@ -456,7 +456,7 @@
                             <!-- Hover overlay -->
                             <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3.5 text-white z-10">
                               <div class="flex justify-end">
-                                <button class="bg-[#B15CAA] hover:bg-[#8F4A8B] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none">
+                                <button class="bg-[#F94083] hover:bg-[#dc2f6d] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none">
                                   Lưu
                                 </button>
                               </div>
@@ -536,7 +536,7 @@
                           <!-- Hover overlay -->
                           <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3.5 text-white z-10">
                             <div class="flex justify-end">
-                              <button class="bg-[#B15CAA] hover:bg-[#8F4A8B] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none">
+                              <button class="bg-[#F94083] hover:bg-[#dc2f6d] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none">
                                 Lưu
                               </button>
                             </div>

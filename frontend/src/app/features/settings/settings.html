@@ -38,7 +38,7 @@
               type="text"
               [(ngModel)]="username"
               maxlength="30"
-              class="h-11 px-4 rounded-full bg-white dark:bg-[#2a2a2a] border border-[#dadad3] dark:border-[#444] text-sm text-black dark:text-white outline-none focus:border-[#B15CAA]"
+              class="h-11 px-4 rounded-full bg-white dark:bg-[#2a2a2a] border border-[#dadad3] dark:border-[#444] text-sm text-black dark:text-white outline-none focus:border-[#F94083]"
               placeholder="Tên hiển thị"
             />
           </div>
@@ -53,7 +53,7 @@
               [(ngModel)]="bio"
               maxlength="280"
               rows="3"
-              class="px-4 py-3 rounded-2xl bg-white dark:bg-[#2a2a2a] border border-[#dadad3] dark:border-[#444] text-sm text-black dark:text-white outline-none focus:border-[#B15CAA] resize-none"
+              class="px-4 py-3 rounded-2xl bg-white dark:bg-[#2a2a2a] border border-[#dadad3] dark:border-[#444] text-sm text-black dark:text-white outline-none focus:border-[#F94083] resize-none"
               placeholder="Giới thiệu đôi chút về bạn..."
             ></textarea>
           </div>
@@ -61,7 +61,7 @@
           <button
             (click)="saveProfile()"
             [disabled]="isSavingProfile()"
-            class="w-full h-11 px-4 bg-[#B15CAA] hover:bg-[#8F4A8B] disabled:opacity-60 text-white font-bold rounded-full transition-all duration-200 cursor-pointer text-sm border-none outline-none"
+            class="w-full h-11 px-4 bg-[#F94083] hover:bg-[#dc2f6d] disabled:opacity-60 text-white font-bold rounded-full transition-all duration-200 cursor-pointer text-sm border-none outline-none"
           >
             {{ isSavingProfile() ? 'Đang lưu...' : 'Lưu thay đổi' }}
           </button>
@@ -70,7 +70,7 @@
 
       <button
         (click)="signOut()"
-        class="w-full h-11 px-4 bg-white dark:bg-[#1e1e1e] hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] text-[#B15CAA] font-bold rounded-full transition-all duration-200 cursor-pointer text-sm border border-[#dadad3] dark:border-[#333]"
+        class="w-full h-11 px-4 bg-white dark:bg-[#1e1e1e] hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] text-[#F94083] font-bold rounded-full transition-all duration-200 cursor-pointer text-sm border border-[#dadad3] dark:border-[#333]"
       >
         Đăng xuất
       </button>

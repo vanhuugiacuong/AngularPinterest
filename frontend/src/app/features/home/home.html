@@ -112,7 +112,7 @@
                         <div class="relative shrink-0">
                           <button
                             (click)="onSaveClick(pin.id, $event)"
-                            class="bg-[#B15CAA] hover:bg-[#8F4A8B] text-white font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer transition-colors active:scale-95 border-none outline-none"
+                            class="bg-[#F94083] hover:bg-[#dc2f6d] text-white font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer transition-colors active:scale-95 border-none outline-none"
                           >
                             Lưu
                           </button>
@@ -150,7 +150,7 @@
                         class="material-symbols-outlined text-[14px] leading-none"
                         [class.text-black]="!likedPinIds().has(pin.id)"
                         [class.dark:text-white]="!likedPinIds().has(pin.id)"
-                        [class.text-[#B15CAA]]="likedPinIds().has(pin.id)"
+                        [class.text-[#F94083]]="likedPinIds().has(pin.id)"
                         [style.font-variation-settings]="likedPinIds().has(pin.id) ? &quot;'FILL' 1&quot; : &quot;'FILL' 0&quot;"
                       >favorite</span>
                       {{ pin.likes || 0 }}
