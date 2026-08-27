@@ -18,6 +18,10 @@ import { RouterLink } from '@angular/router';
  *  Must stay in step with the .nf-auth--leaving transitions in the stylesheet. */
 const EXIT_MS = 420;
 
+/** Once acknowledged, the warning step is skipped for good in this browser —
+ * a returning user should not have to clear it on every sign-in. */
+const WARNING_ACK_KEY = 'novaframe:content-warning-ack';
+
 /**
  * Presentation-only login dialog for the pre-login experience.
  *
@@ -59,6 +63,32 @@ export class AuthModal implements OnChanges, OnDestroy {
   public readonly visible = signal(false);
   public readonly leaving = signal(false);
 
+  /** Two steps in one panel: the content notice, then the sign-in. It lives
+   * here rather than as its own modal so a first-time visitor is not stacked
+   * two dialogs deep, and so the notice is unavoidably read before the account
+   * is created — the moment consent actually matters. */
+  public readonly step = signal<'warning' | 'signin'>('signin');
+
+  /** Every localStorage access is wrapped: a private window or blocked site
+   * data throws on read, and the notice must never be what breaks sign-in. On
+   * failure the notice simply shows again next time. */
+  private hasAcknowledgedWarning(): boolean {
+    try {
+      return localStorage.getItem(WARNING_ACK_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  acknowledgeWarning(): void {
+    try {
+      localStorage.setItem(WARNING_ACK_KEY, '1');
+    } catch {
+      // Không ghi được thì lần sau hiện lại — chấp nhận được.
+    }
+    this.step.set('signin');
+  }
+
   private readonly reducedMotion =
     typeof window !== 'undefined' && 'matchMedia' in window
       ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -78,6 +108,9 @@ export class AuthModal implements OnChanges, OnDestroy {
       const wasVisible = this.visible();
       this.visible.set(true);
       if (!wasVisible) {
+        // Decided per opening, not once at construction: the acknowledgement can
+        // be written between two openings within the same page load.
+        this.step.set(this.hasAcknowledgedWarning() ? 'signin' : 'warning');
         this.previouslyFocused = (document.activeElement as HTMLElement) || null;
         this.lockBodyScroll();
         // Panel isn't in the DOM until this change detection cycle commits.

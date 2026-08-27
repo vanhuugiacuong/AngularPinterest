@@ -36,6 +36,50 @@
       <span class="material-symbols-outlined" aria-hidden="true">close</span>
     </button>
 
+    <!-- ============================ STEP 1 ============================ -->
+    <!-- Content notice. Placed ahead of sign-in rather than as its own modal:
+         a first-time visitor is not stacked two dialogs deep, and the notice is
+         read before an account exists — the point at which consent matters.
+         This is a WARNING, not age verification: it cannot establish anyone's
+         age, and anything that actually gates minors is a separate feature. -->
+    @if (step() === 'warning') {
+      <div class="nf-auth__body">
+        <span class="nf-auth__notice-mark material-symbols-outlined" aria-hidden="true"
+          >shield_person</span
+        >
+
+        <span class="nf-auth__eyebrow">Trước khi bắt đầu</span>
+
+        <h2 id="nf-auth-title" class="nf-auth__title">Lưu ý về nội dung</h2>
+
+        <div class="nf-auth__notice">
+          <p>
+            NovaFrame là nền tảng <strong>lưu trữ và mạng xã hội mang tính lưu trữ
+            độc quyền</strong>. Nội dung ở đây do người dùng tự đăng tải.
+          </p>
+          <p>
+            Vì vậy <strong>có thể xuất hiện một số nội dung không phù hợp với độ
+            tuổi của bạn</strong>. Hãy cân nhắc trước khi tiếp tục.
+          </p>
+          <p class="nf-auth__notice-small">
+            Bạn có thể báo cáo bất kỳ tác phẩm hoặc tài khoản nào ngay trong ứng dụng.
+          </p>
+        </div>
+
+        <button type="button" class="nf-auth__submit" (click)="acknowledgeWarning()">
+          <span class="material-symbols-outlined" aria-hidden="true">check</span>
+          <span>Tôi hiểu, tiếp tục</span>
+        </button>
+
+        <p class="nf-auth__fine">
+          Tiếp tục nghĩa là bạn đã đọc lưu ý trên và đồng ý với
+          <a routerLink="/terms">Điều khoản Dịch vụ</a> của chúng tôi.
+        </p>
+      </div>
+    }
+
+    <!-- ============================ STEP 2 ============================ -->
+    @if (step() === 'signin') {
     <div class="nf-auth__body">
       <img src="/logo-mark.svg" alt="" aria-hidden="true" class="nf-auth__logo" />
 
@@ -100,5 +144,6 @@
         <a routerLink="/privacy">Chính sách Bảo mật</a> của chúng tôi.
       </p>
     </div>
+    }
   </div>
 </div>

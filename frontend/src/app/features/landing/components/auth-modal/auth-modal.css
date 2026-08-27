@@ -434,3 +434,45 @@
     animation: nf-auth-spin 2.4s linear infinite;
   }
 }
+
+/* --- Content-notice step ---------------------------------------------
+   Shares the panel, the type scale and the submit button with the sign-in
+   step; only the mark and the body copy differ. Reusing --nf-* tokens rather
+   than the global palette keeps it inside the landing page's own theme, which
+   is what the rest of this stylesheet is built on. */
+.nf-auth__notice-mark {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  margin-bottom: 16px;
+  border-radius: 999px;
+  font-size: 27px;
+  color: var(--nf-electric);
+  background: color-mix(in srgb, var(--nf-electric) 12%, transparent);
+}
+
+.nf-auth__notice {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 26px;
+  max-width: 36ch;
+}
+
+.nf-auth__notice p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: color-mix(in srgb, var(--nf-ink) 68%, transparent);
+}
+
+.nf-auth__notice strong {
+  color: color-mix(in srgb, var(--nf-ink) 92%, transparent);
+  font-weight: 700;
+}
+
+.nf-auth__notice-small {
+  font-size: 12.5px !important;
+  color: color-mix(in srgb, var(--nf-ink) 55%, transparent) !important;
+}

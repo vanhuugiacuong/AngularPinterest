@@ -14,7 +14,6 @@ import { PublicHeader } from './components/public-header/public-header';
 import { AuthModal } from './components/auth-modal/auth-modal';
 import { LoaderMode, NfLoader } from './components/loader/loader';
 import { LandingCtaButton } from './components/landing-cta-button/landing-cta-button';
-import { ContentWarningComponent } from '../../shared/content-warning/content-warning';
 import { ScrollScenes } from './scroll-scenes';
 
 /** One artwork in the exhibition strip.
@@ -39,7 +38,6 @@ interface Artwork {
     AuthModal,
     NfLoader,
     LandingCtaButton,
-    ContentWarningComponent,
   ],
   templateUrl: './landing.html',
   styleUrl: './landing.css'

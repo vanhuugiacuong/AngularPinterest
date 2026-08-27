@@ -1,8 +1,3 @@
-<!-- Shown before anything else on a first visit: the notice must land before
-     any user-uploaded content is on screen, which is why it lives here and not
-     on the feed. -->
-<app-content-warning />
-
 <app-nf-loader (finished)="onLoaderFinished($event)"></app-nf-loader>
 
 <div class="nf" [class.nf--ready]="loaderDone()">
