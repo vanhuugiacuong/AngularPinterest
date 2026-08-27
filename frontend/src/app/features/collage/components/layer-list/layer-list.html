@@ -1,0 +1,83 @@
+<!-- Always open, plain section title. The old eyebrow ("Layer") + collapse
+     chevron hid the panel's only content behind a click on a column that exists
+     solely to show it. -->
+<section class="panel">
+  <header class="panel-head">
+    <h2>Phần cắt</h2>
+    <p>Chọn một phần cắt để chỉnh sửa hoặc kéo để sắp xếp lại</p>
+  </header>
+
+  <div class="panel-body">
+    <div *ngFor="let layer of orderedLayers; let position = index" class="layer-row-group">
+      <!-- Drag is the only reorder affordance now. This row previously carried
+           drag-to-reorder AND a pair of up/down buttons AND a hint paragraph
+           below the list — three ways to do one thing, in a panel whose own
+           subtitle already says "kéo để sắp xếp lại". -->
+      <button
+        type="button"
+        class="layer-row"
+        [class.selected]="store.selectedId() === layer.id"
+        [class.dragging]="draggingId() === layer.id"
+        [class.drop-target]="dropTargetId() === layer.id"
+        (click)="store.select(layer.id)"
+        (pointerdown)="beginPointerDrag($event, layer.id)"
+        (pointermove)="continuePointerDrag($event)"
+        (pointerup)="finishPointerDrag($event)"
+        (pointercancel)="cancelPointerDrag($event)"
+        (keydown)="onRowKeydown($event, layer.id)"
+        [attr.data-layer-id]="layer.id"
+        [attr.aria-label]="
+          'Chọn phần cắt ' +
+          (orderedLayers.length - position) +
+          '. Giữ Alt và phím mũi tên lên hoặc xuống để đổi thứ tự lớp.'
+        "
+        title="Kéo để đổi thứ tự · hoặc Alt + mũi tên lên/xuống"
+      >
+        <span class="drag-handle material-symbols-outlined" aria-hidden="true">drag_indicator</span>
+        <span class="layer-thumb">
+          @if (thumbUrl(layer); as url) {
+            <img [src]="url" alt="" draggable="false" />
+          } @else {
+            <span class="material-symbols-outlined kind-glyph" aria-hidden="true">{{
+              kindIcon(layer)
+            }}</span>
+          }
+        </span>
+        <span class="layer-name">{{ layerLabel(layer) }}</span>
+      </button>
+    </div>
+
+    <!-- Background row: the frame itself, always bottom-most and not a layer the
+         store can move or delete. Shown as a locked row so the list reads as the
+         full stack rather than starting mid-air, matching Pinterest's "Nền". -->
+    <div class="layer-row layer-row--locked" aria-label="Nền — không thể di chuyển hoặc xóa">
+      <span class="material-symbols-outlined lock-icon" aria-hidden="true">lock</span>
+      <span class="layer-thumb layer-thumb--empty" aria-hidden="true"></span>
+      <span class="layer-name">Nền</span>
+    </div>
+
+    <p *ngIf="orderedLayers.length === 0" class="empty-state">
+      Chọn một ảnh từ panel bên phải để thêm phần cắt đầu tiên.
+    </p>
+  </div>
+</section>
+
+<div
+  *ngIf="draggingLayer() as layer"
+  class="layer-drag-preview"
+  [style.width.px]="dragPreviewWidth()"
+  [style.transform]="dragPreviewTransform()"
+  aria-hidden="true"
+>
+  <span class="material-symbols-outlined" aria-hidden="true">drag_indicator</span>
+  <span class="preview-thumb">
+    @if (thumbUrl(layer); as url) {
+      <img [src]="url" alt="" />
+    } @else {
+      <span class="material-symbols-outlined kind-glyph" aria-hidden="true">{{
+        kindIcon(layer)
+      }}</span>
+    }
+  </span>
+  <strong>{{ layerLabel(layer) }}</strong>
+</div>

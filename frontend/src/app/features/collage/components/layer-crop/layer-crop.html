@@ -1,0 +1,60 @@
+<div class="subject-page" role="dialog" aria-modal="true" aria-labelledby="layer-crop-title">
+  <header class="subject-page-header">
+    <button type="button" class="back-button" (click)="cancel()" aria-label="Hủy">
+      <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+    </button>
+
+    <h2 id="layer-crop-title" class="sr-only">Chọn lại phần cắt</h2>
+
+    <div class="header-actions">
+      <button type="button" class="secondary-button" (click)="reset()">
+        <span class="material-symbols-outlined" aria-hidden="true">crop_free</span>Nguyên ảnh
+      </button>
+      <button type="button" class="primary-button" (click)="apply()">
+        <span class="material-symbols-outlined" aria-hidden="true">check</span>Áp dụng
+      </button>
+    </div>
+  </header>
+
+  <div
+    #stageWrap
+    class="crop-stage"
+    (pointermove)="onOverlayPointerMove($event)"
+    (pointerup)="onOverlayPointerUp($event)"
+    (pointercancel)="onOverlayPointerUp($event)"
+  >
+    <img class="crop-source-image" [src]="imageUrl" alt="" />
+
+    <div
+      class="crop-rect"
+      [style.left.%]="draftCrop().cropX * 100"
+      [style.top.%]="draftCrop().cropY * 100"
+      [style.width.%]="draftCrop().cropWidth * 100"
+      [style.height.%]="draftCrop().cropHeight * 100"
+      (pointerdown)="onRectPointerDown($event)"
+    >
+      <div
+        class="crop-handle crop-handle-nw"
+        [style.cursor]="cropCursor('nw')"
+        (pointerdown)="onHandlePointerDown($event, 'nw')"
+      ></div>
+      <div
+        class="crop-handle crop-handle-ne"
+        [style.cursor]="cropCursor('ne')"
+        (pointerdown)="onHandlePointerDown($event, 'ne')"
+      ></div>
+      <div
+        class="crop-handle crop-handle-sw"
+        [style.cursor]="cropCursor('sw')"
+        (pointerdown)="onHandlePointerDown($event, 'sw')"
+      ></div>
+      <div
+        class="crop-handle crop-handle-se"
+        [style.cursor]="cropCursor('se')"
+        (pointerdown)="onHandlePointerDown($event, 'se')"
+      ></div>
+    </div>
+  </div>
+
+  <p class="hint">Kéo bên trong khung để di chuyển · Kéo góc để đổi kích thước vùng cắt</p>
+</div>

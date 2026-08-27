@@ -1,0 +1,568 @@
+/* Fills the right-hand column instead of covering the page. Was
+   position: fixed; inset: 0 with a blurred backdrop — see subject-selector.html
+   for why that modal is gone. */
+:host {
+  display: block;
+  min-width: 0;
+}
+.selector-panel {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  color: var(--color-text);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+.header-spacer {
+  flex: 1 1 auto;
+}
+h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.eyebrow {
+  color: var(--color-accent);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.icon-button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text);
+  background: var(--color-surface-elevated);
+  cursor: pointer;
+}
+/* Takes the height left over after the header, mode tabs, toolbar and hint,
+   rather than claiming a fixed min(58vh, 560px). Inside a panel that is exactly
+   as tall as its column and clips overflow, a fixed height here meant the
+   bottom of the image — and the hint under it — could simply be cut off on a
+   shorter window instead of the frame drawing smaller. */
+/* Positioning context only. Every child (.image-frame, .zoom-controls,
+   .tap-instruction, .processing-overlay, .error-state) is absolutely
+   positioned, so the flex centering and side padding this used to carry had
+   nothing in flow left to act on — the frame's own `inset` supplies the
+   gutter now. */
+.preview-stage {
+  position: relative;
+  flex: 1 1 auto;
+  /* Same two belts as .pin-scroll: flex when the ancestor height resolves, a vh
+     floor when it does not. This one matters more than a scrollbar — the photo
+     is absolutely positioned inside .image-frame, so a stage with no resolved
+     height renders nothing at all rather than merely looking cramped. */
+  /* Taller than before: this is where the user traces around a subject by hand,
+     and object-fit: contain means a portrait photo in a short-but-wide stage
+     shrinks to a narrow strip — too small to aim at. */
+  height: calc(100vh - 250px);
+  min-height: 320px;
+  max-height: 700px;
+  overflow: hidden;
+  /* Neutral grey, not the violet wash it had. The stage is the backdrop the
+     blurred/desaturated photo falls back to, so any hue here fights the one
+     thing that should hold colour: the sharp selection on top. */
+  background: color-mix(in srgb, var(--color-text-muted) 16%, var(--color-bg-secondary));
+}
+/* Fills the entire preview-stage instead of shrink-wrapping to the image's
+   own rendered size — otherwise a wide/short or small source image would
+   collapse the frame down to a thin sliver floating inside a mostly-empty
+   box (inconsistent position/size per image). .source-image, .mask-canvas
+   and .highlight-canvas are absolutely positioned (inset: 0) rather than
+   CSS-grid-stacked — a grid cell with an implicit `auto` track and a
+   width:100% child is a circular-sizing case browsers resolve inconsistently
+   (the track can end up sized off the image's own intrinsic dimensions
+   instead of the parent's box), which is what was causing the frame to
+   shrink/crop differently per image. Absolute positioning has no such
+   ambiguity: each layer resolves against .image-frame's box, full stop. */
+/* Pinned to the stage rather than sized with width/height: 100%.
+   Every child here is `position: absolute` (see the note above), so the frame
+   contributes no content height of its own — which meant `height: 100%` had to
+   resolve against the stage. That worked while the stage had a fixed
+   `height: min(58vh, 560px)`, but the stage is now flex-sized to fill the panel,
+   and a percentage height against an indefinite container falls back to auto:
+   the frame collapsed to 0px and the photo vanished entirely.
+   Insetting by the stage's own 16px side padding keeps the same visual box
+   without depending on percentage resolution at all. */
+.image-frame {
+  position: absolute;
+  inset: 0 16px;
+  transform-origin: center;
+}
+/* The "not selected" state of the photo: blurred and desaturated, so whatever
+   the selection keeps sharp (drawn on .highlight-canvas above) is the only thing
+   in focus. Applied unconditionally rather than only once something is selected
+   — the transition then happens as the selection appears, with no jump.
+   `.has-selection` gets a stronger push, so before you select anything the photo
+   is still readable enough to aim at. */
+.source-image {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: blur(1.5px) grayscale(0.35) brightness(0.9);
+  transition: filter 0.28s ease;
+}
+.image-frame.has-selection .source-image {
+  filter: blur(5px) grayscale(0.95) brightness(0.72);
+}
+
+/* Sits in the same box as .source-image, sized identically — but a <canvas>
+   defaults to object-fit: fill (stretch to the box, ignoring its own
+   aspect ratio) unlike an <img>, which is object-fit: contain here and
+   therefore letterboxed whenever the box's aspect ratio doesn't match the
+   photo's. Without object-fit: contain here too, this canvas would get
+   non-uniformly stretched relative to the (letterboxed) visible photo —
+   painted strokes would land in the wrong spot and look stretched/smeared.
+   Matching object-fit keeps this canvas's content pixel-aligned with the
+   displayed photo, so pointer coordinates read off its rect map 1:1 onto
+   image pixels. This is the authoritative alpha mask (opaque where painted)
+   used to composite the final cutout — kept invisible on screen (opacity: 0)
+   because showing it directly would be a solid color blob; the actual
+   visual feedback is .highlight-canvas, redrawn from this on every stroke. */
+.mask-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  touch-action: none;
+  cursor: crosshair;
+  opacity: 0;
+}
+.mask-canvas.erase-cursor {
+  cursor: cell;
+}
+.mask-canvas.subtract-cursor {
+  cursor: not-allowed;
+}
+.mask-canvas.pan-cursor {
+  cursor: grab;
+}
+.mask-canvas.pan-cursor:active {
+  cursor: grabbing;
+}
+
+/* Purely visual, non-interactive (pointer-events: none — all input goes to
+   .mask-canvas underneath). Needs the same object-fit: contain as the mask,
+   for the same reason — otherwise the glow would be stretched out of
+   alignment with the photo. Rebuilt from the mask every stroke: a blurred
+   glow bleeding past the painted silhouette, then the interior mostly
+   erased back out — reading as a bright rim around a see-through fill,
+   so the photo underneath stays visible while the selection is still obvious. */
+/* The cut outline breathes rather than sitting still: the glow swells and
+   settles on a loop, which is what makes the traced edge read as "this is the
+   live selection" instead of a static border drawn on the photo. Animating
+   `filter` keeps it on the compositor and never reflows.
+
+   Note the animation is on the FILTER only — the canvas pixels are untouched,
+   so nothing here affects the mask that gets cut. */
+/* Holds the SHARP, full-colour photo clipped to the selection (see
+   redrawHighlight). Because the canvas content is now the cut shape itself
+   rather than a flat tint, drop-shadow traces its exact silhouette — that is
+   what draws the white rim, and the pulse makes the rim breathe so the edge
+   reads as live. object-fit must stay identical to .source-image or the sharp
+   copy would sit misaligned over the blurred one. */
+.highlight-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 7px var(--color-accent));
+  animation: cut-edge-pulse 2.1s ease-in-out infinite;
+}
+
+@keyframes cut-edge-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.9))
+      drop-shadow(0 0 5px color-mix(in srgb, var(--color-accent) 60%, transparent));
+  }
+  50% {
+    filter: drop-shadow(0 0 3px #fff)
+      drop-shadow(0 0 13px var(--color-accent))
+      drop-shadow(0 0 22px color-mix(in srgb, var(--color-accent) 40%, transparent));
+  }
+}
+
+/* A pulsing glow around the thing the user is trying to look at is exactly the
+   kind of motion that hurts, so respect the setting and hold the bright end. */
+@media (prefers-reduced-motion: reduce) {
+  .highlight-canvas {
+    animation: none;
+    filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 10px var(--color-accent));
+  }
+}
+
+.mode-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 20px 0;
+}
+.mode-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text-muted);
+  background: var(--color-surface-elevated);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mode-tabs button.active {
+  color: var(--color-text);
+  border-color: var(--color-accent);
+  background: var(--color-surface-high);
+}
+.mode-tabs .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.brush-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-elevated);
+}
+.brush-mode-switch {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-bg-secondary);
+}
+.brush-mode-switch button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: calc(var(--radius-control) - 3px);
+  color: var(--color-text-muted);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.brush-mode-switch button.active {
+  color: var(--color-text);
+  background: var(--color-surface-high);
+}
+.brush-mode-switch .material-symbols-outlined {
+  font-size: 16px;
+}
+.brush-size {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted);
+}
+.brush-size .material-symbols-outlined {
+  font-size: 10px;
+}
+.brush-size input[type='range'] {
+  width: 120px;
+  accent-color: var(--color-accent);
+}
+.clear-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  margin-left: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text-muted);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.clear-button:not(:disabled):hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+.clear-button .material-symbols-outlined {
+  font-size: 16px;
+}
+.region-toolbar {
+  row-gap: 8px;
+}
+.region-history-controls {
+  display: inline-flex;
+  gap: 4px;
+}
+.icon-button.small {
+  width: 32px;
+  height: 32px;
+}
+.icon-button.small .material-symbols-outlined {
+  font-size: 16px;
+}
+.icon-button.small.active {
+  color: var(--color-text);
+  border-color: var(--color-accent);
+  background: var(--color-surface-high);
+}
+.preview-toggle {
+  margin-left: 0;
+}
+.zoom-controls {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-ink) 82%, transparent);
+  backdrop-filter: blur(6px);
+}
+.zoom-level {
+  min-width: 40px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+.preview-cut-stage {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  background-image:
+    linear-gradient(45deg, color-mix(in srgb, var(--color-ink) 70%, transparent) 25%, transparent 25%),
+    linear-gradient(-45deg, color-mix(in srgb, var(--color-ink) 70%, transparent) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, color-mix(in srgb, var(--color-ink) 70%, transparent) 75%),
+    linear-gradient(-45deg, transparent 75%, color-mix(in srgb, var(--color-ink) 70%, transparent) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+}
+.preview-cut-stage img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.tap-instruction {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  z-index: 4;
+  display: flex;
+  width: min(470px, calc(100% - 48px));
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 9px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-ink) 88%, transparent);
+  text-align: center;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+.tap-instruction strong {
+  font-size: 12px;
+}
+.tap-instruction small {
+  flex-basis: 100%;
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+.processing-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 11px;
+  padding: 28px;
+  background: color-mix(in srgb, var(--color-ink) 78%, transparent);
+  text-align: center;
+}
+.processing-overlay strong,
+.error-state strong {
+  max-width: 480px;
+  font-size: 13px;
+}
+.processing-overlay small {
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+.spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid var(--color-accent);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.progress-track {
+  width: min(360px, 85%);
+  height: 6px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--color-surface-high);
+}
+.progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-secondary), var(--color-accent));
+  transition: width 0.18s ease;
+}
+.error-state {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  z-index: 6;
+  display: flex;
+  width: min(580px, calc(100% - 36px));
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-control);
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-ink) 90%, var(--color-error) 8%);
+  text-align: center;
+  transform: translateX(-50%);
+}
+.error-state .material-symbols-outlined {
+  flex: 0 0 auto;
+  font-size: 24px;
+}
+.error-state button {
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-control);
+  color: inherit;
+  background: transparent;
+  font-weight: 800;
+  cursor: pointer;
+}
+.hint {
+  min-height: 42px;
+  margin: 0;
+  padding: 12px 20px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.secondary-button,
+.primary-button {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 18px;
+  border-radius: var(--radius-control);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.secondary-button {
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  background: var(--color-surface-elevated);
+}
+.primary-button {
+  border: 0;
+  border-radius: var(--radius-cta);
+  color: var(--color-text-on-accent);
+  background: linear-gradient(135deg, var(--color-nova-blue) 0%, var(--color-iris-violet) 100%);
+  box-shadow: 0 6px 20px -10px color-mix(in srgb, var(--color-nova-blue) 45%, transparent);
+  transition: transform 0.2s var(--ease-trace);
+}
+.primary-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+.primary-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.material-symbols-outlined {
+  font-size: 18px;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (max-width: 640px) {
+  .preview-stage {
+    min-height: 300px;
+    height: 52vh;
+    padding: 0 8px;
+  }
+  .error-state {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  /* Header wraps rather than squeezing the two confirm buttons to nothing. */
+  header {
+    flex-wrap: wrap;
+  }
+  .secondary-button,
+  .primary-button {
+    padding: 0 10px;
+  }
+}
+
+/* Matches image-picker: fill the column in the 3-column desktop layout, fall
+   back to a viewport cap when the grid wraps and the page scrolls. */
+@media (min-width: 1101px) {
+  .selector-panel {
+    height: 100%;
+    max-height: none;
+  }
+}
