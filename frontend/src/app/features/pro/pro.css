@@ -3,7 +3,7 @@
 }
 
 .grad-btn {
-  background-image: linear-gradient(120deg, #ff6f9c 0%, #f94083 32%, #d454a8 62%, #b15caa 100%);
+  background-image: var(--grad-brand);
 }
 
 /* Hero bán hàng — nền kem nhuốm hồng rất nhẹ + glow */
@@ -32,7 +32,7 @@
     radial-gradient(50% 70% at -6% 112%, rgba(177, 92, 170, 0.1), transparent 62%);
 }
 .ph-crest {
-  background: linear-gradient(120deg, #ff6f9c 0%, #f94083 32%, #d454a8 62%, #b15caa 100%);
+  background: var(--grad-brand);
   box-shadow: 0 10px 24px -8px rgba(249, 64, 131, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.25);
 }
 .ph-accent {
@@ -111,4 +111,29 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .cta::after { animation: none; display: none; }
+}
+
+/* ── Quyền lợi "mũi nhọn" (bán ảnh Premium) — tông vàng kiếm tiền, tách hẳn
+   một bậc so với các quyền lợi thường để dẫn mắt vào lý do mua gói. ─────── */
+.benefit-hero {
+  border-color: rgba(232, 196, 104, 0.4);
+  background:
+    radial-gradient(110% 130% at 100% -10%, rgba(232, 196, 104, 0.14), transparent 58%),
+    linear-gradient(180deg, #241d0d 0%, #191408 72%);
+  box-shadow: 0 14px 34px -18px rgba(232, 196, 104, 0.45);
+}
+.benefit-hero-icon {
+  background: linear-gradient(135deg, #f6dfa0 0%, #e8c468 45%, #c99b2f 100%);
+  color: #3a2c07;
+  box-shadow: 0 8px 18px -6px rgba(232, 196, 104, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+}
+.benefit-tag {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #3a2c07;
+  background: linear-gradient(120deg, #f6dfa0, #e8c468);
+  padding: 3px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
 }

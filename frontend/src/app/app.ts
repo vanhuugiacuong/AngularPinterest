@@ -1,16 +1,18 @@
-import { Component, inject, effect } from '@angular/core';
-import { Router, RouterOutlet } from '@angular/router';
+import { Component, ElementRef, inject, effect, viewChild } from '@angular/core';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { filter } from 'rxjs/operators';
 import { SupabaseService } from './core/services/supabase';
 import { ThemeService } from './core/services/theme';
 import { PresenceService } from './core/services/presence';
 import { ImageProtectionService } from './core/services/image-protection';
 import { ToastContainer } from './components/toast-container/toast-container';
 import { ConfirmDialog } from './components/confirm-dialog/confirm-dialog';
+import { ReportDialog } from './components/report-dialog/report-dialog';
 import { VisualSearchModal } from './components/visual-search-modal/visual-search-modal';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, ToastContainer, ConfirmDialog, VisualSearchModal],
+  imports: [RouterOutlet, ToastContainer, ConfirmDialog, ReportDialog, VisualSearchModal],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -21,8 +23,37 @@ export class App {
   private presenceService = inject(PresenceService);
   private imageProtectionService = inject(ImageProtectionService);
 
+  private routeHost = viewChild<ElementRef<HTMLElement>>('routeHost');
+
+  /**
+   * Fade nhẹ mỗi lần đổi trang cho đỡ "cắt phựt". Dùng Web Animations API thay
+   * vì @angular/animations để khỏi kéo thêm package vào bundle; animate() chạy
+   * lại được mỗi lần gọi nên không cần trick reflow như CSS animation.
+   */
+  private installRouteTransition() {
+    const reduceMotion =
+      typeof matchMedia === 'function' &&
+      matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) return;
+
+    this.router.events
+      .pipe(filter((e) => e instanceof NavigationEnd))
+      .subscribe(() => {
+        const host = this.routeHost()?.nativeElement;
+        if (!host?.animate) return;
+        host.animate(
+          [
+            { opacity: 0, transform: 'translateY(6px)' },
+            { opacity: 1, transform: 'translateY(0)' },
+          ],
+          { duration: 180, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+        );
+      });
+  }
+
   constructor() {
     this.imageProtectionService.install();
+    this.installRouteTransition();
 
     // Automatically redirect users based on authentication status changes
     effect(() => {

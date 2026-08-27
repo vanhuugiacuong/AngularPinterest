@@ -7,7 +7,7 @@ const MAX_MESSAGE_LENGTH = 4000;
 const ALLOWED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_IMAGE_SIZE_BYTES = 8 * 1024 * 1024;
 
-const PUBLIC_USER_SELECT = { id: true, username: true, avatarUrl: true, isPro: true } as const;
+const PUBLIC_USER_SELECT = { id: true, username: true, avatarUrl: true, isPro: true, pinhubProPlan: true } as const;
 
 // Postgres's `contains` compares raw bytes — it won't match "cuong" against a username
 // like "Cường Văn". Strips Vietnamese diacritics (NFD decomposition, plus đ/Đ which don't

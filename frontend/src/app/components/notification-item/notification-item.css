@@ -3,5 +3,5 @@
 /* Pro member ring on sender avatar */
 .notif-pro-ring {
   border-color: transparent !important;
-  box-shadow: 0 0 0 2px #17131c, 0 0 0 4px #f94083;
+  box-shadow: 0 0 0 2px #1a1a1a, 0 0 0 4px #f94083;
 }

@@ -7,6 +7,7 @@ import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
 import { ToastService } from '../../core/services/toast';
 import { ConfirmService } from '../../core/services/confirm';
+import { ReportService } from '../../core/services/report';
 import { ChatService, ConversationSummary } from '../../core/services/chat';
 import { BillingService } from '../../core/services/billing';
 import { ImageCropper, CropBox } from '../../components/image-cropper/image-cropper';
@@ -27,6 +28,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   private boardService = inject(BoardService);
   private toastService = inject(ToastService);
   private confirmService = inject(ConfirmService);
+  private reportService = inject(ReportService);
   private chatService = inject(ChatService);
   public supabaseService = inject(SupabaseService);
   public billing = inject(BillingService);
@@ -50,6 +52,10 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   public selectedBoard = signal<Board | null>(null);
   public isLoading = signal<boolean>(true);
   public isRelatedLoading = signal<boolean>(true);
+
+  /** Bật trong ~0.5s ngay sau khi bấm thích để chạy hiệu ứng nảy + vòng loang. */
+  public likeBurst = signal<boolean>(false);
+  private likeBurstTimer: any = null;
   public isScrollingLoad = signal<boolean>(false);
   public isLandscape = signal<boolean>(false);
   public isDesktop = signal<boolean>(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
@@ -189,16 +195,54 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
    * Tải bản HD. Ở bản thật: gọi GET /api/pins/:id/download (guard kiểm entitlement,
    * trả signed URL 1 lần + watermark ẩn). Ở bản demo: mở ảnh gốc để tải xuống.
    */
-  downloadHd() {
+  public isDownloading = signal(false);
+
+  /**
+   * Tải bản HD thẳng về máy.
+   *
+   * Không dùng <a download href="{cdn}"> được: thuộc tính `download` bị trình
+   * duyệt bỏ qua với link khác origin (ảnh nằm trên CDN Supabase), nên trước
+   * đây bấm chỉ MỞ ảnh ở tab mới chứ không tải. Vì vậy phải tải nội dung về
+   * thành blob (cùng origin) rồi mới gắn vào link tải.
+   */
+  async downloadHd() {
     const p = this.pin();
-    if (!p || !this.canDownloadHd) return;
-    const a = document.createElement('a');
-    a.href = p.imageUrl;
-    a.download = (p.title || 'pinhub') + '.jpg';
-    a.target = '_blank';
-    a.rel = 'noopener';
-    a.click();
-    this.toastService.success('Đang tải bản HD...');
+    if (!p || !this.canDownloadHd || this.isDownloading()) return;
+
+    this.isDownloading.set(true);
+    let objectUrl: string | null = null;
+    try {
+      const res = await fetch(p.imageUrl, { mode: 'cors' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+
+      // Đuôi file theo đúng kiểu ảnh server trả về, không đoán cứng .jpg
+      const type = blob.type || 'image/jpeg';
+      const ext = type.includes('png') ? 'png'
+        : type.includes('webp') ? 'webp'
+        : type.includes('gif') ? 'gif'
+        : 'jpg';
+      const safeName = (p.title || 'pinhub')
+        .replace(/[\\/:*?"<>|]+/g, '')  // ký tự Windows không cho phép trong tên file
+        .trim()
+        .slice(0, 80) || 'pinhub';
+
+      objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = `${safeName}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      this.toastService.success('Đã tải bản HD về máy.');
+    } catch (e) {
+      console.error('Tải HD thất bại:', e);
+      this.toastService.error('Không tải được ảnh. Vui lòng thử lại.');
+    } finally {
+      // Thu hồi sau một nhịp để trình duyệt kịp bắt đầu lưu file
+      if (objectUrl) setTimeout(() => URL.revokeObjectURL(objectUrl!), 10_000);
+      this.isDownloading.set(false);
+    }
   }
 
   private currentPage = 1;
@@ -421,9 +465,20 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Ba popup ở hàng nút (chia sẻ / tuỳ chọn / chọn bảng) neo cùng một hàng nên
+   * mở đồng thời sẽ chồng đè lên nhau — mở cái nào thì đóng hai cái kia.
+   */
+  private closeOtherPopups(keep: 'share' | 'options' | 'board') {
+    if (keep !== 'share') this.showSharePopover.set(false);
+    if (keep !== 'options') this.showOptionsMenu.set(false);
+    if (keep !== 'board') this.showBoardDropdown.set(false);
+  }
+
   async toggleSharePopover(event: MouseEvent) {
     event.stopPropagation();
     const next = !this.showSharePopover();
+    this.closeOtherPopups('share');
     this.showSharePopover.set(next);
     if (next && this.shareConversations().length === 0) {
       await this.loadShareConversations();
@@ -473,7 +528,9 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
   toggleOptionsMenu(event: MouseEvent) {
     event.stopPropagation();
-    this.showOptionsMenu.update(val => !val);
+    const next = !this.showOptionsMenu();
+    this.closeOtherPopups('options');
+    this.showOptionsMenu.set(next);
   }
 
   isOwner(): boolean {
@@ -509,6 +566,39 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  public isReporting = signal(false);
+
+  /**
+   * Gửi báo cáo ảnh vi phạm. Endpoint POST /pins/:id/report đã có sẵn ở backend
+   * nhưng nút này trước đây chỉ đóng menu, không gửi gì cả.
+   */
+  async reportCurrentPin() {
+    const currentPin = this.pin();
+    if (!currentPin || this.isReporting()) return;
+
+    // Hộp thoại riêng: chọn lý do dựng sẵn, "Khác" thì nhập mô tả (report.ts)
+    this.showOptionsMenu.set(false);
+    const reason = await this.reportService.ask(currentPin.title || 'ảnh này');
+    if (!reason) return;
+
+    this.isReporting.set(true);
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (!token) {
+        this.toastService.error('Bạn cần đăng nhập để báo cáo.');
+        return;
+      }
+      await this.pinService.reportPin(currentPin.id, token, reason);
+      this.showOptionsMenu.set(false);
+      this.toastService.success('Đã gửi báo cáo. Cảm ơn bạn đã phản hồi.');
+    } catch (error) {
+      console.error('Error reporting pin:', error);
+      this.toastService.error(error instanceof Error ? error.message : 'Không gửi được báo cáo.');
+    } finally {
+      this.isReporting.set(false);
+    }
+  }
+
   navigateToPin(pinId: string) {
     this.router.navigate(['/pin', pinId]);
   }
@@ -528,6 +618,13 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       nextLikes.push({ userId: currentUser.id, pinId: currentPin.id });
     }
     this.pin.set({ ...currentPin, likes: nextLikes });
+
+    // 1b. Hiệu ứng nảy + vòng loang, chỉ khi VỪA thích (không chạy lúc bỏ thích)
+    if (!currentlyLiked) {
+      this.likeBurst.set(true);
+      if (this.likeBurstTimer) clearTimeout(this.likeBurstTimer);
+      this.likeBurstTimer = setTimeout(() => this.likeBurst.set(false), 520);
+    }
 
     // 2. Perform network call asynchronously
     try {
@@ -572,7 +669,9 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
   toggleBoardDropdown(event: MouseEvent) {
     event.stopPropagation();
-    this.showBoardDropdown.update(val => !val);
+    const next = !this.showBoardDropdown();
+    this.closeOtherPopups('board');
+    this.showBoardDropdown.set(next);
   }
 
   selectBoard(board: Board, event: MouseEvent) {
@@ -674,6 +773,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     }
     if (this.cropDebounce) clearTimeout(this.cropDebounce);
     if (this.cropInFlight) this.cropInFlight.abort();
+    if (this.likeBurstTimer) clearTimeout(this.likeBurstTimer);
   }
 
   setupIntersectionObserver() {

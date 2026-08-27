@@ -317,7 +317,7 @@
                       type="button"
                       (click)="confirmNewBoard($event)"
                       [disabled]="isCreatingBoard()"
-                      class="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-[#F94083] to-[#B15CAA] cursor-pointer hover:opacity-95 disabled:opacity-50"
+                      class="px-3 py-1.5 rounded-lg text-xs font-bold text-white grad-brand cursor-pointer hover:opacity-95 disabled:opacity-50"
                     >
                       {{ isCreatingBoard() ? 'Đang tạo...' : 'Tạo' }}
                     </button>
@@ -325,54 +325,82 @@
                 </div>
               </div>
               <!-- Premium (bán ảnh — trả credit để tải HD) -->
-              <div class="rounded-2xl border overflow-hidden transition-all"
-                [class.border-[#F1D488]]="isPremium()"
-                [class.bg-gradient-to-br]="isPremium()"
-                [class.from-[#FFF9EC]]="isPremium()"
-                [class.to-[#FDF1D6]]="isPremium()"
-                [class.dark:from-[#221d0e]]="isPremium()"
-                [class.dark:to-[#1a160a]]="isPremium()"
+              <div class="premium-box relative overflow-hidden rounded-2xl border transition-all"
+                [class.premium-box-on]="isPremium()"
                 [class.border-[#dadad3]]="!isPremium()"
                 [class.dark:border-[#333]]="!isPremium()"
               >
+                <div *ngIf="isPremium()" class="premium-glow" aria-hidden="true"></div>
                 <button
                   type="button"
                   (click)="togglePremium()"
                   [disabled]="isSubmitting()"
-                  class="w-full flex items-center gap-3 p-4 cursor-pointer border-none outline-none bg-transparent text-left"
+                  class="relative z-10 w-full flex items-center gap-3 p-4 cursor-pointer border-none outline-none bg-transparent text-left"
                 >
-                  <span class="w-9 h-9 rounded-full bg-[#FDE8B8] flex items-center justify-center shrink-0">
-                    <span class="material-symbols-outlined text-[19px] text-[#B8860B] premium-fill">workspace_premium</span>
+                  <span class="premium-crest w-9 h-9 rounded-[12px] flex items-center justify-center shrink-0"
+                    [class.premium-crest-on]="isPremium()">
+                    <span class="material-symbols-outlined text-[19px] premium-fill">workspace_premium</span>
                   </span>
                   <span class="flex-1 min-w-0">
-                    <span class="block text-xs font-extrabold text-black dark:text-white">Bán ảnh này (Premium)</span>
-                    <span class="block text-[11px] text-gray-500 dark:text-[#999] mt-0.5">Người khác trả credit để tải bản HD không watermark</span>
+                    <span class="flex items-center gap-1.5">
+                      <span class="text-xs font-extrabold text-black dark:text-white">Bán ảnh này (Premium)</span>
+                      <!-- Nhãn khoá: bán ảnh là quyền lợi riêng của gói Pro -->
+                      <span *ngIf="!billing.isPro()" class="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full grad-brand text-white text-[8px] font-extrabold tracking-wider leading-none">
+                        <span class="material-symbols-outlined text-[9px] leading-none">lock</span>PRO
+                      </span>
+                    </span>
+                    <span class="block text-[11px] text-gray-500 dark:text-[#999] mt-0.5">
+                      {{ billing.isPro()
+                        ? 'Người khác trả credit để tải bản HD không watermark'
+                        : 'Nâng cấp Pro để mở khoá tính năng bán ảnh' }}
+                    </span>
                   </span>
-                  <!-- Toggle -->
-                  <span class="w-10 h-6 rounded-full relative transition-colors shrink-0"
-                    [class.bg-[#B8860B]]="isPremium()" [class.bg-[#c8c8c1]]="!isPremium()" [class.dark:bg-[#444]]="!isPremium()">
-                    <span class="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
-                      [class.left-[18px]]="isPremium()" [class.left-0.5]="!isPremium()"></span>
+                  <!-- Toggle (mờ đi khi chưa Pro) -->
+                  <span class="premium-toggle w-11 h-6 rounded-full relative shrink-0"
+                    [class.opacity-50]="!billing.isPro()"
+                    [class.premium-toggle-on]="isPremium()">
+                    <span class="premium-knob absolute top-0.5 w-5 h-5 rounded-full bg-white"
+                      [class.left-[22px]]="isPremium()" [class.left-0.5]="!isPremium()"></span>
                   </span>
                 </button>
 
-                <div *ngIf="isPremium()" class="px-4 pb-4 pt-1">
-                  <label class="text-[11px] font-bold text-gray-600 dark:text-[#aaa] block mb-1.5">Giá tải HD (credit)</label>
-                  <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[20px] text-[#B8860B] premium-fill">toll</span>
-                    <input
-                      type="number"
-                      [(ngModel)]="premiumPrice"
-                      [min]="priceMin"
-                      [max]="priceMax"
-                      [disabled]="isSubmitting()"
-                      class="w-24 bg-white dark:bg-[#2a2a2a] border border-[#F1D488] dark:border-[#4a3f18] outline-none rounded-full px-3 h-10 text-sm font-extrabold text-black dark:text-white text-center"
-                    />
-                    <span class="text-[11px] text-gray-500 dark:text-[#999]">credit &nbsp;·&nbsp; từ {{ priceMin }} đến {{ priceMax }}</span>
+                <div *ngIf="isPremium()" class="relative z-10 px-4 pb-4 pt-1 flex flex-col gap-3">
+                  <!-- Ô nhập giá -->
+                  <div>
+                    <label class="premium-label block mb-2">Giá tải HD</label>
+                    <div class="premium-price-row flex items-center gap-2.5">
+                      <span class="premium-coin shrink-0 w-9 h-9 rounded-full flex items-center justify-center">
+                        <span class="material-symbols-outlined text-[19px] premium-fill">toll</span>
+                      </span>
+                      <input
+                        type="number"
+                        [(ngModel)]="premiumPrice"
+                        [min]="priceMin"
+                        [max]="priceMax"
+                        [disabled]="isSubmitting()"
+                        class="premium-input w-24 h-10 rounded-xl px-3 text-base font-extrabold text-center outline-none"
+                      />
+                      <span class="text-[11px] text-[#c9b268] font-semibold">credit</span>
+                      <span class="text-[11px] text-gray-500 dark:text-[#8a8378] ml-auto">{{ priceMin }}–{{ priceMax }}</span>
+                    </div>
                   </div>
-                  <p class="text-[11px] text-[#96721a] dark:text-[#c9b268] mt-2 leading-snug">
-                    Bạn nhận 70% mỗi lượt bán. Feed chỉ hiện bản preview có watermark — bản gốc HD được bảo vệ, không lộ qua DevTools.
-                  </p>
+
+                  <!-- Bạn thực nhận bao nhiêu (tính đúng công thức backend) -->
+                  <div class="premium-earn flex items-center gap-2.5 rounded-xl px-3 py-2.5">
+                    <span class="material-symbols-outlined text-[18px] text-[#E8C468] premium-fill shrink-0 leading-none">savings</span>
+                    <span class="flex-1 min-w-0 text-[11px] text-[#c9b268] leading-snug">
+                      Bạn nhận <b class="text-[#F5D98B]">{{ sellerEarnPerSale }} credit</b> mỗi lượt bán
+                      <span class="opacity-70">({{ sellerSharePercent }}%, nền tảng giữ {{ platformFeePercent }}%)</span>
+                    </span>
+                  </div>
+
+                  <!-- Thẻ bảo vệ — cùng kiểu thẻ + cùng tông vàng với dải "bạn nhận" -->
+                  <div class="premium-note flex items-center gap-2.5 rounded-xl px-3 py-2.5">
+                    <span class="material-symbols-outlined text-[18px] text-[#E8C468] premium-fill shrink-0 leading-none">shield</span>
+                    <span class="flex-1 min-w-0 text-[11px] text-[#c9b268] leading-snug">
+                      Feed chỉ hiện bản preview có watermark — bản gốc HD được giữ trong kho riêng tư.
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -417,7 +445,7 @@
               type="button"
               (click)="onSubmit()"
               [disabled]="isSubmitting() || !title.trim() || (activeTab() === 'upload' && !selectedFile) || (activeTab() === 'ai' && !aiImagePreviewUrl())"
-              class="h-11 lg:h-10 px-7 rounded-[10px] bg-gradient-to-r from-[#F94083] to-[#B15CAA] hover:opacity-95 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95 transition-all border-none outline-none"
+              class="h-11 lg:h-10 px-7 rounded-[10px] grad-brand hover:opacity-95 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95 transition-all border-none outline-none"
             >
               <!-- Submitting spinner -->
               <div *ngIf="isSubmitting()" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

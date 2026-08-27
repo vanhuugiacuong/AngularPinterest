@@ -48,7 +48,7 @@
 
               <div
                 *ngIf="showOptionsMenu()"
-                class="absolute left-1/2 -translate-x-1/2 top-11 w-52 bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-50 text-left animate-fade-in"
+                class="absolute left-1/2 -translate-x-1/2 top-11 w-52 bg-white dark:bg-[#1e1e1e] rounded-2xl overflow-hidden shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-50 text-left animate-fade-in"
               >
                 <button
                   (click)="openEditModal($event)"
@@ -145,9 +145,9 @@
   <!-- Edit Board Modal -->
   <div
     *ngIf="showEditModal()"
-    class="fixed inset-0 bg-black/50 z-[999] flex items-center justify-center p-4 backdrop-blur-sm"
+    class="fixed inset-0 bg-black/60 backdrop-blur-md z-[80] flex items-center justify-center p-4 animate-fade-in"
   >
-    <div class="bg-white dark:bg-[#1e1e1e] w-full max-w-[500px] rounded-[32px] p-8 shadow-2xl flex flex-col gap-6 text-left border border-gray-100 dark:border-[#333] animate-fade-in">
+    <div class="bg-[#1e1e1e] w-full max-w-[500px] rounded-[32px] p-8 shadow-[0_30px_70px_rgba(0,0,0,0.6)] flex flex-col gap-6 text-left border border-white/10">
       <div class="flex items-center justify-between">
         <h2 class="text-2xl font-extrabold text-[#211922] dark:text-white">Chỉnh sửa bảng</h2>
         <button

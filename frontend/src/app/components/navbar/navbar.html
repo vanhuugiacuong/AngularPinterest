@@ -1,6 +1,6 @@
 <!-- Header (Navbar) -->
 <header
-  class="fixed top-0 left-0 right-0 h-16 bg-[#120f17]/85 backdrop-blur-xl border-b border-white/[0.07] flex items-center justify-between px-6 z-40"
+  class="fixed top-0 left-0 right-0 h-16 bg-[#0d0d0d]/85 backdrop-blur-xl border-b border-white/[0.07] flex items-center justify-between px-6 z-40"
 >
   <!-- Left Side: logo. Wordmark only when logged out (search bar needs the room) -->
   <div class="flex items-center gap-1 shrink-0">
@@ -23,7 +23,7 @@
       [class.bg-white/[0.06]]="!showSearchDropdown()"
       [class.border-white/10]="!showSearchDropdown()"
       [class.hover:border-white/20]="!showSearchDropdown()"
-      [class.bg-[#17131c]]="showSearchDropdown()"
+      [class.bg-[#1a1a1a]]="showSearchDropdown()"
       [class.border-[#F94083]]="showSearchDropdown()"
       [class.!border-b-0]="showSearchDropdown()"
       [class.!rounded-b-none]="showSearchDropdown()"
@@ -72,7 +72,7 @@
     <!-- Search suggestions dropdown -->
     <div
       *ngIf="showSearchDropdown()"
-      class="absolute top-full left-0 right-0 bg-[#17131c] rounded-b-3xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] border-t-0 border-x border-b border-[#F94083] max-h-[70vh] overflow-y-auto py-4 z-50 -mt-[1px]"
+      class="absolute top-full left-0 right-0 bg-[#1a1a1a] rounded-b-3xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] border-t-0 border-x border-b border-[#F94083] max-h-[70vh] overflow-y-auto py-4 z-50 -mt-[1px]"
       (click)="$event.stopPropagation()"
     >
       <!-- Live "as you type" suggestions -->
@@ -222,14 +222,18 @@
             (error)="onAvatarError($event)"
             class="w-8 h-8 rounded-full border border-[#dadad3] dark:border-[#444] object-cover"
             [class.ring-2]="billing.isPro()"
-            [class.ring-[#F94083]]="billing.isPro()"
+            [class.ring-[#F94083]]="billing.isPro() && !billing.isYearly()"
+            [class.avatar-ring-chrome]="billing.isYearly()"
           />
+          <!-- Gói năm dùng huy hiệu chrome ánh cầu vồng thay cho hồng -->
           <span
             *ngIf="billing.isPro()"
-            class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full grad-pill flex items-center justify-center border-2 border-white dark:border-[#1a1a1a]"
-            title="Thành viên Pro"
+            class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center border-2 border-white dark:border-[#1a1a1a]"
+            [class.grad-pill]="!billing.isYearly()"
+            [class.chrome-badge]="billing.isYearly()"
+            [title]="billing.isYearly() ? 'Thành viên Pro năm' : 'Thành viên Pro'"
           >
-            <app-icon name="crown" class="w-[9px] h-[9px] text-white"></app-icon>
+            <app-icon name="crown" class="w-[9px] h-[9px]" [class.text-white]="!billing.isYearly()"></app-icon>
           </span>
         </span>
         <span
@@ -268,18 +272,23 @@
           </div>
         </div>
 
-        <!-- Nâng cấp lên Pro (chưa mua) -->
+        <!-- Nâng cấp lên Pro (chưa mua) — CTA bán hàng: giữ gradient đặc cho nổi
+             nhưng thêm chiều sâu (viền sáng, bóng nhuốm hồng, crest có highlight,
+             bóng lướt) để tương xứng với thẻ "Thành viên Pro" bên dưới. -->
         <button
           *ngIf="!billing.isPro()"
           (click)="navigateToPro()"
-          class="grad-pill w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-200 cursor-pointer border-none outline-none select-none text-left"
+          class="upgrade-cta relative overflow-hidden w-full flex items-center gap-3 px-3 py-3 rounded-2xl cursor-pointer border-none outline-none select-none text-left"
         >
-          <span class="w-9 h-9 rounded-[11px] bg-white/20 flex items-center justify-center shrink-0 text-white">
+          <span class="upgrade-crest relative z-10 w-9 h-9 rounded-[11px] flex items-center justify-center shrink-0 text-white">
             <app-icon name="crown" class="w-[18px] h-[18px]"></app-icon>
           </span>
-          <span class="flex-1 min-w-0">
-            <span class="block text-sm font-extrabold text-white">Nâng cấp lên Pro</span>
-            <span class="block text-[11px] text-white/85">AI không giới hạn · tải HD</span>
+          <span class="relative z-10 flex-1 min-w-0">
+            <span class="block text-sm font-extrabold text-white leading-tight">Nâng cấp lên Pro</span>
+            <span class="block text-[11px] text-white/85 mt-0.5">AI không giới hạn · bán ảnh · tải HD</span>
+          </span>
+          <span class="upgrade-arrow relative z-10 shrink-0 text-white/80">
+            <span class="material-symbols-outlined text-[18px] leading-none">arrow_forward</span>
           </span>
         </button>
 

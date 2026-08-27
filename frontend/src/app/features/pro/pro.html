@@ -49,6 +49,12 @@
                 <div class="ph-tile-label">Credit tặng</div>
                 <div class="ph-tile-val">+300 / tháng</div>
               </div>
+              <!-- Quyền lợi kiếm tiền: chỉ Pro mới bật bán ảnh Premium được -->
+              <div class="ph-tile">
+                <app-icon name="money" class="w-[18px] h-[18px] text-[#F94083]"></app-icon>
+                <div class="ph-tile-label">Bán ảnh Premium</div>
+                <div class="ph-tile-val">Nhận 70%/lượt</div>
+              </div>
               <div class="ph-tile">
                 <app-icon name="hd" class="w-[18px] h-[18px] text-[#F94083]"></app-icon>
                 <div class="ph-tile-label">Chất lượng tải</div>
@@ -77,16 +83,42 @@
         <h2 class="text-lg font-extrabold tracking-tight mb-4">Quyền lợi bạn đang mở khoá</h2>
         <div class="grid sm:grid-cols-2 gap-3.5 mb-10">
           @for (b of benefits; track b.title) {
-            <div class="flex items-start gap-3.5 p-4 rounded-[20px] border border-[#ececef] dark:border-[#26262c] bg-[#faf9fb] dark:bg-[#17171c]">
-              <span class="w-10 h-10 rounded-xl bg-[#fdeef4] dark:bg-[#2a151f] text-[#F94083] flex items-center justify-center shrink-0">
-                <app-icon [name]="b.icon" class="w-5 h-5"></app-icon>
+            <!-- Quyền lợi mũi nhọn chiếm cả hàng + tông vàng "kiếm tiền" để
+                 tách hẳn bậc so với các quyền lợi thường bên dưới. -->
+            <div
+              class="flex items-start gap-3.5 p-4 rounded-[20px] border"
+              [class.sm:col-span-2]="b.highlight"
+              [class.benefit-hero]="b.highlight"
+              [class.border-[#ececef]]="!b.highlight"
+              [class.dark:border-[#26262c]]="!b.highlight"
+              [class.bg-[#faf9fb]]="!b.highlight"
+              [class.dark:bg-[#17171c]]="!b.highlight"
+            >
+              <span
+                class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                [class.benefit-hero-icon]="b.highlight"
+                [class.bg-[#fdeef4]]="!b.highlight"
+                [class.dark:bg-[#2a151f]]="!b.highlight"
+                [class.text-[#F94083]]="!b.highlight"
+              >
+                <app-icon [name]="b.icon" [class]="b.highlight ? 'w-[22px] h-[22px]' : 'w-5 h-5'"></app-icon>
               </span>
               <div class="min-w-0">
-                <div class="flex items-center gap-1.5">
-                  <span class="font-bold text-sm">{{ b.title }}</span>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="font-bold" [class.text-base]="b.highlight" [class.text-sm]="!b.highlight">{{ b.title }}</span>
+                  @if (b.tag) {
+                    <span class="benefit-tag">{{ b.tag }}</span>
+                  }
                   <app-icon name="check" class="w-4 h-4 text-[#1f9d55] shrink-0"></app-icon>
                 </div>
-                <div class="text-xs text-[#9a95a1] dark:text-[#7c7784] leading-snug mt-0.5">{{ b.desc }}</div>
+                <div
+                  class="leading-snug mt-0.5"
+                  [class.text-[13px]]="b.highlight"
+                  [class.text-[#c9b268]]="b.highlight"
+                  [class.text-xs]="!b.highlight"
+                  [class.text-[#9a95a1]]="!b.highlight"
+                  [class.dark:text-[#7c7784]]="!b.highlight"
+                >{{ b.desc }}</div>
               </div>
             </div>
           }
@@ -118,7 +150,7 @@
           </span>
           <h1 class="text-[32px] sm:text-[52px] font-extrabold tracking-tight leading-[1.05] mb-4">
             Sáng tạo không giới hạn,<br class="hidden sm:block" />
-            <span class="bg-gradient-to-r from-[#F94083] to-[#B15CAA] bg-clip-text text-transparent">nâng tầm với Pro</span>
+            <span class="grad-brand-text">nâng tầm với Pro</span>
           </h1>
           <p class="text-[#7c7784] dark:text-[#9b96a2] text-base sm:text-lg max-w-xl mx-auto">
             Tạo ảnh AI thỏa thích, tải bản HD sạch không watermark và nhận credit hàng tháng để sưu tầm tác phẩm đẹp của cộng đồng.
@@ -169,13 +201,14 @@
 
         <h2 class="text-xl font-extrabold tracking-tight mb-5">Bạn nhận được gì với Pro?</h2>
         <div class="rounded-[24px] overflow-hidden border border-[#ececef] dark:border-[#26262c]">
-          <div class="grid grid-cols-[1fr_84px_84px] sm:grid-cols-[1fr_120px_120px] bg-[#faf9fb] dark:bg-[#17171c] text-[11px] font-bold text-[#9a95a1] dark:text-[#7c7784] uppercase tracking-wide">
+          <div class="grid grid-cols-[1fr_64px_74px_82px] sm:grid-cols-[1fr_100px_110px_120px] bg-[#faf9fb] dark:bg-[#1a1a1a] text-[11px] font-bold text-[#9a95a1] dark:text-[#7c7784] uppercase tracking-wide">
             <div class="px-4 sm:px-5 py-3">Quyền lợi</div>
             <div class="px-2 py-3 text-center">Free</div>
-            <div class="px-2 py-3 text-center text-[#F94083]">Pro</div>
+            <div class="px-2 py-3 text-center text-[#F94083]">Pro tháng</div>
+            <div class="px-2 py-3 text-center chrome-text">Pro năm</div>
           </div>
           @for (b of benefits; track b.title; let last = $last) {
-            <div class="grid grid-cols-[1fr_84px_84px] sm:grid-cols-[1fr_120px_120px] items-center" [class.border-b]="!last" [class.border-[#f2f0f5]]="!last" [class.dark:border-[#232329]]="!last">
+            <div class="grid grid-cols-[1fr_64px_74px_82px] sm:grid-cols-[1fr_100px_110px_120px] items-center" [class.border-b]="!last" [class.border-[#f2f0f5]]="!last" [class.dark:border-[#232329]]="!last">
               <div class="px-4 sm:px-5 py-4 flex items-start gap-3 min-w-0">
                 <app-icon [name]="b.icon" class="w-5 h-5 text-[#F94083] shrink-0 mt-0.5"></app-icon>
                 <div class="min-w-0">
@@ -185,6 +218,14 @@
               </div>
               <div class="px-2 py-4 text-center text-xs text-[#9a95a1] dark:text-[#7c7784]">{{ b.free }}</div>
               <div class="px-2 py-4 text-center text-xs font-extrabold text-[#F94083]">{{ b.pro }}</div>
+              <!-- Cột gói năm: có giá trị riêng thì tô chrome cho nổi bật hơn hẳn
+                   gói tháng; không có nghĩa là quyền lợi giống hệt gói tháng. -->
+              <div class="px-2 py-4 text-center text-xs font-extrabold"
+                [class.chrome-text]="!!b.yearly"
+                [class.text-[#9a95a1]]="!b.yearly"
+                [class.dark:text-[#7c7784]]="!b.yearly">
+                {{ b.yearly || b.pro }}
+              </div>
             </div>
           }
         </div>

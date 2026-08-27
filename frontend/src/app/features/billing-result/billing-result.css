@@ -10,7 +10,7 @@
    (header QR, "Xem ví credit", "Quay lại nâng cấp Pro") nhưng CHƯA từng được
    định nghĩa ở đây: các nút đó trước giờ render trong suốt, không có nền. */
 .grad-btn {
-  background-image: linear-gradient(120deg, #ff6f9c 0%, #f94083 32%, #d454a8 62%, #b15caa 100%);
+  background-image: var(--grad-brand);
 }
 
 /* ── Thẻ "Đã nhận thanh toán" — nhuốm xanh lá + glow, để không bị hoà vào
@@ -99,4 +99,15 @@
 
 @media (prefers-reduced-motion: reduce) {
   .success-spark, .success-badge-ring, .success-pop { animation: none; }
+}
+
+/* Dòng "Đã chuyển tiền mà chưa nhận được?" — kiểu link trợ giúp, chỉ sáng lên
+   khi rê chuột. Trước đây là khối vàng, tranh chú ý với hai nút chính. */
+.report-link {
+  transition: color 0.15s ease;
+}
+.report-link:hover:not(:disabled) {
+  color: #ff6fa1;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }

@@ -1,1 +1,93 @@
 /* Component-specific styles for VisualSearchModal */
+
+/* Huy hiệu tiêu đề */
+.vs-crest {
+  background-image: var(--grad-brand);
+  box-shadow: 0 8px 20px -6px rgba(249, 64, 131, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+/* ── Vùng thả ảnh: viền đứt + glow + icon nổi bồng bềnh + tia lấp lánh,
+   đồng bộ với dropzone ở trang Tạo ghim (features/create/create.css). ── */
+.vs-drop {
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px dashed rgba(255, 255, 255, 0.14);
+  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+}
+.vs-drop:hover {
+  border-color: #f94083;
+  background-color: rgba(249, 64, 131, 0.06);
+}
+
+/* Đang rê file lên: viền đặc hồng + nền nhuốm hồng + phóng nhẹ */
+.vs-drop-active {
+  border-style: solid;
+  border-color: #f94083;
+  background-color: rgba(249, 64, 131, 0.1);
+  transform: scale(1.01);
+}
+
+.vs-drop-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(46% 50% at 50% 40%, rgba(249, 64, 131, 0.14), transparent 70%);
+}
+
+.vs-drop-icon {
+  background-image: var(--grad-brand);
+  box-shadow: 0 10px 26px -8px rgba(249, 64, 131, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+  animation: vs-bob 3.2s ease-in-out infinite;
+}
+@keyframes vs-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.vs-spark {
+  position: absolute;
+  font-size: 14px;
+  color: #f7c948;
+  opacity: 0.7;
+  pointer-events: none;
+  animation: vs-twinkle 2.6s ease-in-out infinite;
+}
+.vs-spark-1 { top: 16%; left: 16%; animation-delay: 0s; }
+.vs-spark-2 { top: 24%; right: 15%; font-size: 11px; animation-delay: 0.9s; }
+@keyframes vs-twinkle {
+  0%, 100% { opacity: 0.15; transform: scale(0.85) rotate(0deg); }
+  50% { opacity: 0.9; transform: scale(1.15) rotate(18deg); }
+}
+
+/* Vòng quét khi đang phân tích ảnh (thay spinner tròn đơn điệu) */
+.vs-scan {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  border-radius: 9999px;
+  border: 2px solid rgba(249, 64, 131, 0.9);
+}
+.vs-scan::before,
+.vs-scan::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 9999px;
+  border: 2px solid rgba(249, 64, 131, 0.55);
+  animation: vs-scan-pulse 1.6s ease-out infinite;
+}
+.vs-scan::after {
+  animation-delay: 0.8s;
+}
+@keyframes vs-scan-pulse {
+  0% { transform: scale(0.85); opacity: 0.9; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vs-drop-icon,
+  .vs-spark,
+  .vs-scan::before,
+  .vs-scan::after {
+    animation: none;
+  }
+}

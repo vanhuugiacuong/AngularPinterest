@@ -29,6 +29,11 @@ model User {
   // Thương mại hoá (Pro + Credit)
   isPro        Boolean   @default(false)
   proExpiresAt DateTime?
+  /// Cấp gói Pro hiện tại ("MONTHLY" | "YEARLY") — lưu thẳng ở đây để mọi nơi
+  /// hiển thị avatar biết cấp gói mà không phải join Subscription. Tên có tiền
+  /// tố pinhub vì bảng User dùng chung với hệ thống khác (đã có cột `plan`).
+  /// Cột tạo bằng SQL thủ công: scratch/apply-pro-plan.cjs.
+  pinhubProPlan String?
 
   wallet        Wallet?
   subscriptions Subscription[]
@@ -129,6 +134,24 @@ model HiddenPin {
 
 // A user reported this pin ("Báo cáo Ghim") — no moderation queue UI yet,
 // just persisted so reports aren't lost and can be reviewed later.
+/// Người dùng báo sự cố chuyển khoản để admin xử lý (đã chuyển nhưng chưa
+/// nhận, sai số tiền, sai nội dung...). Bảng tạo bằng SQL thủ công —
+/// xem scratch/apply-payment-report.cjs. KHÔNG chạy prisma db push.
+model PaymentReport {
+  id         String    @id @default(uuid())
+  userId     String
+  paymentId  String?
+  memo       String?
+  reason     String
+  note       String?
+  status     String    @default("OPEN")
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([status])
+  @@index([userId])
+}
+
 model PinReport {
   id        String   @id @default(uuid())
   userId    String

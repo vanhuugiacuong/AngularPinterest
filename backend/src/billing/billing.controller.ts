@@ -59,6 +59,20 @@ export class BillingController {
     return this.billingService.cancelPayment(user.id, ref);
   }
 
+  /**
+   * Báo sự cố chuyển khoản để admin xử lý — vd đã chuyển tiền nhưng hệ thống
+   * chưa ghi nhận. Lưu vào bảng PaymentReport, trang admin sẽ đọc từ đó.
+   */
+  @Post('payments/:ref/report')
+  @UseGuards(SupabaseAuthGuard)
+  reportPayment(
+    @CurrentUser() user: UserPayload,
+    @Param('ref') ref: string,
+    @Body() body: { reason?: string; note?: string },
+  ) {
+    return this.billingService.reportPayment(user.id, ref, body?.reason, body?.note);
+  }
+
   // Mua quyền tải ảnh Premium bằng credit
   @Post('pins/:id/purchase')
   @UseGuards(SupabaseAuthGuard)

@@ -1,0 +1,79 @@
+<div
+  *ngIf="reportService.current() as dialog"
+  class="fixed inset-0 bg-black/60 backdrop-blur-md z-[90] flex items-center justify-center p-4 animate-fade-in"
+  (click)="cancel()"
+>
+  <div
+    class="bg-[#1e1e1e] w-full max-w-[440px] rounded-[28px] shadow-[0_30px_70px_rgba(0,0,0,0.6)] flex flex-col text-left border border-white/10 overflow-hidden"
+    (click)="$event.stopPropagation()"
+  >
+    <!-- Header -->
+    <div class="flex items-start gap-3.5 p-6 pb-4">
+      <span class="shrink-0 w-11 h-11 rounded-2xl bg-[#2a151b] text-[#ff5c7a] flex items-center justify-center">
+        <span class="material-symbols-outlined text-[22px] leading-none" style="font-variation-settings: 'FILL' 1, 'wght' 600;">{{ isPayment ? 'receipt_long' : 'flag' }}</span>
+      </span>
+      <div class="flex-1 min-w-0 pt-0.5">
+        <h2 class="text-base font-extrabold text-white leading-snug">{{ title }}</h2>
+        <p class="text-[13px] text-[#a29aac] mt-1 leading-snug">
+          {{ lead }}
+        </p>
+        <p class="text-[12px] text-[#8b8494] mt-1.5 leading-snug">
+          {{ isPayment ? 'Mã đơn: ' : '' }}<span class="text-white font-semibold">{{ dialog.subject }}</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- Danh sách lý do -->
+    <div class="px-4 max-h-[42vh] overflow-y-auto flex flex-col gap-1">
+      @for (r of reasons; track r.code) {
+        <button
+          type="button"
+          (click)="pick(r.code)"
+          class="reason-row w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-left cursor-pointer border-none outline-none bg-transparent"
+          [class.reason-row-on]="selected() === r.code"
+        >
+          <span class="reason-radio shrink-0" [class.reason-radio-on]="selected() === r.code"></span>
+          <span class="flex-1 min-w-0">
+            <span class="block text-[13px] font-bold text-white leading-snug">{{ r.label }}</span>
+            <span class="block text-[11px] text-[#8b8494] leading-snug mt-0.5">{{ r.desc }}</span>
+          </span>
+        </button>
+      }
+    </div>
+
+    <!-- Ô mô tả thêm khi chọn "Lý do khác" -->
+    @if (isOther) {
+      <div class="px-6 pt-3 animate-fade-in">
+        <textarea
+          [(ngModel)]="note"
+          [maxlength]="noteMax"
+          rows="3"
+          placeholder="Mô tả ngắn gọn vấn đề bạn gặp phải..."
+          class="report-note w-full rounded-2xl px-3.5 py-3 text-[13px] leading-snug outline-none resize-none"
+        ></textarea>
+        <div class="flex justify-end mt-1.5">
+          <span class="text-[11px] font-semibold" [class.text-[#ff5c7a]]="noteLeft <= 20" [class.text-[#6c6674]]="noteLeft > 20">
+            {{ note.length }}/{{ noteMax }}
+          </span>
+        </div>
+      </div>
+    }
+
+    <!-- Nút hành động -->
+    <div class="flex gap-2.5 justify-end p-6 pt-4">
+      <button
+        (click)="cancel()"
+        class="h-10 px-5 rounded-full font-bold text-sm text-white bg-white/[0.06] border border-white/10 hover:bg-white/10 transition-colors cursor-pointer outline-none"
+      >
+        Hủy
+      </button>
+      <button
+        (click)="submit()"
+        [disabled]="!canSubmit"
+        class="h-10 px-5 rounded-full font-bold text-sm text-white bg-gradient-to-r from-[#ff5c7a] to-[#e11d48] shadow-[0_10px_24px_-8px_rgba(225,29,72,0.6)] transition-all hover:-translate-y-0.5 cursor-pointer border-none outline-none disabled:opacity-40 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none"
+      >
+        Gửi báo cáo
+      </button>
+    </div>
+  </div>
+</div>

@@ -264,7 +264,7 @@
             <span class="material-symbols-outlined text-[20px]">more_horiz</span>
           </button>
         </div>
-        <button class="px-5 py-2 rounded-full bg-gradient-to-r from-[#F94083] to-[#B15CAA] hover:opacity-95 text-white text-sm font-bold transition-opacity" (click)="goToPublishStep()">
+        <button class="px-5 py-2 rounded-full grad-brand hover:opacity-95 text-white text-sm font-bold transition-opacity" (click)="goToPublishStep()">
           Tiếp theo
         </button>
       } @else {
@@ -495,7 +495,7 @@
         <img [src]="pin.imageUrl" [alt]="pin.title" class="w-full rounded-2xl object-contain" />
 
         <div class="flex items-center gap-2 mt-4 mb-5">
-          <app-pro-avatar [src]="pin.user.avatarUrl" [isPro]="!!$any(pin.user).isPro" [size]="32" [alt]="pin.user.username"></app-pro-avatar>
+          <app-pro-avatar [src]="pin.user.avatarUrl" [isPro]="!!$any(pin.user).isPro" [isYearly]="$any(pin.user).pinhubProPlan === 'YEARLY'" [size]="32" [alt]="pin.user.username"></app-pro-avatar>
           <span class="text-sm font-bold">{{ pin.user.username }}</span>
         </div>
 
@@ -722,7 +722,7 @@
               title="Chữ thường"
             >A</button>
             <button
-              class="w-10 h-10 rounded-xl flex items-center justify-center font-bold bg-gradient-to-r from-[#F94083] to-[#B15CAA] text-white border-2"
+              class="w-10 h-10 rounded-xl flex items-center justify-center font-bold grad-brand text-white border-2"
               [class.border-[#F94083]]="selectedLayer.highlight"
               [class.border-transparent]="!selectedLayer.highlight"
               (click)="setTextHighlight(true)"

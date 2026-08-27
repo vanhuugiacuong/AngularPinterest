@@ -24,7 +24,10 @@ export interface CreditPack {
 
 export const PLANS: Plan[] = [
   { code: 'MONTHLY', name: 'Pro tháng', priceVnd: 79000, months: 1, grantCredits: 300 },
-  { code: 'YEARLY', name: 'Pro năm', priceVnd: 790000, months: 12, grantCredits: 300, badge: 'Tiết kiệm 17%' },
+  // Credit tặng CHỈ cấp một lần lúc thanh toán (xem markPaid), không cấp hằng
+  // tháng — nên gói năm phải tặng trọn 12 kỳ, cộng 400 credit thưởng. Trước đây
+  // gói năm cũng chỉ tặng 300 như gói tháng, khiến mua 12 tháng lẻ lợi hơn hẳn.
+  { code: 'YEARLY', name: 'Pro năm', priceVnd: 690000, months: 12, grantCredits: 4000, badge: 'Tiết kiệm 27%' },
 ];
 
 export const CREDIT_PACKS: CreditPack[] = [
@@ -35,8 +38,18 @@ export const CREDIT_PACKS: CreditPack[] = [
 ];
 
 export const PREMIUM_PRICE_MIN = 10;
+
+/** Trần giá bán ảnh: gói tháng 500 credit, gói năm được nâng lên 1000. */
 export const PREMIUM_PRICE_MAX = 500;
+export const PREMIUM_PRICE_MAX_YEARLY = 1000;
+
+/**
+ * Phí nền tảng khi bán ảnh Premium — gói năm được chia tốt hơn (80/20 thay vì
+ * 70/30). Đây là quyền lợi đắt giá nhất của gói năm: người bán nhiều ảnh tự
+ * tính ra gói năm có lời.
+ */
 export const PLATFORM_FEE_PERCENT = 30;
+export const PLATFORM_FEE_PERCENT_YEARLY = 20;
 
 /** Đơn QR hết hạn sau 10 phút. */
 export const QR_EXPIRE_MS = 10 * 60 * 1000;

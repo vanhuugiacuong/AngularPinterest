@@ -54,16 +54,16 @@
   <!-- Login Modal Dialog Overlay (Scrim) -->
   <div
     *ngIf="showLoginModal()"
-    class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
+    class="fixed inset-0 bg-black/60 backdrop-blur-md z-[80] flex items-center justify-center p-4 animate-fade-in"
   >
-    <!-- Modal Card (modal-card specs: rounded-lg 32px, white canvas, padding 32px) -->
+    <!-- Modal Card — dark-only, đồng bộ với ConfirmDialog (#1e1e1e + viền mảnh) -->
     <div
-      class="max-w-[440px] w-full bg-white rounded-[32px] p-10 relative shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-[#e5e5e0] text-center"
+      class="max-w-[440px] w-full bg-[#1e1e1e] rounded-[32px] p-10 relative shadow-[0_30px_70px_rgba(0,0,0,0.6)] border border-white/10 text-center"
     >
       <!-- Close button on top-right -->
       <button
         (click)="closeLoginModal()"
-        class="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#f6f6f3] text-black hover:bg-[#e5e5e0] transition-colors flex items-center justify-center cursor-pointer"
+        class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/[0.06] text-white hover:bg-white/10 transition-colors flex items-center justify-center cursor-pointer border border-white/10"
         title="Đóng"
       >
         <span class="material-symbols-outlined text-lg leading-none font-semibold">close</span>
@@ -71,7 +71,7 @@
 
       <!-- Title & Description inside modal -->
       <h2
-        class="text-[22px] font-semibold text-[#211922] tracking-tight mb-2 flex items-center justify-center gap-2"
+        class="text-[22px] font-semibold text-white tracking-tight mb-2 flex items-center justify-center gap-2"
       >
         Đăng nhập vào
         <span class="inline-flex items-center gap-1">
@@ -79,14 +79,14 @@
           <span><span class="text-[#F94083]">Pin</span>Hub</span>
         </span>
       </h2>
-      <p class="text-[#62625b] text-sm mb-8 leading-relaxed px-4">
+      <p class="text-[#a29aac] text-sm mb-8 leading-relaxed px-4">
         Tiếp tục bằng tài khoản Google để bắt đầu sáng tạo hình ảnh.
       </p>
 
       <!-- Google Login Button -->
       <button
         (click)="login()"
-        class="w-full h-11 flex items-center justify-center gap-3 px-4 bg-[#e5e5e0] hover:bg-[#c8c8c1] text-black font-bold rounded-[16px] transition-all duration-200 cursor-pointer active:scale-95 group"
+        class="w-full h-11 flex items-center justify-center gap-3 px-4 bg-white hover:bg-[#f0edf3] text-[#1e1e1e] font-bold rounded-[16px] transition-all duration-200 cursor-pointer active:scale-95 group border-none outline-none"
       >
         <svg
           class="w-5 h-5 transition-transform duration-300 group-hover:scale-105"
@@ -122,10 +122,10 @@
         </div>
       }
 
-      <div class="mt-8 text-[12px] text-[#62625b] leading-normal px-4">
+      <div class="mt-8 text-[12px] text-[#a29aac] leading-normal px-4">
         Bằng việc tiếp tục, bạn đồng ý với
-        <a href="#" class="font-semibold text-[#211922] hover:underline">Điều khoản Dịch vụ</a> và
-        <a href="#" class="font-semibold text-[#211922] hover:underline">Chính sách Bảo mật</a> của
+        <a href="#" class="font-semibold text-white hover:underline">Điều khoản Dịch vụ</a> và
+        <a href="#" class="font-semibold text-white hover:underline">Chính sách Bảo mật</a> của
         chúng tôi.
       </div>
     </div>

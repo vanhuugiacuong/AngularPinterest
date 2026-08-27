@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { VisualSearchService } from '../../core/services/visual-search';
 
@@ -12,6 +12,9 @@ import { VisualSearchService } from '../../core/services/visual-search';
 export class VisualSearchModal {
   public visualSearchService = inject(VisualSearchService);
 
+  /** true khi đang rê file lên vùng thả — đổi viền/nền cho thấy rõ thả được. */
+  public isDraggingOver = signal(false);
+
   onFileSelected(event: any) {
     const file = event.target.files[0];
     if (file) {
@@ -22,6 +25,7 @@ export class VisualSearchModal {
 
   onDrop(event: DragEvent) {
     event.preventDefault();
+    this.isDraggingOver.set(false);
     const file = event.dataTransfer?.files?.[0];
     if (file) {
       this.visualSearchService.selectFile(file);
@@ -30,5 +34,11 @@ export class VisualSearchModal {
 
   onDragOver(event: DragEvent) {
     event.preventDefault();
+    this.isDraggingOver.set(true);
+  }
+
+  onDragLeave(event: DragEvent) {
+    event.preventDefault();
+    this.isDraggingOver.set(false);
   }
 }

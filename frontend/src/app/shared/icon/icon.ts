@@ -40,7 +40,15 @@ import { Component, Input } from '@angular/core';
         width: 100%;
         height: 100%;
       }
+      /* Glyph Material có phần đệm thừa trên/dưới trong hộp font, nên chỉ
+         align-items ở host là chưa đủ — icon vẫn trông thấp hơn dòng chữ bên
+         cạnh. Trải glyph kín hộp rồi căn giữa lại bằng grid để nó nằm đúng
+         tâm quang học. */
       .mi {
+        display: grid;
+        place-items: center;
+        width: 100%;
+        height: 100%;
         font-size: 100cqmin;
         line-height: 1;
         color: currentColor;
@@ -71,6 +79,9 @@ export class Icon {
     bank: 'account_balance',
     copy: 'content_copy',
     plus: 'add',
+    // Kiếm tiền từ ảnh (bán ảnh Premium) — ký hiệu $ trong vòng tròn
+    money: 'paid',
+    'money-bag': 'savings',
   };
 
   get mat(): string {

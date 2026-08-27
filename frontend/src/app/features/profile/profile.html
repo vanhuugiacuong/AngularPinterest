@@ -46,9 +46,6 @@
                 <div *ngIf="activeTab() === 'boards'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-black rounded-full"></div>
               </div>
 
-              <div class="relative opacity-40 cursor-not-allowed pb-2">
-                <span class="text-sm font-bold text-black dark:text-white">Ảnh ghép</span>
-              </div>
             </div>
           </div>
 
@@ -56,7 +53,7 @@
           <div class="flex items-center gap-4 shrink-0 ml-auto md:ml-0">
             <!-- User Info: Avatar next to Name and followers -->
             <div class="flex items-center gap-3 select-none">
-              <app-pro-avatar [src]="p.avatarUrl" [isPro]="!!p.isPro" [size]="64" alt="Avatar"></app-pro-avatar>
+              <app-pro-avatar [src]="p.avatarUrl" [isPro]="!!p.isPro" [isYearly]="$any(p).pinhubProPlan === 'YEARLY'" [size]="64" alt="Avatar"></app-pro-avatar>
               <div class="flex flex-col text-left justify-center gap-0.5">
                 <span class="flex items-center gap-2">
                   <span class="text-xl font-extrabold text-black dark:text-white leading-tight">{{ p.username }}</span>
@@ -118,9 +115,6 @@
           <div class="w-full flex items-center justify-between mb-8 mt-2 select-none">
             <!-- Left action buttons -->
             <div class="flex items-center gap-2">
-              <button class="w-9 h-9 rounded-full hover:bg-gray-100 dark:hover:bg-[#2a2a2a] flex items-center justify-center cursor-pointer border-none outline-none text-black dark:text-white transition-colors">
-                <span class="material-symbols-outlined text-[20px] font-semibold">tune</span>
-              </button>
               <!-- Yêu thích pill button -->
               <button class="h-9 px-4 rounded-full bg-[#f0f0f0] dark:bg-[#2a2a2a] hover:bg-[#e1e1da] dark:hover:bg-[#333] text-black dark:text-white font-bold text-xs flex items-center justify-center gap-1 border-none outline-none cursor-pointer transition-colors">
                 <span class="material-symbols-outlined text-xs leading-none">star</span>
@@ -272,8 +266,9 @@
                     <div class="flex justify-end">
                       <button
                         (click)="$event.stopPropagation()"
-                        class="pointer-events-auto bg-[#F94083] hover:bg-[#dc2f6d] text-white font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer border-none outline-none"
+                        class="pointer-events-auto bg-[#F94083] hover:bg-[#dc2f6d] text-white font-bold px-3 py-1.5 rounded-full text-[11px] cursor-pointer border-none outline-none inline-flex items-center gap-1"
                       >
+                        <span class="material-symbols-outlined text-[14px] leading-none save-icon">bookmark</span>
                         Lưu
                       </button>
                     </div>
@@ -374,9 +369,6 @@
           <div class="w-full flex items-center justify-between mb-8 mt-2 select-none">
             <!-- Left action buttons -->
             <div class="flex items-center gap-2">
-              <button class="w-9 h-9 rounded-full hover:bg-gray-100 dark:hover:bg-[#2a2a2a] flex items-center justify-center cursor-pointer border-none outline-none text-black dark:text-white transition-colors">
-                <span class="material-symbols-outlined text-[20px] font-semibold">tune</span>
-              </button>
               <button class="h-9 px-4 rounded-full bg-[#f0f0f0] dark:bg-[#2a2a2a] hover:bg-[#e1e1da] dark:hover:bg-[#333] text-black dark:text-white font-extrabold text-xs flex items-center justify-center border-none outline-none cursor-pointer transition-colors">
                 Nhóm
               </button>
@@ -648,9 +640,9 @@
   <!-- Create Board Modal -->
   <div
     *ngIf="showCreateBoardModal()"
-    class="fixed inset-0 bg-black/50 z-[999] flex items-center justify-center p-4 backdrop-blur-sm"
+    class="fixed inset-0 bg-black/60 backdrop-blur-md z-[80] flex items-center justify-center p-4 animate-fade-in"
   >
-    <div class="bg-white dark:bg-[#1e1e1e] w-full max-w-[500px] rounded-[32px] p-8 shadow-2xl flex flex-col gap-6 text-left border border-gray-100 dark:border-[#333] animate-fade-in">
+    <div class="bg-[#1e1e1e] w-full max-w-[500px] rounded-[32px] p-8 shadow-[0_30px_70px_rgba(0,0,0,0.6)] flex flex-col gap-6 text-left border border-white/10">
       <div class="flex items-center justify-between">
         <h2 class="text-2xl font-extrabold text-[#211922] dark:text-white">Tạo bảng mới</h2>
         <button

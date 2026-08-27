@@ -5,6 +5,7 @@ import { Navbar } from '../../components/navbar/navbar';
 import { Icon } from '../../shared/icon/icon';
 import { BillingService, QR_EXPIRE_MS } from '../../core/services/billing';
 import { ToastService } from '../../core/services/toast';
+import { ReportService } from '../../core/services/report';
 
 type Phase = 'qr' | 'success' | 'failed' | 'expired';
 
@@ -20,6 +21,7 @@ export class BillingResult implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private toast = inject(ToastService);
+  private reportService = inject(ReportService);
 
   public phase = signal<Phase>('qr');
   public ref = '';
@@ -115,6 +117,34 @@ export class BillingResult implements OnInit, OnDestroy {
     if (!p) return '';
     if (p.purpose === 'PRO_SUB') return p.planCode === 'YEARLY' ? 'PinHub Pro (năm)' : 'PinHub Pro (tháng)';
     return `${p.credits} credit`;
+  }
+
+  public isReporting = signal(false);
+
+  /**
+   * Báo sự cố chuyển khoản cho admin xử lý thủ công.
+   *
+   * Chỉ tạo phiếu chờ xem xét, KHÔNG tự cộng tiền — nếu tự cộng thì ai cũng
+   * bấm báo cáo là được Pro. Admin đối chiếu sao kê rồi mới quyết định.
+   */
+  async reportIssue() {
+    const p = this.pending();
+    if (!p || this.isReporting()) return;
+
+    const reason = await this.reportService.ask(p.memo, 'payment');
+    if (!reason) return;
+
+    this.isReporting.set(true);
+    try {
+      const ok = await this.billing.reportPayment(this.ref, reason);
+      if (ok) {
+        this.toast.success('Đã gửi báo cáo. Đội ngũ sẽ kiểm tra sao kê và phản hồi bạn.');
+      } else {
+        this.toast.error('Không gửi được báo cáo. Vui lòng thử lại.');
+      }
+    } finally {
+      this.isReporting.set(false);
+    }
   }
 
   // Nút "Tôi đã chuyển khoản": bản thật chỉ dò lại; bản mô phỏng cộng luôn.

@@ -52,7 +52,7 @@
                           (click)="startConversationWith(user)"
                           class="w-full flex items-center gap-2.5 px-2 py-2 text-left cursor-pointer hover:bg-[#f6f6f3] dark:hover:bg-[#2a2a2a] rounded-xl border-none bg-transparent outline-none"
                         >
-                          <app-pro-avatar [src]="user.avatarUrl" [isPro]="!!user.isPro" [size]="32" [alt]="user.username"></app-pro-avatar>
+                          <app-pro-avatar [src]="user.avatarUrl" [isPro]="!!user.isPro" [isYearly]="$any(user).pinhubProPlan === 'YEARLY'" [size]="32" [alt]="user.username"></app-pro-avatar>
                           <span class="flex items-center gap-1.5 min-w-0">
                             <span class="text-sm font-bold text-black dark:text-white truncate">{{ user.username }}</span>
                             <span *ngIf="user.isPro" class="px-1 py-0.5 rounded bg-[#F94083]/15 text-[#F94083] text-[8px] font-extrabold tracking-wider leading-none shrink-0">PRO</span>
@@ -115,7 +115,7 @@
                   [class.bg-[#f6f6f3]]="selectedConversationId() === conversation.id"
                   [class.dark:bg-[#242424]]="selectedConversationId() === conversation.id"
                 >
-                  <app-pro-avatar class="shrink-0" [src]="conversation.otherUser.avatarUrl" [isPro]="!!conversation.otherUser.isPro" [size]="44" [alt]="conversation.otherUser.username"></app-pro-avatar>
+                  <app-pro-avatar class="shrink-0" [src]="conversation.otherUser.avatarUrl" [isPro]="!!conversation.otherUser.isPro" [isYearly]="$any(conversation.otherUser).pinhubProPlan === 'YEARLY'" [size]="44" [alt]="conversation.otherUser.username"></app-pro-avatar>
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center justify-between gap-2">
                       <span class="flex items-center gap-1.5 min-w-0">
@@ -183,7 +183,7 @@
                   (click)="navigateToProfile(otherUser.username)"
                   class="flex items-center gap-2.5 text-left cursor-pointer bg-transparent border-none p-0 min-w-0 outline-none"
                 >
-                  <app-pro-avatar [src]="otherUser.avatarUrl" [isPro]="!!otherUser.isPro" [size]="36" [alt]="otherUser.username"></app-pro-avatar>
+                  <app-pro-avatar [src]="otherUser.avatarUrl" [isPro]="!!otherUser.isPro" [isYearly]="$any(otherUser).pinhubProPlan === 'YEARLY'" [size]="36" [alt]="otherUser.username"></app-pro-avatar>
                   <span class="flex flex-col min-w-0">
                     <span class="flex items-center gap-1.5">
                       <span class="text-sm font-bold text-black dark:text-white truncate hover:underline">{{ otherUser.username }}</span>
