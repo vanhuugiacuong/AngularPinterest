@@ -28,6 +28,8 @@ import { CollageStoreService } from './services/collage-store.service';
 import { CollageTransferService } from './services/collage-transfer.service';
 import { SEGMENTATION_PROVIDER } from './services/segmentation-provider';
 import { InteractiveSegmentationService } from './services/interactive-segmentation.service';
+import { SELECTION_ENGINE, SMART_CUT_ENGINE } from './services/selection-engine';
+import { RegionGrowingSelectionEngine } from './services/region-growing-selection-engine';
 import { ToastService } from '../../core/services/toast';
 
 @Component({
@@ -45,6 +47,8 @@ import { ToastService } from '../../core/services/toast';
   providers: [
     CollageStoreService,
     { provide: SEGMENTATION_PROVIDER, useExisting: InteractiveSegmentationService },
+    { provide: SELECTION_ENGINE, useExisting: RegionGrowingSelectionEngine },
+    { provide: SMART_CUT_ENGINE, useExisting: RegionGrowingSelectionEngine },
   ],
   templateUrl: './collage.html',
   styleUrl: './collage.css',
