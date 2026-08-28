@@ -241,6 +241,31 @@ Số liệu (tiền, credit, ngày) **luôn** dùng `font-variant-numeric: tabul
 
 ---
 
+## 8b. Hiệu năng — trang nào lazy
+
+`ng build` production có ngưỡng bundle. Chỉ **4 trang** nạp kèm bundle đầu:
+`''` (giới thiệu), `feed`, `pin/:id`, và trang 404 — đó là màn hình người dùng
+gặp đầu tiên. **Mọi trang còn lại phải `loadComponent`.**
+
+Thêm route mới thì mặc định dùng lazy. Chỉ để eager khi trang đó nằm trong
+đường đi đầu tiên của người dùng, và nói rõ lý do trong comment.
+
+Kiểm trước khi merge:
+
+```bash
+npx ng build          # phải PASS, không chỉ dev server chạy được
+```
+
+> Dev server **không** kiểm ngưỡng — code vượt ngưỡng vẫn chạy ngon lúc phát
+> triển và chỉ vỡ khi build để deploy.
+
+Ngưỡng hiện tại trong `angular.json`: bundle đầu cảnh báo `1.35MB` / lỗi
+`1.4MB`; CSS mỗi component cảnh báo `8kB` / lỗi `24kB`. Mức 8kB là mặc định của
+Angular, hợp cho component nhỏ nhưng quá chặt với trang nhiều tab như khu quản
+trị (19kB) — nên hạ thành cảnh báo, giữ lỗi ở mức đủ rộng.
+
+---
+
 ## 9. Danh sách kiểm trước khi merge
 
 - [ ] Không có mã màu mới nào ngoài token trong §2
@@ -254,6 +279,8 @@ Số liệu (tiền, credit, ngày) **luôn** dùng `font-variant-numeric: tabul
 - [ ] Animation có nhánh `prefers-reduced-motion`
 - [ ] Chữ hiển thị bằng tiếng Việt
 - [ ] `npx tsc --noEmit -p tsconfig.app.json` sạch
+- [ ] `npx ng build` PASS (dev server chạy được KHÔNG đủ)
+- [ ] Route mới dùng `loadComponent` (lazy), trừ khi nằm trong đường đi đầu tiên
 
 ---
 
