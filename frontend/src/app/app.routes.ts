@@ -30,6 +30,19 @@ export const routes: Routes = [
     loadComponent: () => import('./features/collage/collage').then((module) => module.Collage),
     canActivate: [authGuard],
   },
+  {
+    path: 'auctions',
+    loadComponent: () => import('./features/auctions/auctions').then((module) => module.Auctions),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'auctions/:id',
+    loadComponent: () =>
+      import('./features/auctions/auction-detail/auction-detail').then(
+        (module) => module.AuctionDetailPage,
+      ),
+    canActivate: [authGuard],
+  },
   { path: 'messages', component: Messages, canActivate: [authGuard] },
   { path: 'messages/:conversationId', component: Messages, canActivate: [authGuard] },
   { path: 'settings', component: Settings, canActivate: [authGuard] },

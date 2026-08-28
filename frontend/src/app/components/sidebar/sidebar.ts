@@ -289,6 +289,11 @@ export class Sidebar implements OnInit, OnDestroy {
     this.router.navigate(['/collage']);
   }
 
+  navigateToAuctions(): void {
+    this.closeNotifications();
+    this.router.navigate(['/auctions']);
+  }
+
   navigateToMessages(): void {
     this.closeNotifications();
     this.router.navigate(['/messages']);
@@ -341,6 +346,10 @@ export class Sidebar implements OnInit, OnDestroy {
 
   isCollagePage(): boolean {
     return this.router.url === '/collage';
+  }
+
+  isAuctionsPage(): boolean {
+    return this.router.url.startsWith('/auctions');
   }
 
   isMessagesPage(): boolean {

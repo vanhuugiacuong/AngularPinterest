@@ -1,0 +1,116 @@
+/* Hero — pure blue gradient (nova-blue -> studio-aqua), deliberately not the
+   site-wide blue->violet .bg-gradient-brand: this feature is meant to read
+   as one consistent blue, per the "đồng bộ tất cả theme là màu xanh dương"
+   brief. */
+.nf-auction-hero {
+  background: linear-gradient(135deg, var(--color-nova-blue) 0%, var(--color-studio-aqua) 100%);
+  box-shadow: var(--shadow-glow-soft);
+}
+
+.nf-auction-hero__glow {
+  position: absolute;
+  inset: -40% -10% auto auto;
+  width: 60%;
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  background: radial-gradient(circle, color-mix(in srgb, white 30%, transparent) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.nf-auction-hero__stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, black 12%, transparent);
+  border: 1px solid color-mix(in srgb, white 25%, transparent);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.nf-auction-hero__stat strong {
+  font-weight: 800;
+}
+
+.nf-auction-tab {
+  position: relative;
+  padding: 10px 4px;
+  margin-right: 22px;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.nf-auction-tab:hover {
+  color: var(--color-text);
+}
+
+.nf-auction-tab--active {
+  color: var(--color-nova-blue);
+}
+
+.nf-auction-tab--active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-nova-blue);
+}
+
+.nf-auction-card__countdown {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-nova-blue) 88%, black 6%);
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  pointer-events: none;
+}
+
+.nf-auction-card__countdown--ended {
+  background: color-mix(in srgb, var(--color-surface-high) 92%, transparent);
+  color: var(--color-text-muted);
+}
+
+.nf-auction-card__bids {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 7px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: 10px;
+  font-weight: 800;
+  pointer-events: none;
+}
+
+.nf-auction-card {
+  transition: border-color 0.2s ease;
+}
+
+.nf-auction-card:hover {
+  border-color: color-mix(in srgb, var(--color-nova-blue) 45%, var(--color-border));
+}

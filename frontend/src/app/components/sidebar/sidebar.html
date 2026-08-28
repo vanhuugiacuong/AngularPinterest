@@ -93,6 +93,23 @@
       <span id="nf-tooltip-collage" role="tooltip" class="nf-tooltip">Tạo ảnh ghép</span>
     </div>
 
+    <!-- Auction -->
+    <div class="nf-rail-item-shell group">
+      <button
+        type="button"
+        (click)="navigateToAuctions()"
+        [class.nf-rail-item--active]="isAuctionsPage()"
+        class="nf-rail-item"
+        aria-label="Đấu giá"
+        aria-describedby="nf-tooltip-auction"
+        [attr.aria-current]="isAuctionsPage() ? 'page' : null"
+      >
+        <app-sidebar-icon class="nf-rail-icon" icon="auction" />
+        <span class="nf-rail-label">Đấu giá</span>
+      </button>
+      <span id="nf-tooltip-auction" role="tooltip" class="nf-tooltip">Đấu giá</span>
+    </div>
+
     <!-- Notifications -->
     <div class="nf-rail-item-shell group">
       <button
@@ -423,6 +440,19 @@
   >
     <app-sidebar-icon icon="create" size="mobile" />
     <span class="text-xs font-medium">Tạo</span>
+  </button>
+
+  <button
+    type="button"
+    (click)="navigateToAuctions()"
+    [class.text-accent]="isAuctionsPage()"
+    [class.text-text-muted]="!isAuctionsPage()"
+    class="flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[56px] cursor-pointer border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
+    aria-label="Đấu giá"
+    [attr.aria-current]="isAuctionsPage() ? 'page' : null"
+  >
+    <app-sidebar-icon icon="auction" size="mobile" />
+    <span class="text-xs font-medium">Đấu giá</span>
   </button>
 
   <button

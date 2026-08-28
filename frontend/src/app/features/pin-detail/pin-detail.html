@@ -412,6 +412,14 @@
                           <path d="M4 8 L8 3 H16 L20 8 L12 21 Z" fill="currentColor" />
                         </svg>
                         <span class="text-sm font-bold text-text">Đấu giá tác phẩm</span>
+                        @if (auction(); as auctionLink) {
+                          <a
+                            [routerLink]="['/auctions', auctionLink.id]"
+                            class="ml-auto text-[11px] font-bold text-accent hover:underline shrink-0"
+                          >
+                            Xem trang đấu giá đầy đủ →
+                          </a>
+                        }
                       </div>
 
                       @if (auctionLoading() && !auction()) {

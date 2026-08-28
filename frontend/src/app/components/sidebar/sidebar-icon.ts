@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
 export type SidebarIconName =
-  'home' | 'explore' | 'create' | 'collage' | 'notifications' | 'messages' | 'settings';
+  'home' | 'explore' | 'create' | 'collage' | 'notifications' | 'messages' | 'settings' | 'auction';
 
 const ICON_PATHS: Record<SidebarIconName, string> = {
   home:
@@ -14,6 +14,8 @@ const ICON_PATHS: Record<SidebarIconName, string> = {
   messages:
     'M20 11.5a8 8 0 0 1-8 8 8.2 8.2 0 0 1-3.25-.67L4 20l1.35-4.2A8 8 0 1 1 20 11.5ZM9 11.5h.01M12 11.5h.01M15 11.5h.01',
   settings: 'M4 7h7M15 7h5M4 12h2M10 12h10M4 17h9M17 17h3M13 5v4M8 10v4M15 15v4',
+  auction:
+    'M7 10 L11 6 L15 10 L11 14 Z M11 14 L17.5 20.5 M14 20.5 L21 20.5',
 };
 
 @Component({

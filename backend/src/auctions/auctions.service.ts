@@ -31,6 +31,10 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
   private static readonly MIN_DURATION_MS = 60 * 60 * 1000; // 1 giờ
   private static readonly MAX_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 ngày
   private static readonly SWEEP_INTERVAL_MS = 60_000;
+  /** Trần số tiền cho mọi ô nhập VND trong hệ thống đấu giá (giá khởi điểm,
+   * bước giá, và giá đặt) — khớp giới hạn hiển thị/nhập ở frontend. Chặn ở
+   * đây vì client-side chỉ là UX, không phải biên giới an toàn thật. */
+  private static readonly MAX_VND_AMOUNT = 9_999_999_999;
 
   private sweepTimer?: NodeJS.Timeout;
 
@@ -69,6 +73,11 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
     if (!Number.isFinite(value) || !Number.isInteger(value) || value < 1000) {
       throw new BadRequestException(
         `${label} phải là số nguyên VND hợp lệ, tối thiểu 1.000đ.`,
+      );
+    }
+    if (value > AuctionsService.MAX_VND_AMOUNT) {
+      throw new BadRequestException(
+        `${label} không được vượt quá ${AuctionsService.MAX_VND_AMOUNT.toLocaleString('vi-VN')}đ.`,
       );
     }
     return value;
@@ -224,6 +233,7 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
           orderBy: { createdAt: 'desc' },
           include: { bidder: { select: PUBLIC_USER_SELECT } },
         },
+        seller: { select: PUBLIC_USER_SELECT },
         purchase: true,
       },
     });
@@ -285,6 +295,7 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
       pinId: auction.pinId,
       pin: { ...auction.pin, imageUrl: pinImageUrl },
       sellerId: auction.sellerId,
+      seller: auction.seller,
       status: auction.status,
       currency: auction.currency,
       startingPrice: auction.startingPrice.toString(),
@@ -464,6 +475,79 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
       auctionId,
     });
     return this.getAuction(auctionId, sellerId);
+  }
+
+  /** Danh sách công khai cho trang "Đấu giá" riêng — duyệt được không cần
+   * đăng nhập, ảnh áp dụng cùng luật bảo vệ (blur/watermark) như feed chính
+   * qua applyPinImageProtection; chỉ xem CHI TIẾT (getAuction) mới bắt buộc
+   * Pro. Trạng thái dùng chỉ số [status, endsAt] có sẵn nên không cần quét
+   * N+1 ensureAuctionUpToDate — độ trễ tối đa bằng SWEEP_INTERVAL_MS, cùng
+   * cách listSelling/listBidding đã chấp nhận. */
+  async listAuctions(
+    viewerId: string | undefined,
+    query: { status?: string; skip?: number; take?: number },
+  ) {
+    const status: AuctionStatus =
+      query.status === 'scheduled'
+        ? 'SCHEDULED'
+        : query.status === 'ended'
+          ? 'ENDED'
+          : 'ACTIVE';
+    const take = Math.min(Math.max(Math.trunc(query.take ?? 24) || 24, 1), 60);
+    const skip = Math.max(Math.trunc(query.skip ?? 0) || 0, 0);
+
+    const [rows, total, viewerPlan] = await Promise.all([
+      this.prisma.auction.findMany({
+        where: { status },
+        orderBy: { endsAt: status === 'ENDED' ? 'desc' : 'asc' },
+        skip,
+        take,
+        include: {
+          pin: {
+            select: {
+              id: true,
+              title: true,
+              imageUrl: true,
+              protectedImageUrl: true,
+              userId: true,
+              isForSale: true,
+            },
+          },
+          seller: { select: PUBLIC_USER_SELECT },
+        },
+      }),
+      this.prisma.auction.count({ where: { status } }),
+      viewerId
+        ? this.memberships.status(viewerId).then((s) => s.plan)
+        : Promise.resolve(undefined),
+    ]);
+
+    await applyPinImageProtection(
+      this.prisma,
+      rows.map((r) => r.pin),
+      viewerId,
+      viewerPlan,
+    );
+
+    return {
+      items: rows.map((r) => ({
+        id: r.id,
+        pin: { id: r.pin.id, title: r.pin.title, imageUrl: r.pin.imageUrl },
+        seller: r.seller,
+        status: r.status,
+        currency: r.currency,
+        startingPrice: r.startingPrice.toString(),
+        currentPrice: r.currentPrice.toString(),
+        minimumIncrement: r.minimumIncrement.toString(),
+        startsAt: r.startsAt.toISOString(),
+        endsAt: r.endsAt.toISOString(),
+        bidCount: r.bidCount,
+      })),
+      total,
+      skip,
+      take,
+      serverNow: new Date().toISOString(),
+    };
   }
 
   async listSelling(sellerId: string) {
