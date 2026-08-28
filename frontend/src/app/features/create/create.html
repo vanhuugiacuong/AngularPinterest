@@ -312,7 +312,13 @@
               @if (listingMode === 'fixed') {
                 <div class="flex flex-col gap-1">
                   <label class="text-xs font-bold text-text-muted">Giá bán ảnh (VNĐ)</label>
-                  <input type="number" min="1000" step="1000" [(ngModel)]="price" placeholder="Ví dụ: 500000" [disabled]="isSubmitting()" class="w-full bg-surface-elevated border border-border rounded-control px-3.5 h-10 text-xs text-text" />
+                  <input
+                    appCurrencyInput
+                    [(ngModel)]="price"
+                    placeholder="Ví dụ: 500.000"
+                    [disabled]="isSubmitting()"
+                    class="w-full bg-surface-elevated border border-border focus:border-accent outline-none rounded-control px-3.5 h-10 text-xs text-text placeholder-text-muted transition-all focus:ring-2 focus:ring-accent/40"
+                  />
                 </div>
               }
 
@@ -320,11 +326,23 @@
                 <div class="flex flex-col gap-2">
                   <div class="flex flex-col gap-1">
                     <label class="text-xs font-bold text-text-muted">Giá khởi điểm (VNĐ)</label>
-                    <input type="number" min="1000" step="1000" [(ngModel)]="auctionStartingPrice" placeholder="Ví dụ: 1000000" [disabled]="isSubmitting()" class="w-full bg-surface-elevated border border-border rounded-control px-3.5 h-10 text-xs text-text" />
+                    <input
+                    appCurrencyInput
+                    [(ngModel)]="auctionStartingPrice"
+                    placeholder="Ví dụ: 1.000.000"
+                    [disabled]="isSubmitting()"
+                    class="w-full bg-surface-elevated border border-border focus:border-accent outline-none rounded-control px-3.5 h-10 text-xs text-text placeholder-text-muted transition-all focus:ring-2 focus:ring-accent/40"
+                  />
                   </div>
                   <div class="flex flex-col gap-1">
                     <label class="text-xs font-bold text-text-muted">Bước giá tối thiểu (VNĐ)</label>
-                    <input type="number" min="1000" step="1000" [(ngModel)]="auctionMinimumIncrement" placeholder="Ví dụ: 100000" [disabled]="isSubmitting()" class="w-full bg-surface-elevated border border-border rounded-control px-3.5 h-10 text-xs text-text" />
+                    <input
+                    appCurrencyInput
+                    [(ngModel)]="auctionMinimumIncrement"
+                    placeholder="Ví dụ: 100.000"
+                    [disabled]="isSubmitting()"
+                    class="w-full bg-surface-elevated border border-border focus:border-accent outline-none rounded-control px-3.5 h-10 text-xs text-text placeholder-text-muted transition-all focus:ring-2 focus:ring-accent/40"
+                  />
                   </div>
                   <div class="flex flex-col gap-1">
                     <label class="text-xs font-bold text-text-muted">Thời gian bắt đầu</label>

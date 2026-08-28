@@ -15,6 +15,7 @@ import { DialogService } from '../../core/services/dialog';
 import { AuctionService } from '../../core/services/auction';
 import { ToastService } from '../../core/services/toast';
 import { toUserMessage } from '../../core/utils/http-error';
+import { CurrencyInputDirective } from '../../shared/currency-input.directive';
 import {
   isPinImageSizeAllowed,
   MAX_PIN_IMAGE_UPLOAD_LABEL,
@@ -38,7 +39,7 @@ type ImageModerationStatus = 'idle' | 'checking' | 'safe' | 'unsafe' | 'error';
 @Component({
   selector: 'app-create',
   standalone: true,
-  imports: [CommonModule, Navbar, FormsModule, ImageEditor, PublishProgressDialog],
+  imports: [CommonModule, Navbar, FormsModule, ImageEditor, PublishProgressDialog, CurrencyInputDirective],
   templateUrl: './create.html',
   styleUrl: './create.css'
 })
