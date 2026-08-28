@@ -494,9 +494,19 @@ export class PinsService {
         // còn vài tấm khiến sentinel luôn nằm trong viewport và kéo cạn feed.
         // Prisma AND các field cùng cấp, nên `category` giao với OR của
         // visibilityFilter đúng như mong đợi.
-        where: category
-          ? { ...this.visibilityFilter(userId), category }
-          : this.visibilityFilter(userId),
+        //
+        // Loại hẳn pin đang bán giá cố định/đấu giá khỏi feed chính — hai loại
+        // này giờ chỉ hiện ở trang riêng của chúng (/fixed-price, /auctions).
+        // Điều kiện phải khớp CHÍNH XÁC nghịch đảo của marketFieldsFor() ở
+        // dưới (FIXED_PRICE = isForSale; AUCTION = có phiên chưa CANCELLED),
+        // không chỉ check isForSale, vì một pin có thể có phiên đấu giá dù
+        // isForSale đã bị tắt khi phiên được tạo.
+        where: {
+          ...this.visibilityFilter(userId),
+          isForSale: false,
+          auctions: { none: { status: { not: 'CANCELLED' } } },
+          ...(category ? { category } : {}),
+        },
         orderBy: { createdAt: 'desc' },
         take: candidateLimit,
         include: {
@@ -550,6 +560,15 @@ export class PinsService {
     const pinsWithScores = pins.map((pin) => {
       let score = 0;
 
+      // Ảnh của chính người xem đăng lên luôn được ưu tiên lên đầu feed —
+      // mức cộng vượt xa tổng điểm tối đa các nhánh khác (100 + 96 + 80 =
+      // 276) nên không bao giờ bị lấn bởi category/recency/noise, nhưng vẫn
+      // giữ đúng thứ tự MỚI NHẤT trước giữa các pin của chính họ (điểm
+      // recency/noise bên dưới vẫn cộng thêm phía sau).
+      if (userId && pin.userId === userId) {
+        score += 10_000;
+      }
+
       // Category preference score
       if (preferredCategories.length > 0) {
         const index = preferredCategories.indexOf(pin.category);
@@ -582,6 +601,49 @@ export class PinsService {
       sortedPins.slice(skip, skip + limit),
       userId,
     );
+  }
+
+  /** Danh sách công khai cho trang "Giá cố định" riêng — duyệt được không cần
+   * đăng nhập, ảnh áp dụng cùng luật bảo vệ (blur/watermark theo gói) như feed
+   * chính qua attachMarketInfoToList; chỉ xem CHI TIẾT (getPinById) mới bắt
+   * buộc Plus/Pro. `isForSale: true` + không có phiên đấu giá chưa CANCELLED
+   * khớp đúng nhánh FIXED_PRICE của marketFieldsFor(). */
+  async listFixedPriceForSale(
+    viewerId: string | undefined,
+    skip: number,
+    take: number,
+  ) {
+    const [pins, total] = await Promise.all([
+      this.prisma.pin.findMany({
+        where: {
+          ...this.visibilityFilter(viewerId),
+          isForSale: true,
+          auctions: { none: { status: { not: 'CANCELLED' } } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+        include: {
+          user: {
+            select: { id: true, username: true, avatarUrl: true, plan: true, isAdmin: true },
+          },
+          _count: { select: { likes: true } },
+        },
+      }),
+      this.prisma.pin.count({
+        where: {
+          ...this.visibilityFilter(viewerId),
+          isForSale: true,
+          auctions: { none: { status: { not: 'CANCELLED' } } },
+        },
+      }),
+    ]);
+    return {
+      items: await this.attachMarketInfoToList(pins, viewerId),
+      total,
+      skip,
+      take,
+    };
   }
 
   async getRelatedPins(
@@ -628,7 +690,14 @@ export class PinsService {
   ): Promise<{ code: string; count: number }[]> {
     const grouped = await this.prisma.pin.groupBy({
       by: ['category'],
-      where: this.visibilityFilter(viewerId),
+      // Đếm khớp đúng tập pin getAllPins thực sự trả về — loại luôn pin đang
+      // bán/đấu giá (giờ chỉ hiện ở trang riêng), không thì chip hiện số đếm
+      // cao hơn số pin thật sự bấm vào thấy được.
+      where: {
+        ...this.visibilityFilter(viewerId),
+        isForSale: false,
+        auctions: { none: { status: { not: 'CANCELLED' } } },
+      },
       _count: { _all: true },
     });
 

@@ -1,0 +1,118 @@
+<div class="min-h-screen bg-bg text-text flex flex-col font-sans relative">
+  <app-navbar></app-navbar>
+
+  <div class="flex-1 pt-16 flex flex-col min-w-0">
+    <main class="flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6 max-w-[1200px]">
+
+      <button
+        type="button"
+        (click)="goBack()"
+        class="self-start flex items-center gap-1.5 text-xs font-bold text-text-muted hover:text-text cursor-pointer border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control px-1 py-1"
+      >
+        <span class="material-symbols-outlined text-[18px] leading-none" aria-hidden="true">arrow_back</span>
+        Quay lại cửa hàng
+      </button>
+
+      @if (loading()) {
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div class="lg:col-span-5 skeleton rounded-frame aspect-square"></div>
+          <div class="lg:col-span-7 flex flex-col gap-3">
+            <div class="skeleton h-6 w-2/3 rounded-control"></div>
+            <div class="skeleton h-4 w-1/3 rounded-control"></div>
+            <div class="skeleton h-28 w-full rounded-panel"></div>
+            <div class="skeleton h-11 w-full rounded-control"></div>
+          </div>
+        </div>
+      } @else if (error()) {
+        <div class="flex flex-col items-center justify-center gap-4 py-20 text-center">
+          <span class="w-16 h-16 rounded-full bg-primary/12 text-primary flex items-center justify-center">
+            <span class="material-symbols-outlined text-3xl" aria-hidden="true">lock</span>
+          </span>
+          <p class="text-sm font-bold text-text max-w-sm">{{ error() }}</p>
+          @if (isRestricted()) {
+            <button
+              type="button"
+              (click)="goToPricing()"
+              class="h-10 px-5 bg-gradient-to-r from-nova-blue to-studio-aqua cta-shape text-text-on-accent font-bold text-sm cursor-pointer border-none"
+            >
+              Xem các gói thành viên
+            </button>
+          }
+        </div>
+      } @else if (pin(); as p) {
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+          <!-- Image -->
+          <div class="lg:col-span-5">
+            <div class="relative aspect-square rounded-frame overflow-hidden bg-surface-elevated border border-border shadow-card sticky top-20">
+              <img [src]="p.imageUrl" [alt]="p.title" class="w-full h-full object-cover block" />
+              <span class="nf-shop-detail-badge">
+                <span class="material-symbols-outlined text-[14px] leading-none" aria-hidden="true">sell</span>
+                Giá cố định
+              </span>
+            </div>
+          </div>
+
+          <!-- Info -->
+          <div class="lg:col-span-7 flex flex-col gap-5">
+            <div class="flex flex-col gap-1.5">
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-primary text-lg" aria-hidden="true">sell</span>
+                <span class="mono-label text-[11px] text-primary font-extrabold uppercase tracking-wider">Bán giá cố định</span>
+              </div>
+              <h1 class="text-2xl sm:text-[28px] font-extrabold text-text font-display tracking-tight">{{ p.title || 'Tác phẩm' }}</h1>
+              <a [routerLink]="['/profile', p.user.username]" class="flex items-center gap-2 w-fit no-underline">
+                <app-user-avatar [src]="p.user.avatarUrl" [name]="p.user.username" [size]="24" [plan]="p.user.plan" [isAdmin]="p.user.isAdmin"></app-user-avatar>
+                <span class="text-xs text-text-muted">Người bán · <strong class="text-text font-bold">{{ p.user.username }}</strong></span>
+              </a>
+            </div>
+
+            <div class="flex flex-col gap-1 p-4 rounded-panel bg-surface-elevated border border-border">
+              <span class="text-[10px] uppercase font-bold text-text-muted">Giá bán</span>
+              <span class="text-3xl font-extrabold text-primary mono-label">{{ formatNovaToken(vndToNovaToken(p.price)) }}</span>
+            </div>
+
+            @if (isOwner()) {
+              <div class="flex flex-col gap-2 p-4 rounded-panel bg-surface border border-border">
+                <p class="text-xs text-text-muted">Bạn là người bán — đây là cách người mua nhìn thấy tác phẩm của bạn.</p>
+              </div>
+            } @else if (p.hasPurchased) {
+              <div class="flex flex-col gap-2 p-4 rounded-panel bg-primary/8 border border-primary/30">
+                <span class="text-sm font-bold text-primary flex items-center gap-1.5">
+                  <span class="material-symbols-outlined text-lg" aria-hidden="true">check_circle</span>
+                  Bạn đã sở hữu tác phẩm này
+                </span>
+                <button
+                  type="button"
+                  (click)="downloadOriginal()"
+                  [disabled]="downloading()"
+                  class="h-11 px-5 rounded-control bg-gradient-to-r from-nova-blue to-studio-aqua text-text-on-accent font-bold text-sm border-none cursor-pointer disabled:opacity-50 self-start"
+                >
+                  {{ downloading() ? 'Đang tải...' : 'Tải bản gốc' }}
+                </button>
+                @if (downloadMessage()) {
+                  <span class="text-[10px] text-text-muted">{{ downloadMessage() }}</span>
+                }
+              </div>
+            } @else {
+              <div class="flex flex-col gap-2.5">
+                <button
+                  type="button"
+                  (click)="buyNow()"
+                  [disabled]="buying()"
+                  class="h-12 px-6 bg-gradient-to-r from-nova-blue to-studio-aqua cta-shape text-text-on-accent text-base font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none self-start"
+                >
+                  {{ buying() ? 'Đang xử lý...' : 'Mua ngay' }}
+                </button>
+                <p class="text-[10px] text-text-muted">Thanh toán tức thì qua ví NovaToken — không thể hoàn lại sau khi mua.</p>
+                @if (downloadMessage()) {
+                  <p class="text-xs text-error" role="alert">{{ downloadMessage() }}</p>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </main>
+  </div>
+</div>

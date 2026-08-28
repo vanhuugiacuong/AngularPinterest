@@ -43,6 +43,20 @@ export const routes: Routes = [
       ),
     canActivate: [authGuard],
   },
+  {
+    path: 'fixed-price',
+    loadComponent: () =>
+      import('./features/fixed-price/fixed-price').then((module) => module.FixedPrice),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'fixed-price/:id',
+    loadComponent: () =>
+      import('./features/fixed-price/fixed-price-detail/fixed-price-detail').then(
+        (module) => module.FixedPriceDetailPage,
+      ),
+    canActivate: [authGuard],
+  },
   { path: 'messages', component: Messages, canActivate: [authGuard] },
   { path: 'messages/:conversationId', component: Messages, canActivate: [authGuard] },
   { path: 'settings', component: Settings, canActivate: [authGuard] },

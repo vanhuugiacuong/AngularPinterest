@@ -1,0 +1,15 @@
+.nf-shop-detail-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  background: var(--color-nova-blue);
+  color: white;
+  font-size: 11px;
+  font-weight: 800;
+}

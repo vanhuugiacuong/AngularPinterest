@@ -191,6 +191,20 @@ export class PinService {
     return this.request<Pin>(`${this.baseUrl}/${id}`, token, {}, 'Không thể tải chi tiết ảnh');
   }
 
+  /** Trang "Giá cố định" công khai — duyệt được kể cả chưa đăng nhập. */
+  listFixedPrice(
+    token?: string,
+    skip = 0,
+    take = 24,
+  ): Promise<{ items: Pin[]; total: number; skip: number; take: number }> {
+    return this.request(
+      `${this.baseUrl}/fixed-price?skip=${skip}&take=${take}`,
+      token,
+      {},
+      'Không thể tải danh sách sản phẩm',
+    );
+  }
+
   toggleLike(id: string, token: string): Promise<{ liked: boolean; likeCount: number }> {
     return this.request(
       `${this.baseUrl}/${id}/like`,

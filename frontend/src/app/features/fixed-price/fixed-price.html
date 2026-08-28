@@ -1,0 +1,130 @@
+<div class="min-h-screen bg-bg text-text flex flex-col font-sans relative">
+  <app-navbar></app-navbar>
+
+  <div class="flex-1 pt-16 flex flex-col min-w-0">
+    <main class="flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-7 max-w-[1400px]">
+
+      <!-- Hero -->
+      <header class="nf-shop-hero relative overflow-hidden rounded-panel px-6 py-9 sm:px-10 sm:py-12 flex flex-col gap-3">
+        <div class="nf-shop-hero__glow" aria-hidden="true"></div>
+        <div class="relative flex items-center gap-2">
+          <span class="material-symbols-outlined text-white/90 text-xl" aria-hidden="true">sell</span>
+          <span class="mono-label text-xs text-white/80 font-extrabold tracking-wider uppercase">NovaFrame Shop</span>
+        </div>
+        <h1 class="relative text-3xl sm:text-4xl font-extrabold text-white font-display tracking-tight max-w-xl">
+          Sở hữu ngay tác phẩm giá cố định
+        </h1>
+        <p class="relative text-sm sm:text-[15px] text-white/85 max-w-lg leading-relaxed">
+          Không cần chờ đấu giá — chọn tác phẩm bạn thích và mua ngay với mức giá người bán đã niêm yết,
+          thanh toán tức thì và an toàn qua ví NovaToken.
+        </p>
+        <div class="relative flex flex-wrap items-center gap-3 mt-2">
+          <span class="nf-shop-hero__stat">
+            <strong>{{ total() }}</strong> tác phẩm đang bán
+          </span>
+          @if (!canBuy()) {
+            <button
+              type="button"
+              (click)="router.navigate(['/pricing'])"
+              class="h-9 px-4 rounded-control bg-white text-primary font-bold text-xs cursor-pointer border-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              Nâng cấp Plus để mua ngay
+            </button>
+          }
+        </div>
+      </header>
+
+      <!-- Loading skeleton -->
+      @if (loading()) {
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          @for (dummy of [1,2,3,4,5,6,7,8,9,10]; track dummy) {
+            <div class="flex flex-col gap-2">
+              <div class="skeleton rounded-frame aspect-square"></div>
+              <div class="skeleton h-3 w-3/4 rounded-control"></div>
+              <div class="skeleton h-3 w-1/2 rounded-control"></div>
+            </div>
+          }
+        </div>
+      } @else if (loadError()) {
+        <div class="flex flex-col items-center justify-center gap-3 py-20 text-center">
+          <span class="material-symbols-outlined text-4xl text-error" aria-hidden="true">error</span>
+          <p class="text-sm text-text-muted max-w-sm">{{ loadError() }}</p>
+        </div>
+      } @else if (items().length === 0) {
+        <div class="flex flex-col items-center justify-center gap-3 py-24 text-center">
+          <span class="material-symbols-outlined text-5xl text-text-muted" aria-hidden="true">storefront</span>
+          <p class="text-sm font-bold text-text">Chưa có tác phẩm nào đang bán</p>
+          <p class="text-xs text-text-muted max-w-sm">
+            Quay lại sau — tác phẩm mới sẽ xuất hiện ngay khi người bán niêm yết giá cố định.
+          </p>
+        </div>
+      } @else {
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          @for (item of items(); track item.id) {
+            <div
+              (click)="onCardClick(item)"
+              class="nf-shop-card group cursor-pointer flex flex-col rounded-frame overflow-hidden bg-surface border border-border shadow-card glow-hover"
+            >
+              <div class="relative aspect-square overflow-hidden bg-surface-elevated">
+                <img
+                  [src]="item.imageUrl"
+                  [alt]="item.title"
+                  loading="lazy"
+                  class="w-full h-full object-cover block transition-transform duration-500 group-hover:scale-[1.05]"
+                  [class.blur-lg]="isRestricted(item)"
+                  [class.scale-110]="isRestricted(item)"
+                />
+
+                @if (isRestricted(item)) {
+                  <div class="absolute inset-0 z-10 flex items-center justify-center bg-bg/25 pointer-events-none">
+                    <span class="w-9 h-9 rounded-full bg-surface-high/95 border border-border-strong flex items-center justify-center shadow-card">
+                      <span class="material-symbols-outlined text-[18px] text-primary leading-none" aria-hidden="true">lock</span>
+                    </span>
+                  </div>
+                }
+
+                <span class="nf-shop-card__badge mono-label">
+                  <span class="material-symbols-outlined text-[13px] leading-none" aria-hidden="true">sell</span>
+                  Giá cố định
+                </span>
+              </div>
+
+              <div class="flex flex-col gap-2 p-3">
+                <p class="text-xs font-bold text-text truncate">{{ item.title || 'Tác phẩm' }}</p>
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <app-user-avatar
+                    [src]="item.user.avatarUrl"
+                    [name]="item.user.username"
+                    [size]="18"
+                    [plan]="item.user.plan"
+                    [isAdmin]="item.user.isAdmin"
+                  ></app-user-avatar>
+                  <span class="text-[11px] text-text-muted truncate">{{ item.user.username }}</span>
+                </div>
+                <div class="flex items-end justify-between gap-2 pt-1 border-t border-border/60">
+                  <div class="flex flex-col gap-0.5 min-w-0">
+                    <span class="text-[9px] uppercase font-bold text-text-muted">Giá bán</span>
+                    <span class="text-sm font-extrabold text-primary mono-label truncate">{{ formatNovaToken(vndToNovaToken(item.price)) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+
+        @if (hasMore()) {
+          <div class="flex justify-center pt-2">
+            <button
+              type="button"
+              (click)="loadMore()"
+              [disabled]="loadingMore()"
+              class="h-11 px-6 rounded-control border border-border bg-surface-elevated hover:bg-surface-high text-text font-bold text-xs cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              {{ loadingMore() ? 'Đang tải...' : 'Xem thêm' }}
+            </button>
+          </div>
+        }
+      }
+    </main>
+  </div>
+</div>

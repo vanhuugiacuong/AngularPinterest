@@ -57,6 +57,21 @@ export class PinsController {
     return this.pinsService.getFeedCategories(user?.id);
   }
 
+  /** Trang "Giá cố định" công khai — duyệt được không cần đăng nhập, giống
+   * feed chính. Phải khai báo TRƯỚC `@Get(':id')`, không thì 'fixed-price' bị
+   * bắt làm id. */
+  @Get('fixed-price')
+  @UseGuards(OptionalSupabaseAuthGuard)
+  async listFixedPrice(
+    @CurrentUser() user: UserPayload | undefined,
+    @Query('skip') skip?: string,
+    @Query('take') take?: string,
+  ) {
+    const skipNum = skip ? Math.max(0, parseInt(skip, 10) || 0) : 0;
+    const takeNum = take ? Math.min(60, Math.max(1, parseInt(take, 10) || 24)) : 24;
+    return this.pinsService.listFixedPriceForSale(user?.id, skipNum, takeNum);
+  }
+
   @Get('search')
   @UseGuards(OptionalSupabaseAuthGuard)
   async searchPins(

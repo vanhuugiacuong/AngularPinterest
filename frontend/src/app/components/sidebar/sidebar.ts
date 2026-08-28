@@ -7,6 +7,8 @@ import { MessagingService } from '../../core/services/messaging';
 import { UserService } from '../../core/services/user';
 import { SupabaseService } from '../../core/services/supabase';
 import { ToastService } from '../../core/services/toast';
+import { MembershipService } from '../../core/services/membership';
+import { DialogService } from '../../core/services/dialog';
 import { Observable } from 'rxjs';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
 import { toUserMessage } from '../../core/utils/http-error';
@@ -38,6 +40,8 @@ export class Sidebar implements OnInit, OnDestroy {
   private userService = inject(UserService);
   public supabaseService = inject(SupabaseService);
   private toastService = inject(ToastService);
+  public membership = inject(MembershipService);
+  private dialogService = inject(DialogService);
   private router = inject(Router);
   private readonly syncShellWidth = effect((onCleanup) => {
     document.body.classList.toggle(BODY_EXPANDED_CLASS, this.sidebarState.isExpanded());
@@ -64,6 +68,9 @@ export class Sidebar implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.notificationService.loadNotifications();
     document.body.classList.add(BODY_DOCK_CLASS);
+    if (!this.membership.status()) {
+      this.membership.load().catch(() => undefined);
+    }
   }
 
   ngOnDestroy(): void {
@@ -283,9 +290,55 @@ export class Sidebar implements OnInit, OnDestroy {
     this.router.navigate(['/collage']);
   }
 
+  /** Đấu giá và Giá cố định đều yêu cầu gói trả phí (canAuction/canSell, xem
+   * MembershipService) — icon rail khoá lại cho gói FREE, bấm vào mở popup
+   * nâng cấp thay vì điều hướng vào trang bị chặn ngay từ backend. */
+  isAuctionLocked(): boolean {
+    return this.membership.status()?.canAuction === false;
+  }
+
+  isFixedPriceLocked(): boolean {
+    return this.membership.status()?.canSell === false;
+  }
+
+  onAuctionClick(): void {
+    if (this.isAuctionLocked()) {
+      void this.showUpgradeDialog('Cần gói Pro để đấu giá', 'Chỉ thành viên Pro mới có thể xem và tham gia các phiên đấu giá.');
+      return;
+    }
+    this.navigateToAuctions();
+  }
+
+  onFixedPriceClick(): void {
+    if (this.isFixedPriceLocked()) {
+      void this.showUpgradeDialog('Cần nâng cấp gói để mua bán', 'Chỉ thành viên Plus hoặc Pro mới có thể xem và mua tác phẩm bán giá cố định.');
+      return;
+    }
+    this.navigateToFixedPrice();
+  }
+
+  private async showUpgradeDialog(title: string, description: string): Promise<void> {
+    const goToPricing = await this.dialogService.confirm({
+      variant: 'information',
+      title,
+      description,
+      confirmLabel: 'Xem các gói',
+      cancelLabel: 'Để sau',
+    });
+    if (goToPricing) {
+      this.closeNotifications();
+      this.router.navigate(['/pricing']);
+    }
+  }
+
   navigateToAuctions(): void {
     this.closeNotifications();
     this.router.navigate(['/auctions']);
+  }
+
+  navigateToFixedPrice(): void {
+    this.closeNotifications();
+    this.router.navigate(['/fixed-price']);
   }
 
   navigateToMessages(): void {
@@ -344,6 +397,10 @@ export class Sidebar implements OnInit, OnDestroy {
 
   isAuctionsPage(): boolean {
     return this.router.url.startsWith('/auctions');
+  }
+
+  isFixedPricePage(): boolean {
+    return this.router.url.startsWith('/fixed-price');
   }
 
   isMessagesPage(): boolean {

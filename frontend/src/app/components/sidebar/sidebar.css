@@ -259,6 +259,42 @@
   transform: translateY(-50%);
 }
 
+/* Khoá gói — Đấu giá/Giá cố định cần Pro/Plus. Cùng vị trí neo với
+   .nf-rail-badge nhưng màu trung tính (không phải đỏ/tím của thông báo), để
+   đọc là "cần nâng cấp" chứ không phải "có tin mới". */
+.nf-rail-lock-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  display: flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--color-surface-high);
+  color: var(--color-text-muted);
+  box-shadow: 0 0 0 2px var(--color-surface);
+  pointer-events: none;
+}
+
+.nf-rail-lock-badge .material-symbols-outlined {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.nf-rail--expanded .nf-rail-lock-badge {
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+}
+
+.sidebar-icon--mobile ~ .nf-rail-lock-badge,
+.nf-bottom-nav .nf-rail-lock-badge {
+  top: -2px;
+  right: -6px;
+}
+
 .nf-tooltip {
   position: absolute;
   top: 50%;
