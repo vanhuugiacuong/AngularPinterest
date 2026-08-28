@@ -7,6 +7,7 @@ import { Icon } from '../../shared/icon/icon';
 import { ProAvatar } from '../../shared/pro-avatar/pro-avatar';
 import { ToastService } from '../../core/services/toast';
 import { badgeCount } from '../../shared/badge-count';
+import { CountUp } from '../../shared/count-up/count-up';
 import { ConfirmService } from '../../core/services/confirm';
 import { BillingService } from '../../core/services/billing';
 import {
@@ -29,7 +30,7 @@ type Tab = 'overview' | 'payouts' | 'txreports' | 'reports' | 'users' | 'revenue
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, Navbar, Icon, ProAvatar],
+  imports: [CommonModule, FormsModule, Navbar, Icon, ProAvatar, CountUp],
   templateUrl: './admin.html',
   styleUrl: './admin.css',
 })
@@ -354,7 +355,45 @@ export class Admin implements OnInit {
   }
 
   // ── Người dùng ──────────────────────────────────────────────────────────────
+  private userSearchTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Danh sách hiện ra sau khi lọc TẠI CHỖ theo ô tìm kiếm.
+   *
+   * Có hai tầng lọc và cả hai đều cần:
+   *  - Tầng này lọc ngay trên dữ liệu đã tải nên gõ tới đâu thấy tới đó, không
+   *    phải chờ mạng.
+   *  - Server (searchUsers, có hoãn) tìm trong TOÀN BỘ người dùng, nên người
+   *    nằm ngoài 100 dòng đang tải vẫn ra.
+   *
+   * Lọc tại chỗ còn chặn luôn lỗi phản hồi về trái thứ tự: gõ "h" rồi "ho",
+   * nếu kết quả của "h" về sau thì danh sách vẫn được lọc lại theo "ho".
+   */
+  visibleUsers(): AdminUser[] {
+    const q = this.userQuery.trim().toLowerCase();
+    if (!q) return this.users();
+    return this.users().filter(
+      (u) =>
+        (u.username || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q),
+    );
+  }
+
+  /** Gõ tới đâu tìm tới đó. Hoãn 300ms để không bắn một request mỗi phím. */
+  onUserQueryChange() {
+    if (this.userSearchTimer) clearTimeout(this.userSearchTimer);
+    this.userSearchTimer = setTimeout(() => void this.searchUsers(), 300);
+  }
+
+  clearUserQuery() {
+    this.userQuery = '';
+    if (this.userSearchTimer) clearTimeout(this.userSearchTimer);
+    void this.searchUsers();
+  }
+
   async searchUsers() {
+    // KHÔNG bật loading(): cờ đó làm trắng cả bảng, mỗi lần gõ một chữ lại chớp
+    // một cái. Danh sách cũ cứ để nguyên, có kết quả mới thì thay.
     this.users.set((await this.admin.users(this.userQuery)) ?? []);
   }
 

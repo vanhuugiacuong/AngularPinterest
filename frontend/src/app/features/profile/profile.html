@@ -290,7 +290,7 @@
             <div *ngIf="isMyProfile()" class="relative">
               <button
                 (click)="openCreateBoardModal()"
-                class="h-10 px-5 rounded-full bg-[#FF6FD8] hover:bg-[#E84FBE] text-white font-extrabold text-xs cursor-pointer transition-all active:scale-95 border-none outline-none shadow-sm flex items-center justify-center"
+                class="h-10 px-5 rounded-full bg-[#F94083] hover:bg-[#DC2F6D] text-white font-extrabold text-xs cursor-pointer transition-all active:scale-95 border-none outline-none shadow-sm flex items-center justify-center"
                 title="Tạo bảng mới"
               >
                 Tạo
@@ -400,7 +400,7 @@
                   >
                     <span
                       class="material-symbols-outlined text-base"
-                      [class.text-[#FF6FD8]]="pin.isFavorite"
+                      [class.text-[#F94083]]="pin.isFavorite"
                       [class.text-gray-300]="!pin.isFavorite"
                       [class.dark:text-[#555]]="!pin.isFavorite"
                       [style.font-variation-settings]="pin.isFavorite ? '\'FILL\' 1' : '\'FILL\' 0'"
@@ -482,7 +482,7 @@
                 <!-- plus badge, overlapping the main card's bottom-right corner -->
                 <span
                   class="absolute rounded-full flex items-center justify-center"
-                  style="right: 4px; bottom: -2px; width: 38px; height: 38px; background: #e85d8d; box-shadow: 0 4px 12px rgba(180,100,140,0.18);"
+                  style="right: 4px; bottom: -2px; width: 38px; height: 38px; background: #F94083; box-shadow: 0 4px 12px rgba(180,100,140,0.18);"
                 >
                   <span class="material-symbols-outlined text-white" style="font-size: 18px; font-weight: 300; line-height: 1;">add</span>
                 </span>
@@ -494,7 +494,7 @@
               <button
                 type="button"
                 (click)="goToExplore()"
-                class="mt-[18px] h-10 min-w-[130px] px-5 rounded-full bg-[#e85d8d] hover:bg-[#d94f7d] hover:shadow-md text-white text-sm font-bold cursor-pointer border-none outline-none transition-all duration-150"
+                class="mt-[18px] h-10 min-w-[130px] px-5 rounded-full bg-[#F94083] hover:bg-[#DC2F6D] hover:shadow-md text-white text-sm font-bold cursor-pointer border-none outline-none transition-all duration-150"
               >
                 Khám phá ảnh
               </button>
@@ -641,7 +641,7 @@
                 style="background-image: url('illustrations/create-board-card.png');"
               >
                 <span class="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-md transition-transform duration-200 group-hover:scale-110 hover:scale-110">
-                  <span class="material-symbols-outlined text-lg text-[#e85d8d] leading-none">add</span>
+                  <span class="material-symbols-outlined text-lg text-[#F94083] leading-none">add</span>
                 </span>
               </div>
               <span class="text-base font-bold text-black dark:text-white">
@@ -728,7 +728,7 @@
           <ng-container *ngIf="boardViewMode() === 'group'">
 
             <div *ngIf="isLoadingGroupBoards()" class="w-full flex items-center justify-center py-16">
-              <div class="w-8 h-8 border-4 border-[#FF6FD8] border-t-transparent rounded-full animate-spin"></div>
+              <div class="w-8 h-8 border-4 border-[#F94083] border-t-transparent rounded-full animate-spin"></div>
             </div>
 
             <div
@@ -783,7 +783,7 @@
               <button
                 type="button"
                 (click)="openCreateBoardModal()"
-                class="mt-5 h-10 px-5 rounded-full bg-[#FF6FD8] hover:bg-[#E84FBE] text-white font-extrabold text-sm cursor-pointer border-none outline-none transition-colors"
+                class="mt-5 h-10 px-5 rounded-full bg-[#F94083] hover:bg-[#DC2F6D] text-white font-extrabold text-sm cursor-pointer border-none outline-none transition-colors"
               >
                 Tạo bảng
               </button>
@@ -993,7 +993,7 @@
             (click)="newBoardSecret = !newBoardSecret"
             [disabled]="isSubmittingBoard"
             class="relative shrink-0 w-12 h-7 rounded-full border-none outline-none cursor-pointer transition-colors disabled:opacity-60"
-            [class.bg-[#FF6FD8]]="newBoardSecret"
+            [class.bg-[#F94083]]="newBoardSecret"
             [class.bg-gray-300]="!newBoardSecret"
             [class.dark:bg-[#444]]="!newBoardSecret"
           >

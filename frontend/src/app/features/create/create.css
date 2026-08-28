@@ -332,7 +332,12 @@
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  right: 0;
+  /* Rộng hơn nút bấm một chút: tên model + dòng mô tả bên dưới cần chỗ, bó đúng
+     bề ngang nút thì dòng mô tả bị cắt. Giới hạn theo bề ngang panel để không
+     tràn ra ngoài thẻ. */
+  min-width: 100%;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 48px));
   z-index: 40;
   padding: 5px;
   border-radius: 14px;
@@ -369,4 +374,25 @@
 }
 :host-context(.dark) .ai-model-item-on {
   color: #b3a8ff;
+}
+
+/* ── Bề ngang khung tạo ghim khi CHƯA có ảnh ─────────────────────────────────
+   Dùng class CSS thật thay cho `max-w-[1240px]` của Tailwind: giá trị tuỳ ý đặt
+   bên trong biểu thức ngClass nhiều nhánh không phải lúc nào cũng được bộ quét
+   của Tailwind nhặt ra, nên lớp không được sinh và khung kẹt ở bề ngang cũ. */
+.create-shell-ai,
+.create-shell-upload {
+  /* width:100% BẮT BUỘC: khung này là flex item trong một cột flex, mà
+     margin trái/phải = auto sẽ hút hết khoảng trống -> phần tử co lại vừa nội
+     dung (430px) chứ không giãn tới max-width. Đây đúng là lý do khung vẫn hẹp
+     dù max-width đã đặt 1240px. */
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+.create-shell-ai {
+  max-width: 1240px;
+}
+.create-shell-upload {
+  max-width: 620px;
 }

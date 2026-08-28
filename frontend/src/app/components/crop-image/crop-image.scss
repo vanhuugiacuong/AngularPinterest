@@ -1,10 +1,14 @@
 :host {
-  --pinhub-bg: #141416;
-  --pinhub-surface: #1a1a1e;
-  --pinhub-accent: #ff2e8e;
+  /* Token dùng chung với create-post-modal: ba màn này là MỘT luồng (chọn ảnh
+     -> sửa -> cắt) nên phải cùng một bộ màu. Trước đây cả ba tự khai nhấn
+     #ff2e8e — hồng neon KHÁC hồng thương hiệu #f94083, nên nút trong luồng này
+     không trùng màu với bất kỳ nút nào khác trong app. */
+  --pinhub-bg: #1e1e1e;
+  --pinhub-surface: #232326;
+  --pinhub-accent: #f94083;
   --pinhub-text-primary: #ffffff;
-  --pinhub-text-secondary: #9c9ca3;
-  --pinhub-border: #2a2a2e;
+  --pinhub-text-secondary: #9b96a2;
+  --pinhub-border: rgba(255, 255, 255, 0.1);
 
   display: block;
   height: 100%;

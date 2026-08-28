@@ -299,12 +299,16 @@
   gap: 3px;
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
+/* Vạch nhấn ĐƠN SẮC, không gradient. Trong app này gradient đã mang nghĩa
+   "thứ này tốn tiền" (nút Pro, mua gói, thẻ ngân hàng) — dùng cho thẻ dữ liệu
+   thường thì làm loãng nghĩa đó. Mà ở vạch cao 3px thì mắt cũng không đọc ra
+   là gradient, chỉ thấy màu nhạt dần về bên phải nên trông như vẽ lỗi. */
 .ad-stat::before {
   content: '';
   position: absolute;
   inset: 0 0 auto 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--stat-c), transparent 130%);
+  background: var(--stat-c);
 }
 .ad-stat:hover {
   box-shadow: 0 14px 30px -18px rgb(var(--stat-c-rgb) / 0.55);
@@ -1069,4 +1073,90 @@
   object-fit: cover;
   display: block;
   cursor: pointer;
+}
+
+/* ── Ô tìm kiếm tức thời ─────────────────────────────────────────────────────
+   Icon kính lúp nằm TRONG ô (không phải nút riêng bên cạnh): tìm chạy ngay khi
+   gõ nên không còn hành động "bấm để tìm" nào để gắn vào nút. */
+.ad-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.ad-search-ico {
+  position: absolute;
+  left: 13px;
+  font-size: 19px;
+  color: #6c6674;
+  pointer-events: none;
+}
+.ad-search-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 42px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.ad-search-input::placeholder {
+  color: #6c6674;
+}
+.ad-search-input:focus {
+  border-color: rgb(var(--ad-accent-rgb) / 0.55);
+  background: rgb(var(--ad-accent-rgb) / 0.06);
+}
+.ad-search-clear {
+  position: absolute;
+  right: 9px;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: rgba(255, 255, 255, 0.07);
+  color: #b3aabf;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.ad-search-clear:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+.ad-search-clear .material-symbols-outlined {
+  font-size: 16px;
+}
+
+/* Trạng thái rỗng khi TÌM KHÔNG RA — khác hẳn trạng thái "sạch việc".
+   .ad-empty mặc định vẽ dấu tích (tin vui); ở đây không tìm thấy gì không phải
+   tin vui mà cũng chẳng phải lỗi, nên dùng kính lúp gạch chéo và bỏ tông màu
+   mục đi cho trung tính. */
+.ad-empty-search {
+  background: rgba(255, 255, 255, 0.025);
+}
+.ad-empty-search::before {
+  content: 'search_off';
+  color: #5c5865;
+}
+.ad-empty-t {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #cfc9d6;
+}
+.ad-empty-s {
+  font-size: 12px;
+  color: #8b8791;
+  max-width: 320px;
+}
+
+/* Nút Khoá / Mở khoá dùng CHUNG một bề ngang.
+   Hai nhãn dài khác nhau ~20px, mà nút lại nằm ở cột canh phải, nên mỗi lần đổi
+   trạng thái là mép trái nút nhảy một đoạn, và các hàng trong bảng không thẳng
+   cột với nhau — nhìn như nút bị chệch. Chốt bề ngang theo nhãn dài hơn. */
+.ad-btn-lock {
+  min-width: 96px;
 }
