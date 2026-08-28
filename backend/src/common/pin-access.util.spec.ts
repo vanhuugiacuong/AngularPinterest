@@ -9,12 +9,11 @@ describe('resolveViewablePinImageUrl', () => {
     isForSale: true,
   };
 
-  it('gives the owner the clear image regardless of plan', () => {
+  it('gives the owner the clear image', () => {
     const url = resolveViewablePinImageUrl(pin, {
       viewerId: 'seller-1',
       hasAuction: false,
       hasPaidPurchase: false,
-      viewerPlan: 'FREE',
     });
     expect(url).toBe(pin.imageUrl);
   });
@@ -24,60 +23,39 @@ describe('resolveViewablePinImageUrl', () => {
       viewerId: 'buyer-1',
       hasAuction: false,
       hasPaidPurchase: true,
-      viewerPlan: 'FREE',
     });
     expect(url).toBe(pin.imageUrl);
   });
 
-  it('gives a Plus/Pro viewer who has not bought yet the watermarked preview', () => {
+  it('gives a browsing (not-yet-paid) viewer only the fully blurred locked preview, never the watermarked one, even though protectedImageUrl exists', () => {
     const url = resolveViewablePinImageUrl(pin, {
       viewerId: 'browser-1',
       hasAuction: false,
       hasPaidPurchase: false,
-      viewerPlan: 'PLUS',
-    });
-    expect(url).toBe(pin.protectedImageUrl);
-  });
-
-  it('never hands a FREE-plan viewer the watermarked preview for a fixed-price pin, even when one exists — the fully blurred locked preview only', () => {
-    const url = resolveViewablePinImageUrl(pin, {
-      viewerId: 'browser-1',
-      hasAuction: false,
-      hasPaidPurchase: false,
-      viewerPlan: 'FREE',
     });
     expect(url).toBe(lockedPinPreviewPath(pin.id));
     expect(url).not.toBe(pin.protectedImageUrl);
+    expect(url).not.toBe(pin.imageUrl);
   });
 
-  it('never hands a Plus (non-Pro) viewer the watermarked preview for an auction pin', () => {
+  it('gives a browsing viewer of an auction pin only the locked preview too', () => {
     const url = resolveViewablePinImageUrl(pin, {
       viewerId: 'browser-1',
       hasAuction: true,
       hasPaidPurchase: false,
-      viewerPlan: 'PLUS',
     });
     expect(url).toBe(lockedPinPreviewPath(pin.id));
   });
 
-  it('falls back to the locked preview path even when protectedImageUrl has not been generated yet', () => {
+  it('falls back to the locked preview path when protectedImageUrl has not been generated yet', () => {
     const url = resolveViewablePinImageUrl(
       { ...pin, protectedImageUrl: null },
-      { viewerId: 'browser-1', hasAuction: false, hasPaidPurchase: false, viewerPlan: 'FREE' },
+      { viewerId: 'browser-1', hasAuction: false, hasPaidPurchase: false },
     );
     expect(url).toBe(lockedPinPreviewPath(pin.id));
   });
 
-  it('never hands an entitled (Plus/Pro) browsing viewer the clear original when protectedImageUrl has not been generated yet — locked preview, not imageUrl', () => {
-    const url = resolveViewablePinImageUrl(
-      { ...pin, protectedImageUrl: null },
-      { viewerId: 'browser-1', hasAuction: false, hasPaidPurchase: false, viewerPlan: 'PLUS' },
-    );
-    expect(url).toBe(lockedPinPreviewPath(pin.id));
-    expect(url).not.toBe(pin.imageUrl);
-  });
-
-  it('gives an anonymous viewer (no plan at all) the locked preview, not the watermarked one', () => {
+  it('gives an anonymous viewer the locked preview', () => {
     const url = resolveViewablePinImageUrl(pin, {
       hasAuction: false,
       hasPaidPurchase: false,
@@ -88,7 +66,7 @@ describe('resolveViewablePinImageUrl', () => {
   it('is unrestricted for a pin that is not for sale and has no auction', () => {
     const url = resolveViewablePinImageUrl(
       { ...pin, isForSale: false },
-      { viewerId: 'browser-1', hasAuction: false, hasPaidPurchase: false, viewerPlan: 'FREE' },
+      { viewerId: 'browser-1', hasAuction: false, hasPaidPurchase: false },
     );
     expect(url).toBe(pin.imageUrl);
   });

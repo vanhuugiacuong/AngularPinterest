@@ -496,7 +496,7 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
     const take = Math.min(Math.max(Math.trunc(query.take ?? 24) || 24, 1), 60);
     const skip = Math.max(Math.trunc(query.skip ?? 0) || 0, 0);
 
-    const [rows, total, viewerPlan] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.prisma.auction.findMany({
         where: { status },
         orderBy: { endsAt: status === 'ENDED' ? 'desc' : 'asc' },
@@ -517,16 +517,12 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
         },
       }),
       this.prisma.auction.count({ where: { status } }),
-      viewerId
-        ? this.memberships.status(viewerId).then((s) => s.plan)
-        : Promise.resolve(undefined),
     ]);
 
     await applyPinImageProtection(
       this.prisma,
       rows.map((r) => r.pin),
       viewerId,
-      viewerPlan,
     );
 
     return {

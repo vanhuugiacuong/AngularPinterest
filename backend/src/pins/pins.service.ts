@@ -417,7 +417,7 @@ export class PinsService {
       originalStoragePath?: string | null;
     },
   >(pins: T[], viewerId?: string): Promise<Omit<T, 'originalStoragePath'>[]> {
-    const [auctionMap, likedIds, purchasedIds, viewerPlan] = await Promise.all([
+    const [auctionMap, likedIds, purchasedIds] = await Promise.all([
       this.fetchLatestAuctionsByPinIds(pins.map((p) => p.id)),
       this.fetchLikedPinIds(
         pins.map((p) => p.id),
@@ -427,30 +427,19 @@ export class PinsService {
         pins.map((p) => p.id),
         viewerId,
       ),
-      // status() rather than the raw User.plan column: it applies lazy expiry,
-      // so a lapsed plan stops unlocking previews (same reason getPinById uses
-      // it for its 403 gate).
-      viewerId
-        ? this.membershipsService.status(viewerId).then((s) => s.plan)
-        : Promise.resolve<MembershipPlan>('FREE'),
     ]);
     return pins.map((p) => {
       const { originalStoragePath, ...rest } = p;
       const auction = auctionMap.get(p.id);
       return {
         ...rest,
-        // Entitlement stays in resolveViewablePinImageUrl (owner / not
-        // restricted / PAID purchase). The kai branch computed restriction from
-        // the membership plan alone here, which would have handed a blurred
-        // preview to someone who had actually BOUGHT the pin. Its real fix —
-        // never letting a restricted viewer see the clear CDN URL — now lives
-        // in that helper's fallback instead, so every caller gets it, not just
-        // this one.
+        // Only the owner or a PAID buyer ever gets the real imageUrl here —
+        // see resolveViewablePinImageUrl's doc comment. Everyone else gets
+        // the fully-blurred stand-in, regardless of plan.
         imageUrl: resolveViewablePinImageUrl(p, {
           viewerId,
           hasAuction: Boolean(auction),
           hasPaidPurchase: purchasedIds.has(p.id),
-          viewerPlan,
         }),
         ...this.marketFieldsFor(p.isForSale, auction),
         hasPurchased: purchasedIds.has(p.id),
@@ -806,13 +795,12 @@ export class PinsService {
     const { likes, _count, originalStoragePath, ...safePin } = pin;
     // Plan check above only gates whether the *page* can be viewed at all;
     // it doesn't imply a purchase. An eligible-but-not-yet-buying Plus/Pro
-    // viewer still gets the watermarked preview, not the real one.
+    // viewer still only gets the blurred preview, never the real one.
     const imageUrl = await resolveSinglePinImageUrl(
       this.prisma,
       pin,
       viewerId,
       Boolean(auction),
-      viewerStatus.plan,
     );
     return {
       ...safePin,
@@ -1744,15 +1732,12 @@ export class PinsService {
       : uniquePins;
 
     const page = filteredPins.slice(0, limit);
-    const [auctionMap, purchasedIds, viewerPlan] = await Promise.all([
+    const [auctionMap, purchasedIds] = await Promise.all([
       this.fetchLatestAuctionsByPinIds(page.map((p) => p.id)),
       this.fetchPaidPurchasePinIds(
         page.map((p) => p.id),
         viewerId,
       ),
-      viewerId
-        ? this.membershipsService.status(viewerId).then((st) => st.plan)
-        : Promise.resolve<MembershipPlan>('FREE'),
     ]);
 
     return page.map((p) => ({
@@ -1763,7 +1748,6 @@ export class PinsService {
         viewerId,
         hasAuction: Boolean(auctionMap.get(p.id)),
         hasPaidPurchase: purchasedIds.has(p.id),
-        viewerPlan,
       }),
       sourceUrl: p.sourceUrl,
       userId: p.userId,
