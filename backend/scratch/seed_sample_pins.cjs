@@ -23,6 +23,14 @@
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
+const { randomUUID } = require('crypto');
+
+/** Ảnh đã lấy được, ghi xuống đĩa NGAY sau khi fetch.
+ *
+ * Vì sao cần: hạn mức Unsplash là 50 request/giờ và chỉ một lần chạy hỏng là
+ * mất sạch phần đã lấy — phải chờ hết giờ mới thử lại được. Có cache thì lần
+ * chạy lại không gọi API một lần nào. Xoá file này khi muốn lấy ảnh mới. */
+const CACHE_FILE = path.join(__dirname, '.seed-photos.json');
 
 const argv = process.argv.slice(2);
 const APPLY = argv.includes('--apply');
@@ -158,15 +166,36 @@ async function embed(imageUrl, clipUrl) {
       perCategory + '/category), embedding=' + (WITH_EMBEDDINGS ? 'co' : 'khong') + '\n',
     );
 
+    // Doc cache truoc khi goi API: mot lan chay hong sau khi da fetch xong se
+    // khong bat phai cho het gio han muc moi thu lai duoc.
+    let cache = {};
+    if (fs.existsSync(CACHE_FILE)) {
+      try {
+        cache = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
+        const n = Object.values(cache).reduce((a, v) => a + v.length, 0);
+        console.log('Dung cache ' + path.basename(CACHE_FILE) + ': ' + n + ' anh, KHONG goi Unsplash.' + '\n');
+      } catch {
+        cache = {};
+      }
+    }
+
     const planned = [];
+    let fetchedAnything = false;
     for (const cat of CATEGORIES) {
       if (planned.length >= COUNT) break;
-      let photos;
-      try {
-        photos = await fetchUnsplash(cat.query, perCategory, accessKey);
-      } catch (error) {
-        console.log('  ' + cat.key.padEnd(13) + ' LOI: ' + error.message);
-        continue;
+      let photos = cache[cat.key];
+      if (!photos || photos.length < perCategory) {
+        try {
+          photos = await fetchUnsplash(cat.query, perCategory, accessKey);
+          cache[cat.key] = photos;
+          fetchedAnything = true;
+          // Ghi sau MOI category, khong doi het vong: hong giua chung thi phan
+          // da lay van con.
+          fs.writeFileSync(CACHE_FILE, JSON.stringify(cache));
+        } catch (error) {
+          console.log('  ' + cat.key.padEnd(13) + ' LOI: ' + error.message);
+          continue;
+        }
       }
       let added = 0;
       for (const photo of photos) {
@@ -188,6 +217,7 @@ async function embed(imageUrl, clipUrl) {
       console.log('  ' + cat.key.padEnd(13) + ' +' + added);
     }
 
+    if (fetchedAnything) console.log('\n(da luu cache vao ' + path.basename(CACHE_FILE) + ')');
     console.log('\nTong ke hoach: ' + planned.length + ' pin');
     if (!APPLY) {
       console.log('Vi du 3 dong dau:');
@@ -207,9 +237,13 @@ async function embed(imageUrl, clipUrl) {
         // createdAt trải đều 90 ngày gần đây: cùng một mốc thời gian sẽ khiến
         // feed sắp xếp theo thời gian đổ ra thành một khối.
         const daysAgo = Math.random() * 90;
+        // id phải tự sinh: `@default(uuid())` của Prisma chạy ở CLIENT, không
+        // phải DEFAULT trong Postgres, nên INSERT bằng SQL thô sẽ vi phạm
+        // NOT NULL. Các cột còn lại (category, isForSale, currency...) đều có
+        // default thật trong DB nên không cần khai báo.
         const row = await db.query(
-          `insert into "Pin" (title, description, "imageUrl", "sourceUrl", "userId", category, "createdAt")
-           values ($1, $2, $3, $4, $5, $6, now() - ($7 || ' days')::interval)
+          `insert into "Pin" (id, title, description, "imageUrl", "sourceUrl", "userId", category, "createdAt")
+           values ($8, $1, $2, $3, $4, $5, $6, now() - ($7 || ' days')::interval)
            returning id`,
           [
             pin.title,
@@ -219,6 +253,7 @@ async function embed(imageUrl, clipUrl) {
             pin.userId,
             pin.category,
             daysAgo.toFixed(4),
+            randomUUID(),
           ],
         );
         inserted++;
