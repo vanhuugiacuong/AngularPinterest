@@ -20,6 +20,7 @@ import { AiGeneratorService } from '../ai-generator/ai-generator.service';
 import { MembershipsService } from '../memberships/memberships.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PinPreviewProtectionService } from '../watermark/pin-preview-protection.service';
+import { WatermarkRenderService } from '../watermark/watermark-render.service';
 import {
   applyPinImageProtection,
   resolveSinglePinImageUrl,
@@ -146,6 +147,7 @@ export class PinsService {
     private readonly membershipsService: MembershipsService,
     private readonly notificationsService: NotificationsService,
     private readonly pinPreviewProtection: PinPreviewProtectionService,
+    private readonly watermarkRender: WatermarkRenderService,
   ) {}
 
   // Lưu bản gốc vào bucket private "pins-original" (chỉ backend đọc được) và
@@ -439,6 +441,7 @@ export class PinsService {
         imageUrl: resolveViewablePinImageUrl(p, {
           viewerId,
           hasAuction: Boolean(auction),
+          auctionStatus: auction?.status,
           hasPaidPurchase: purchasedIds.has(p.id),
         }),
         ...this.marketFieldsFor(p.isForSale, auction),
@@ -801,6 +804,7 @@ export class PinsService {
       pin,
       viewerId,
       Boolean(auction),
+      auction?.status,
     );
     return {
       ...safePin,
@@ -1481,7 +1485,7 @@ export class PinsService {
     if (!pin) {
       throw new NotFoundException('Pin not found');
     }
-    const hasAuction = (await this.fetchLatestAuctionsByPinIds([pin.id])).has(
+    const auction = (await this.fetchLatestAuctionsByPinIds([pin.id])).get(
       pin.id,
     );
     /* Entitlement is decided by WHICH url we resolve, not by rejecting the
@@ -1496,7 +1500,8 @@ export class PinsService {
       this.prisma,
       pin,
       viewerId,
-      hasAuction,
+      Boolean(auction),
+      auction?.status,
     );
 
     try {
@@ -1547,6 +1552,63 @@ export class PinsService {
         .toBuffer();
     } catch (error) {
       console.error('Locked preview render error:', error);
+      throw new ServiceUnavailableException(
+        'Không thể tạo ảnh xem trước lúc này.',
+      );
+    }
+  }
+
+  /** Public preview for FIXED_PRICE pins the viewer hasn't bought yet —
+   * unlike getLockedPinPreview this is recognizable (watermarked, not
+   * blurred), so a shopper can tell what they're buying, but its dimensions
+   * are always well under half the original's — a right-click "Save image
+   * as" here can never substitute for actually paying. Computed fresh on
+   * every request (never stored), so there is no "not generated yet" state
+   * to fall back from, unlike Pin.protectedImageUrl. Auction pins never use
+   * this — they're never isForSale (see AuctionsService.createAuction) and
+   * go through getLockedPinPreview/protectedImageUrl instead, gated by
+   * auction status in resolveViewablePinImageUrl. */
+  async getDownscaledPinPreview(pinId: string): Promise<Buffer> {
+    const pin = await this.prisma.pin.findUnique({
+      where: { id: pinId },
+      select: {
+        imageUrl: true,
+        isForSale: true,
+        user: { select: { username: true } },
+      },
+    });
+    if (!pin) throw new NotFoundException('Pin not found');
+    if (!pin.isForSale)
+      throw new NotFoundException('Downscaled preview not found');
+
+    try {
+      const response = await fetch(pin.imageUrl);
+      if (!response.ok)
+        throw new Error(`Image fetch failed (${response.status})`);
+      const source = Buffer.from(await response.arrayBuffer());
+      const meta = await sharp(source, {
+        limitInputPixels: 60_000_000,
+      }).metadata();
+      const sourceWidth = meta.width ?? 1000;
+      const sourceHeight = meta.height ?? 1000;
+      // 45% giữ biên an toàn dưới ngưỡng "thấp hơn 50%" yêu cầu.
+      const resized = await sharp(source, { limitInputPixels: 60_000_000 })
+        .rotate()
+        .resize({
+          width: Math.max(1, Math.round(sourceWidth * 0.45)),
+          height: Math.max(1, Math.round(sourceHeight * 0.45)),
+          fit: 'inside',
+        })
+        .toBuffer();
+      const watermarked = await this.watermarkRender.applyMandatoryWatermark(
+        resized,
+        pin.user.username,
+      );
+      return await sharp(watermarked)
+        .jpeg({ quality: 68, progressive: true })
+        .toBuffer();
+    } catch (error) {
+      console.error('Downscaled preview render error:', error);
       throw new ServiceUnavailableException(
         'Không thể tạo ảnh xem trước lúc này.',
       );
@@ -1747,6 +1809,7 @@ export class PinsService {
       imageUrl: resolveViewablePinImageUrl(p, {
         viewerId,
         hasAuction: Boolean(auctionMap.get(p.id)),
+        auctionStatus: auctionMap.get(p.id)?.status,
         hasPaidPurchase: purchasedIds.has(p.id),
       }),
       sourceUrl: p.sourceUrl,

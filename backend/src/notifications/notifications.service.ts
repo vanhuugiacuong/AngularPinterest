@@ -77,10 +77,18 @@ export class NotificationsService {
     // as every other pin-image response, both in the realtime push below
     // and in the persisted row returned to the caller.
     if (notification.pin) {
-      const hasAuction = await this.prisma.auction.count({
+      const latestAuction = await this.prisma.auction.findFirst({
         where: { pinId: notification.pin.id, status: { not: 'CANCELLED' } },
-      }).then((count) => count > 0);
-      notification.pin.imageUrl = await resolveSinglePinImageUrl(this.prisma, notification.pin, userId, hasAuction);
+        orderBy: { createdAt: 'desc' },
+        select: { status: true },
+      });
+      notification.pin.imageUrl = await resolveSinglePinImageUrl(
+        this.prisma,
+        notification.pin,
+        userId,
+        Boolean(latestAuction),
+        latestAuction?.status,
+      );
     }
 
     void this.supabase.broadcast(`user:${userId}`, 'notification', notification);

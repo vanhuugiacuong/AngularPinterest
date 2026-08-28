@@ -188,6 +188,19 @@ export class PinsController {
     res.send(buffer);
   }
 
+  /** Public, watermarked, always-under-half-resolution stand-in for a
+   * FIXED_PRICE pin a viewer hasn't bought yet — recognizable (unlike
+   * locked-preview above) but never a substitute for actually buying it.
+   * Same two-path-segment reasoning as locked-preview re: the `:id` route. */
+  @Get(':id/downscaled-preview')
+  async downscaledPinPreview(@Param('id') id: string, @Res() res: Response) {
+    const buffer = await this.pinsService.getDownscaledPinPreview(id);
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.send(buffer);
+  }
+
   @Get(':id')
   @UseGuards(OptionalSupabaseAuthGuard)
   async getPinById(

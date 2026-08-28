@@ -281,12 +281,15 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
     // above; the actual gate for "does this viewer get the real preview" is
     // still the same PAID ImagePurchase row every other pin-image path
     // checks (a plan-eligible PRO viewer who is simply browsing, not the
-    // winner, must not see the unwatermarked image either).
+    // winner, must not see the unwatermarked image either) — and status
+    // additionally forces the blur outright for SCHEDULED/ENDED, matching
+    // the marketplace listing (see resolveViewablePinImageUrl).
     const pinImageUrl = await resolveSinglePinImageUrl(
       this.prisma,
       auction.pin,
       viewerId,
       true,
+      auction.status,
     );
 
     return {
