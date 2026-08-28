@@ -1,16 +1,20 @@
-import { Component, OnDestroy, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, signal, computed, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
+import { LikeButton } from '../../shared/like-button/like-button';
 import {
   AuctionService,
   AuctionListItem,
   AuctionListStatusFilter,
 } from '../../core/services/auction';
+import { PinService } from '../../core/services/pin';
+import { BoardService, Board } from '../../core/services/board';
 import { MembershipService } from '../../core/services/membership';
 import { SupabaseService } from '../../core/services/supabase';
 import { DialogService } from '../../core/services/dialog';
+import { ToastService } from '../../core/services/toast';
 import { formatNovaToken, vndToNovaToken } from '../../core/utils/novatoken';
 
 interface AuctionTab {
@@ -29,12 +33,15 @@ const TAKE = 24;
 @Component({
   selector: 'app-auctions',
   standalone: true,
-  imports: [CommonModule, Navbar, UserAvatar],
+  imports: [CommonModule, Navbar, UserAvatar, LikeButton],
   templateUrl: './auctions.html',
   styleUrl: './auctions.css',
 })
 export class Auctions implements OnInit, OnDestroy {
   private auctionService = inject(AuctionService);
+  private pinService = inject(PinService);
+  private boardService = inject(BoardService);
+  private toast = inject(ToastService);
   public router = inject(Router);
   public membership = inject(MembershipService);
   public supabaseService = inject(SupabaseService);
@@ -56,6 +63,20 @@ export class Auctions implements OnInit, OnDestroy {
 
   public readonly isPro = computed(() => this.membership.status()?.plan === 'PRO');
 
+  /** Bảng chọn bộ sưu tập — cùng mẫu portal-positioned dropdown như
+   * home.ts (dropdownAnchor tính từ getBoundingClientRect của nút bấm),
+   * vì thẻ lưới đấu giá có overflow-hidden riêng nên dropdown lồng bên
+   * trong sẽ bị cắt mất nếu cao hơn phần còn lại phía trên. */
+  public boards = signal<Board[]>([]);
+  public activeDropdownPinId = signal<string | null>(null);
+  public dropdownAnchor = signal<{ top: number; left: number } | null>(null);
+  public readonly activeDropdownItem = computed(() => {
+    const pinId = this.activeDropdownPinId();
+    if (!pinId) return null;
+    return this.items().find((item) => item.pin.id === pinId) ?? null;
+  });
+  public selectedBoardMap = signal<Record<string, Board>>({});
+
   private serverTimeOffsetMs = 0;
   private countdownTimer?: ReturnType<typeof setInterval>;
   private skip = 0;
@@ -64,11 +85,38 @@ export class Auctions implements OnInit, OnDestroy {
     if (!this.membership.status()) {
       this.membership.load().catch(() => undefined);
     }
+    void this.loadBoards();
     void this.loadTab('active');
   }
 
   ngOnDestroy(): void {
     this.stopCountdownTicker();
+  }
+
+  private async loadBoards(): Promise<void> {
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (!token) return;
+      this.boards.set(await this.boardService.getBoards(token));
+    } catch {
+      // Bảng chọn bộ sưu tập không tải được thì vẫn cho tạo bộ sưu tập mặc
+      // định khi lưu — không chặn luồng chính chỉ vì danh sách này lỗi.
+    }
+  }
+
+  @HostListener('window:resize')
+  onResize(): void {
+    this.closeBoardDropdown();
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.activeDropdownPinId()) this.closeBoardDropdown();
+  }
+
+  @HostListener('window:scroll')
+  onWindowScroll(): void {
+    if (this.activeDropdownPinId()) this.closeBoardDropdown();
   }
 
   selectTab(tab: AuctionListStatusFilter): void {
@@ -197,5 +245,133 @@ export class Auctions implements OnInit, OnDestroy {
     if (hours > 0) return `${hours}g ${minutes}p`;
     if (minutes > 0) return `${minutes}p ${seconds}s`;
     return `${seconds}s`;
+  }
+
+  async toggleLike(item: AuctionListItem, event: MouseEvent): Promise<void> {
+    event.stopPropagation();
+    const currentUser = this.supabaseService.user();
+    if (!currentUser) return;
+
+    const pin = item.pin;
+    const previousLiked = pin.isLiked === true;
+    const previousLikes = pin.likeCount ?? 0;
+    pin.isLiked = !previousLiked;
+    pin.likeCount = Math.max(0, previousLikes + (previousLiked ? -1 : 1));
+    (pin as any).likeQueuedToggles = ((pin as any).likeQueuedToggles || 0) + 1;
+    this.items.update((current) => [...current]);
+
+    await this.flushLikeQueue(pin);
+  }
+
+  private async flushLikeQueue(pin: AuctionListItem['pin']): Promise<void> {
+    const state = pin as any;
+    if (state.likeSyncing) return;
+    state.likeSyncing = true;
+
+    try {
+      while ((state.likeQueuedToggles || 0) > 0) {
+        state.likeQueuedToggles--;
+
+        try {
+          const token = await this.supabaseService.getSessionToken();
+          if (!token) throw new Error('Không tìm thấy phiên đăng nhập.');
+
+          const result = await this.pinService.toggleLike(pin.id, token);
+          if (state.likeQueuedToggles === 0) {
+            pin.isLiked = result.liked;
+            pin.likeCount = result.likeCount;
+          }
+        } catch (error) {
+          const currentLiked = pin.isLiked === true;
+          pin.isLiked = !currentLiked;
+          pin.likeCount = Math.max(0, (pin.likeCount ?? 0) + (currentLiked ? -1 : 1));
+          console.error('Error toggling like:', error);
+        }
+
+        this.items.update((current) => [...current]);
+      }
+    } finally {
+      state.likeSyncing = false;
+      this.items.update((current) => [...current]);
+    }
+  }
+
+  toggleBoardDropdown(item: AuctionListItem, event: MouseEvent): void {
+    event.stopPropagation();
+    if (!item.canSave) {
+      this.toast.error('Bạn cần thắng và thanh toán phiên đấu giá trước khi lưu vào bộ sưu tập.');
+      return;
+    }
+    const pinId = item.pin.id;
+    if (this.activeDropdownPinId() === pinId) {
+      this.closeBoardDropdown();
+      return;
+    }
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const dropdownWidth = 176;
+    this.dropdownAnchor.set({
+      top: rect.top,
+      left: Math.min(rect.left, window.innerWidth - dropdownWidth - 12),
+    });
+    this.activeDropdownPinId.set(pinId);
+  }
+
+  closeBoardDropdown(): void {
+    this.activeDropdownPinId.set(null);
+    this.dropdownAnchor.set(null);
+  }
+
+  selectBoardForPin(pinId: string, board: Board, event: MouseEvent): void {
+    event.stopPropagation();
+    this.selectedBoardMap.update((current) => ({ ...current, [pinId]: board }));
+    this.closeBoardDropdown();
+  }
+
+  getSelectedBoardName(pinId: string): string {
+    const selected = this.selectedBoardMap()[pinId];
+    if (selected) return selected.name;
+    const list = this.boards();
+    return list.length > 0 ? list[0].name : 'Lưu vào';
+  }
+
+  saveItemToBoard(item: AuctionListItem, event: MouseEvent): void {
+    event.stopPropagation();
+    if (!item.canSave) {
+      this.toast.error('Bạn cần thắng và thanh toán phiên đấu giá trước khi lưu vào bộ sưu tập.');
+      return;
+    }
+    void this.performSaveToBoard(item.pin.id);
+  }
+
+  private async performSaveToBoard(pinId: string): Promise<void> {
+    const currentUser = this.supabaseService.user();
+    if (!currentUser) return;
+
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (!token) return;
+
+      let boardId = this.selectedBoardMap()[pinId]?.id;
+      if (!boardId && this.boards().length > 0) {
+        boardId = this.boards()[0].id;
+      }
+      if (!boardId) {
+        const newBoard = await this.boardService.createBoard(
+          'Bộ sưu tập của tôi',
+          'Bộ sưu tập lưu mặc định',
+          false,
+          token,
+        );
+        this.boards.update((current) => [newBoard, ...current]);
+        boardId = newBoard.id;
+      }
+
+      await this.boardService.addPinToBoard(boardId, pinId, token);
+      this.toast.success('Đã lưu vào bộ sưu tập.');
+    } catch (error) {
+      this.toast.error(error instanceof Error ? error.message : 'Không thể lưu vào bộ sưu tập.', {
+        action: { label: 'Thử lại', onClick: () => this.performSaveToBoard(pinId) },
+      });
+    }
   }
 }

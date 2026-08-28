@@ -126,3 +126,48 @@
 .nf-auction-card:hover {
   border-color: color-mix(in srgb, var(--color-nova-blue) 45%, var(--color-border));
 }
+
+/* Dải hành động trượt lên khi hover — sao chép nguyên công thức từ trang chủ
+   (home.css) vì view encapsulation của Angular không cho style xuyên component. */
+.nf-pin-save-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 100%;
+}
+
+.nf-pin-save-title {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 0.6875rem;
+  font-weight: 750;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.85);
+}
+
+.nf-pin-save-selector {
+  min-width: 0;
+}
+
+.nf-pin-save-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+
+.nf-pin-save-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  max-width: 100%;
+  padding-inline: 0.75rem;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  line-height: 1;
+}

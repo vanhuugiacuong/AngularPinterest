@@ -4,8 +4,10 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Navbar } from '../../../components/navbar/navbar';
 import { UserAvatar } from '../../../shared/user-avatar/user-avatar';
+import { LikeButton } from '../../../shared/like-button/like-button';
 import { CurrencyInputDirective } from '../../../shared/currency-input.directive';
 import { AuctionService, AuctionDetail } from '../../../core/services/auction';
+import { PinService, Pin } from '../../../core/services/pin';
 import { MembershipService } from '../../../core/services/membership';
 import { SupabaseService } from '../../../core/services/supabase';
 import { DialogService } from '../../../core/services/dialog';
@@ -19,7 +21,7 @@ const MAX_BID_AMOUNT = 9_999_999_999;
 @Component({
   selector: 'app-auction-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule, Navbar, UserAvatar, CurrencyInputDirective],
+  imports: [CommonModule, RouterLink, FormsModule, Navbar, UserAvatar, LikeButton, CurrencyInputDirective],
   templateUrl: './auction-detail.html',
   styleUrl: './auction-detail.css',
 })
@@ -28,6 +30,7 @@ export class AuctionDetailPage implements OnInit, OnDestroy {
   private router = inject(Router);
   private location = inject(Location);
   private auctionService = inject(AuctionService);
+  private pinService = inject(PinService);
   private dialogService = inject(DialogService);
   private toastService = inject(ToastService);
   private boardService = inject(BoardService);
@@ -57,10 +60,21 @@ export class AuctionDetailPage implements OnInit, OnDestroy {
   public selectedBoard = signal<Board | null>(null);
   public saving = signal(false);
 
+  /** Bản pin đầy đủ (kèm isLiked/likeCount/comments) — AuctionDetail.pin chỉ
+   * có {id,title,imageUrl,userId}, không đủ cho phần thích/bình luận. Cùng
+   * endpoint GET /api/pins/:id mà pin-detail.ts dùng, và cùng luật Pro-gate
+   * người xem đã vượt qua để mở được trang này rồi nên request này không
+   * bao giờ bị chặn thêm lần nữa. */
+  public pinDetail = signal<Pin | null>(null);
+  public likePending = signal(false);
+  public newCommentText = '';
+  public isSubmittingComment = signal(false);
+
   private auctionId = '';
   private serverTimeOffsetMs = 0;
   private pollTimer?: ReturnType<typeof setInterval>;
   private countdownTimer?: ReturnType<typeof setInterval>;
+  private likeQueuedToggles = 0;
 
   ngOnInit(): void {
     if (!this.membership.status()) {
@@ -104,10 +118,22 @@ export class AuctionDetailPage implements OnInit, OnDestroy {
       this.applyServerTimeOffset(detail.serverNow);
       this.schedulePolling();
       this.startCountdownTicker();
+      void this.loadPinDetail(detail.pin.id);
     } catch (e) {
       this.error.set(e instanceof Error ? e.message : 'Không thể tải thông tin đấu giá.');
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  /** Thích/bình luận không quyết định thắng thua nên không cần theo cùng
+   * vòng poll 15s của phiên đấu giá — chỉ tải một lần khi vào trang. */
+  private async loadPinDetail(pinId: string): Promise<void> {
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      this.pinDetail.set(await this.pinService.getPinById(pinId, token ?? undefined));
+    } catch {
+      // Không chặn xem đấu giá nếu riêng phần thích/bình luận tải lỗi.
     }
   }
 
@@ -296,6 +322,100 @@ export class AuctionDetailPage implements OnInit, OnDestroy {
       this.toastService.error(e instanceof Error ? e.message : 'Không thể lưu vào bộ sưu tập.');
     } finally {
       this.saving.set(false);
+    }
+  }
+
+  isLikedByUser(): boolean {
+    return this.pinDetail()?.isLiked === true;
+  }
+
+  async toggleLike(): Promise<void> {
+    const currentPin = this.pinDetail();
+    const currentUser = this.supabaseService.user();
+    if (!currentPin || !currentUser) return;
+
+    const previousLiked = currentPin.isLiked === true;
+    const previousLikeCount = currentPin.likeCount ?? currentPin._count?.likes ?? 0;
+    const optimisticLikeCount = Math.max(0, previousLikeCount + (previousLiked ? -1 : 1));
+
+    this.pinDetail.set({
+      ...currentPin,
+      isLiked: !previousLiked,
+      likeCount: optimisticLikeCount,
+      _count: { ...currentPin._count, likes: optimisticLikeCount },
+    });
+    this.likeQueuedToggles++;
+
+    await this.flushLikeQueue(currentPin.id);
+  }
+
+  private async flushLikeQueue(pinId: string): Promise<void> {
+    if (this.likePending()) return;
+    this.likePending.set(true);
+
+    try {
+      while (this.likeQueuedToggles > 0) {
+        this.likeQueuedToggles--;
+
+        try {
+          const token = await this.supabaseService.getSessionToken();
+          if (!token) throw new Error('Không tìm thấy phiên đăng nhập.');
+
+          const result = await this.pinService.toggleLike(pinId, token);
+          const latestPin = this.pinDetail();
+          if (latestPin?.id === pinId && this.likeQueuedToggles === 0) {
+            this.pinDetail.set({
+              ...latestPin,
+              isLiked: result.liked,
+              likeCount: result.likeCount,
+              _count: { ...latestPin._count, likes: result.likeCount },
+            });
+          }
+        } catch (error) {
+          const latestPin = this.pinDetail();
+          if (latestPin?.id === pinId) {
+            const currentLiked = latestPin.isLiked === true;
+            const rolledBackLiked = !currentLiked;
+            const currentLikeCount = latestPin.likeCount ?? latestPin._count?.likes ?? 0;
+            const rolledBackLikeCount = Math.max(0, currentLikeCount + (rolledBackLiked ? 1 : -1));
+            this.pinDetail.set({
+              ...latestPin,
+              isLiked: rolledBackLiked,
+              likeCount: rolledBackLikeCount,
+              _count: { ...latestPin._count, likes: rolledBackLikeCount },
+            });
+          }
+          console.error('Error toggling like:', error);
+        }
+      }
+    } finally {
+      this.likePending.set(false);
+    }
+  }
+
+  async submitComment(): Promise<void> {
+    const currentPin = this.pinDetail();
+    const currentUser = this.supabaseService.user();
+    if (!currentPin || !currentUser || !this.newCommentText.trim()) return;
+
+    this.isSubmittingComment.set(true);
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (token) {
+        const newComment = await this.pinService.addComment(
+          currentPin.id,
+          this.newCommentText.trim(),
+          token,
+        );
+        const updatedComments = [...(currentPin.comments || []), newComment];
+        this.pinDetail.set({ ...currentPin, comments: updatedComments });
+        this.newCommentText = '';
+      }
+    } catch (error) {
+      console.error('Error submitting comment:', error);
+      this.toastService.error('Không thể gửi bình luận.');
+    } finally {
+      this.isSubmittingComment.set(false);
     }
   }
 

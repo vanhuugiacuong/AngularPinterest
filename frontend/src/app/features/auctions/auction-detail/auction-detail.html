@@ -91,8 +91,18 @@
               </div>
             </div>
 
-            <!-- Lưu vào bộ sưu tập — chỉ chủ sở hữu hoặc người đấu giá thắng đã thanh toán -->
+            <!-- Thích + Lưu vào bộ sưu tập — lưu chỉ chủ sở hữu hoặc người đấu giá thắng đã thanh toán -->
             <div class="nf-collection-save select-none relative flex items-center gap-2">
+              @if (pinDetail(); as pd) {
+                <app-like-button
+                  [liked]="isLikedByUser()"
+                  [count]="pd.likeCount ?? pd._count?.likes ?? null"
+                  [disabled]="likePending()"
+                  [ariaLabel]="(isLikedByUser() ? 'Bỏ thích ' : 'Thích ') + a.pin.title"
+                  (toggled)="toggleLike()"
+                ></app-like-button>
+              }
+
               <div class="relative">
                 <button
                   type="button"
@@ -263,6 +273,80 @@
             </div>
           </div>
         </div>
+
+        <!-- Bình luận -->
+        @if (pinDetail(); as pd) {
+          <div class="flex flex-col gap-4 max-w-[700px]">
+            <span class="text-sm font-bold text-text select-none">
+              Thảo luận · <span class="mono-label">{{ pd.comments?.length || 0 }}</span>
+            </span>
+
+            <div class="flex flex-col gap-3">
+              @if (!pd.comments || pd.comments.length === 0) {
+                <p class="text-xs text-text-muted py-2">Chưa có bình luận nào. Hãy là người đầu tiên chia sẻ cảm nghĩ!</p>
+              }
+              @for (comment of pd.comments; track comment.id) {
+                <div class="flex items-start gap-2.5">
+                  <button
+                    type="button"
+                    [routerLink]="['/profile', comment.user.username]"
+                    class="bg-transparent border-none p-0.5 cursor-pointer shrink-0 overflow-visible focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full flex items-center justify-center"
+                    [attr.aria-label]="'Xem trang cá nhân của ' + comment.user.username"
+                  >
+                    <app-user-avatar
+                      [src]="comment.user.avatarUrl"
+                      [name]="comment.user.displayName || comment.user.username"
+                      [size]="32"
+                      [plan]="comment.user.plan"
+                      [isAdmin]="comment.user.isAdmin"
+                    ></app-user-avatar>
+                  </button>
+                  <div class="flex flex-col bg-surface-elevated rounded-control px-3.5 py-2 flex-1 min-w-0">
+                    <a
+                      [routerLink]="['/profile', comment.user.username]"
+                      class="text-xs font-bold text-text truncate no-underline hover:underline w-fit"
+                    >
+                      {{ comment.user.displayName || comment.user.username }}
+                    </a>
+                    <p class="text-xs text-text-muted mt-0.5 leading-relaxed break-words whitespace-pre-line">
+                      {{ comment.content }}
+                    </p>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <!-- Comment input form -->
+            <div class="pt-4 border-t border-border flex items-center gap-3">
+              <div class="shrink-0 overflow-visible flex items-center justify-center p-0.5">
+                <app-user-avatar
+                  [src]="supabaseService.dbUser()?.avatarUrl"
+                  [name]="supabaseService.dbUser()?.displayName || supabaseService.dbUser()?.username || ''"
+                  [size]="32"
+                  [plan]="supabaseService.dbUser()?.plan"
+                  [isAdmin]="supabaseService.dbUser()?.isAdmin"
+                ></app-user-avatar>
+              </div>
+              <form (submit)="submitComment(); $event.preventDefault()" class="flex-1 min-w-0 flex gap-2">
+                <input
+                  type="text"
+                  name="commentText"
+                  [(ngModel)]="newCommentText"
+                  placeholder="Thêm nhận xét..."
+                  class="flex-1 min-w-0 bg-surface-elevated border border-border focus:border-primary outline-none rounded-control px-4 h-10 text-xs text-text placeholder-text-muted transition-all focus:ring-2 focus:ring-primary/30"
+                  [disabled]="isSubmittingComment()"
+                />
+                <button
+                  type="submit"
+                  class="h-10 px-4 bg-gradient-to-r from-nova-blue to-studio-aqua cta-shape text-text-on-accent text-xs font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none shrink-0 border-none"
+                  [disabled]="isSubmittingComment() || !newCommentText.trim()"
+                >
+                  Gửi
+                </button>
+              </form>
+            </div>
+          </div>
+        }
       }
     </main>
   </div>

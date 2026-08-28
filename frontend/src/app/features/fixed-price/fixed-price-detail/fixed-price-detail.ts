@@ -1,8 +1,10 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { Navbar } from '../../../components/navbar/navbar';
 import { UserAvatar } from '../../../shared/user-avatar/user-avatar';
+import { LikeButton } from '../../../shared/like-button/like-button';
 import { PinService, Pin } from '../../../core/services/pin';
 import { MembershipService } from '../../../core/services/membership';
 import { SupabaseService } from '../../../core/services/supabase';
@@ -22,7 +24,7 @@ const FIXED_PRICE_REQUIRED_MESSAGE =
 @Component({
   selector: 'app-fixed-price-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, Navbar, UserAvatar],
+  imports: [CommonModule, RouterLink, FormsModule, Navbar, UserAvatar, LikeButton],
   templateUrl: './fixed-price-detail.html',
   styleUrl: './fixed-price-detail.css',
 })
@@ -54,7 +56,12 @@ export class FixedPriceDetailPage implements OnInit {
   public selectedBoard = signal<Board | null>(null);
   public saving = signal(false);
 
+  public likePending = signal(false);
+  public newCommentText = '';
+  public isSubmittingComment = signal(false);
+
   private pinId = '';
+  private likeQueuedToggles = 0;
 
   ngOnInit(): void {
     if (!this.membership.status()) {
@@ -182,6 +189,100 @@ export class FixedPriceDetailPage implements OnInit {
       this.toast.error(e instanceof Error ? e.message : 'Không thể lưu vào bộ sưu tập.');
     } finally {
       this.saving.set(false);
+    }
+  }
+
+  isLikedByUser(): boolean {
+    return this.pin()?.isLiked === true;
+  }
+
+  async toggleLike(): Promise<void> {
+    const currentPin = this.pin();
+    const currentUser = this.supabaseService.user();
+    if (!currentPin || !currentUser) return;
+
+    const previousLiked = currentPin.isLiked === true;
+    const previousLikeCount = currentPin.likeCount ?? currentPin._count?.likes ?? 0;
+    const optimisticLikeCount = Math.max(0, previousLikeCount + (previousLiked ? -1 : 1));
+
+    this.pin.set({
+      ...currentPin,
+      isLiked: !previousLiked,
+      likeCount: optimisticLikeCount,
+      _count: { ...currentPin._count, likes: optimisticLikeCount },
+    });
+    this.likeQueuedToggles++;
+
+    await this.flushLikeQueue(currentPin.id);
+  }
+
+  private async flushLikeQueue(pinId: string): Promise<void> {
+    if (this.likePending()) return;
+    this.likePending.set(true);
+
+    try {
+      while (this.likeQueuedToggles > 0) {
+        this.likeQueuedToggles--;
+
+        try {
+          const token = await this.supabaseService.getSessionToken();
+          if (!token) throw new Error('Không tìm thấy phiên đăng nhập.');
+
+          const result = await this.pinService.toggleLike(pinId, token);
+          const latestPin = this.pin();
+          if (latestPin?.id === pinId && this.likeQueuedToggles === 0) {
+            this.pin.set({
+              ...latestPin,
+              isLiked: result.liked,
+              likeCount: result.likeCount,
+              _count: { ...latestPin._count, likes: result.likeCount },
+            });
+          }
+        } catch (error) {
+          const latestPin = this.pin();
+          if (latestPin?.id === pinId) {
+            const currentLiked = latestPin.isLiked === true;
+            const rolledBackLiked = !currentLiked;
+            const currentLikeCount = latestPin.likeCount ?? latestPin._count?.likes ?? 0;
+            const rolledBackLikeCount = Math.max(0, currentLikeCount + (rolledBackLiked ? 1 : -1));
+            this.pin.set({
+              ...latestPin,
+              isLiked: rolledBackLiked,
+              likeCount: rolledBackLikeCount,
+              _count: { ...latestPin._count, likes: rolledBackLikeCount },
+            });
+          }
+          console.error('Error toggling like:', error);
+        }
+      }
+    } finally {
+      this.likePending.set(false);
+    }
+  }
+
+  async submitComment(): Promise<void> {
+    const currentPin = this.pin();
+    const currentUser = this.supabaseService.user();
+    if (!currentPin || !currentUser || !this.newCommentText.trim()) return;
+
+    this.isSubmittingComment.set(true);
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (token) {
+        const newComment = await this.pinService.addComment(
+          currentPin.id,
+          this.newCommentText.trim(),
+          token,
+        );
+        const updatedComments = [...(currentPin.comments || []), newComment];
+        this.pin.set({ ...currentPin, comments: updatedComments });
+        this.newCommentText = '';
+      }
+    } catch (error) {
+      console.error('Error submitting comment:', error);
+      this.toast.error('Không thể gửi bình luận.');
+    } finally {
+      this.isSubmittingComment.set(false);
     }
   }
 

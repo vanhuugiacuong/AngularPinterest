@@ -89,7 +89,7 @@ export type AuctionListStatusFilter = 'active' | 'scheduled' | 'ended';
 
 export interface AuctionListItem {
   id: string;
-  pin: { id: string; title: string; imageUrl: string };
+  pin: { id: string; title: string; imageUrl: string; likeCount: number; isLiked: boolean };
   seller: AuctionBidder;
   status: AuctionStatus;
   currency: 'VND';
@@ -99,6 +99,9 @@ export interface AuctionListItem {
   startsAt: string;
   endsAt: string;
   bidCount: number;
+  /** Server-computed — khớp đúng luật canSave() ở trang chi tiết: chỉ chủ
+   * phiên, hoặc người thắng đã thanh toán, mới lưu được vào bộ sưu tập. */
+  canSave: boolean;
 }
 
 export interface AuctionListResult {

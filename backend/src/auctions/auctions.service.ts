@@ -514,9 +514,11 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
               protectedImageUrl: true,
               userId: true,
               isForSale: true,
+              _count: { select: { likes: true } },
             },
           },
           seller: { select: PUBLIC_USER_SELECT },
+          purchase: { select: { status: true } },
         },
       }),
       this.prisma.auction.count({ where: { status } }),
@@ -528,10 +530,34 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
       viewerId,
     );
 
+    // Thích không cần đăng nhập để thấy số lượt, nhưng chỉ đánh dấu isLiked
+    // khi có viewerId — cùng kiểu 1 query hàng loạt như attachMarketInfoToList
+    // bên PinsService, tránh N+1 theo từng thẻ.
+    const likedIds =
+      viewerId && rows.length > 0
+        ? new Set(
+            (
+              await this.prisma.like.findMany({
+                where: {
+                  userId: viewerId,
+                  pinId: { in: rows.map((r) => r.pin.id) },
+                },
+                select: { pinId: true },
+              })
+            ).map((l) => l.pinId),
+          )
+        : new Set<string>();
+
     return {
       items: rows.map((r) => ({
         id: r.id,
-        pin: { id: r.pin.id, title: r.pin.title, imageUrl: r.pin.imageUrl },
+        pin: {
+          id: r.pin.id,
+          title: r.pin.title,
+          imageUrl: r.pin.imageUrl,
+          likeCount: r.pin._count.likes,
+          isLiked: likedIds.has(r.pin.id),
+        },
         seller: r.seller,
         status: r.status,
         currency: r.currency,
@@ -541,6 +567,16 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
         startsAt: r.startsAt.toISOString(),
         endsAt: r.endsAt.toISOString(),
         bidCount: r.bidCount,
+        // Khớp đúng luật canSave() ở getAuction/auction-detail.ts: chỉ chủ
+        // phiên, hoặc người thắng đã thanh toán (ENDED, đúng winnerId, PAID),
+        // mới được lưu vào bộ sưu tập ngay từ thẻ lưới — không mở rộng hơn
+        // luật đã thống nhất ở trang chi tiết.
+        canSave:
+          Boolean(viewerId) &&
+          (viewerId === r.sellerId ||
+            (r.status === 'ENDED' &&
+              r.winnerId === viewerId &&
+              r.purchase?.status === 'PAID')),
       })),
       total,
       skip,
