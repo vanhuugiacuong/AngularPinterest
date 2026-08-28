@@ -1,0 +1,146 @@
+:host {
+  display: block;
+}
+
+/* Cùng ngôn ngữ hero với trang Pro/admin (khối bo lớn + quầng sáng + icon mờ
+   khổng lồ + chữ mào giãn cách), nhưng tông ĐỎ: đây là tin xấu, dùng tông hồng
+   thương hiệu hay tím admin sẽ nhìn như một trang giới thiệu tính năng. */
+.banned-card {
+  border: 1px solid rgba(255, 92, 122, 0.24);
+  background:
+    radial-gradient(120% 150% at 50% -30%, rgba(255, 92, 122, 0.13), transparent 58%),
+    linear-gradient(180deg, #1e1a1c 0%, #141416 72%);
+  box-shadow: 0 26px 60px -30px rgba(0, 0, 0, 0.95);
+}
+.banned-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(46% 66% at 100% -10%, rgba(255, 92, 122, 0.13), transparent 62%),
+    radial-gradient(50% 70% at -6% 112%, rgba(255, 92, 122, 0.09), transparent 62%);
+}
+
+.banned-mark {
+  position: absolute;
+  right: -30px;
+  bottom: -58px;
+  font-size: 220px;
+  line-height: 1;
+  color: rgba(255, 92, 122, 0.05);
+  pointer-events: none;
+  user-select: none;
+}
+
+.banned-crest {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #ff8098, #a82943);
+  color: #fff;
+}
+.banned-crest .material-symbols-outlined {
+  font-size: 22px;
+}
+.banned-eyebrow {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  color: #ff9fb1;
+}
+.banned-accent {
+  background: linear-gradient(90deg, #ff5c7a, #a82943);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Email tài khoản đang bị khoá — hiện lại để người dùng biết chính xác tài
+   khoản nào bị khoá (nhiều người có vài tài khoản). */
+.banned-acct {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12.5px;
+  color: #cfc9d6;
+}
+
+.banned-box {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 18px;
+  padding: 16px 18px;
+}
+
+.banned-mail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+  color: #fff;
+}
+.banned-copy {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: none;
+  background: rgba(255, 255, 255, 0.07);
+  color: #cfc9d6;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.banned-copy:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.banned-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: none;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.banned-btn:hover {
+  transform: translateY(-1px);
+}
+.banned-btn-primary {
+  background: linear-gradient(180deg, #ff6f8c, #c93a58);
+  color: #fff;
+}
+.banned-btn-ghost {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+.banned-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.11);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .banned-btn:hover {
+    transform: none;
+  }
+}

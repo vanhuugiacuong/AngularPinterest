@@ -4,11 +4,18 @@ export interface Pin {
   id: string;
   title: string;
   description?: string;
+  /** Bản công khai nhỏ, KHÔNG watermark — dùng ngoài feed/lưới ảnh. */
   imageUrl: string;
+  /**
+   * Ảnh Premium: bản lớn hơn CÓ watermark phủ kín, dùng ở trang chi tiết.
+   * null với ảnh thường (khi đó chi tiết hiện luôn imageUrl).
+   */
+  previewUrl?: string | null;
   sourceUrl?: string;
   userId: string;
   createdAt: string;
   isAiGenerated: boolean;
+  isPremium?: boolean;
   isCollage?: boolean;
   user: {
     id: string;

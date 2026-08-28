@@ -13,24 +13,24 @@
 
 /* Thẻ số dư — điểm nhấn gradient duy nhất, bóng nhuốm màu thương hiệu */
 .balance-card {
-  background-image: var(--grad-brand);
   box-shadow: 0 16px 40px -8px rgba(249, 64, 131, 0.45);
+  background-image: var(--grad-brand);
 }
 
 .pack-card:hover {
-  transform: translateY(-3px);
   box-shadow: 0 14px 34px -12px rgba(177, 92, 170, 0.28);
+  transform: translateY(-3px);
 }
 
 /* ── Thẻ "Gói của bạn" khi đã là Pro — kính mờ nhuốm hồng + glow + bóng lướt
    qua, đồng bộ ngôn ngữ thẻ hội viên (xem pro.css .ph-crest / navbar.css
    .pro-chip). Trước đây chỉ là nền phẳng gần như trùng màu trang -> bị chìm. */
 .plan-card-pro {
+  box-shadow: 0 18px 44px -18px rgba(177, 92, 170, 0.22);
   background:
     radial-gradient(120% 140% at 100% -10%, rgba(249, 64, 131, 0.14), transparent 55%),
     linear-gradient(180deg, #fff7fb 0%, #ffffff 70%);
   border-color: rgba(249, 64, 131, 0.22);
-  box-shadow: 0 18px 44px -18px rgba(177, 92, 170, 0.22);
 }
 :host-context(.dark) .plan-card-pro {
   background:
@@ -65,6 +65,7 @@
   box-shadow: 0 8px 20px -6px rgba(249, 64, 131, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.25);
 }
 .plan-tag {
+  box-shadow: 0 4px 10px -3px rgba(249, 64, 131, 0.55);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -72,7 +73,6 @@
   background: var(--grad-brand);
   padding: 3px 8px;
   border-radius: 999px;
-  box-shadow: 0 4px 10px -3px rgba(249, 64, 131, 0.55);
 }
 .plan-dot {
   width: 6px;
@@ -126,13 +126,13 @@
 .bankcard-scene:hover .bankcard:not(.is-flipped) { transform: rotateY(6deg) rotateX(2deg); }
 
 .bankcard-face {
+  box-shadow: 0 20px 44px -14px rgba(177, 92, 170, 0.55);
   position: absolute;
   inset: 0;
   border-radius: 20px;
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   overflow: hidden;
-  box-shadow: 0 20px 44px -14px rgba(177, 92, 170, 0.55);
 }
 .bankcard-front {
   padding: 18px 20px;
@@ -205,18 +205,83 @@
 
 /* ── Khu vực rút tiền ──────────────────────────────────────────────────────
    Tông xanh lá "tiền vào" để tách khỏi tông hồng (mua) và vàng (bán ảnh),
-   giúp phân biệt ngay đây là dòng tiền ra khỏi hệ thống. */
+   giúp phân biệt ngay đây là dòng tiền ra khỏi hệ thống.
+   Từng thử thêm quầng sáng (radial-gradient) quanh thẻ + box-shadow màu lan
+   ra ngoài quanh icon — bị chê là "hiệu ứng phát sáng" khó chịu. Bỏ hẳn: nền
+   phẳng 1 gradient tối-nhạt, bóng đổ chỉ còn màu đen trung tính (không màu),
+   icon dùng nền phẳng không glow. */
 .payout-box {
-  border-color: rgba(34, 197, 94, 0.28);
-  background:
-    radial-gradient(120% 130% at 100% -10%, rgba(34, 197, 94, 0.1), transparent 58%),
-    linear-gradient(180deg, #16221b 0%, #141814 72%);
-  box-shadow: 0 16px 40px -20px rgba(34, 197, 94, 0.3);
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(34, 197, 94, 0.3);
+  background: linear-gradient(165deg, #1b3327 0%, #182b21 45%, #14211a 100%);
+  box-shadow: 0 14px 30px -18px rgba(0, 0, 0, 0.55);
+}
+.payout-box-watermark {
+  position: absolute;
+  right: 10px;
+  bottom: -6px;
+  width: 110px;
+  height: 110px;
+  opacity: 0.06;
+  color: #5fd39a;
+  pointer-events: none;
+  transform: rotate(-8deg);
 }
 .payout-crest {
+  box-shadow: 0 8px 20px -6px rgba(34, 197, 94, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.25);
   background: linear-gradient(135deg, #5fd39a, #17794a);
   color: #08170f;
-  box-shadow: 0 8px 20px -6px rgba(34, 197, 94, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+/* Nút CTA của khu rút tiền — trước dùng .grad-btn (hồng thương hiệu), nhưng
+   hồng là màu của "mua"/Pro nên đặt cạnh thẻ xanh lá bị lệch tông. Đổi sang
+   xanh lá cùng họ màu với .payout-box/.payout-crest ở trên để cả khối rút
+   tiền nói cùng một "giọng" màu tiền-ra.
+   Bản đầu 3 mốc màu (135deg, chạy tới #17794a rất tối ở góc dưới-phải) bị chê
+   xỉn — rút còn 2 mốc SÁNG hơn, dốc dọc (180deg) để không có góc tối, cùng
+   viền sáng bên trong (inset highlight) cho có chiều sâu như nút vật lý thay
+   vì một mảng màu phẳng. */
+.payout-btn {
+  box-shadow: 0 6px 14px -8px rgba(28, 143, 86, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  background-image: linear-gradient(180deg, #35b57e 0%, #1c8f56 100%);
+}
+.payout-btn:hover:not(:disabled) {
+  box-shadow: 0 8px 18px -8px rgba(28, 143, 86, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  background-image: linear-gradient(180deg, #3ec48c 0%, #219c5f 100%);
+}
+
+/* Chip chọn nhanh % số dư — "Rút hết" trước là link chữ gạch chân, không ai
+   nhận ra là bấm được. Giờ cùng hình dạng pill với các nút khác trong app. */
+.payout-quick {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #7fe3b4;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.24);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.payout-quick:hover {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.4);
+}
+.payout-quick-max {
+  color: #eafff3;
+  background: linear-gradient(180deg, #35b57e, #1c8f56);
+  border-color: transparent;
+}
+.payout-quick-max:hover {
+  background: linear-gradient(180deg, #3ec48c, #219c5f);
+}
+.payout-quick:disabled,
+.payout-quick-max:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .payout-label {
@@ -246,6 +311,111 @@
   border-color: #5fd39a;
   background: rgba(34, 197, 94, 0.08);
 }
+.payout-input-err {
+  border-color: rgba(255, 92, 122, 0.5) !important;
+  background: rgba(255, 92, 122, 0.06) !important;
+}
+
+/* ── Dropdown ngân hàng tự vẽ ─────────────────────────────────────────────────
+   <select> gốc để hệ điều hành/trình duyệt vẽ phần popup (khung vuông, tô
+   xanh dương mặc định của Windows) — không style nổi, không đồng bộ giao diện
+   tối của app. Thay bằng nút mở + panel tự vẽ. */
+.payout-bankpicker {
+  position: relative;
+}
+.payout-select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.payout-select:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.payout-bank-caret {
+  transition: transform 0.18s ease;
+}
+.payout-bank-caret-open {
+  transform: rotate(180deg);
+}
+
+.payout-bank-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #182920;
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  border-radius: 14px;
+  padding: 5px;
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.6);
+  z-index: 30;
+}
+.payout-bank-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 9px;
+  border-radius: 9px;
+  background: transparent;
+  border: none;
+  color: #e6e6e6;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+.payout-bank-item:hover {
+  background: rgba(34, 197, 94, 0.12);
+}
+.payout-bank-item-on {
+  background: rgba(34, 197, 94, 0.16);
+  color: #7fe3b4;
+}
+.payout-bank-item-on .material-symbols-outlined {
+  color: #5fd39a;
+}
+
+/* Logo thật (VietQR). File PNG có kênh alpha (nền trong suốt thật, đã kiểm
+   bằng color type=6 trong header) — lúc đầu tưởng logo vẽ trên nền trắng đặc
+   nên thêm div trắng phía sau, hoá ra thừa và tạo viền trắng xấu quanh logo.
+   Bỏ nền, để logo nổi thẳng trên nền tối của form.
+   Canvas mọi ngân hàng cùng cỡ 831×311 (~2.67:1) nhưng icon nằm khác vị trí
+   tuỳ bank — khung chữ nhật đúng tỉ lệ + contain để không cắt hụt ai. */
+.payout-bank-logo {
+  width: 84px;
+  height: 30px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+/* Huy hiệu chữ — chỉ dùng khi ảnh logo lỗi tải (dự phòng), monogram màu theo
+   tên ngân hàng giống cách các ví điện tử làm khi thiếu logo. */
+.payout-bank-badge {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 9.5px;
+  font-weight: 800;
+  color: #0c1410;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+}
+.payout-bank-badge-other {
+  background: rgba(255, 255, 255, 0.1);
+  color: #9a95a1;
+}
+.payout-bank-badge-empty {
+  background: rgba(255, 255, 255, 0.06);
+}
 
 .payout-note {
   background: rgba(255, 255, 255, 0.04);
@@ -270,13 +440,27 @@
 }
 
 /* Nhãn trạng thái trong lịch sử rút */
+/* Phải khớp .ad-status bên admin.css (kể cả chấm tròn): cùng một đơn rút tiền
+   hiện ở cả hai trang — admin duyệt, người dùng theo dõi — nên nhãn trạng thái
+   phải nhìn y hệt nhau, khác một chút là tưởng hai thứ khác nhau. */
 .payout-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.04em;
-  padding: 3px 8px;
+  padding: 3px 9px;
   border-radius: 999px;
   white-space: nowrap;
+}
+.payout-status::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+  flex-shrink: 0;
 }
 .payout-status-pending  { background: rgba(232, 196, 104, 0.14); color: #E8C468; }
 .payout-status-approved { background: rgba(96, 165, 250, 0.14); color: #7fb4ff; }
@@ -284,5 +468,6 @@
 .payout-status-rejected { background: rgba(255, 92, 122, 0.14); color: #ff8098; }
 
 @media (prefers-reduced-motion: reduce) {
-  .payout-dot { animation: none; }
+  .payout-dot {
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18); animation: none; }
 }

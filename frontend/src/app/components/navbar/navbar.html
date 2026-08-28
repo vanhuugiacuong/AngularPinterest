@@ -164,7 +164,7 @@
     <div class="relative flex items-center" *ngIf="supabaseService.user()">
       <button
         (click)="toggleNotifPopup($event)"
-        class="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/[0.06] transition-colors cursor-pointer border-none outline-none"
+        class="nb-notif-btn relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/[0.06] transition-colors cursor-pointer border-none outline-none"
         [class.text-[#211922]]="!isNotificationsPage() && !showNotifPopup()"
         [class.dark:text-white]="!isNotificationsPage() && !showNotifPopup()"
         [class.text-[#F94083]]="isNotificationsPage() || showNotifPopup()"
@@ -176,7 +176,7 @@
           *ngIf="unreadCount() > 0"
           class="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#F94083] text-white text-[10px] font-bold flex items-center justify-center leading-none border-2 border-white dark:border-[#1a1a1a]"
         >
-          {{ unreadCount() > 99 ? '99+' : unreadCount() }}
+          {{ badgeCount(unreadCount()) }}
         </span>
       </button>
 
@@ -411,6 +411,11 @@
   <button *ngIf="adminService.isAdmin()" type="button" (click)="navigateToAdmin()" title="Quản trị"
     class="nav-rail-btn nav-rail-admin group mt-auto mb-2" [class.nav-rail-active]="isAdminPage()">
     <span class="material-symbols-outlined text-2xl leading-none" [class.icon-filled]="isAdminPage()">shield_person</span>
+    <!-- Huy hiệu số việc tồn: admin biết có việc mới ngay từ mọi trang, khỏi
+         phải mở khu quản trị ra dò. Quá 9 hiện "9+" (badgeCount). -->
+    <span *ngIf="adminService.pendingWork() > 0" class="nav-rail-badge">
+      {{ badgeCount(adminService.pendingWork()) }}
+    </span>
     <span class="nav-tooltip">Quản trị</span>
   </button>
 </nav>

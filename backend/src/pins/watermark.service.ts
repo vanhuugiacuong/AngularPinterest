@@ -15,26 +15,54 @@ import sharp from 'sharp';
 @Injectable()
 export class WatermarkService {
   /**
-   * Độ mờ nướng vào bản preview.
+   * Cạnh dài tối đa của bản preview có watermark (trang chi tiết).
    *
-   * 18 là mức "mờ nhất còn bán được": chỉ còn khối màu và bố cục, mọi chi tiết
-   * đường nét đã mất. Muốn mờ hơn nữa thì tăng số này — nhưng người mua cũng
-   * không còn thấy mình đang mua gì.
+   * web246 hạ xuống 560 kèm blur sigma 18. Lập luận của họ ĐÚNG về mặt kỹ
+   * thuật: blur là một phép chập nên ảnh mờ ở độ phân giải cao có thể khôi
+   * phục một phần bằng deconvolution, còn thu nhỏ thì mất thông tin vĩnh viễn.
    *
-   * Watermark được composite SAU khi mờ, nên chữ chìm vẫn nét trên nền đã mờ.
+   * Nhưng bản này KHÔNG nướng blur, vì hai lý do:
+   *  1. Chủ dự án đã báo lỗi đúng hiện tượng đó — bản preview nhoè tới mức
+   *     không nhìn ra ảnh gì (430x560, 6.8KB) — và yêu cầu sửa. Nướng blur vào
+   *     là dựng lại đúng thứ vừa bị bỏ.
+   *  2. Từ khi tách ba bản, thứ hiển thị ngoài feed đã là `makeThumb` (sạch,
+   *     600px). Preview mờ đậm hơn cả thumbnail ngoài feed thì người xem thấy
+   *     ảnh ở trang chi tiết XẤU HƠN lúc lướt — ngược đời với việc bán hàng.
+   *
+   * Bảo vệ thật nằm ở chỗ khác: bản công khai không phải file gốc, bản gốc HD
+   * nằm trong bucket riêng tư và chỉ cấp link ký tạm 5 phút cho người đã mua.
+   *
+   * Vẫn nhận phần đúng của web246 về mặt kích thước: giữ 900 thay vì 1200 —
+   * ảnh nguồn thường dưới 1000px nên không khác gì về hiển thị, mà bản công
+   * khai thì nhỏ hơn được chút nào tốt chút đó.
    */
-  static readonly PREVIEW_BLUR_SIGMA = 18;
+  private readonly PREVIEW_MAX_EDGE = 900;
 
   /**
-   * Cạnh dài tối đa của bản preview.
+   * Cạnh dài tối đa của ảnh đại diện ngoài feed.
    *
-   * Hạ từ 900 xuống 560 vì đây mới là thứ bảo vệ thật. Blur là một phép chập,
-   * và một ảnh mờ nhẹ ở độ phân giải cao có thể **khôi phục một phần** bằng
-   * deconvolution. Thu nhỏ thì không: thông tin bị bỏ đi vĩnh viễn, không có
-   * thuật toán nào lấy lại được. Mờ đậm + nhỏ là hai lớp khác bản chất, không
-   * phải một lớp làm hai lần.
+   * Nhỏ hơn preview vì đây là bản KHÔNG có watermark: ai cũng tải về được nên
+   * phải nhỏ tới mức chỉ đủ làm hình xem lướt, không dùng thay bản đã mua.
    */
-  private readonly PREVIEW_MAX_EDGE = 560;
+  private readonly THUMB_MAX_EDGE = 600;
+
+  /**
+   * Bản sạch (không watermark) để hiện ngoài feed.
+   *
+   * Vì sao không dùng luôn bản watermark ngoài feed: watermark phủ kín làm ảnh
+   * xấu, người lướt không buồn bấm vào — mà không bấm vào thì chẳng ai mua.
+   * Đổi lại phải chấp nhận bản feed là hàng "sờ được": giữ nó thật nhỏ để chỉ
+   * đủ xem lướt.
+   */
+  async makeThumb(original: Buffer): Promise<Buffer> {
+    return sharp(original, { failOn: 'none' })
+      .resize(this.THUMB_MAX_EDGE, this.THUMB_MAX_EDGE, {
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: 78, mozjpeg: true })
+      .toBuffer();
+  }
 
   /**
    * Trả về bản preview: thu nhỏ, nén, phủ chữ chìm lặp kín mặt ảnh.
@@ -56,12 +84,11 @@ export class WatermarkService {
 
     return sharp(original, { failOn: 'none' })
       .resize(outW, outH, { fit: 'inside', withoutEnlargement: true })
-      // Nướng thẳng vào file. CSS `filter: blur()` ở giao diện không tính là bảo
-      // vệ — nó chỉ mờ lúc vẽ, còn file trong tab Network vẫn nét.
-      .blur(WatermarkService.PREVIEW_BLUR_SIGMA)
       .composite([{ input: overlay, blend: 'over' }])
-      // Chất lượng vừa đủ nhìn — người lấy trộm cũng không dùng in ấn được.
-      .jpeg({ quality: 72, mozjpeg: true })
+      // Watermark đã lo phần chống lấy cắp, nên chất lượng nén không cần bóp
+      // thấp nữa — bóp thấp chỉ làm ảnh rỗ, người mua nhìn bản preview xấu quá
+      // thì cũng không tin bản HD đẹp mà trả tiền.
+      .jpeg({ quality: 82, mozjpeg: true })
       .toBuffer();
   }
 

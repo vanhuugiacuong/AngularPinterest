@@ -92,6 +92,7 @@ export interface PayoutInfo {
   totalEarned: number;
   vndPerCredit: number;
   minCredits: number;
+  maxCredits: number;
   canRequest: boolean;
   pending: PayoutRequest | null;
   history: PayoutRequest[];

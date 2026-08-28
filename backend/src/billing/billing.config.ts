@@ -63,6 +63,10 @@ export const PLATFORM_FEE_PERCENT_YEARLY = 20;
  */
 export const PAYOUT_VND_PER_CREDIT = 150;
 export const PAYOUT_MIN_CREDITS = 500;
+/** Trần an toàn cho một yêu cầu rút — không ai thật sự kiếm được tới mức này
+    trong một lần, chặn sớm để tránh số quá lớn gây tràn số khi hiển thị/tính
+    toán (150đ × 10 triệu credit đã vượt an toàn của phép nhân JS). */
+export const PAYOUT_MAX_CREDITS = 1_000_000;
 
 /** Đơn QR hết hạn sau 10 phút. */
 export const QR_EXPIRE_MS = 10 * 60 * 1000;

@@ -138,7 +138,8 @@
            credit đã mua/được tặng — xem billing.config.ts. -->
       @if (payout(); as po) {
         <div class="payout-box relative overflow-hidden rounded-[26px] p-6 border mb-8">
-          <div class="flex items-start justify-between gap-4 mb-5">
+          <app-icon name="bank" class="payout-box-watermark"></app-icon>
+          <div class="flex items-start justify-between gap-4 mb-5 relative">
             <div class="flex items-center gap-3">
               <span class="payout-crest w-10 h-10 rounded-[13px] flex items-center justify-center shrink-0">
                 <app-icon name="bank" class="w-[19px] h-[19px]"></app-icon>
@@ -191,7 +192,7 @@
             </div>
           } @else if (!showPayoutForm()) {
             <button (click)="showPayoutForm.set(true)"
-              class="grad-btn w-full h-12 rounded-full text-white font-extrabold text-sm cursor-pointer border-none outline-none transition-all hover:-translate-y-0.5">
+              class="payout-btn w-full h-12 rounded-full text-white font-extrabold text-sm cursor-pointer border-none outline-none transition-all hover:-translate-y-0.5">
               Gửi yêu cầu rút tiền
             </button>
           } @else {
@@ -199,32 +200,100 @@
             <div class="flex flex-col gap-3">
               <div>
                 <label class="payout-label">Số credit muốn rút</label>
-                <div class="flex items-center gap-2.5 mt-1.5">
-                  <input type="number" [(ngModel)]="payoutCredits" [min]="po.minCredits" [max]="po.balance"
-                    class="payout-input w-32 h-11 rounded-xl px-3 text-base font-extrabold text-center outline-none" />
+                <div class="flex items-center gap-2.5 mt-1.5 flex-wrap">
+                  <input type="number" [ngModel]="payoutCredits" (input)="onCreditsInput($event, po)"
+                    [min]="po.minCredits" [max]="po.maxCredits < po.balance ? po.maxCredits : po.balance"
+                    class="payout-input w-32 h-11 rounded-xl px-3 text-base font-extrabold text-center outline-none"
+                    [class.payout-input-err]="creditInputError(po)" />
                   <span class="text-xs text-[#9a95a1] dark:text-[#8b8791]">
                     credit ≈ <b class="text-[#E8C468]">{{ billing.formatVnd(payoutAmountVnd(po.vndPerCredit)) }}</b>
                   </span>
-                  <button type="button" (click)="payoutCredits = po.balance"
-                    class="ml-auto text-xs font-bold text-[#F94083] bg-transparent border-none cursor-pointer outline-none hover:underline">
-                    Rút hết
-                  </button>
+                  <!-- Chip cộng dồn: bấm "+500" thì CỘNG 500 vào số đang gõ (có thể bấm nhiều
+                       lần liên tiếp), không phải đặt cứng thành 500. Tự mờ đi khi đã chạm mức
+                       tối đa có thể rút (bấm thêm cũng không cộng được nữa). -->
+                  <div class="ml-auto flex items-center gap-1.5 flex-wrap">
+                    <button type="button" (click)="addPayoutCredits(50, po)" [disabled]="chipDisabled(po)" class="payout-quick">+50</button>
+                    <button type="button" (click)="addPayoutCredits(100, po)" [disabled]="chipDisabled(po)" class="payout-quick">+100</button>
+                    <button type="button" (click)="addPayoutCredits(500, po)" [disabled]="chipDisabled(po)" class="payout-quick">+500</button>
+                    <button type="button" (click)="addPayoutCredits(1000, po)" [disabled]="chipDisabled(po)" class="payout-quick">+1000</button>
+                    <button type="button" (click)="setPayoutMax(po)" [disabled]="chipDisabled(po)" class="payout-quick payout-quick-max">Rút hết</button>
+                  </div>
                 </div>
-                <p class="text-[11px] text-[#9a95a1] dark:text-[#8b8791] mt-1.5">
-                  Tỷ giá {{ po.vndPerCredit }}đ/credit · tối thiểu {{ po.minCredits }} credit
-                </p>
+                @if (creditInputError(po); as e) {
+                  <p class="text-[11px] text-[#ff5c7a] font-semibold mt-1.5 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[13px]">error</span> {{ e }}
+                  </p>
+                } @else {
+                  <p class="text-[11px] text-[#9a95a1] dark:text-[#8b8791] mt-1.5">
+                    Tỷ giá {{ po.vndPerCredit }}đ/credit · {{ po.minCredits }}–{{ formatNumber(po.maxCredits) }} credit/lần
+                  </p>
+                }
               </div>
 
               <div class="grid sm:grid-cols-2 gap-3">
                 <div>
                   <label class="payout-label">Ngân hàng</label>
-                  <input type="text" [(ngModel)]="payoutBank" placeholder="VD: Vietcombank"
-                    class="payout-input w-full h-11 rounded-xl px-3.5 text-sm outline-none mt-1.5" />
+                  <!-- Dropdown tự vẽ (không dùng <select> gốc) vì phần popup của select do
+                       hệ điều hành/trình duyệt vẽ, không style nổi theo giao diện tối. -->
+                  <div class="payout-bankpicker mt-1.5" #bankPickerEl>
+                    <button type="button" (click)="toggleBankDropdown()"
+                      class="payout-select w-full h-11 rounded-xl pl-2.5 pr-3 text-sm flex items-center gap-2.5">
+                      @if (payoutBank && !payoutBankOther()) {
+                        <ng-container *ngTemplateOutlet="bankBadge; context: { name: payoutBank }"></ng-container>
+                        <span class="flex-1 text-left truncate">{{ payoutBank }}</span>
+                      } @else if (payoutBankOther()) {
+                        <span class="payout-bank-badge payout-bank-badge-other">?</span>
+                        <span class="flex-1 text-left text-[#9a95a1]">Ngân hàng khác</span>
+                      } @else {
+                        <span class="payout-bank-badge payout-bank-badge-empty"></span>
+                        <span class="flex-1 text-left text-[#6c7671]">Chọn ngân hàng</span>
+                      }
+                      <span class="material-symbols-outlined text-lg text-[#8b9a90] payout-bank-caret" [class.payout-bank-caret-open]="bankDropdownOpen()">expand_more</span>
+                    </button>
+
+                    @if (bankDropdownOpen()) {
+                      <div class="payout-bank-menu">
+                        @for (b of banks; track b) {
+                          <button type="button" (click)="selectBank(b)" class="payout-bank-item" [class.payout-bank-item-on]="payoutBank === b && !payoutBankOther()">
+                            <ng-container *ngTemplateOutlet="bankBadge; context: { name: b }"></ng-container>
+                            <span class="flex-1 text-left">{{ b }}</span>
+                            @if (payoutBank === b && !payoutBankOther()) {
+                              <span class="material-symbols-outlined text-base">check</span>
+                            }
+                          </button>
+                        }
+                        <button type="button" (click)="selectBank('__other__')" class="payout-bank-item" [class.payout-bank-item-on]="payoutBankOther()">
+                          <span class="payout-bank-badge payout-bank-badge-other">?</span>
+                          <span class="flex-1 text-left">Ngân hàng khác…</span>
+                        </button>
+                      </div>
+                    }
+                  </div>
+
+                  <!-- Logo thật từ VietQR (cdn.vietqr.io) — cùng kho logo mà mọi app QR
+                       thanh toán ở VN dùng. Ảnh lỗi thì rơi về huy hiệu chữ màu. -->
+                  <ng-template #bankBadge let-name="name">
+                    @if (bankLogoUrl(name) && !logoBroken(name)) {
+                      <img [src]="bankLogoUrl(name)" (error)="onLogoError(name)" [alt]="name" class="payout-bank-logo" />
+                    } @else {
+                      <span class="payout-bank-badge" [style.background]="bankColor(name)">{{ bankCode(name) }}</span>
+                    }
+                  </ng-template>
+                  @if (payoutBankOther()) {
+                    <input type="text" [(ngModel)]="payoutBank" placeholder="Nhập tên ngân hàng"
+                      class="payout-input w-full h-11 rounded-xl px-3.5 text-sm outline-none mt-2" />
+                  }
                 </div>
                 <div>
                   <label class="payout-label">Số tài khoản</label>
                   <input type="text" [(ngModel)]="payoutAccount" placeholder="Chỉ gồm chữ số"
-                    class="payout-input w-full h-11 rounded-xl px-3.5 text-sm outline-none mt-1.5" />
+                    class="payout-input w-full h-11 rounded-xl px-3.5 text-sm outline-none mt-1.5"
+                    [class.payout-input-err]="payoutAccount && accountNumberError()" />
+                  @if (payoutAccount && accountNumberError(); as ae) {
+                    <p class="text-[10.5px] text-[#ff5c7a] font-semibold mt-1 flex items-center gap-1">
+                      <span class="material-symbols-outlined text-[12px]">error</span> {{ ae }}
+                    </p>
+                  }
                 </div>
               </div>
 
@@ -251,8 +320,9 @@
                   class="h-11 px-5 rounded-full text-sm font-bold text-white bg-white/[0.06] border border-white/10 hover:bg-white/10 transition-colors cursor-pointer outline-none disabled:opacity-60">
                   Huỷ
                 </button>
-                <button (click)="submitPayout(po)" [disabled]="payoutBusy()"
-                  class="grad-btn h-11 px-6 rounded-full text-sm font-extrabold text-white cursor-pointer border-none outline-none transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:translate-y-0">
+                <button (click)="submitPayout(po)" [disabled]="payoutBusy() || !!creditInputError(po)"
+                  class="payout-btn h-11 px-6 rounded-full text-sm font-extrabold text-white cursor-pointer border-none outline-none transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:translate-y-0 flex items-center gap-1.5">
+                  @if (!payoutBusy()) { <span class="material-symbols-outlined text-base">send</span> }
                   {{ payoutBusy() ? 'Đang gửi…' : 'Gửi yêu cầu' }}
                 </button>
               </div>

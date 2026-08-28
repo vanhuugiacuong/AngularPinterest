@@ -41,14 +41,83 @@
 /* Mục đang chọn: viên HỒNG ĐẶC (không gradient) + glow nhẹ */
 .nav-rail-active,
 .nav-rail-active:hover {
+  box-shadow: 0 8px 18px -6px rgba(249, 64, 131, 0.7);
   background: #f94083;
   color: #ffffff;
-  box-shadow: 0 8px 18px -6px rgba(249, 64, 131, 0.7);
 }
 
 .nav-rail-btn:focus-visible {
   outline: 2px solid #f94083;
   outline-offset: 2px;
+}
+
+/* Dải sáng trắng quét chéo qua mặt mỗi nút — cùng thủ pháp với huy hiệu Quản
+   trị (::after trượt bằng background-position, xem lý do bên dưới). Nút
+   Quản trị tự khai lại ::after riêng (selector 2 lớp cụ thể hơn) nên không bị
+   đè ở đây. */
+.nav-rail-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: linear-gradient(
+    110deg,
+    transparent 34%,
+    rgba(255, 255, 255, 0.4) 48%,
+    rgba(255, 255, 255, 0.14) 57%,
+    transparent 70%
+  );
+  background-size: 260% 100%;
+  background-repeat: no-repeat;
+  background-position: -60% 0;
+  animation: rail-sheen 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes rail-sheen {
+  0%,
+  100% {
+    background-position: -60% 0;
+  }
+  45%,
+  80% {
+    background-position: 160% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-rail-btn::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* Chuông thông báo ở header — cùng dải sáng quét chéo với sidebar rail để
+   đồng bộ, dùng chung keyframes `rail-sheen`. */
+.nb-notif-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: linear-gradient(
+    110deg,
+    transparent 34%,
+    rgba(255, 255, 255, 0.4) 48%,
+    rgba(255, 255, 255, 0.14) 57%,
+    transparent 70%
+  );
+  background-size: 260% 100%;
+  background-repeat: no-repeat;
+  background-position: -60% 0;
+  animation: rail-sheen 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nb-notif-btn::after {
+    animation: none;
+    opacity: 0;
+  }
 }
 
 /* Tooltip: kính tối, chữ trắng */
@@ -85,11 +154,11 @@
    viền sáng + bóng lướt qua, đồng bộ ngôn ngữ thẻ hội viên ở trang /pro
    (xem .ph-crest / .cta::after trong features/pro/pro.css). */
 .pro-chip {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   background:
     radial-gradient(120% 160% at 0% 0%, rgba(249, 64, 131, 0.16), transparent 60%),
     linear-gradient(135deg, rgba(249, 64, 131, 0.09), rgba(177, 92, 170, 0.06));
   border: 1px solid rgba(249, 64, 131, 0.28);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 .pro-chip::after {
   content: '';
@@ -130,6 +199,7 @@
   50% { opacity: 0.4; }
 }
 .pro-chip-tag {
+  box-shadow: 0 4px 10px -3px rgba(249, 64, 131, 0.55);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -137,7 +207,6 @@
   background: var(--grad-brand);
   padding: 3px 7px;
   border-radius: 999px;
-  box-shadow: 0 4px 10px -3px rgba(249, 64, 131, 0.55);
 }
 
 /* ── CTA "Nâng cấp lên Pro" (chưa mua) ─────────────────────────────────────
@@ -145,17 +214,13 @@
    Thêm: viền sáng inset, bóng đổ nhuốm hồng, crest có highlight, bóng lướt
    qua và mũi tên nhích khi rê chuột. */
 .upgrade-cta {
+  box-shadow: 0 10px 26px -10px rgba(249, 64, 131, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.22);
   background-image: var(--grad-brand);
-  box-shadow:
-    0 10px 26px -10px rgba(249, 64, 131, 0.65),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .upgrade-cta:hover {
+  box-shadow: 0 14px 32px -10px rgba(249, 64, 131, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.28);
   transform: translateY(-1px);
-  box-shadow:
-    0 14px 32px -10px rgba(249, 64, 131, 0.8),
-    inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
 .upgrade-cta:active {
   transform: translateY(0);
@@ -177,9 +242,7 @@
 /* Huy hiệu vương miện: kính mờ trắng có viền sáng, nổi trên nền gradient */
 .upgrade-crest {
   background: rgba(255, 255, 255, 0.2);
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-    0 4px 10px -4px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35), 0 4px 10px -4px rgba(0, 0, 0, 0.35);
 }
 
 /* Mũi tên nhích sang phải khi rê chuột — gợi ý "bấm để đi tiếp" */
@@ -193,20 +256,143 @@
 
 @media (prefers-reduced-motion: reduce) {
   .upgrade-cta::after { animation: none; display: none; }
-  .upgrade-cta:hover { transform: none; }
+  .upgrade-cta:hover {
+  box-shadow: 0 14px 32px -10px rgba(249, 64, 131, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.28); transform: none; }
   .upgrade-cta:hover .upgrade-arrow { transform: none; }
 }
 
-/* Nút Quản trị trong rail — tông tím riêng để không lẫn với các mục thường,
-   đẩy xuống đáy rail vì đây không phải điều hướng hằng ngày. */
+/* ── Nút Quản trị trong rail ───────────────────────────────────────────────
+   Đẩy xuống đáy rail vì đây không phải điều hướng hằng ngày. Khác các nút rail
+   khác (nền trong suốt cho đến khi hover), nút này LUÔN hiện dạng huy hiệu đá
+   đen viền ánh kim: nó là cửa vào khu vực có quyền xoá ảnh và duyệt tiền, nên
+   phải nhìn ra ngay đó là thứ khác loại — không phải một mục cho vui.
+
+   Dùng lại dải bạc của `.chrome-badge` (styles.css) thay vì bịa màu mới: bạc
+   lạnh không đụng hồng (thương hiệu), vàng (Premium) hay đỏ (vi phạm), nên
+   không cướp nghĩa của màu nào đang có. */
 .nav-rail-admin {
-  color: #b3a8ff;
+  color: #dce4f5;
+  background:
+    radial-gradient(125% 125% at 50% 0%, rgba(207, 217, 240, 0.12), transparent 62%),
+    linear-gradient(180deg, #17131f 0%, #0d0c12 100%);
+  box-shadow: inset 0 0 0 1px rgba(207, 217, 240, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.9);
 }
+
+/* Dải ánh kim lướt chéo qua mặt huy hiệu — cùng thủ pháp với `.upgrade-cta`,
+   `.bankcard-front` và `.plan-card-glow`, nên nút này nói cùng một "giọng" với
+   những chỗ sang trọng khác của app.
+
+   Từng thử cho vài sợi sáng chạy VÒNG quanh viền (conic-gradient khoét ruột
+   bằng mask, hai lớp ngược chiều): sợi mảnh thì mờ nhạt, mà dày lên với thêm
+   vòng ngoài thì hai đường bo góc lệch nhau, nhìn ra thành dây rối. Quét chéo
+   qua mặt sạch hơn hẳn và không phụ thuộc góc bo. */
+.nav-rail-admin::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: linear-gradient(
+    110deg,
+    transparent 34%,
+    rgba(255, 255, 255, 0.45) 48%,
+    rgba(230, 236, 250, 0.2) 57%,
+    transparent 70%
+  );
+  /* Trượt bằng background-position chứ KHÔNG phải transform: nút không thể đặt
+     overflow:hidden (tooltip phải tràn ra ngoài), nên nếu dịch cả phần tử thì
+     dải sáng bay ra khỏi nút. Nền thì luôn bị cắt theo bo góc của hộp. */
+  background-size: 260% 100%;
+  background-repeat: no-repeat;
+  animation: admin-sheen 4.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Glyph khiên phát sáng lạnh cho ra chất "huy hiệu kim loại" */
+.nav-rail-admin .material-symbols-outlined {
+  filter: drop-shadow(0 0 7px rgba(207, 217, 240, 0.45));
+}
+
 .nav-rail-admin:hover {
-  background: rgba(139, 123, 240, 0.14);
-}
-.nav-rail-admin.nav-rail-active {
-  background: linear-gradient(135deg, #8b7bf0, #5b4bc4);
   color: #fff;
-  box-shadow: 0 6px 18px -6px rgba(139, 123, 240, 0.7);
+  background:
+    radial-gradient(125% 125% at 50% 0%, rgba(230, 236, 250, 0.2), transparent 62%),
+    linear-gradient(180deg, #22202c 0%, #111017 100%);
+  box-shadow: inset 0 0 0 1px rgba(230, 236, 250, 0.55);
+}
+/* Rê chuột: dải sáng quét dồn dập hơn */
+.nav-rail-admin:hover::after {
+  animation-duration: 2.2s;
+}
+.nav-rail-admin:hover .material-symbols-outlined {
+  filter: drop-shadow(0 0 10px rgba(230, 236, 250, 0.9));
+}
+
+/* Đang mở: bạc đặc, chữ đen — cùng công thức với .chrome-badge để huy hiệu
+   admin và huy hiệu Pro năm trông cùng một chất kim loại. */
+.nav-rail-admin.nav-rail-active,
+.nav-rail-admin.nav-rail-active:hover {
+  background: linear-gradient(135deg, #ffffff 0%, #cfd9f0 28%, #9fb0d8 50%, #e6ecfa 72%, #b9c6e4 100%);
+  color: #171b26;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+/* Đang mở: mặt đã là bạc đặc nên dải sáng trắng chồng lên gần như không thấy
+   gì — giảm bớt cho khỏi loè, chứ tắt hẳn thì huy hiệu chết cứng. */
+.nav-rail-admin.nav-rail-active::after {
+  opacity: 0.45;
+}
+.nav-rail-admin.nav-rail-active .material-symbols-outlined {
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.6));
+}
+
+.nav-rail-admin:focus-visible {
+  outline-color: #e6ecfa;
+}
+
+/* Nghỉ một quãng dài rồi mới quét — quét liên tục thì thành đèn nhấp nháy,
+   gây rối mắt ở thanh rail vốn luôn nằm trong tầm nhìn. */
+@keyframes admin-sheen {
+  0%,
+  100% {
+    background-position: -60% 0;
+  }
+  55%,
+  72% {
+    background-position: 160% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-rail-admin::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* Huy hiệu số việc tồn trên nút Quản trị ở rail. Cùng hình dạng với huy hiệu
+   chuông thông báo trên header để hai chỗ đọc như một loại tín hiệu. Viền theo
+   nền rail (#0d0d0d) để tách khỏi icon bên dưới. */
+.nav-rail-badge {
+  position: absolute;
+  /* Ra HẲN ngoài góc nút, không phải nằm trong lòng nút: nút 44px mà icon 24px
+     nằm giữa (chiếm khoảng 10–34px), nên đặt trong lòng là đè lên góc icon.
+     Nút không đặt overflow:hidden (tooltip phải tràn ra) nên tràn được. */
+  top: -4px;
+  right: -4px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ff5c7a;
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 800;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #0d0d0d;
+  pointer-events: none;
+  /* Trên dải sáng quét: ::after sinh ra SAU các phần tử con nên mặc định vẽ đè
+     lên huy hiệu, làm con số bị phủ mờ mỗi lần dải sáng chạy qua. */
+  z-index: 2;
 }

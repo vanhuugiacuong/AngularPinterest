@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
@@ -93,6 +93,45 @@ export class Create implements OnInit {
   // AI mode fields
   public aiPrompt = '';
   public aiModel = 'flux'; // flux | flux-anime | flux-realism | flux-3d
+
+  /**
+   * Danh sách model cho dropdown TỰ VẼ.
+   *
+   * Không dùng <select> gốc: phần popup của nó do hệ điều hành vẽ (nền trắng,
+   * dòng chọn tô xanh dương mặc định của Windows), không style được nên lạc
+   * hẳn khỏi giao diện tối — đúng lý do đã bỏ <select> ở ô chọn ngân hàng
+   * trong trang Ví.
+   */
+  public readonly aiModels = [
+    { value: 'flux', label: 'Flux Standard', hint: 'Chi tiết cao', icon: 'auto_awesome' },
+    { value: 'flux-anime', label: 'Flux Anime', hint: 'Hoạt hình Nhật Bản', icon: 'animation' },
+    { value: 'flux-realism', label: 'Flux Realism', hint: 'Ảnh chụp chân thực', icon: 'photo_camera' },
+    { value: 'flux-3d', label: 'Flux 3D Art', hint: 'Tranh vẽ 3D', icon: 'deployed_code' },
+  ];
+  public modelDropdownOpen = signal(false);
+
+  get selectedModel() {
+    return this.aiModels.find((m) => m.value === this.aiModel) ?? this.aiModels[0];
+  }
+
+  toggleModelDropdown() {
+    if (this.isGenerating() || this.isSubmitting()) return;
+    this.modelDropdownOpen.update((v) => !v);
+  }
+
+  selectModel(value: string) {
+    this.aiModel = value;
+    this.modelDropdownOpen.set(false);
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocClickCloseModel(ev: MouseEvent) {
+    if (!this.modelDropdownOpen()) return;
+    const el = this.modelPickerEl?.nativeElement;
+    if (el && !el.contains(ev.target as Node)) this.modelDropdownOpen.set(false);
+  }
+
+  @ViewChild('modelPickerEl') modelPickerEl?: ElementRef<HTMLElement>;
   public aiImagePreviewUrl = signal<string | null>(null);
   public isGenerating = signal<boolean>(false);
 

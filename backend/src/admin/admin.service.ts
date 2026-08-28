@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { PAYOUT_VND_PER_CREDIT } from '../billing/billing.config';
+import { SupabaseAuthGuard } from '../supabase/supabase.guard';
 
 /**
  * Nghiệp vụ trang quản trị: duyệt yêu cầu rút tiền, xử lý báo cáo vi phạm và
@@ -17,7 +18,14 @@ export class AdminService {
   async getStats() {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
+    // $transaction (KHÔNG phải Promise.all): chạy tuần tự trên ĐÚNG MỘT kết
+    // nối. Promise.all đòi tới 10 kết nối cùng lúc, mà database này dùng chung
+    // cả nhóm với pooler giới hạn 15 client — nên đây là endpoint duy nhất
+    // thường xuyên chết vì EMAXCONNSESSION trong khi cả app vẫn chạy bình
+    // thường (mọi chỗ khác chỉ cần 1 kết nối). Đổi lại còn được số liệu chụp
+    // cùng một thời điểm, hợp với bảng thống kê hơn.
     const [
       users,
       pins,
@@ -29,7 +37,13 @@ export class AdminService {
       monthAgg,
       proCount,
       walletAgg,
-    ] = await Promise.all([
+      weekAgg,
+      newUsersWeek,
+      newPinsWeek,
+      payoutPaidAgg,
+      bannedUsers,
+      aiPins,
+    ] = await this.prisma.$transaction([
       this.prisma.user.count(),
       this.prisma.pin.count(),
       this.prisma.pin.count({ where: { isPremium: true } }),
@@ -43,6 +57,15 @@ export class AdminService {
       }),
       this.prisma.user.count({ where: { proExpiresAt: { gt: now } } }),
       this.prisma.wallet.aggregate({ _sum: { spendable: true, earnings: true } }),
+      this.prisma.payment.aggregate({
+        where: { status: 'PAID', createdAt: { gte: weekAgo } },
+        _sum: { amountVnd: true },
+      }),
+      this.prisma.user.count({ where: { createdAt: { gte: weekAgo } } }),
+      this.prisma.pin.count({ where: { createdAt: { gte: weekAgo } } }),
+      this.prisma.payoutRequest.aggregate({ where: { status: 'PAID' }, _sum: { amountVnd: true } }),
+      this.prisma.user.count({ where: { isPinhubBanned: true } }),
+      this.prisma.pin.count({ where: { isAiGenerated: true } }),
     ]);
 
     return {
@@ -54,10 +77,16 @@ export class AdminService {
       pendingPayouts,
       revenueTotal: paidAgg._sum.amountVnd ?? 0,
       revenueMonth: monthAgg._sum.amountVnd ?? 0,
+      revenueWeek: weekAgg._sum.amountVnd ?? 0,
       proCount,
       // Credit đang lưu hành = nghĩa vụ chưa thanh toán của nền tảng.
       creditsCirculating: walletAgg._sum.spendable ?? 0,
       creditsEarnedTotal: walletAgg._sum.earnings ?? 0,
+      newUsersWeek,
+      newPinsWeek,
+      payoutPaidTotal: payoutPaidAgg._sum.amountVnd ?? 0,
+      bannedUsers,
+      aiPins,
     };
   }
 
@@ -218,7 +247,8 @@ export class AdminService {
     const userIds = [...new Set(rows.map((r) => r.userId))];
     const paymentIds = rows.map((r) => r.paymentId).filter((x): x is string => !!x);
 
-    const [users, payments] = await Promise.all([
+    // Cùng lý do với getStats: dùng chung một kết nối thay vì đòi hai.
+    const [users, payments] = await this.prisma.$transaction([
       this.prisma.user.findMany({
         where: { id: { in: userIds } },
         select: { id: true, username: true, email: true, avatarUrl: true },
@@ -292,11 +322,15 @@ export class AdminService {
     if (user.isPinhubAdmin && banned) {
       throw new BadRequestException('Không thể khoá tài khoản quản trị viên.');
     }
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: userId },
       data: { isPinhubBanned: banned },
       select: { id: true, username: true, isPinhubBanned: true },
     });
+    // Guard nhớ tạm trạng thái khoá 15 giây; xoá đi để lệnh khoá có hiệu lực
+    // ngay, đỡ cảnh bấm xong mà người kia vẫn thao tác được thêm một lúc.
+    SupabaseAuthGuard.invalidateBan(userId);
+    return updated;
   }
 
   // ── Doanh thu ───────────────────────────────────────────────────────────────

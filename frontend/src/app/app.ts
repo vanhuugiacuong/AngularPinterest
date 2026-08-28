@@ -95,9 +95,14 @@ export class App {
     effect(() => {
       const user = this.supabaseService.user();
       if (user) {
-        void this.adminService.checkAdmin();
+        void this.adminService.checkAdmin().then(() => {
+          // Số việc tồn cho huy hiệu trên nút Quản trị — chỉ hỏi khi đúng là
+          // admin, người thường gọi cũng chỉ nhận 403.
+          if (this.adminService.isAdmin()) void this.adminService.refreshPendingWork();
+        });
       } else {
         this.adminService.isAdmin.set(false);
+        this.adminService.pendingWork.set(0);
       }
     });
   }

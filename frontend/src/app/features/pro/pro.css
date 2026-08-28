@@ -31,6 +31,7 @@
     radial-gradient(46% 66% at 100% -10%, rgba(249, 64, 131, 0.11), transparent 62%),
     radial-gradient(50% 70% at -6% 112%, rgba(177, 92, 170, 0.1), transparent 62%);
 }
+
 .ph-crest {
   background: var(--grad-brand);
   box-shadow: 0 10px 24px -8px rgba(249, 64, 131, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.25);
@@ -116,11 +117,11 @@
 /* ── Quyền lợi "mũi nhọn" (bán ảnh Premium) — tông vàng kiếm tiền, tách hẳn
    một bậc so với các quyền lợi thường để dẫn mắt vào lý do mua gói. ─────── */
 .benefit-hero {
+  box-shadow: 0 14px 34px -18px rgba(232, 196, 104, 0.45);
   border-color: rgba(232, 196, 104, 0.4);
   background:
     radial-gradient(110% 130% at 100% -10%, rgba(232, 196, 104, 0.14), transparent 58%),
     linear-gradient(180deg, #241d0d 0%, #191408 72%);
-  box-shadow: 0 14px 34px -18px rgba(232, 196, 104, 0.45);
 }
 .benefit-hero-icon {
   background: linear-gradient(135deg, #f6dfa0 0%, #e8c468 45%, #c99b2f 100%);

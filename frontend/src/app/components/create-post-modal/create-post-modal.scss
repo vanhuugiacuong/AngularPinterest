@@ -1,10 +1,14 @@
+/* Modal này trước đây tự khai một bảng màu riêng (nền #141416, nhấn #ff2e8e —
+   hồng neon KHÁC hồng thương hiệu #f94083), nên đứng cạnh phần còn lại của app
+   là nhận ra ngay không cùng một bộ. Nay dùng đúng token chung: nền #1e1e1e và
+   viền mảnh giống ConfirmDialog, nhấn lấy từ --grad-brand trong styles.css. */
 :host {
-  --pinhub-bg: #141416;
-  --pinhub-surface: #1a1a1e;
-  --pinhub-accent: #ff2e8e;
+  --pinhub-bg: #1e1e1e;
+  --pinhub-surface: #232326;
+  --pinhub-accent: #f94083;
   --pinhub-text-primary: #ffffff;
-  --pinhub-text-secondary: #9c9ca3;
-  --pinhub-border: #2a2a2e;
+  --pinhub-text-secondary: #9b96a2;
+  --pinhub-border: rgba(255, 255, 255, 0.1);
 
   display: block;
 }
@@ -26,10 +30,10 @@
   width: 680px;
   max-width: 100%;
   min-height: 640px;
-  border-radius: 16px;
+  border-radius: 24px;
   background: var(--pinhub-bg);
   border: 1px solid var(--pinhub-border);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
   overflow: hidden;
 }
 
@@ -83,15 +87,18 @@
   gap: 20px;
   margin: 16px;
   padding: 56px 32px;
-  border: 2px dashed transparent;
-  border-radius: 12px;
+  /* Viền đứt hiện sẵn (không phải chỉ khi kéo vào) — cùng cách với vùng thả
+     ảnh ở trang Tạo ghim, để hai chỗ làm cùng một việc thì nhìn cùng một kiểu. */
+  border: 2px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
   text-align: center;
   transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .cpm-dropzone--dragging {
+  border-style: solid;
   border-color: var(--pinhub-accent);
-  background: rgba(255, 46, 142, 0.05);
+  background: rgba(249, 64, 131, 0.08);
 }
 
 .cpm-icon-wrap {
@@ -101,23 +108,30 @@
   justify-content: center;
 }
 
-.cpm-icon-glow {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 300px;
-  height: 300px;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 46, 142, 0.15) 0%, transparent 70%);
-  z-index: 0;
-}
-
+/* Huy hiệu tròn nền gradient thương hiệu — cùng hình dạng với .drag-drop-icon
+   ở trang Tạo ghim. Trước đây là một SVG nét neon 140px, to gấp đôi mọi icon
+   khác trong app và là chỗ DUY NHẤT dùng kiểu vẽ nét phát sáng đó. */
 .cpm-icon {
   position: relative;
   z-index: 1;
-  width: 140px;
-  height: 140px;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--grad-brand);
+  color: #fff;
+  animation: cpm-bob 3.2s ease-in-out infinite;
+}
+.cpm-icon .material-symbols-outlined {
+  font-size: 34px;
+}
+@keyframes cpm-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cpm-icon { animation: none; }
 }
 
 .cpm-hint-group {
@@ -127,8 +141,9 @@
 
 .cpm-hint {
   margin: 0;
-  font-size: 18px;
-  color: var(--pinhub-text-secondary);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--pinhub-text-primary);
 }
 
 .cpm-subhint {
@@ -137,33 +152,40 @@
   color: var(--pinhub-text-secondary);
 }
 
+/* Nút chính: gradient thương hiệu + viên thuốc tròn, y hệt .grad-btn /
+   .upgrade-cta / nút mua ở trang Pro. Trước là màu phẳng #ff2e8e bo 24px —
+   không trùng nút nào khác trong app. */
 .cpm-select-btn {
   border: none;
-  border-radius: 24px;
+  border-radius: 999px;
   padding: 12px 32px;
-  background: var(--pinhub-accent);
-  color: var(--pinhub-text-primary);
+  background-image: var(--grad-brand);
+  color: #fff;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
-  transition: filter 0.15s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  transition: transform 0.18s ease, filter 0.18s ease;
 }
 
 .cpm-select-btn:hover {
-  filter: brightness(1.1);
-  transform: scale(1.03);
-  box-shadow: 0 0 20px rgba(255, 46, 142, 0.5);
+  filter: brightness(1.06);
+  transform: translateY(-1px);
 }
 
 .cpm-select-btn:active {
-  transform: scale(0.98);
+  transform: translateY(0);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .cpm-select-btn:hover { transform: none; }
+}
+
+/* Đỏ báo lỗi dùng chung toàn app (#ff5c7a), không phải #ff5c5c riêng lẻ. */
 .cpm-error {
   margin: 0;
   font-size: 13px;
-  font-weight: 600;
-  color: #ff5c5c;
+  font-weight: 700;
+  color: #ff5c7a;
 }
 
 .cpm-hidden-input {
