@@ -456,10 +456,20 @@ export class ImageEditor implements OnChanges, OnDestroy {
     this.isCroppingMode.set(false);
   }
 
-  /** Resets the DRAFT back to "full image" — still requires Apply, so it's
-   * undoable in the same way as any other crop edit. */
+  /** Resets the crop back to "full image" — applies immediately, same as
+   * resetColor()/resetCaption()/resetAll(). Previously this only touched the
+   * DRAFT rectangle and silently required a separate "Áp dụng" click to take
+   * effect, unlike every other reset button in this editor; that mismatch
+   * read as the button "not working" since nothing about it hinted a second
+   * step was needed. draftCrop is still updated too so the crop-stage
+   * overlay snaps to the full frame right away if the user stays in crop
+   * mode to keep adjusting. */
   public resetCropDraft(): void {
     this.draftCrop.set({ ...DEFAULT_CROP });
+    const current = this.crop();
+    if (current.x !== 0 || current.y !== 0 || current.width !== 1 || current.height !== 1) {
+      this.applyChange(() => this.crop.set({ ...DEFAULT_CROP }));
+    }
   }
 
   public cropCursor(handle: CropHandle): string {
