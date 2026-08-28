@@ -60,9 +60,9 @@
             <div class="w-full bg-surface border border-border/80 rounded-[32px] shadow-2xl overflow-hidden flex flex-col">
 
               <!-- Frame header: Back/Like/Share/More (left) + Collection save (right) -->
-              <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-border/60 flex-wrap shrink-0">
+              <div class="nf-pin-frame-toolbar px-5 py-4 border-b border-border/60 shrink-0">
                 <!-- Left Action Controls -->
-                <div class="flex items-center gap-2">
+                <div class="nf-pin-frame-toolbar__actions flex items-center gap-2">
                   <!-- Back button -->
                   <button
                     (click)="goBack()"
@@ -144,20 +144,23 @@
                 </div>
 
                 <!-- Right Collection save dropdown + button -->
-                <div class="flex items-center gap-2 select-none relative">
-                  <button
-                    (click)="toggleBoardDropdown($event)"
-                    class="h-10 px-4 bg-surface-elevated hover:bg-surface-high rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer border border-border/60 outline-none text-text select-none focus-visible:ring-2 focus-visible:ring-accent"
-                    aria-haspopup="listbox"
-                    [attr.aria-expanded]="showBoardDropdown()"
-                  >
-                    <span class="truncate max-w-[120px]">{{ getSelectedBoardName() }}</span>
-                    <span class="material-symbols-outlined text-base leading-none" aria-hidden="true">keyboard_arrow_down</span>
-                  </button>
+                <div class="nf-collection-save select-none relative">
+                  <span class="nf-collection-save__label">Lưu vào bộ sưu tập</span>
+                  <div class="nf-collection-save__controls">
+                    <button
+                      (click)="toggleBoardDropdown($event)"
+                      class="nf-collection-save__selector h-10 px-4 bg-surface-elevated hover:bg-surface-high rounded-full text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer border border-border/60 outline-none text-text select-none focus-visible:ring-2 focus-visible:ring-accent"
+                      aria-label="Chọn bộ sưu tập để lưu tác phẩm"
+                      aria-haspopup="listbox"
+                      [attr.aria-expanded]="showBoardDropdown()"
+                    >
+                      <span class="truncate max-w-[120px]">{{ getSelectedBoardName() }}</span>
+                      <span class="material-symbols-outlined text-base leading-none" aria-hidden="true">keyboard_arrow_down</span>
+                    </button>
 
                   @if (showBoardDropdown()) {
                     <div
-                      class="absolute right-0 top-11 w-48 glass-elevated rounded-panel shadow-card border border-border py-2 z-[100] text-left overflow-hidden"
+                      class="nf-collection-save__menu absolute glass-elevated rounded-panel shadow-card border border-border py-2 z-[100] text-left overflow-hidden"
                       role="listbox"
                     >
                       <span class="text-xs font-semibold text-text-muted px-4 py-1 block select-none">Lưu vào bộ sưu tập</span>
@@ -175,12 +178,15 @@
                     </div>
                   }
 
-                  <button
-                    (click)="savePinToBoard()"
-                    class="h-10 px-6 bg-gradient-brand rounded-full text-text-on-accent text-xs font-bold cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-accent hover:brightness-110 transition-all shadow-glow-sm"
-                  >
-                    Lưu
-                  </button>
+                    <button
+                      (click)="savePinToBoard()"
+                      class="nf-collection-save__button h-10 px-5 bg-gradient-brand rounded-full text-text-on-accent text-xs font-bold cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-accent hover:brightness-110 transition-all shadow-glow-sm"
+                      aria-label="Lưu tác phẩm vào bộ sưu tập đã chọn"
+                    >
+                      <span class="material-symbols-outlined text-base leading-none" aria-hidden="true">bookmark_add</span>
+                      Lưu
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -685,9 +691,10 @@
 
             <div
               (click)="$event.stopPropagation()"
-              class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 focus-within:translate-y-0 [@media(hover:none)]:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 flex items-center justify-between gap-2 z-10"
+              class="nf-related-save-bar absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 focus-within:translate-y-0 [@media(hover:none)]:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 z-10"
             >
-              <div class="relative min-w-0 flex-1">
+              <span class="nf-related-save-title">Lưu vào bộ sưu tập</span>
+              <div class="nf-related-save-selector relative min-w-0">
                 <button
                   type="button"
                   (click)="toggleRelatedBoardDropdown(rel.id, $event)"
@@ -702,7 +709,7 @@
                 </button>
               </div>
 
-              <div class="flex items-center gap-1.5 shrink-0">
+              <div class="nf-related-save-actions">
                 <app-like-button
                   size="compact"
                   [liked]="rel.isLiked === true"
@@ -711,8 +718,9 @@
                 ></app-like-button>
                 <button
                   (click)="saveRelatedPinToBoard(rel.id, $event)"
-                  class="h-8 px-3.5 bg-gradient-brand cta-shape text-text-on-accent font-bold text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  class="nf-related-save-button h-8 bg-gradient-brand cta-shape text-text-on-accent font-bold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
+                  <span class="material-symbols-outlined text-[14px] leading-none" aria-hidden="true">bookmark_add</span>
                   Lưu
                 </button>
               </div>

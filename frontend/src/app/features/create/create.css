@@ -1,4 +1,84 @@
 /* Styling for Create page */
+.create-main {
+  max-width: 1720px;
+}
+
+.create-page {
+  overflow-x: clip;
+}
+
+.create-studio {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+}
+
+.create-mode-rail,
+.create-canvas,
+.create-publish-panel {
+  min-width: 0;
+}
+
+.create-publish-panel {
+  width: 100%;
+}
+
+/* The editor only becomes a three-zone studio when every zone has enough
+   breathing room. This avoids the squeezed intermediate layout that caused
+   labels and controls to collide on laptops and tablets. */
+@media (min-width: 1280px) {
+  .create-studio {
+    grid-template-columns: 72px minmax(0, 1fr) minmax(340px, 380px);
+    gap: clamp(20px, 1.65vw, 32px);
+  }
+
+  .create-mode-rail {
+    position: sticky;
+    top: 80px;
+    flex-direction: column;
+  }
+
+  .create-mode-button {
+    flex: none;
+    height: 76px;
+    flex-direction: column;
+  }
+
+  .create-publish-panel {
+    position: sticky;
+    top: 80px;
+  }
+}
+
+@media (max-width: 1279px) and (min-width: 768px) {
+  .create-studio {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
+    align-items: start;
+  }
+
+  .create-mode-rail {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 767px) {
+  .create-main {
+    padding-inline: 14px;
+  }
+
+  .create-heading {
+    margin-bottom: 16px;
+  }
+
+  .create-studio {
+    gap: 16px;
+  }
+
+  .create-publish-panel {
+    border-radius: 18px;
+  }
+}
+
 .drag-drop-area {
   border: 2px dashed var(--color-border);
   transition: all 0.2s ease-in-out;

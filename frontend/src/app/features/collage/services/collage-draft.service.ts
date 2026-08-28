@@ -9,6 +9,7 @@ import {
   StoredCollageLayer,
   isImageLayer,
 } from '../collage.types';
+import { remapCropAfterTrim, trimTransparentImage } from '../utils/trim-transparent-image';
 
 const DATABASE_NAME = 'novaframe-collage';
 const STORE_NAME = 'drafts';
@@ -43,19 +44,55 @@ export class CollageDraftService {
     );
     database.close();
     if (!draft?.layers.length) return null;
-    return draft.layers.map((layer: StoredCollageLayer): CollageLayer => {
+    const restored: CollageLayer[] = [];
+    // Process image blobs one at a time: several 2560px cutouts decoded in
+    // parallel can create a large, unnecessary memory spike during restore.
+    for (const layer of draft.layers) {
       // Drafts written before layer kinds existed have no `kind` at all, and
       // every one of them was an image — so treat a missing discriminant as
       // 'image' rather than dropping the user's saved work.
-      if (layer.kind === 'text' || layer.kind === 'drawing') return { ...layer };
+      if (layer.kind === 'text' || layer.kind === 'drawing') {
+        restored.push({ ...layer });
+        continue;
+      }
       const image = layer as Omit<CollageImageLayer, 'cutoutImageUrl'>;
-      return {
+      const trimmed = await trimTransparentImage(image.cutoutBlob).catch(() => null);
+      if (trimmed?.changed) {
+        const angle = (image.rotation * Math.PI) / 180;
+        const localX = (trimmed.x + trimmed.width / 2 - trimmed.originalWidth / 2) * image.scaleX;
+        const localY = (trimmed.y + trimmed.height / 2 - trimmed.originalHeight / 2) * image.scaleY;
+        const mappedCrop = remapCropAfterTrim(
+          {
+            cropX: image.cropX ?? 0,
+            cropY: image.cropY ?? 0,
+            cropWidth: image.cropWidth ?? 1,
+            cropHeight: image.cropHeight ?? 1,
+          },
+          trimmed.originalWidth,
+          trimmed.originalHeight,
+          trimmed,
+        );
+        restored.push({
+          ...image,
+          kind: 'image',
+          cutoutBlob: trimmed.blob,
+          cutoutImageUrl: URL.createObjectURL(trimmed.blob),
+          width: trimmed.width,
+          height: trimmed.height,
+          x: image.x + localX * Math.cos(angle) - localY * Math.sin(angle),
+          y: image.y + localX * Math.sin(angle) + localY * Math.cos(angle),
+          ...mappedCrop,
+        });
+        continue;
+      }
+      restored.push({
         ...DEFAULT_LAYER_CROP,
         ...image,
         kind: 'image',
         cutoutImageUrl: URL.createObjectURL(image.cutoutBlob),
-      };
-    });
+      });
+    }
+    return restored;
   }
 
   private openDatabase(): Promise<IDBDatabase> {

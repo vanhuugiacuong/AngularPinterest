@@ -1,23 +1,109 @@
 /* Component-specific styles for ImageEditor */
+:host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
 
 .ie-root {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
+  grid-template-areas:
+    "stage"
+    "tools";
+  gap: 18px;
+  min-width: 0;
 }
 
 /* Tools sit LEFT of the canvas at desktop widths — an instrument panel next
    to a focal-point stage, and the whole studio scrolls as one page (no
    internal scrollbar trapped inside the tool column). */
-@media (min-width: 900px) {
+@media (min-width: 1280px) {
   .ie-root {
-    grid-template-columns: 300px minmax(0, 1fr);
+    grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+    grid-template-areas: "tools stage";
     align-items: start;
+    gap: clamp(20px, 2vw, 32px);
   }
 }
 
+.ie-tools {
+  grid-area: tools;
+  min-width: 0;
+}
+
+.ie-preset-status {
+  color: var(--color-accent);
+}
+
+.ie-preset-active {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface));
+  color: var(--color-text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+
+.ie-preset-check {
+  flex: 0 0 auto;
+  color: var(--color-accent);
+  font-size: 16px;
+  line-height: 1;
+}
+
 .ie-stage {
+  grid-area: stage;
+  justify-self: center;
+  align-self: start;
+  width: fit-content;
+  max-width: 100%;
   touch-action: none;
+  line-height: 0;
+}
+
+.ie-stage-pending {
+  width: 100%;
+  min-height: 320px;
+}
+
+/* The frame follows the canvas' intrinsic image ratio instead of forcing a
+   fixed-height grey box around it. Both limits scale together, so portrait,
+   square and landscape uploads stay undistorted and use the available space. */
+.ie-preview-canvas {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: min(72vh, 760px);
+  object-fit: contain;
+}
+
+@media (max-width: 1279px) {
+  .ie-stage {
+    width: fit-content;
+  }
+
+  .ie-stage-pending {
+    width: 100%;
+    min-height: 260px;
+  }
+
+  .ie-preview-canvas {
+    max-height: min(68vh, 680px);
+  }
+}
+
+@media (max-width: 479px) {
+  .ie-tools {
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .ie-tool-tabs {
+    overflow: hidden;
+  }
+
+  .ie-preview-canvas {
+    max-height: 64vh;
+  }
 }
 
 /* Crop mode: wrap is sized exactly to the crop canvas (inline-block

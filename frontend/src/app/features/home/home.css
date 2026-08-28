@@ -10,3 +10,55 @@
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* The collection controls must remain usable in narrow masonry columns.
+   They wrap as a centred unit instead of forcing the selected collection or
+   the Vietnamese action label outside the artwork frame. */
+.nf-pin-save-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  max-width: 100%;
+}
+
+.nf-pin-save-title {
+  flex: 0 0 100%;
+  width: 100%;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 0.6875rem;
+  font-weight: 750;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nf-pin-save-selector {
+  flex: 1 1 9rem;
+  max-width: 100%;
+}
+
+.nf-pin-save-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  gap: 0.375rem;
+}
+
+.nf-pin-save-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  max-width: 100%;
+  padding-inline: 0.75rem;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  line-height: 1;
+}

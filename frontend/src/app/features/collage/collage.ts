@@ -39,6 +39,7 @@ import { InteractiveSegmentationService } from './services/interactive-segmentat
 import { SELECTION_ENGINE, SMART_CUT_ENGINE } from './services/selection-engine';
 import { RegionGrowingSelectionEngine } from './services/region-growing-selection-engine';
 import { ToastService } from '../../core/services/toast';
+import { trimTransparentImage } from './utils/trim-transparent-image';
 
 @Component({
   selector: 'app-collage',
@@ -287,25 +288,39 @@ export class Collage implements OnInit, OnDestroy {
     this.releaseSelectedSource(false);
   }
 
-  addCutout(result: SegmentationResult): void {
+  async addCutout(result: SegmentationResult): Promise<void> {
     const source = this.selectedSource();
     if (!source) return;
+
+    // Smart/painted cutouts are PNGs with transparency. Trim their invisible
+    // outer pixels before creating the Fabric layer so its resize handles hug
+    // the subject instead of the source photo's much larger rectangle.
+    let normalized = result;
+    if (!result.isWholeImage) {
+      try {
+        const trimmed = await trimTransparentImage(result.blob);
+        normalized = { blob: trimmed.blob, width: trimmed.width, height: trimmed.height };
+      } catch (error) {
+        console.warn('Unable to trim transparent padding from cutout:', error);
+      }
+    }
+    if (this.selectedSource() !== source) return;
     const scale = Math.min(
-      (COLLAGE_WIDTH * 0.72) / result.width,
-      (COLLAGE_HEIGHT * 0.62) / result.height,
+      (COLLAGE_WIDTH * 0.72) / normalized.width,
+      (COLLAGE_HEIGHT * 0.62) / normalized.height,
       1,
     );
-    const cutoutImageUrl = URL.createObjectURL(result.blob);
+    const cutoutImageUrl = URL.createObjectURL(normalized.blob);
     const layer: CollageImageLayer = {
       id: crypto.randomUUID(),
       kind: 'image',
       sourceImageUrl: source.sourceImageUrl,
       cutoutImageUrl,
-      cutoutBlob: result.blob,
+      cutoutBlob: normalized.blob,
       x: COLLAGE_WIDTH / 2,
       y: COLLAGE_HEIGHT / 2,
-      width: result.width,
-      height: result.height,
+      width: normalized.width,
+      height: normalized.height,
       scaleX: scale,
       scaleY: scale,
       rotation: 0,

@@ -1,6 +1,6 @@
 <div class="ie-root">
   <!-- TOOLS — sits left of the canvas; flows with the page (no nested scrollbar) -->
-  <div class="ie-tools flex flex-col gap-4 min-w-0">
+  <div class="ie-tools flex flex-col gap-5 min-w-0 bg-surface border border-border rounded-panel p-4">
     <!-- History toolbar -->
     <div class="flex items-center gap-2">
       <button
@@ -36,7 +36,7 @@
     </div>
 
     <!-- Tab switch -->
-    <div class="inline-flex items-center gap-1 p-1 rounded-control bg-surface-elevated select-none w-fit" role="tablist" aria-label="Công cụ chỉnh sửa">
+    <div class="ie-tool-tabs inline-flex items-center gap-1 p-1 rounded-control bg-surface-elevated select-none w-full" role="tablist" aria-label="Công cụ chỉnh sửa">
       <button
         type="button"
         role="tab"
@@ -45,7 +45,7 @@
         [class.bg-surface-high]="activeTool() === 'color'"
         [class.text-text]="activeTool() === 'color'"
         [class.text-text-muted]="activeTool() !== 'color'"
-        class="h-9 px-4 rounded-control text-xs font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        class="flex-1 min-w-0 h-9 px-2 rounded-control text-xs font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         Màu sắc
       </button>
@@ -57,7 +57,7 @@
         [class.bg-surface-high]="activeTool() === 'caption'"
         [class.text-text]="activeTool() === 'caption'"
         [class.text-text-muted]="activeTool() !== 'caption'"
-        class="h-9 px-4 rounded-control text-xs font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        class="flex-1 min-w-0 h-9 px-2 rounded-control text-xs font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         Caption
       </button>
@@ -69,7 +69,7 @@
         [class.bg-surface-high]="activeTool() === 'crop'"
         [class.text-text]="activeTool() === 'crop'"
         [class.text-text-muted]="activeTool() !== 'crop'"
-        class="h-9 px-4 rounded-control text-xs font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        class="flex-1 min-w-0 h-9 px-2 rounded-control text-xs font-bold cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         Cắt ảnh
       </button>
@@ -79,20 +79,31 @@
     @if (activeTool() === 'color') {
       <div class="flex flex-col gap-4" role="tabpanel" aria-label="Công cụ chỉnh màu">
         <!-- Presets -->
-        <div class="flex flex-wrap gap-1.5">
+        <div class="flex items-center justify-between gap-3 min-w-0">
+          <span class="text-xs font-bold text-text-muted">Bộ lọc màu</span>
+          <span class="ie-preset-status text-xs font-bold truncate" aria-live="polite">
+            {{ activePresetLabel() || 'Tùy chỉnh' }}
+          </span>
+        </div>
+        <div class="flex flex-wrap gap-2" role="group" aria-label="Chọn bộ lọc màu cho ảnh">
           @for (preset of presets; track preset.label) {
             <button
               type="button"
               (click)="applyPreset(preset)"
-              class="h-8 px-3 rounded-control bg-surface border border-border hover:border-primary/50 text-xs font-bold text-text-muted hover:text-text cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              [attr.aria-pressed]="activePresetLabel() === preset.label"
+              [class.ie-preset-active]="activePresetLabel() === preset.label"
+              class="ie-preset h-9 px-3 rounded-control bg-surface border border-border hover:border-primary/50 text-xs font-bold text-text-muted hover:text-text cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent inline-flex items-center justify-center gap-1.5"
             >
+              @if (activePresetLabel() === preset.label) {
+                <span class="material-symbols-outlined ie-preset-check" aria-hidden="true">check</span>
+              }
               {{ preset.label }}
             </button>
           }
           <button
             type="button"
             (click)="resetColor()"
-            class="h-8 px-3 rounded-control bg-surface border border-border hover:border-error/50 hover:text-error text-xs font-bold text-text-muted cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              class="h-9 px-3 rounded-control bg-surface border border-border hover:border-error/50 hover:text-error text-xs font-bold text-text-muted cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             Reset màu
           </button>
@@ -417,7 +428,10 @@
   </div>
 
   <!-- STAGE: canvas preview — the visual focal point of the studio -->
-  <div class="ie-stage rounded-frame frame-trace frame-trace-active bg-canvas-neutral border border-border relative overflow-hidden flex items-center justify-center h-[320px] md:h-[520px]">
+  <div
+    class="ie-stage rounded-frame frame-trace frame-trace-active bg-canvas-neutral border border-border relative overflow-hidden flex items-center justify-center"
+    [class.ie-stage-pending]="isLoadingImage() || loadError()"
+  >
     @if (isLoadingImage()) {
       <div class="flex flex-col items-center gap-2 py-10">
         <div class="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
@@ -434,7 +448,7 @@
 
     <canvas
       #previewCanvas
-      class="w-full h-full object-contain block touch-none"
+      class="ie-preview-canvas block touch-none"
       [class.hidden]="isLoadingImage() || loadError() || isCroppingMode()"
       [class.cursor-move]="activeTool() === 'caption' && caption().enabled"
       (pointerdown)="onCanvasPointerDown($event)"

@@ -10,7 +10,7 @@ import { ToastService } from '../../core/services/toast';
 import { UserService } from '../../core/services/user';
 import { Sidebar } from './sidebar';
 
-describe('Sidebar click-only behavior', () => {
+describe('Sidebar interaction behavior', () => {
   let component: Sidebar;
   let state: SidebarStateService;
   const navigate = vi.fn();
@@ -102,6 +102,20 @@ describe('Sidebar click-only behavior', () => {
     expect(loadNotifications).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps the rail open while notifications are visible, then collapses after closing away from the rail', () => {
+    vi.useFakeTimers();
+    component.toggleNotifications();
+    component.onRailPointerLeave();
+
+    vi.advanceTimersByTime(140);
+    expect(state.isExpanded()).toBe(true);
+
+    component.closeNotifications();
+    vi.advanceTimersByTime(140);
+    expect(state.isExpanded()).toBe(false);
+    vi.useRealTimers();
+  });
+
   it('keeps the expanded state when a route icon is activated', () => {
     state.expandSidebar();
     component.navigateHome();
@@ -140,7 +154,8 @@ describe('Sidebar click-only behavior', () => {
     expect(component.isNotificationOpen).toBe(false);
   });
 
-  it('renders a compact rail by default and hover never expands it', () => {
+  it('smoothly expands on hover and collapses shortly after the pointer leaves', () => {
+    vi.useFakeTimers();
     const fixture = TestBed.createComponent(Sidebar);
     fixture.detectChanges();
     const rail = fixture.nativeElement.querySelector('.nf-rail') as HTMLElement;
@@ -150,12 +165,22 @@ describe('Sidebar click-only behavior', () => {
     expect(rail.classList.contains('nf-rail--expanded')).toBe(false);
 
     rail.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    rail.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
     fixture.detectChanges();
 
+    expect(state.isExpanded()).toBe(true);
+    expect(rail.classList.contains('nf-rail--expanded')).toBe(true);
+
+    rail.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+    vi.advanceTimersByTime(139);
+    fixture.detectChanges();
+    expect(state.isExpanded()).toBe(true);
+
+    vi.advanceTimersByTime(1);
+    fixture.detectChanges();
     expect(state.isExpanded()).toBe(false);
     expect(rail.classList.contains('nf-rail--compact')).toBe(true);
     fixture.destroy();
+    vi.useRealTimers();
   });
 
   it('renders the outline SVG icon set with theme-aware currentColor strokes', () => {
@@ -167,7 +192,6 @@ describe('Sidebar click-only behavior', () => {
 
     expect(iconNames).toEqual([
       'home',
-      'explore',
       'create',
       'collage',
       'notifications',
@@ -183,15 +207,15 @@ describe('Sidebar click-only behavior', () => {
     expect(homeSvg?.getAttribute('viewBox')).toBe('0 0 18 18');
     expect(homeSvg?.querySelector('path')?.getAttribute('stroke-width')).toBe('1.5');
 
-    const createSvg = icons[2].querySelector('svg');
+    const createSvg = icons[1].querySelector('svg');
     expect(createSvg?.getAttribute('viewBox')).toBe('0 0 18 18');
     expect(createSvg?.querySelector('[fill-opacity="0.3"]')).toBeNull();
 
-    const collageSvg = icons[3].querySelector('svg');
+    const collageSvg = icons[2].querySelector('svg');
     expect(collageSvg?.getAttribute('viewBox')).toBe('0 0 18 18');
     expect(collageSvg?.querySelector('[fill-opacity="0.3"]')).toBeNull();
 
-    const notificationsSvg = icons[4].querySelector('svg');
+    const notificationsSvg = icons[3].querySelector('svg');
     expect(notificationsSvg?.getAttribute('viewBox')).toBe('0 0 18 18');
     expect(notificationsSvg?.querySelector('[fill-opacity="0.3"]')).toBeNull();
 

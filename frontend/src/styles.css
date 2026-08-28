@@ -434,12 +434,12 @@ body {
     display: block;
     box-sizing: border-box;
     padding-left: var(--nf-shell-sidebar-width);
-    transition: padding-left 260ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition: padding-left 280ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   body.nf-has-dock .nf-header {
     left: var(--nf-shell-sidebar-width);
-    transition: left 260ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition: left 280ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 
