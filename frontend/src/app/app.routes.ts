@@ -23,10 +23,10 @@ import { authGuard } from './core/guards/auth';
  * mọi người vẫn phải tải code của trang họ không dùng.
  */
 export const routes: Routes = [
+  // Trang giới thiệu: KHÔNG chặn — đây là chỗ người chưa đăng nhập rơi vào.
   { path: '', component: Landing },
-  // TEMP: authGuard disabled for local preview only — restore before shipping
-  { path: 'feed', component: Home },
-  { path: 'pin/:id', component: PinDetail },
+  { path: 'feed', component: Home, canActivate: [authGuard] },
+  { path: 'pin/:id', component: PinDetail, canActivate: [authGuard] },
 
   // ── Lazy: điểm đến riêng ─────────────────────────────────────────────────
   // Đều là trang người dùng CHỦ ĐỘNG bấm để tới, không phải màn hình đầu tiên,
@@ -35,32 +35,39 @@ export const routes: Routes = [
   {
     path: 'profile/:username',
     loadComponent: () => import('./features/profile/profile').then((m) => m.Profile),
+    canActivate: [authGuard],
   },
   {
     path: 'board/:id',
     loadComponent: () => import('./features/board-detail/board-detail').then((m) => m.BoardDetail),
+    canActivate: [authGuard],
   },
   // Trang đăng ảnh kéo theo hai trình sửa ảnh (edit-image, crop-image).
   {
     path: 'create',
     loadComponent: () => import('./features/create/create').then((m) => m.Create),
+    canActivate: [authGuard],
   },
   {
     path: 'search',
     loadComponent: () => import('./features/search/search').then((m) => m.Search),
+    canActivate: [authGuard],
   },
   {
     path: 'notifications',
     loadComponent: () => import('./features/notifications/notifications').then((m) => m.Notifications),
+    canActivate: [authGuard],
   },
   // Nhắn tin kéo theo realtime + bộ chọn GIF.
   {
     path: 'chat',
     loadComponent: () => import('./features/chat/chat').then((m) => m.Chat),
+    canActivate: [authGuard],
   },
   {
     path: 'chat/:conversationId',
     loadComponent: () => import('./features/chat/chat').then((m) => m.Chat),
+    canActivate: [authGuard],
   },
 
   // ── Lazy ────────────────────────────────────────────────────────────────
@@ -68,36 +75,44 @@ export const routes: Routes = [
   {
     path: 'collage',
     loadComponent: () => import('./features/collage/collage').then((m) => m.Collage),
+    canActivate: [authGuard],
   },
   {
     path: 'board/:id/organize',
     loadComponent: () => import('./features/board-organize/board-organize').then((m) => m.BoardOrganize),
+    canActivate: [authGuard],
   },
   {
     path: 'board/:id/ideas',
     loadComponent: () => import('./features/board-ideas/board-ideas').then((m) => m.BoardIdeas),
+    canActivate: [authGuard],
   },
   {
     path: 'settings',
     loadComponent: () => import('./features/settings/settings').then((m) => m.Settings),
+    canActivate: [authGuard],
   },
   // Nhóm thanh toán
   {
     path: 'pro',
     loadComponent: () => import('./features/pro/pro').then((m) => m.Pro),
+    canActivate: [authGuard],
   },
   {
     path: 'wallet',
     loadComponent: () => import('./features/wallet/wallet').then((m) => m.Wallet),
+    canActivate: [authGuard],
   },
   {
     path: 'billing/result',
     loadComponent: () => import('./features/billing-result/billing-result').then((m) => m.BillingResult),
+    canActivate: [authGuard],
   },
   // Khu quản trị — nặng nhất, ít người mở nhất.
   {
     path: 'admin',
     loadComponent: () => import('./features/admin/admin').then((m) => m.Admin),
+    canActivate: [authGuard],
   },
   {
     path: 'banned',

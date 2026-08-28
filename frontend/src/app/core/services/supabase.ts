@@ -1,13 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 
-// TEMP: local preview only — lets us view pages behind authGuard without a real login. Remove before shipping.
-const PREVIEW_USER = {
-  id: 'preview-user',
-  email: 'preview@local.dev',
-  user_metadata: { full_name: 'Preview User', avatar_url: '' }
-} as unknown as User;
-
 @Injectable({
   providedIn: 'root'
 })
@@ -37,7 +30,7 @@ export class SupabaseService {
     // Listen to authentication state changes
     this.supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session);
-      const currentUser = session?.user || PREVIEW_USER;
+      const currentUser = session?.user ?? null;
       this.user.set(currentUser);
       this.loading.set(false);
 
@@ -54,7 +47,7 @@ export class SupabaseService {
         this.user.set(session.user);
         await this.syncUserWithBackend(session.access_token, session.user);
       } else {
-        this.user.set(PREVIEW_USER);
+        this.user.set(null);
       }
     } catch (error) {
       console.error('Error fetching initial session:', error);
