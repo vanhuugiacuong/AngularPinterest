@@ -343,7 +343,11 @@ export class PaymentsService {
   }
 
   private extractPaymentReference(content: string): string | null {
-    const match = content.toUpperCase().match(/(TOKEN|NOVA|BUY)[A-Z0-9]{6,}/);
+    // NovaTokenService.createTopUp() actually generates "NAP..." references
+    // (not "TOKEN...") — that prefix was missing here, so every NovaToken
+    // top-up webhook silently fell through as unmatched: the regex never
+    // found a reference at all, before the TOKEN/BUY routing below even ran.
+    const match = content.toUpperCase().match(/(TOKEN|NAP|NOVA|BUY)[A-Z0-9]{6,}/);
     return match ? match[0] : null;
   }
 
@@ -404,7 +408,7 @@ export class PaymentsService {
         payload,
       );
     }
-    if (reference.startsWith('TOKEN')) {
+    if (reference.startsWith('TOKEN') || reference.startsWith('NAP')) {
       const topUp = await this.prisma.novaTokenTopUp.findUnique({
         where: { paymentReference: reference },
       });
