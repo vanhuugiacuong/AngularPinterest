@@ -46,24 +46,35 @@ export function viewerPlanAllowsPinPreview(
  *  - clear original — the owner, an unrestricted pin, or a PAID buyer.
  *  - watermarked preview — the plan entitles them to browse but they have not
  *    bought it. This is the "look, with a watermark, until you buy" step.
- *  - server-blurred preview — the plan does not entitle them at all.
+ *  - server-blurred preview — the plan does not entitle them at all, OR the
+ *    plan entitles them to browse but no watermarked preview exists yet.
  *
- * That last tier is the fix. This used to fall back to the real `imageUrl`
- * whenever no protected variant had been generated, reasoning that the previous
- * preview beat a broken image — but it handed the clear CDN asset to a viewer
- * with no entitlement. Frontend CSS blur does not help: the browser has already
- * downloaded the original, and it is one glance at the Network panel away.
+ * Neither non-owner, non-buyer tier ever falls back to the real `imageUrl`.
+ * This used to fall back to it in the middle tier (entitled-to-browse-but-
+ * not-bought) whenever no protected variant had been generated yet,
+ * reasoning that a plan-entitled viewer merely "looking" wasn't a real leak
+ * — but "entitled to browse" and "entitled to the full-resolution original"
+ * are NOT the same thing for a commerce pin: only owning/winning it is. A
+ * Pro/Plus viewer who never paid could still right-click-save the clear CDN
+ * asset straight off an auction/fixed-price detail page whenever watermark
+ * generation hadn't finished (network hiccup, Sharp error, upload retry —
+ * see PinPreviewProtectionService). Frontend CSS blur never helps here
+ * either: the browser has already downloaded whatever bytes the server
+ * sent, one glance at the Network panel or a right-click away.
  *
- * The clear fallback survives only in the middle tier, where the viewer IS
- * entitled to look — there, showing the unwatermarked preview is a cosmetic
- * miss, not a leak.
+ * So the middle tier now falls back to the SAME blurred stand-in as the
+ * bottom tier when there's no watermarked preview yet, rather than to the
+ * clear original — self-healing the moment PinPreviewProtectionService
+ * finishes generating one on a later request. Too blurry-for-a-blink is a
+ * cosmetic miss; handing out the real asset is the leak this function
+ * exists to prevent.
  *
  * `viewerPlan` is optional because most callers (boards, users, notifications,
  * auctions) do not have the viewer's membership status to hand, and threading
  * MembershipsService through all of them is a change of its own. Omitting it
  * skips the middle tier, i.e. errs strict: an entitled viewer may get the
- * blurred preview where they could have had the watermarked one. Too strict is
- * a cosmetic bug; too loose is the leak this function exists to prevent. */
+ * blurred preview where they could have had the watermarked one — the same
+ * cosmetic-miss tradeoff, never a leak either way. */
 export function resolveViewablePinImageUrl(
   pin: RestrictablePinImage,
   opts: {
@@ -80,16 +91,17 @@ export function resolveViewablePinImageUrl(
     opts.viewerPlan &&
     viewerPlanAllowsPinPreview(opts.viewerPlan, pin.isForSale, opts.hasAuction)
   ) {
-    return pin.protectedImageUrl ?? pin.imageUrl;
+    // Watermarked preview if it exists; the fully-blurred stand-in — never
+    // the clear original — if it doesn't yet.
+    return pin.protectedImageUrl ?? lockedPinPreviewPath(pin.id);
   }
-  // Not entitled to browse this listing at all (tier 3 in the doc comment
-  // above) — always the fully-blurred server render, never the watermarked
-  // preview. protectedImageUrl only has a small text stamp (see
-  // WatermarkRenderService.applyMandatoryWatermark) meant for tier 2
-  // ("entitled to browse, hasn't bought") — falling back to it here for a
-  // viewer with NO entitlement handed them the clear subject with nothing
-  // but a corner stamp hiding it, e.g. a FREE-plan viewer on someone's
-  // profile page seeing a for-sale pin fully unobscured.
+  // Not entitled to browse this listing at all — always the fully-blurred
+  // server render too, never the watermarked preview. protectedImageUrl only
+  // has a small text stamp (see WatermarkRenderService.applyMandatoryWatermark)
+  // meant for the middle tier ("entitled to browse, hasn't bought") — falling
+  // back to it here for a viewer with NO entitlement handed them the clear
+  // subject with nothing but a corner stamp hiding it, e.g. a FREE-plan
+  // viewer on someone's profile page seeing a for-sale pin fully unobscured.
   return lockedPinPreviewPath(pin.id);
 }
 

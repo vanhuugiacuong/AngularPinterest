@@ -68,6 +68,15 @@ describe('resolveViewablePinImageUrl', () => {
     expect(url).toBe(lockedPinPreviewPath(pin.id));
   });
 
+  it('never hands an entitled (Plus/Pro) browsing viewer the clear original when protectedImageUrl has not been generated yet — locked preview, not imageUrl', () => {
+    const url = resolveViewablePinImageUrl(
+      { ...pin, protectedImageUrl: null },
+      { viewerId: 'browser-1', hasAuction: false, hasPaidPurchase: false, viewerPlan: 'PLUS' },
+    );
+    expect(url).toBe(lockedPinPreviewPath(pin.id));
+    expect(url).not.toBe(pin.imageUrl);
+  });
+
   it('gives an anonymous viewer (no plan at all) the locked preview, not the watermarked one', () => {
     const url = resolveViewablePinImageUrl(pin, {
       hasAuction: false,
