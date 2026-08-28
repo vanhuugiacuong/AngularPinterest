@@ -12,6 +12,7 @@ import { ImageSearchStore } from '../../core/services/image-search-store';
 import { ToastService } from '../../core/services/toast';
 import { MembershipService } from '../../core/services/membership';
 import { DialogService } from '../../core/services/dialog';
+import { SearchHistoryService } from '../../core/services/search-history';
 import { formatVnd } from '../../core/utils/currency';
 import { formatNovaToken, vndToNovaToken } from '../../core/utils/novatoken';
 import { masonryColumnCount, masonryContentWidth } from '../../core/utils/masonry';
@@ -50,6 +51,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   private toast = inject(ToastService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private searchHistory = inject(SearchHistoryService);
   private imageSearchStore = inject(ImageSearchStore);
   public membership = inject(MembershipService);
   private dialogService = inject(DialogService);
@@ -288,6 +290,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
         token,
         this.feedSeed,
         this.activeCategory(),
+        this.searchHistory.recentSearches(),
       );
       const mapped = this.mapPins(apiPins || []);
       this.pins.set(mapped);
@@ -323,6 +326,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
             token,
             this.feedSeed,
             this.activeCategory(),
+            this.searchHistory.recentSearches(),
           );
       if (apiPins && apiPins.length > 0) {
         const mapped = this.mapPins(apiPins);

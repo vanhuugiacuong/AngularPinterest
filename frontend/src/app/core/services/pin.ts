@@ -124,12 +124,18 @@ export class PinService {
     token?: string,
     seed?: string,
     category?: string | null,
+    recentSearches?: readonly string[],
   ): Promise<Pin[]> {
     let url = `${this.baseUrl}?page=${page}&limit=${limit}`;
     if (seed) url += `&seed=${seed}`;
     // Lọc ở server: nếu lọc trên mảng đã tải thì infinite scroll không giữ được
     // filter và sẽ kéo cạn feed để nhặt vài tấm khớp danh mục.
     if (category) url += `&category=${encodeURIComponent(category)}`;
+    // Chỉ dùng để ƯU TIÊN thứ tự feed (ảnh liên quan tìm gần đây lên trước),
+    // không phải bộ lọc — xem SearchHistoryService.
+    if (recentSearches && recentSearches.length > 0) {
+      url += `&recentSearches=${encodeURIComponent(recentSearches.join(','))}`;
+    }
     return this.request<Pin[]>(url, token, {}, 'Không thể tải ảnh');
   }
 

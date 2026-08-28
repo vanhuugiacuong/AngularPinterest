@@ -480,6 +480,7 @@ export class PinsService {
     userId?: string,
     seed?: string,
     category?: string,
+    recentSearchTerms: string[] = [],
   ) {
     const skip = (page - 1) * limit;
 
@@ -567,6 +568,14 @@ export class PinsService {
       // recency/noise bên dưới vẫn cộng thêm phía sau).
       if (userId && pin.userId === userId) {
         score += 10_000;
+      }
+
+      // Ảnh liên quan tới từ khoá đã tìm gần đây (gửi lên từ localStorage
+      // phía client - xem SearchHistoryService) xếp ngay sau ảnh của chính
+      // mình, nhưng vẫn vượt xa category/recency/noise cộng lại (tối đa
+      // ~576) nên không bị các nhánh đó lấn thứ tự.
+      if (recentSearchTerms.length > 0 && this.matchesRecentSearch(pin, recentSearchTerms)) {
+        score += 2_000;
       }
 
       // Category preference score
@@ -1354,6 +1363,23 @@ export class PinsService {
       hash |= 0; // Convert to 32bit integer
     }
     return Math.abs(hash % 1000) / 1000;
+  }
+
+  /** Cùng chuẩn so khớp với nhánh fallback từ khoá của searchPins() (title/
+   * description contains, không phân biệt hoa thường) — dùng để ưu tiên
+   * trong feed những pin liên quan tới từ khoá người xem vừa tìm gần đây,
+   * thay vì lặp lại một query CLIP embedding riêng chỉ để chấm điểm. */
+  private matchesRecentSearch(
+    pin: { title: string; description: string | null; category: string },
+    terms: string[],
+  ): boolean {
+    const haystacks = [pin.title, pin.description ?? '', pin.category]
+      .join(' ')
+      .toLowerCase();
+    return terms.some((term) => {
+      const needle = term.trim().toLowerCase();
+      return needle.length > 0 && haystacks.includes(needle);
+    });
   }
 
   async searchPins(

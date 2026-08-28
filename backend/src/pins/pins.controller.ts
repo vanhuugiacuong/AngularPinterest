@@ -31,9 +31,18 @@ export class PinsController {
     @Query('limit') limit: string,
     @Query('seed') seed?: string,
     @Query('category') category?: string,
+    @Query('recentSearches') recentSearches?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
+    // Danh sách từ khoá tìm gần đây (localStorage phía client, xem
+    // SearchHistoryService) — chỉ dùng để CHẤM ĐIỂM ưu tiên trong feed
+    // chính, không phải bộ lọc, nên tối đa 8 từ, chuỗi rỗng bị loại.
+    const recentSearchTerms = (recentSearches || '')
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .slice(0, 8);
 
     return this.pinsService.getAllPins(
       pageNum,
@@ -41,6 +50,7 @@ export class PinsController {
       user?.id,
       seed,
       category,
+      recentSearchTerms,
     );
   }
 
