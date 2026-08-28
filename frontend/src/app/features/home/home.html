@@ -354,9 +354,18 @@
                     </div>
                   </div>
 
-                  <!-- Metadata row: avatar + author on the left, title above; likes + AI on the right -->
+                  <!-- Metadata: title and byline are each optional per pin — see
+                       showsTitle / showsByline in home.ts for why the grid is
+                       deliberately uneven and why the choice is hashed from the
+                       pin id rather than drawn at random. The whole block is
+                       skipped when neither is showing, so a bare card has no
+                       empty strip under it. -->
+                  @if (showsTitle(pin) || showsByline(pin)) {
                   <div class="px-1 flex flex-col gap-1 w-full min-w-0 mt-2">
-                    <span class="text-xs font-bold text-text truncate">{{ pin.title }}</span>
+                    @if (showsTitle(pin)) {
+                      <span class="text-xs font-bold text-text truncate">{{ pin.title }}</span>
+                    }
+                    @if (showsByline(pin)) {
                     <div class="flex items-center justify-between gap-2 min-w-0">
                       <button
                         type="button"
@@ -379,7 +388,9 @@
                         }
                       </div>
                     </div>
+                    }
                   </div>
+                  }
                 </div>
               }
 

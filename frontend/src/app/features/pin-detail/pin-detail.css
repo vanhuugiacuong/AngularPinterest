@@ -54,9 +54,18 @@
 /* Keep the primary save action on the visual centre line of the frame.
    Equal outer grid tracks prevent the left action cluster from pushing it
    off-centre; at smaller widths both groups stack and centre safely. */
+/* Hai cột, không phải ba. Bản cũ là `minmax(0,1fr) auto minmax(0,1fr)`: cột 3
+   RỖNG hoàn toàn, chỉ tồn tại để căn giữa cụm lưu ở cột 2. Nhưng hai cột `1fr`
+   luôn được chia đều, nên cột trái bị ép bằng đúng cột rỗng bên phải — trên
+   panel ~470px, cụm lưu chiếm ~260px, còn 146px chia đôi thành 73px, trong khi
+   ba nút icon cần ~140px. Thiếu ~67px, và đó là thanh cuộn ngang ở đáy khung
+   chi tiết, kéo theo hàng tác vụ bị đẩy khuất.
+
+   Bỏ cột rỗng: cụm lưu lấy phần còn lại và dạt về phải. Mất căn giữa tuyệt đối
+   trên panel rộng, đổi lại panel hẹp không bao giờ tràn. */
 .nf-pin-frame-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 0.75rem;
 }
@@ -68,10 +77,14 @@
 
 .nf-collection-save {
   grid-column: 2;
+  /* Dạt phải trong cột của nó, thay cho việc căn giữa bằng một cột rỗng. */
+  justify-self: end;
   display: flex;
-  align-items: center;
-  justify-content: center;
   flex-direction: column;
+  /* flex-end vì trục ngang: nhãn và cụm nút thẳng mép phải với nhau. Trước là
+     `center`, hợp lý khi cụm này được căn giữa toolbar; giờ nó dạt phải. */
+  align-items: flex-end;
+  justify-content: center;
   gap: 0.35rem;
   min-width: 0;
   max-width: 100%;
@@ -118,40 +131,41 @@
   transform: translateX(-50%);
 }
 
+/* Same shape as .nf-pin-save-bar in home.css, and the same fix: as a wrapping
+   flex row the selector's 9rem basis plus the like+save pair overflowed a
+   related-column card and broke the strip into three stacked rows. These cards
+   are narrower than the feed's, so it showed up here first. */
 .nf-related-save-bar {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
   gap: 0.5rem;
   max-width: 100%;
 }
 
 .nf-related-save-title {
-  flex: 0 0 100%;
-  width: 100%;
+  grid-column: 1 / -1;
   overflow: hidden;
   color: var(--color-text);
   font-size: 0.6875rem;
   font-weight: 750;
   line-height: 1.2;
-  text-align: center;
+  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* Readable over a bright photo: this line sits in the transparent end of the
+     strip's gradient, so it has no backdrop of its own. */
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.85);
 }
 
 .nf-related-save-selector {
-  flex: 1 1 9rem;
-  max-width: 100%;
+  min-width: 0;
 }
 
 .nf-related-save-actions {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: 100%;
+  justify-content: flex-end;
   gap: 0.375rem;
 }
 
@@ -207,6 +221,15 @@
 
   .pin-frame-body.is-split .pin-frame-info {
     height: 100%;
-    overflow-y: auto;
+    /* CHỈ cuộn dọc, khai báo tường minh cả hai trục.
+       `overflow-y: auto` đứng một mình khiến overflow-x tự tính thành `auto`
+       (spec: một trục khác `visible` thì trục `visible` kia thành `auto`), nên
+       chỉ cần vài pixel lệch là panel mọc thanh cuộn ngang — đúng cái thanh ở
+       đáy khung chi tiết. Không nội dung nào trong panel cần cuộn ngang cả. */
+    overflow: hidden auto;
+    /* Chừa sẵn rãnh cho thanh cuộn dọc. Không có nó, panel được bố cục ở bề
+       rộng CHƯA trừ thanh cuộn, rồi thanh cuộn xuất hiện và ăn ~15px — mép
+       phải bị cắt, thấy rõ nhất ở nút "Gửi" của ô nhận xét. */
+    scrollbar-gutter: stable;
   }
 }

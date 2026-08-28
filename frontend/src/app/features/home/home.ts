@@ -16,6 +16,7 @@ import { DialogService } from '../../core/services/dialog';
 import { formatVnd } from '../../core/utils/currency';
 import { formatNovaToken, vndToNovaToken } from '../../core/utils/novatoken';
 import { masonryColumnCount, masonryContentWidth } from '../../core/utils/masonry';
+import { showsCardByline, showsCardTitle } from '../../core/utils/card-caption';
 
 /** Vietnamese labels for the category codes the backend's auto-classifier
  * assigns (see PinsService.classifyCategory) — chips are only ever built
@@ -602,6 +603,11 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     }
     this.router.navigate(['/pin', pin.id]);
   }
+
+  /** Uỷ quyền cho util dùng chung — xem card-caption.ts. Bọc lại ở đây để
+   *  template gọi thẳng mà không phải nhập hàm vào lớp. */
+  showsTitle = showsCardTitle;
+  showsByline = showsCardByline;
 
   navigateToProfile(username: string | undefined | null, event: MouseEvent) {
     event.stopPropagation();

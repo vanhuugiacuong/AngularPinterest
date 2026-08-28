@@ -543,7 +543,7 @@ export class Create implements OnInit {
       }
 
       this.pinService.notifyPinCreated(createdPin);
-      await this.handlePublishSuccess();
+      await this.handlePublishSuccess(createdPin?.id);
     } catch (error) {
       console.error('Error uploading pin:', error);
       // Server-thrown business messages (e.g. the NSFW rejection, which can
@@ -584,7 +584,7 @@ export class Create implements OnInit {
       const createdPin = await this.pinService.saveAiPin(body, token);
       this.pinService.notifyPinCreated(createdPin);
       await this.membership.load();
-      await this.handlePublishSuccess();
+      await this.handlePublishSuccess(createdPin?.id);
     } catch (error) {
       console.error('Error saving AI pin:', error);
       this.showDialogError(error instanceof Error ? error.message : 'Không thể lưu ảnh AI. Vui lòng thử lại.');
@@ -605,12 +605,24 @@ export class Create implements OnInit {
     this.dialogStatus.set('error');
   }
 
-  private async handlePublishSuccess(): Promise<void> {
+  /** @param createdPinId id trả về từ API. Có thì đi thẳng tới tác phẩm vừa
+   *  đăng — đó mới là thứ người dùng muốn thấy sau khi bấm đăng; trang cá nhân
+   *  bắt họ đi tìm nó giữa hàng chục tấm khác. Không có thì lùi về trang cá
+   *  nhân như trước, rồi mới tới /feed. */
+  private async handlePublishSuccess(createdPinId?: string): Promise<void> {
     this.dialogStatus.set('success');
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    const profileIdentifier = await this.resolveOwnProfileIdentifier();
     try {
+      if (createdPinId) {
+        const navigated = await this.router.navigate(['/pin', createdPinId]);
+        if (navigated) return;
+        console.error('Navigating to the new pin did not complete; falling back to the profile.');
+      }
+
+      // Chỉ tra username khi thật sự cần: đường đi thường lệ không còn tốn thêm
+      // một vòng gọi.
+      const profileIdentifier = await this.resolveOwnProfileIdentifier();
       if (profileIdentifier) {
         const navigated = await this.router.navigate([
           '/profile',

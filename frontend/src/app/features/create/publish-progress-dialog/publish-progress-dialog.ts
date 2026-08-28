@@ -5,6 +5,7 @@ import {
   HostListener,
   Input,
   OnChanges,
+  OnDestroy,
   Output,
   SimpleChanges,
   ViewChild,
@@ -26,7 +27,7 @@ export type PublishDialogStatus = 'processing' | 'success' | 'error';
   templateUrl: './publish-progress-dialog.html',
   styleUrl: './publish-progress-dialog.css',
 })
-export class PublishProgressDialog implements OnChanges {
+export class PublishProgressDialog implements OnChanges, OnDestroy {
   @Input() open = false;
   @Input() status: PublishDialogStatus = 'processing';
   @Input() message = 'Đang xử lý…';
@@ -49,7 +50,7 @@ export class PublishProgressDialog implements OnChanges {
         document.body.style.overflow = 'hidden';
         setTimeout(() => this.dialogElRef?.nativeElement.focus(), 0);
       } else {
-        document.body.style.overflow = this.previousBodyOverflow ?? '';
+        this.releaseBodyScroll();
         if (this.previouslyFocused) {
           this.previouslyFocused.focus();
           this.previouslyFocused = null;
@@ -60,6 +61,23 @@ export class PublishProgressDialog implements OnChanges {
     if (changes['status'] && this.open && this.status === 'error') {
       setTimeout(() => this.retryBtnRef?.nativeElement.focus(), 0);
     }
+  }
+
+  ngOnDestroy(): void {
+    /* The publish flow NAVIGATES AWAY on success, so this component is destroyed
+       while `open` is still true — ngOnChanges never sees it close, and the
+       release above never ran. The body then kept `overflow: hidden` and the
+       page it navigated TO could not be scrolled at all. */
+    this.releaseBodyScroll();
+  }
+
+  /** Idempotent: `undefined` means the lock was never taken, and clearing the
+   *  field after restoring means a second call cannot overwrite whatever some
+   *  other dialog has set in the meantime. */
+  private releaseBodyScroll(): void {
+    if (this.previousBodyOverflow === undefined) return;
+    document.body.style.overflow = this.previousBodyOverflow;
+    this.previousBodyOverflow = undefined;
   }
 
   @HostListener('document:keydown', ['$event'])

@@ -139,17 +139,6 @@
                           >
                           Sao chép liên kết
                         </button>
-                        <button
-                          type="button"
-                          role="menuitem"
-                          (click)="reportPin()"
-                          class="flex items-center gap-2.5 h-10 px-3 rounded-control text-sm font-semibold text-error hover:bg-error/10 cursor-pointer border-none bg-transparent text-left focus-visible:ring-2 focus-visible:ring-accent"
-                        >
-                          <span class="material-symbols-outlined text-lg" aria-hidden="true"
-                            >flag</span
-                          >
-                          Báo cáo tác phẩm này
-                        </button>
                       </div>
                     }
                   </div>
@@ -907,8 +896,15 @@
             </div>
           </div>
 
+          <!-- Tiêu đề và dòng tác giả đều là tuỳ chọn theo từng pin, cùng quy
+               tắc với lưới Khám phá — xem card-caption.ts. Bỏ cả khối khi không
+               hiện cái nào, để card trần không còn dải trống bên dưới. -->
+          @if (showsTitle(rel) || showsByline(rel)) {
           <div class="px-1 flex flex-col gap-1 w-full min-w-0 mt-2">
-            <span class="text-xs font-bold text-text truncate">{{ rel.title }}</span>
+            @if (showsTitle(rel)) {
+              <span class="text-xs font-bold text-text truncate">{{ rel.title }}</span>
+            }
+            @if (showsByline(rel)) {
             <div class="flex items-center justify-between gap-2 min-w-0">
               <button
                 type="button"
@@ -949,7 +945,9 @@
                 }
               </div>
             </div>
+            }
           </div>
+          }
         </div>
       }
 

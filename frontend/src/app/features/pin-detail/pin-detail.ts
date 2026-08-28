@@ -25,6 +25,7 @@ import { ImageRegionSearch } from './image-region-search/image-region-search';
 import { API_BASE_URL } from '../../core/api-base';
 import { WatermarkPreset, WatermarkService } from '../../core/services/watermark';
 import { ToastService } from '../../core/services/toast';
+import { showsCardByline, showsCardTitle } from '../../core/utils/card-caption';
 import { DialogService } from '../../core/services/dialog';
 import { AuctionService, AuctionDetail } from '../../core/services/auction';
 import { UserService, ProfileViewerState } from '../../core/services/user';
@@ -32,7 +33,6 @@ import { MessagingService } from '../../core/services/messaging';
 import { formatVnd } from '../../core/utils/currency';
 import { NovaTokenService } from '../../core/services/novatoken';
 import { formatNovaToken, vndToNovaToken } from '../../core/utils/novatoken';
-import { SafetyService } from '../../core/services/safety';
 import { masonryColumnCount, masonryContentWidth } from '../../core/utils/masonry';
 
 /** Phải khớp chính xác với thông báo ForbiddenException của
@@ -71,7 +71,6 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   private auctionService = inject(AuctionService);
   private userService = inject(UserService);
   private messagingService = inject(MessagingService);
-  private safetyService = inject(SafetyService);
   public showMoreMenu = signal(false);
 
   // --- Đấu giá ---
@@ -382,30 +381,6 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  async reportPin(): Promise<void> {
-    this.showMoreMenu.set(false);
-    const current = this.pin();
-    if (!current) return;
-    const confirmed = await this.dialogService.confirm({
-      variant: 'destructive',
-      title: 'Báo cáo tác phẩm này?',
-      description: 'Đội ngũ NovaFrame sẽ xem xét tác phẩm và tài khoản đã đăng nó.',
-      confirmLabel: 'Báo cáo',
-      cancelLabel: 'Hủy',
-      onConfirm: async () => {
-        const token = await this.supabaseService.getSessionToken();
-        if (!token) throw new Error('Vui lòng đăng nhập lại để báo cáo.');
-        await this.safetyService.reportUser(
-          current.userId,
-          'INAPPROPRIATE_CONTENT',
-          undefined,
-          token,
-        );
-      },
-    });
-    if (confirmed) this.toast.success('Đã gửi báo cáo. Cảm ơn bạn đã phản hồi.');
-  }
-
   async loadBoards() {
     const currentUser = this.supabaseService.user();
     if (currentUser) {
@@ -517,6 +492,12 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   goBack() {
     this.router.navigate(['/feed']);
   }
+
+  /** Cùng quy tắc chú thích với lưới Khám phá — xem card-caption.ts. Dùng
+   *  chung nên MỘT pin xuất hiện ở cả hai trang sẽ được chú thích giống nhau,
+   *  thay vì mỗi trang tự quyết một kiểu. */
+  showsTitle = showsCardTitle;
+  showsByline = showsCardByline;
 
   navigateToPin(pinOrId: string | { id: string; listingType?: string }) {
     const pin = typeof pinOrId === 'string' ? null : pinOrId;
