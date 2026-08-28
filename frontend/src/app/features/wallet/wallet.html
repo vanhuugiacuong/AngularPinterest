@@ -201,7 +201,12 @@
               <div>
                 <label class="payout-label">Số credit muốn rút</label>
                 <div class="flex items-center gap-2.5 mt-1.5 flex-wrap">
-                  <input type="number" [ngModel]="payoutCredits" (input)="onCreditsInput($event, po)"
+                  <!-- inputmode=numeric + chặn phím: `type="number"` vẫn cho gõ
+                       '-', 'e', dấu chấm; ở đây chỉ có số nguyên dương mới có nghĩa. -->
+                  <input type="number" inputmode="numeric" [ngModel]="payoutCredits"
+                    (input)="onCreditsInput($event, po)"
+                    (keydown)="onCreditsKeydown($event)"
+                    (blur)="onCreditsBlur(po)"
                     [min]="po.minCredits" [max]="po.maxCredits < po.balance ? po.maxCredits : po.balance"
                     class="payout-input w-32 h-11 rounded-xl px-3 text-base font-extrabold text-center outline-none"
                     [class.payout-input-err]="creditInputError(po)" />

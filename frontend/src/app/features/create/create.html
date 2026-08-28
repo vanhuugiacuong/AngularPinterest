@@ -296,7 +296,13 @@
               <span *ngIf="!previewImage()" class="material-symbols-outlined text-3xl text-gray-400">image</span>
             </div>
             <div class="p-3 flex flex-col gap-2">
-              <p class="text-xs font-bold text-black dark:text-white truncate">{{ title.trim() || 'Tiêu đề ghim của bạn' }}</p>
+              <!-- Tiêu đề trống là hợp lệ, nên xem trước phải cho thấy ĐÚNG lúc
+                   đăng lên nó trông thế nào — chứ không vẽ một tiêu đề giả. -->
+              @if (title.trim()) {
+                <p class="text-xs font-bold text-black dark:text-white truncate">{{ title.trim() }}</p>
+              } @else {
+                <p class="text-xs italic text-[#767672] dark:text-[#6c6674] truncate">Không có tiêu đề</p>
+              }
               <div class="flex items-center gap-1.5 min-w-0" *ngIf="supabaseService.user() as user">
                 <img
                   [src]="user.user_metadata['avatar_url'] || user.user_metadata['picture'] || 'https://api.dicebear.com/7.x/bottts/svg'"
@@ -316,7 +322,13 @@
 
             <!-- Title -->
             <div class="flex flex-col gap-1.5">
-              <label class="field-label">Tiêu đề ghim <span class="text-red-500">*</span></label>
+              <!-- Không còn bắt buộc: bỏ luôn dấu * đỏ, thêm chữ "không bắt buộc"
+                   cho rõ. Để dấu * mà code lại cho bỏ trống thì nhãn nói một đằng
+                   hệ thống làm một nẻo. -->
+              <label class="field-label">
+                Tiêu đề ghim
+                <span class="ml-1 font-normal normal-case tracking-normal text-[#767672] dark:text-[#8b8791]">(không bắt buộc)</span>
+              </label>
               <input
                 type="text"
                 [(ngModel)]="title"
@@ -536,10 +548,13 @@
             >
               Hủy
             </button>
+            <!-- Điều kiện khoá nút BỎ `!title.trim()`: tiêu đề không còn bắt buộc,
+                 để lại thì nút khoá cứng và không ai đăng được ảnh không tiêu đề.
+                 Chỉ còn điều kiện thật sự cần: phải CÓ ẢNH. -->
             <button
               type="button"
               (click)="onSubmit()"
-              [disabled]="isSubmitting() || !title.trim() || (activeTab() === 'upload' && !selectedFile) || (activeTab() === 'ai' && !aiImagePreviewUrl())"
+              [disabled]="isSubmitting() || (activeTab() === 'upload' && !selectedFile) || (activeTab() === 'ai' && !aiImagePreviewUrl())"
               class="h-11 lg:h-10 px-7 rounded-[10px] grad-brand hover:opacity-95 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95 transition-all border-none outline-none"
             >
               <!-- Submitting spinner -->

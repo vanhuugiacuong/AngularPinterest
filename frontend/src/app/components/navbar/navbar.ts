@@ -461,9 +461,24 @@ export class Navbar {
   private suggestionPool = signal<Pin[]>([]);
   private readonly recentSearchesKey = 'pinhub_recent_searches';
 
+  /**
+   * Gợi ý lấy TỪ MÁY CHỦ, không phải lọc trong 100 ảnh tải sẵn.
+   *
+   * Bản cũ chỉ lọc `suggestionPool` — một mẫu 100 ảnh nạp lúc mở ô tìm. Gõ thứ
+   * gì không nằm trong 100 ảnh đó là trắng trơn, dù thư viện có hơn 1.000 ảnh.
+   * Nay hỏi thẳng API tìm kiếm nên gợi ý đúng những gì thật sự tìm được, và
+   * hưởng luôn phần bỏ dấu + từ điển Việt-Anh ở backend (gõ "cho" ra "chó",
+   * gõ "chó" ra cả ảnh tên "dog").
+   */
+  public remoteSuggestions = signal<string[]>([]);
+  private titleSuggestionDebounce: ReturnType<typeof setTimeout> | null = null;
+
   get titleSuggestions(): string[] {
     const q = normalizeForSearch(this.searchQuery().trim());
     if (!q) return [];
+
+    // Lọc tại chỗ trước để gõ tới đâu thấy tới đó, không chờ mạng; kết quả từ
+    // máy chủ về sau sẽ bổ sung thêm.
     const seen = new Set<string>();
     const results: string[] = [];
     for (const pin of this.suggestionPool()) {
@@ -472,10 +487,38 @@ export class Navbar {
       if (title && normalizedTitle.includes(q) && !seen.has(normalizedTitle)) {
         seen.add(normalizedTitle);
         results.push(title);
-        if (results.length >= 8) break;
       }
     }
-    return results;
+    for (const title of this.remoteSuggestions()) {
+      const n = normalizeForSearch(title);
+      if (!seen.has(n)) {
+        seen.add(n);
+        results.push(title);
+      }
+    }
+    return results.slice(0, 8);
+  }
+
+  /** Hỏi máy chủ, hoãn 250ms để không bắn một request mỗi phím. */
+  private fetchTitleSuggestions(q: string) {
+    if (this.titleSuggestionDebounce) clearTimeout(this.titleSuggestionDebounce);
+    if (!q) {
+      this.remoteSuggestions.set([]);
+      return;
+    }
+    this.titleSuggestionDebounce = setTimeout(async () => {
+      try {
+        const pins = await this.pinService.searchPins(q, 1, 8);
+        // Câu tìm có thể đã đổi trong lúc chờ — đừng ghi đè kết quả mới hơn.
+        if (this.searchQuery().trim() !== q) return;
+        const titles = pins
+          .map((p) => p.title?.trim())
+          .filter((t): t is string => !!t);
+        this.remoteSuggestions.set(titles);
+      } catch {
+        // Mạng lỗi thì im lặng — vẫn còn phần lọc tại chỗ ở trên.
+      }
+    }, 250);
   }
 
   // Backed by the real users/search API (searches every account, not just whoever
@@ -561,12 +604,14 @@ export class Navbar {
     const input = event.target as HTMLInputElement;
     this.searchQuery.set(input.value);
     this.fetchUserSuggestions(input.value.trim());
+    this.fetchTitleSuggestions(input.value.trim());
   }
 
   clearSearchInput(event: Event) {
     event.stopPropagation();
     this.searchQuery.set('');
     this.userSuggestions.set([]);
+    this.remoteSuggestions.set([]);
     this.onSearchFocus();
     this.searchInputEl?.nativeElement.focus();
   }

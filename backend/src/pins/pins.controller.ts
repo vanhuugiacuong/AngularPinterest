@@ -54,6 +54,16 @@ export class PinsController {
     return this.pinsService.searchPins(searchQuery, pageNum, limitNum);
   }
 
+  /**
+   * Gợi ý bộ lọc cho một câu tìm. Tách khỏi /search vì nó quét rộng hơn nhiều
+   * so với một trang kết quả, và giao diện chỉ cần lấy một lần cho mỗi câu tìm
+   * chứ không lấy lại mỗi lần cuộn thêm.
+   */
+  @Get('search-facets')
+  async searchFacets(@Query('q') q: string, @Query('query') query: string) {
+    return this.pinsService.searchFacets(q || query || '');
+  }
+
   @Post('search-by-image')
   @UseInterceptors(FileInterceptor('image', {
     limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit

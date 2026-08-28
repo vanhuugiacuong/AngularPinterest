@@ -460,7 +460,11 @@ export class Create implements OnInit {
       modelQuery = '&model=flux-3d';
     }
 
-    const previewUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(this.aiPrompt.trim())}?width=800&height=1200&seed=${seed}&nologo=true${modelQuery}`;
+    // 1024×1536 thay vì 800×1200: ảnh AI bán Premium thì BẢN GỐC chính là thứ
+    // người mua nhận, nên cỡ sinh ra ở đây đặt trần cho chất lượng họ tải về —
+    // ở 800px người mua kêu "không HD" là đúng. Vẫn giữ tỉ lệ 2:3 dọc cho hợp
+    // lưới ảnh kiểu Pinterest.
+    const previewUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(this.aiPrompt.trim())}?width=1024&height=1536&seed=${seed}&nologo=true${modelQuery}`;
 
     const img = new Image();
     img.src = previewUrl;
@@ -508,10 +512,6 @@ export class Create implements OnInit {
         this.toastService.error('Vui lòng chọn ảnh tải lên!');
         return;
       }
-      if (!this.title.trim()) {
-        this.toastService.error('Vui lòng nhập tiêu đề!');
-        return;
-      }
 
       this.isSubmitting.set(true);
       try {
@@ -543,10 +543,6 @@ export class Create implements OnInit {
       const previewUrl = this.aiImagePreviewUrl();
       if (!previewUrl) {
         this.toastService.error('Vui lòng tạo ảnh AI trước!');
-        return;
-      }
-      if (!this.title.trim()) {
-        this.toastService.error('Vui lòng nhập tiêu đề!');
         return;
       }
 

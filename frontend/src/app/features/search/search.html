@@ -13,7 +13,9 @@
         </div>
       } @else {
         <h1 class="text-sm font-bold text-[#62625b] dark:text-[#999] mb-6">
-          @if (query()) {
+          @if (isShowingFallback()) {
+            Không có ảnh nào khớp "<span class="text-black dark:text-white">{{ query() }}</span>" — gợi ý cho bạn
+          } @else if (query()) {
             Kết quả cho "<span class="text-black dark:text-white">{{ query() }}</span>"
           } @else {
             Tất cả ảnh
@@ -22,14 +24,21 @@
       }
 
       @if (refinementTags().length > 0) {
-        <div class="relative mb-6">
+        <!-- `group` để hai mũi tên cuộn chỉ hiện khi rê chuột vào thanh gợi ý,
+             chứ đứng thường trực thì chúng che mất nút ở hai đầu. -->
+        <div class="relative mb-6 group">
           <div #pillsScroll class="flex gap-3 overflow-x-auto pb-1 scroll-smooth">
-            @for (tag of refinementTags(); track tag.label; let i = $index) {
+            @for (tag of refinementTags(); track tag.type + tag.key; let i = $index) {
+              <!-- Từ khoá đã nằm trong câu tìm thì viền hồng; bấm lần nữa là gỡ ra. -->
               <button
                 type="button"
-                (click)="applyRefinementTag(tag.label)"
-                class="shrink-0 flex items-center gap-2.5 pl-2 pr-6 py-2 rounded-full border-none cursor-pointer hover:brightness-95"
-                [ngClass]="pillColorClass(i)"
+                (click)="applyTag(tag)"
+                class="shrink-0 flex items-center gap-2.5 pl-2 pr-6 py-2 rounded-full cursor-pointer hover:brightness-95 transition-all"
+                [ngClass]="[
+                  pillColorClass(i),
+                  isTagActive(tag) ? 'ring-2 ring-[#F94083] border-none' : 'border-none'
+                ]"
+                [title]="isTagActive(tag) ? 'Bỏ từ khoá: ' + tag.label : 'Thêm từ khoá: ' + tag.label"
               >
                 @if (tag.imageUrl) {
                   <img [src]="tag.imageUrl" alt="" class="w-12 h-12 rounded-full object-cover shrink-0" />
@@ -43,14 +52,14 @@
           <button
             type="button"
             (click)="pillsScroll.scrollBy({ left: -320, behavior: 'smooth' })"
-            class="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white dark:bg-[#1e1e1e] shadow-[0_4px_14px_rgba(0,0,0,0.2)] items-center justify-center border-none cursor-pointer text-black dark:text-white"
+            class="hidden sm:flex opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity duration-150 absolute left-0 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white dark:bg-[#1e1e1e] shadow-[0_4px_14px_rgba(0,0,0,0.2)] items-center justify-center border-none cursor-pointer text-black dark:text-white"
           >
             <span class="material-symbols-outlined text-xl">chevron_left</span>
           </button>
           <button
             type="button"
             (click)="pillsScroll.scrollBy({ left: 320, behavior: 'smooth' })"
-            class="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white dark:bg-[#1e1e1e] shadow-[0_4px_14px_rgba(0,0,0,0.2)] items-center justify-center border-none cursor-pointer text-black dark:text-white"
+            class="hidden sm:flex opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity duration-150 absolute right-0 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white dark:bg-[#1e1e1e] shadow-[0_4px_14px_rgba(0,0,0,0.2)] items-center justify-center border-none cursor-pointer text-black dark:text-white"
           >
             <span class="material-symbols-outlined text-xl">chevron_right</span>
           </button>
@@ -175,6 +184,16 @@
             </div>
           }
         </div>
+
+        <!-- Cuộn chạm mốc này thì tải thêm một trang. Trước đây trang tìm kiếm
+             tải sạch thư viện ngay từ đầu nên không cần mốc; giờ mỗi lần một
+             trang thì phải có. -->
+        <div #scrollSentinel class="w-full h-8"></div>
+        @if (isLoadingMore()) {
+          <div class="flex justify-center py-6">
+            <div class="w-7 h-7 border-[3px] border-[#F94083] border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        }
       }
     </main>
   </div>
