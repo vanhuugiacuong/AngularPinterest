@@ -1,3 +1,15 @@
+/* Angular view encapsulation scopes styles per component — the `no-scrollbar`
+   class used on the tab row below only has an effect if it's also defined
+   here; home.css's copy does not reach this component. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Hero — pure blue gradient (nova-blue -> studio-aqua), deliberately not the
    site-wide blue->violet .bg-gradient-brand: this feature is meant to read
    as one consistent blue, per the "đồng bộ tất cả theme là màu xanh dương"

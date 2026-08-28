@@ -61,3 +61,25 @@
 .nf-bid-row--top {
   background: color-mix(in srgb, var(--color-nova-blue) 8%, transparent);
 }
+
+/* Thin, unobtrusive scrollbar for the bid-history list — without this, some
+   browsers (classic Windows scrollbar theme) render a boxy up/down-arrow
+   scrollbar here that reads as a stray UI control against the rest of the
+   app's chrome-free scroll areas. */
+.nf-scroll-clean {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+.nf-scroll-clean::-webkit-scrollbar {
+  width: 6px;
+}
+
+.nf-scroll-clean::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nf-scroll-clean::-webkit-scrollbar-thumb {
+  background-color: var(--color-border-strong);
+  border-radius: 9999px;
+}

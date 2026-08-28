@@ -196,7 +196,7 @@
               @if (a.bids.length === 0) {
                 <p class="text-xs text-text-muted">Chưa có lượt đặt giá nào. Hãy là người đầu tiên!</p>
               } @else {
-                <div class="flex flex-col gap-1 max-h-[280px] overflow-y-auto pr-1">
+                <div class="nf-scroll-clean flex flex-col gap-1 max-h-[280px] overflow-y-auto pr-1">
                   @for (bid of a.bids; track bid.id; let i = $index) {
                     <div class="flex items-center gap-2.5 py-2 px-2.5 rounded-control" [class.nf-bid-row--top]="i === 0">
                       <app-user-avatar [src]="bid.bidder.avatarUrl" [name]="bid.bidder.username" [size]="28" [plan]="bid.bidder.plan" [isAdmin]="bid.bidder.isAdmin"></app-user-avatar>
