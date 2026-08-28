@@ -341,6 +341,19 @@
   width: 44px;
 }
 
+/* The Plus/Pro/admin membership ring around the avatar is painted via a
+   negative-inset overlay (see UserAvatar's .uav-ring, which deliberately
+   bleeds outside the avatar's own box so it never crops the photo) — at
+   this row's 36px avatar size that ring can extend ~6px past the 44px
+   avatar slot. With no gap there, that bleed landed directly on top of the
+   name/email text starting right at the slot's edge. Scoped to the expanded
+   rail only: in the compact rail the copy span is collapsed to 0 width
+   anyway, and an unconditional gap would have widened the 44px button past
+   the compact rail's own width. */
+.nf-rail--expanded .nf-rail-profile {
+  gap: 8px;
+}
+
 .nf-rail-profile__copy {
   display: flex;
   min-width: 0;
