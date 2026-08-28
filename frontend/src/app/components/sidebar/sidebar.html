@@ -1,5 +1,5 @@
-<!-- One persistent rail: compact by default, expanded only by an explicit
-     click/keyboard action. Desktop/tablet never enter a hidden state. -->
+<!-- One persistent rail: compact by default, smoothly expands while hovered
+     on desktop/tablet and remains keyboard/click accessible. -->
 <nav
   id="app-sidebar-panel"
   role="navigation"
@@ -9,6 +9,8 @@
   [class.nf-rail--expanded]="sidebarState.isExpanded()"
   [class.nf-rail--compact]="!sidebarState.isExpanded()"
   (click)="onRailClick($event)"
+  (mouseenter)="onRailPointerEnter()"
+  (mouseleave)="onRailPointerLeave()"
   (keydown.enter)="onRailKeydown($event)"
   (keydown.space)="onRailKeydown($event)"
   class="nf-rail"
@@ -41,22 +43,6 @@
         <span class="nf-rail-label">Trang chủ</span>
       </button>
       <span id="nf-tooltip-home" role="tooltip" class="nf-tooltip">Trang chủ</span>
-    </div>
-
-    <!-- Explore remains the existing disabled placeholder; no route is invented. -->
-    <div class="nf-rail-item-shell group">
-      <button
-        type="button"
-        title="Khám phá · Sắp ra mắt"
-        class="nf-rail-item nf-rail-item--disabled"
-        aria-label="Khám phá — sắp ra mắt"
-        aria-disabled="true"
-        aria-describedby="nf-tooltip-explore"
-      >
-        <app-sidebar-icon class="nf-rail-icon" icon="explore" />
-        <span class="nf-rail-label">Khám phá</span>
-      </button>
-      <span id="nf-tooltip-explore" role="tooltip" class="nf-tooltip">Khám phá · Sắp ra mắt</span>
     </div>
 
     <!-- Create -->

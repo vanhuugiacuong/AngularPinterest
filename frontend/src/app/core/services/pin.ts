@@ -152,7 +152,15 @@ export class PinService {
 
   /** Reverse image search: uploads a File (not yet a saved Pin) to the CLIP
    * embedding pipeline on the backend and returns real database matches. */
-  searchPinsByImage(file: File, limit = 40): Promise<Pin[]> {
+  /** limit 120, khong phai 40.
+   *
+   * Endpoint nay CO ho tro phan trang (page + limit, xem PinsService), nhung
+   * phan trang o day dat: moi trang phai UPLOAD LAI ca tam anh, roi chay lai
+   * CLIP embedding va kiem duyet NSFW cho dung mot ket qua da tinh o trang
+   * truoc. Xin mot trang lon ngay tu dau re hon han, va nguong loc phia
+   * backend (imageSearchMaxSimilarityGap) van la thu quyet dinh bao nhieu tam
+   * that su du gan de hien — 120 chi la tran, khong phai chi tieu. */
+  searchPinsByImage(file: File, limit = 120): Promise<Pin[]> {
     const formData = new FormData();
     formData.append('image', file);
     return this.request<Pin[]>(

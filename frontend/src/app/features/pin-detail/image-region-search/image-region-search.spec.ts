@@ -52,7 +52,7 @@ describe('ImageRegionSearch', () => {
     ).searchWithFile(file);
   }
 
-  it('returns CLIP matches to Pin Detail instead of navigating away', async () => {
+  it('returns CLIP matches to Pin Detail and stays open for another search', async () => {
     const completed = vi.spyOn(component.searchCompleted, 'emit');
     const closed = vi.spyOn(component.closed, 'emit');
 
@@ -61,7 +61,10 @@ describe('ImageRegionSearch', () => {
 
     expect(imageSearchStore.searchByImage).toHaveBeenCalledWith(query);
     expect(completed).toHaveBeenCalledWith(imageSearchStore.results());
-    expect(closed).toHaveBeenCalledOnce();
+    // Must NOT close: the component keeps the selection frame so the region can
+    // be moved or resized for a follow-up search (see the comment on the emit in
+    // searchWithFile). `closed` now fires only from cancel() / Escape.
+    expect(closed).not.toHaveBeenCalled();
   });
 
   it('keeps the selector open and does not emit results when search fails', async () => {

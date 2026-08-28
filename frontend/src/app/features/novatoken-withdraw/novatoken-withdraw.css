@@ -5,17 +5,63 @@
   color: var(--color-text);
 }
 
+/* Thang giãn cách của trang này.
+ *
+ * Trước đây trang dùng 19 giá trị khác nhau (2, 3, 5, 6, 8, 10, 12, 14, 16, 18,
+ * 20, 22, 24, 26, 28, 40, 60, 100, 132) — trong đó có những cặp mắt thường
+ * không phân biệt nổi (10/12/14, 18/20/22, 24/26/28) nhưng đủ để nhịp trang
+ * trông ngẫu nhiên. Tám bước theo lưới 4px, đặt tên, để lần sửa sau chọn từ
+ * thang chứ không nghĩ ra một số mới.
+ *
+ * Ba giá trị CỐ Ý nằm ngoài thang, vì chúng là căn quang học chứ không phải
+ * nhịp giữa các khối — snap chúng vào 4px sẽ thấy sai ngay:
+ *   .balance-figure small  margin-left: 2px   kern chữ "đ" cạnh số 48px
+ *   .payout-account div    gap: 3px           giãn dòng chặt của khối 2 dòng
+ *   .timeline-status       padding: 3px 8px   chip nhỏ, 4px sẽ phình
+ *
+ * Padding cấp trang (132/100/60) cũng để nguyên: đó là lề của cả trang so với
+ * navbar, không phải khoảng cách giữa hai phần tử. */
 .withdraw-page {
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 28px;
+  --sp-9: 40px;
+
   position: relative;
+  /* Tạo stacking context, nhờ vậy `z-index: -1` của .withdraw-aurora chỉ nằm
+     sau nội dung CỦA TRANG này — không rơi ra sau background của :host rồi
+     biến mất. `isolation: isolate` thay vì `z-index: 0` để khớp với
+     .membership-page ở pricing.css, nơi đã dùng đúng cách này. */
+  isolation: isolate;
+  /* Giờ chỉ còn nhiệm vụ chặn nội dung tràn ngang. Trước đây nó cũng cắt hai
+     khối sáng, và đó chính là lỗi: chúng thành hình chữ nhật 1080px có mép
+     thẳng. */
   overflow: hidden;
   min-height: 100vh;
   max-width: 1080px;
   margin: 0 auto;
-  padding: 132px 5vw 100px;
+  padding: 100px 5vw 100px;
 }
 
+/* Vầng sáng nền, phủ theo VIEWPORT chứ không theo khối nội dung.
+ *
+ * Trước đây là `position: absolute` bên trong .withdraw-page — mà panel đó
+ * `max-width: 1080px` và `overflow: hidden`, nên trên màn rộng hơn 1080px vầng
+ * sáng bị cắt thành một hình chữ nhật có mép dọc thẳng, thấy rõ vì :host tô
+ * --color-bg full-width phía sau. Các offset âm (right: -140px, left: -180px)
+ * vốn có ý cho nó tràn ra ngoài, nhưng overflow: hidden cắt đúng chỗ đó.
+ *
+ * `fixed` giải quyết cả hai: nó neo theo viewport nên phủ mọi bề rộng, và nó
+ * KHÔNG bị `overflow: hidden` của tổ tiên cắt (containing block của phần tử
+ * fixed là viewport, nằm ngoài vùng clip — .withdraw-page không có transform
+ * hay filter nên không trở thành containing block cho nó). */
 .withdraw-aurora {
-  position: absolute;
+  position: fixed;
+  z-index: -1;
   border-radius: 50%;
   filter: blur(110px);
   opacity: 0.16;
@@ -41,12 +87,12 @@
   z-index: 1;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-2);
   color: var(--color-text-muted);
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;
-  margin-bottom: 28px;
+  margin-bottom: var(--sp-7);
   transition: color 0.15s ease;
 }
 .back-link:hover {
@@ -60,7 +106,7 @@
   position: relative;
   z-index: 1;
   max-width: 640px;
-  margin-bottom: 28px;
+  margin-bottom: var(--sp-7);
 }
 .eyebrow {
   font: 800 11px var(--font-sans);
@@ -71,7 +117,7 @@
   font-size: clamp(38px, 5vw, 56px);
   line-height: 1;
   letter-spacing: -0.04em;
-  margin: 14px 0 12px;
+  margin: var(--sp-3) 0 var(--sp-3);
 }
 .withdraw-hero p {
   color: var(--color-text-muted);
@@ -83,9 +129,9 @@
   position: relative;
   z-index: 1;
   display: flex;
-  gap: 14px;
-  padding: 18px 20px;
-  margin-bottom: 28px;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+  margin-bottom: var(--sp-7);
   border: 1px solid color-mix(in srgb, var(--color-warning) 45%, var(--color-border));
   border-radius: var(--radius-frame);
   background: color-mix(in srgb, var(--color-warning) 9%, var(--color-surface));
@@ -101,7 +147,7 @@
   letter-spacing: 0.07em;
 }
 .demo-legal-note p {
-  margin: 5px 0 0;
+  margin: var(--sp-1) 0 0;
   color: var(--color-text-muted);
   font-size: 12px;
   line-height: 1.6;
@@ -112,16 +158,16 @@
   z-index: 1;
   display: grid;
   grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.2fr);
-  gap: 20px;
+  gap: var(--sp-5);
   align-items: stretch;
-  margin-bottom: 40px;
+  margin-bottom: var(--sp-9);
 }
 
 .withdraw-panel {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-panel);
   background: var(--color-surface);
-  padding: 28px;
+  padding: var(--sp-7);
 }
 
 .balance-panel {
@@ -145,7 +191,7 @@
   font-weight: 800;
   font-size: 48px;
   letter-spacing: -0.03em;
-  margin: 10px 0 8px;
+  margin: var(--sp-3) 0 var(--sp-2);
 }
 .balance-figure small {
   font-size: 20px;
@@ -153,7 +199,7 @@
   margin-left: 2px;
 }
 .panel-hint {
-  margin: 0 0 22px;
+  margin: 0 0 var(--sp-5);
   color: var(--color-text-muted);
   font-size: 12px;
   line-height: 1.6;
@@ -163,8 +209,8 @@
   margin-top: auto;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-frame);
   background: var(--color-surface-elevated);
@@ -205,20 +251,20 @@
   flex-direction: column;
 }
 .form-panel h2 {
-  margin: 0 0 18px;
+  margin: 0 0 var(--sp-5);
   font-size: 18px;
 }
 .form-panel label {
   color: var(--color-text-muted);
   font-size: 11px;
   font-weight: 800;
-  margin-bottom: 8px;
+  margin-bottom: var(--sp-2);
 }
 .money-input {
   display: flex;
   align-items: center;
   height: 54px;
-  padding: 0 16px;
+  padding: 0 var(--sp-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   background: var(--color-surface-elevated);
@@ -243,8 +289,8 @@
 
 .quick-amounts {
   display: flex;
-  gap: 8px;
-  margin: 12px 0 20px;
+  gap: var(--sp-2);
+  margin: var(--sp-3) 0 var(--sp-5);
 }
 .quick-amounts button {
   flex: 1;
@@ -281,14 +327,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 .submit-withdrawal:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 .withdrawal-message {
-  margin: 10px 0 0;
+  margin: var(--sp-3) 0 0;
   color: var(--color-text-muted);
   font-size: 11px;
   line-height: 1.5;
@@ -300,7 +346,7 @@
 }
 .withdraw-history-section h2 {
   font-size: 20px;
-  margin: 0 0 20px;
+  margin: 0 0 var(--sp-5);
 }
 
 .history-timeline {
@@ -308,11 +354,11 @@
   margin: 0;
   padding: 0;
   border-left: 2px solid var(--color-border);
-  margin-left: 8px;
+  margin-left: var(--sp-2);
 }
 .history-timeline li {
   position: relative;
-  padding: 0 0 22px 26px;
+  padding: 0 0 var(--sp-5) var(--sp-6);
 }
 .history-timeline li:last-child {
   padding-bottom: 0;
@@ -331,8 +377,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 10px;
-  padding: 14px 18px;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-frame);
   background: var(--color-surface);
@@ -357,7 +403,7 @@
 
 .empty-history,
 .loading-state {
-  padding: 40px;
+  padding: var(--sp-9);
   text-align: center;
   color: var(--color-text-muted);
   border: 1px dashed var(--color-border);
@@ -370,14 +416,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: var(--sp-4);
   flex-wrap: wrap;
   color: var(--color-error);
-  margin-bottom: 24px;
+  margin-bottom: var(--sp-6);
 }
 .withdraw-error-retry {
   height: 36px;
-  padding: 0 16px;
+  padding: 0 var(--sp-4);
   border: 1px solid color-mix(in srgb, var(--color-error) 40%, transparent);
   border-radius: var(--radius-control);
   background: color-mix(in srgb, var(--color-error) 12%, transparent);

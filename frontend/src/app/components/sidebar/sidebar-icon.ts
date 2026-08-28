@@ -1,13 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
 export type SidebarIconName =
-  'home' | 'explore' | 'create' | 'collage' | 'notifications' | 'messages' | 'settings' | 'auction';
+  'home' | 'create' | 'collage' | 'notifications' | 'messages' | 'settings' | 'auction';
 
 const ICON_PATHS: Record<SidebarIconName, string> = {
   home:
     'M13.75 2.75v2.519M5.75 15.75v-4.5c0-.8284.6716-1.5 1.5-1.5s1.5.6716 1.5 1.5v4.5M11.25 9.75h1.5M2.655 6.45 9 1.75l6.345 4.7c.255.189.405.487.405.804v6.496a2 2 0 0 1-2 2h-9.5a2 2 0 0 1-2-2V7.254c0-.317.15-.615.405-.804Z',
-  explore:
-    'M12 3.2l2.72 5.5 6.08.88-4.4 4.29 1.04 6.06L12 18.1l-5.44 2.86 1.04-6.06-4.4-4.29 6.08-.88L12 3.2Z',
   create: '',
   collage: '',
   notifications: '',

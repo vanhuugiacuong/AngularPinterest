@@ -1,9 +1,10 @@
 import { Component, OnDestroy, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { Navbar } from '../../../components/navbar/navbar';
 import { UserAvatar } from '../../../shared/user-avatar/user-avatar';
-import { MoneyInput } from '../../../shared/money-input/money-input';
+import { CurrencyInputDirective } from '../../../shared/currency-input.directive';
 import { AuctionService, AuctionDetail } from '../../../core/services/auction';
 import { MembershipService } from '../../../core/services/membership';
 import { SupabaseService } from '../../../core/services/supabase';
@@ -17,7 +18,7 @@ const MAX_BID_AMOUNT = 9_999_999_999;
 @Component({
   selector: 'app-auction-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, Navbar, UserAvatar, MoneyInput],
+  imports: [CommonModule, RouterLink, FormsModule, Navbar, UserAvatar, CurrencyInputDirective],
   templateUrl: './auction-detail.html',
   styleUrl: './auction-detail.css',
 })

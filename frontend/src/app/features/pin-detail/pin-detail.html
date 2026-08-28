@@ -65,11 +65,9 @@
               class="w-full bg-surface border border-border/80 rounded-[32px] shadow-2xl overflow-hidden flex flex-col"
             >
               <!-- Frame header: Back/Like/Share/More (left) + Collection save (right) -->
-              <div
-                class="flex items-center justify-between gap-3 px-5 py-4 border-b border-border/60 flex-wrap shrink-0"
-              >
+              <div class="nf-pin-frame-toolbar px-5 py-4 border-b border-border/60 shrink-0">
                 <!-- Left Action Controls -->
-                <div class="flex items-center gap-2">
+                <div class="nf-pin-frame-toolbar__actions flex items-center gap-2">
                   <!-- Back button -->
                   <button
                     (click)="goBack()"
@@ -103,18 +101,8 @@
                     <span>{{ p.likeCount ?? p._count?.likes ?? 0 }}</span>
                   </button>
 
-                  <!-- Share button -->
-                  <button
-                    type="button"
-                    (click)="share()"
-                    class="w-10 h-10 rounded-full bg-surface-elevated hover:bg-surface-high flex items-center justify-center cursor-pointer transition-colors duration-200 active:scale-90 border-none outline-none text-text focus-visible:ring-2 focus-visible:ring-accent"
-                    aria-label="Chia sẻ tác phẩm"
-                    title="Chia sẻ tác phẩm"
-                  >
-                    <span class="material-symbols-outlined text-lg leading-none" aria-hidden="true"
-                      >upload</span
-                    >
-                  </button>
+            
+               
 
                   <!-- Option menu -->
                   <div class="relative">
@@ -151,47 +139,35 @@
                           >
                           Sao chép liên kết
                         </button>
-                        <button
-                          type="button"
-                          role="menuitem"
-                          (click)="reportPin()"
-                          class="flex items-center gap-2.5 h-10 px-3 rounded-control text-sm font-semibold text-error hover:bg-error/10 cursor-pointer border-none bg-transparent text-left focus-visible:ring-2 focus-visible:ring-accent"
-                        >
-                          <span class="material-symbols-outlined text-lg" aria-hidden="true"
-                            >flag</span
-                          >
-                          Báo cáo tác phẩm này
-                        </button>
                       </div>
                     }
                   </div>
                 </div>
 
                 <!-- Right Collection save dropdown + button -->
-                <div class="flex items-center gap-2 select-none relative">
-                  <button
-                    (click)="toggleBoardDropdown($event)"
-                    [disabled]="!canSavePin(pin())"
-                    [title]="
-                      canSavePin(pin())
-                        ? 'Chọn bộ sưu tập'
-                        : 'Thanh toán tác phẩm để mở khóa tính năng lưu'
-                    "
-                    class="h-10 px-4 bg-surface-elevated hover:bg-surface-high rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer border border-border/60 outline-none text-text select-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-surface-elevated"
-                    aria-haspopup="listbox"
-                    [attr.aria-expanded]="showBoardDropdown()"
-                  >
-                    <span class="truncate max-w-[120px]">{{ getSelectedBoardName() }}</span>
-                    <span
-                      class="material-symbols-outlined text-base leading-none"
-                      aria-hidden="true"
-                      >keyboard_arrow_down</span
+                <div class="nf-collection-save select-none relative">
+                  <span class="nf-collection-save__label">Lưu vào bộ sưu tập</span>
+                  <div class="nf-collection-save__controls">
+                    <button
+                      (click)="toggleBoardDropdown($event)"
+                      [disabled]="!canSavePin(pin())"
+                      [title]="
+                        canSavePin(pin())
+                          ? 'Chọn bộ sưu tập'
+                          : 'Thanh toán tác phẩm để mở khóa tính năng lưu'
+                      "
+                      class="nf-collection-save__selector h-10 px-4 bg-surface-elevated hover:bg-surface-high rounded-full text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer border border-border/60 outline-none text-text select-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-surface-elevated"
+                      aria-label="Chọn bộ sưu tập để lưu tác phẩm"
+                      aria-haspopup="listbox"
+                      [attr.aria-expanded]="showBoardDropdown()"
                     >
-                  </button>
+                      <span class="truncate max-w-[120px]">{{ getSelectedBoardName() }}</span>
+                      <span class="material-symbols-outlined text-base leading-none" aria-hidden="true">keyboard_arrow_down</span>
+                    </button>
 
                   @if (showBoardDropdown()) {
                     <div
-                      class="absolute right-0 top-11 w-48 glass-elevated rounded-panel shadow-card border border-border py-2 z-[100] text-left overflow-hidden"
+                      class="nf-collection-save__menu absolute glass-elevated rounded-panel shadow-card border border-border py-2 z-[100] text-left overflow-hidden"
                       role="listbox"
                     >
                       <span
@@ -212,18 +188,21 @@
                     </div>
                   }
 
-                  <button
-                    (click)="savePinToBoard()"
-                    [disabled]="!canSavePin(pin())"
-                    [title]="
-                      canSavePin(pin())
-                        ? 'Lưu vào bộ sưu tập'
-                        : 'Thanh toán tác phẩm để mở khóa tính năng lưu'
-                    "
-                    class="h-10 px-6 bg-gradient-brand rounded-full text-text-on-accent text-xs font-bold cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-accent hover:brightness-110 transition-all shadow-glow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100 disabled:shadow-none"
-                  >
-                    Lưu
-                  </button>
+                    <button
+                      (click)="savePinToBoard()"
+                      [disabled]="!canSavePin(pin())"
+                      [title]="
+                        canSavePin(pin())
+                          ? 'Lưu vào bộ sưu tập'
+                          : 'Thanh toán tác phẩm để mở khóa tính năng lưu'
+                      "
+                      class="nf-collection-save__button h-10 px-5 bg-gradient-brand rounded-full text-text-on-accent text-xs font-bold cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-accent hover:brightness-110 transition-all shadow-glow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100 disabled:shadow-none"
+                      aria-label="Lưu tác phẩm vào bộ sưu tập đã chọn"
+                    >
+                      <span class="material-symbols-outlined text-base leading-none" aria-hidden="true">bookmark_add</span>
+                      Lưu
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -527,9 +506,7 @@
                             <label class="sr-only" for="bidAmount">Giá đặt (VND)</label>
                             <input
                               id="bidAmount"
-                              type="number"
-                              step="1"
-                              [min]="vndToNovaToken(minAcceptableBid())"
+                              appCurrencyInput
                               [(ngModel)]="bidAmount"
                               name="bidAmount"
                               [placeholder]="'Tối thiểu ' + minAcceptableBidLabel()"
@@ -664,9 +641,17 @@
                         ></app-user-avatar>
                       </div>
 
+                      <!-- min-w-0 la bat buoc, khong phai trang tri: `flex-1` cho form
+                           duoc PHEP co, nhung mac dinh `min-width: auto` cua mot flex
+                           item khong cho no co duoi min-content cua chinh no — va
+                           min-content cua mot <input> la be rong mac dinh ~20 ky tu.
+                           Thieu no thi hang nay rong hon panel va nut "Gửi" bi day
+                           qua mep. Input ben trong da co min-w-0 nhung dieu do chi
+                           dieu chinh viec co BEN TRONG form, khong go duoc san cua
+                           chinh form. -->
                       <form
                         (submit)="submitComment(); $event.preventDefault()"
-                        class="flex-1 flex gap-2"
+                        class="flex-1 min-w-0 flex gap-2"
                       >
                         <input
                           type="text"
@@ -877,9 +862,10 @@
 
             <div
               (click)="$event.stopPropagation()"
-              class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 focus-within:translate-y-0 [@media(hover:none)]:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 flex items-center justify-between gap-2 z-10"
+              class="nf-related-save-bar absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 focus-within:translate-y-0 [@media(hover:none)]:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 z-10"
             >
-              <div class="relative min-w-0 flex-1">
+              <span class="nf-related-save-title">Lưu vào bộ sưu tập</span>
+              <div class="nf-related-save-selector relative min-w-0">
                 <button
                   type="button"
                   (click)="toggleRelatedBoardDropdown(rel.id, $event)"
@@ -904,7 +890,7 @@
                 </button>
               </div>
 
-              <div class="flex items-center gap-1.5 shrink-0">
+              <div class="nf-related-save-actions">
                 <app-like-button
                   size="compact"
                   [liked]="rel.isLiked === true"
@@ -915,16 +901,24 @@
                   (click)="saveRelatedPinToBoard(rel.id, $event)"
                   [disabled]="!canSavePin(rel)"
                   [title]="canSavePin(rel) ? 'Lưu vào bộ sưu tập' : 'Thanh toán tác phẩm để lưu'"
-                  class="h-8 px-3.5 bg-gradient-brand cta-shape text-text-on-accent font-bold text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40 disabled:cursor-not-allowed"
+                  class="nf-related-save-button h-8 bg-gradient-brand cta-shape text-text-on-accent font-bold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40 disabled:cursor-not-allowed"
                 >
+                  <span class="material-symbols-outlined text-[14px] leading-none" aria-hidden="true">bookmark_add</span>
                   Lưu
                 </button>
               </div>
             </div>
           </div>
 
+          <!-- Tiêu đề và dòng tác giả đều là tuỳ chọn theo từng pin, cùng quy
+               tắc với lưới Khám phá — xem card-caption.ts. Bỏ cả khối khi không
+               hiện cái nào, để card trần không còn dải trống bên dưới. -->
+          @if (showsTitle(rel) || showsByline(rel)) {
           <div class="px-1 flex flex-col gap-1 w-full min-w-0 mt-2">
-            <span class="text-xs font-bold text-text truncate">{{ rel.title }}</span>
+            @if (showsTitle(rel)) {
+              <span class="text-xs font-bold text-text truncate">{{ rel.title }}</span>
+            }
+            @if (showsByline(rel)) {
             <div class="flex items-center justify-between gap-2 min-w-0">
               <button
                 type="button"
@@ -965,7 +959,9 @@
                 }
               </div>
             </div>
+            }
           </div>
+          }
         </div>
       }
 

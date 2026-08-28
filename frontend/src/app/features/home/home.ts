@@ -16,6 +16,7 @@ import { DialogService } from '../../core/services/dialog';
 import { formatVnd } from '../../core/utils/currency';
 import { formatNovaToken, vndToNovaToken } from '../../core/utils/novatoken';
 import { masonryColumnCount, masonryContentWidth } from '../../core/utils/masonry';
+import { showsCardByline, showsCardTitle } from '../../core/utils/card-caption';
 
 /** Vietnamese labels for the category codes the backend's auto-classifier
  * assigns (see PinsService.classifyCategory) — chips are only ever built
@@ -278,7 +279,14 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
         entry.isIntersecting &&
         !this.isLoading() &&
         !this.isScrollingLoad() &&
-        !this.isSearchActive() &&
+        // Search cung duoc cuon tiep. Truoc day dieu kien nay la
+        // `!this.isSearchActive()`, nen ket qua tim kiem bi chot cung o mot
+        // trang 20 pin du backend da xep san TOAN BO kho theo do gan cosine va
+        // khong ap nguong cat nao — 20 tam dau la 20 tam giong nhat, phan con
+        // lai chi la khong ai di hoi tiep.
+        // Tim bang anh (isImageSearch) van dung ngoai: ImageSearchStore tra ve
+        // mot lo ket qua duy nhat, khong co endpoint phan trang.
+        !this.isImageSearch() &&
         this.hasMore
       ) {
         await this.loadMorePins();
@@ -361,15 +369,20 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     this.currentPage++;
     try {
       const token = await this.supabaseService.getSessionToken() || undefined;
-      // Giữ filter khi nạp trang tiếp — thiếu tham số này thì trang sau trả về
-      // pin của mọi danh mục và người dùng thấy lưới "lọc" lẫn ảnh không khớp.
-      const apiPins = await this.pinService.getPins(
-        this.currentPage,
-        this.limit,
-        token,
-        this.feedSeed,
-        this.activeCategory(),
-      );
+      const query = this.searchQuery();
+      // Trang tiep phai di dung endpoint dang mo: goi getPins luc dang search
+      // se doi ket qua thanh feed thuong, tron lan voi thu vua tim.
+      const apiPins = query
+        ? await this.pinService.searchPins(query, this.currentPage, this.limit)
+        // Giữ filter khi nạp trang tiếp — thiếu tham số này thì trang sau trả về
+        // pin của mọi danh mục và người dùng thấy lưới "lọc" lẫn ảnh không khớp.
+        : await this.pinService.getPins(
+            this.currentPage,
+            this.limit,
+            token,
+            this.feedSeed,
+            this.activeCategory(),
+          );
       if (apiPins && apiPins.length > 0) {
         const mapped = this.mapPins(apiPins);
         this.pins.update(current => {
@@ -423,10 +436,13 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     // call from the (search) output firing alongside the queryParam sync).
     const requestId = ++this.searchRequestId;
     try {
-      const results = await this.pinService.searchPins(trimmed);
+      const results = await this.pinService.searchPins(trimmed, 1, this.limit);
       if (requestId !== this.searchRequestId) return;
       this.pins.set(this.mapPins(results || []));
-      this.hasMore = false;
+      // Ve dau trang ket qua, va con trang tiep neu trang dau day. Truoc day
+      // day la `hasMore = false` cung, nen search khong bao gio nap them.
+      this.currentPage = 1;
+      this.hasMore = (results?.length ?? 0) >= this.limit;
     } catch (error) {
       if (requestId !== this.searchRequestId) return;
       console.error('Error searching pins:', error);
@@ -602,6 +618,11 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     }
     this.router.navigate(['/pin', pin.id]);
   }
+
+  /** Uỷ quyền cho util dùng chung — xem card-caption.ts. Bọc lại ở đây để
+   *  template gọi thẳng mà không phải nhập hàm vào lớp. */
+  showsTitle = showsCardTitle;
+  showsByline = showsCardByline;
 
   navigateToProfile(username: string | undefined | null, event: MouseEvent) {
     event.stopPropagation();

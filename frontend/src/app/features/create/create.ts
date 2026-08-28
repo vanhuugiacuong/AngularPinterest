@@ -15,6 +15,12 @@ import { DialogService } from '../../core/services/dialog';
 import { AuctionService } from '../../core/services/auction';
 import { ToastService } from '../../core/services/toast';
 import { toUserMessage } from '../../core/utils/http-error';
+import { CurrencyInputDirective } from '../../shared/currency-input.directive';
+import {
+  isPinImageSizeAllowed,
+  MAX_PIN_IMAGE_UPLOAD_LABEL,
+  PIN_IMAGE_TOO_LARGE_MESSAGE,
+} from '../../core/constants/upload-limits';
 
 /** Hình thức bán chọn ở Create Studio — 'none' không gửi price/auction nào,
  * 'fixed' giữ nguyên luồng price hiện có, 'auction' tạo phiên đấu giá sau
@@ -33,11 +39,12 @@ type ImageModerationStatus = 'idle' | 'checking' | 'safe' | 'unsafe' | 'error';
 @Component({
   selector: 'app-create',
   standalone: true,
-  imports: [CommonModule, Navbar, FormsModule, ImageEditor, PublishProgressDialog],
+  imports: [CommonModule, Navbar, FormsModule, ImageEditor, PublishProgressDialog, CurrencyInputDirective],
   templateUrl: './create.html',
   styleUrl: './create.css'
 })
 export class Create implements OnInit {
+  public readonly maxUploadImageLabel = MAX_PIN_IMAGE_UPLOAD_LABEL;
   private router = inject(Router);
   private pinService = inject(PinService);
   private boardService = inject(BoardService);
@@ -101,7 +108,7 @@ export class Create implements OnInit {
   async ngOnInit() {
     await this.membership.load();
     const collageFile = this.collageTransfer.take();
-    if (collageFile) {
+    if (collageFile && this.acceptUploadFileSize(collageFile)) {
       this.selectedFile = collageFile;
       this.formError.set(null);
       this.resetImageModeration();
@@ -207,9 +214,15 @@ export class Create implements OnInit {
     return 'Chọn bộ sưu tập';
   }
 
-  async onFileSelected(event: any) {
-    const file = event.target.files[0];
+  async onFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
     if (!file) return;
+
+    if (!this.acceptUploadFileSize(file)) {
+      input.value = '';
+      return;
+    }
 
     this.selectedFile = file;
     this.formError.set(null);
@@ -219,6 +232,15 @@ export class Create implements OnInit {
     // chặn hoàn toàn, không được lộ ra dù chỉ trong lúc đang kiểm tra.
 
     await this.checkSelectedImage(file);
+  }
+
+  private acceptUploadFileSize(file: File): boolean {
+    if (isPinImageSizeAllowed(file.size)) return true;
+    this.imagePreviewUrl.set(null);
+    this.selectedFile = null;
+    this.resetImageModeration();
+    this.formError.set(PIN_IMAGE_TOO_LARGE_MESSAGE);
+    return false;
   }
 
   /** Runs the pre-submit NSFW check for a just-selected file. Guards every
@@ -479,6 +501,11 @@ export class Create implements OnInit {
         }
       }
 
+      if (!this.acceptUploadFileSize(fileToUpload)) {
+        this.showDialogError(PIN_IMAGE_TOO_LARGE_MESSAGE);
+        return;
+      }
+
       this.dialogMessage.set('Đang tải ảnh lên…');
       const boardId = await this.resolveBoardId(token);
 
@@ -517,7 +544,7 @@ export class Create implements OnInit {
       }
 
       this.pinService.notifyPinCreated(createdPin);
-      await this.handlePublishSuccess();
+      await this.handlePublishSuccess(createdPin?.id);
     } catch (error) {
       console.error('Error uploading pin:', error);
       // Server-thrown business messages (e.g. the NSFW rejection, which can
@@ -558,7 +585,7 @@ export class Create implements OnInit {
       const createdPin = await this.pinService.saveAiPin(body, token);
       this.pinService.notifyPinCreated(createdPin);
       await this.membership.load();
-      await this.handlePublishSuccess();
+      await this.handlePublishSuccess(createdPin?.id);
     } catch (error) {
       console.error('Error saving AI pin:', error);
       this.showDialogError(error instanceof Error ? error.message : 'Không thể lưu ảnh AI. Vui lòng thử lại.');
@@ -579,12 +606,24 @@ export class Create implements OnInit {
     this.dialogStatus.set('error');
   }
 
-  private async handlePublishSuccess(): Promise<void> {
+  /** @param createdPinId id trả về từ API. Có thì đi thẳng tới tác phẩm vừa
+   *  đăng — đó mới là thứ người dùng muốn thấy sau khi bấm đăng; trang cá nhân
+   *  bắt họ đi tìm nó giữa hàng chục tấm khác. Không có thì lùi về trang cá
+   *  nhân như trước, rồi mới tới /feed. */
+  private async handlePublishSuccess(createdPinId?: string): Promise<void> {
     this.dialogStatus.set('success');
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    const profileIdentifier = await this.resolveOwnProfileIdentifier();
     try {
+      if (createdPinId) {
+        const navigated = await this.router.navigate(['/pin', createdPinId]);
+        if (navigated) return;
+        console.error('Navigating to the new pin did not complete; falling back to the profile.');
+      }
+
+      // Chỉ tra username khi thật sự cần: đường đi thường lệ không còn tốn thêm
+      // một vòng gọi.
+      const profileIdentifier = await this.resolveOwnProfileIdentifier();
       if (profileIdentifier) {
         const navigated = await this.router.navigate([
           '/profile',

@@ -66,9 +66,7 @@
         <div class="money-input">
           <input
             id="withdrawalAmount"
-            type="number"
-            min="10000"
-            step="1000"
+            appCurrencyInput
             [(ngModel)]="withdrawalAmount"
             placeholder="Tối thiểu 10.000"
             [disabled]="withdrawing()"

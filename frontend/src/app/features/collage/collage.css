@@ -78,10 +78,37 @@
    the canvas on a page whose entire purpose is the canvas. */
 .editor-bar {
   display: flex;
-  max-width: 1680px;
+  width: min(100%, 1680px);
+  min-width: 0;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 52px;
+  padding: 6px 8px;
   margin: 0 auto 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  box-shadow: 0 12px 32px -28px color-mix(in srgb, var(--color-ink) 70%, transparent);
+  backdrop-filter: blur(12px);
+}
+.editor-bar__identity,
+.editor-bar__actions,
+.editor-bar__history {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+.editor-bar__identity {
+  flex: 1 1 auto;
+  gap: 2px;
+}
+.editor-bar__actions {
+  flex: 0 0 auto;
+  gap: 6px;
+}
+.editor-bar__history {
+  gap: 2px;
 }
 .editor-bar__title {
   margin: 0 4px;
@@ -89,9 +116,6 @@
   font-weight: 800;
   letter-spacing: -0.02em;
   white-space: nowrap;
-}
-.editor-bar__spacer {
-  flex: 1 1 auto;
 }
 .editor-bar__icon {
   display: inline-flex;
@@ -291,10 +315,35 @@
   .collage-main {
     padding: 72px 10px 24px;
   }
+  .editor-bar {
+    position: sticky;
+    top: 64px;
+    z-index: 24;
+    gap: 8px;
+    min-height: 50px;
+    padding: 5px 6px;
+  }
+  .editor-bar__identity {
+    overflow: hidden;
+  }
   .editor-bar__title {
     overflow: hidden;
     font-size: 15px;
     text-overflow: ellipsis;
+  }
+  .editor-bar__actions {
+    gap: 2px;
+  }
+  .editor-bar__status {
+    display: none;
+  }
+  .editor-bar__icon {
+    width: 36px;
+    height: 36px;
+  }
+  .editor-bar__next {
+    height: 36px;
+    padding-inline: 14px;
   }
   .workspace-grid {
     display: flex;
@@ -314,6 +363,15 @@
   }
   .images-column {
     order: 3;
+  }
+}
+
+@media (max-width: 430px) {
+  .editor-bar__title {
+    max-width: 92px;
+  }
+  .editor-bar__history {
+    display: none;
   }
 }
 

@@ -107,6 +107,15 @@ export class ImageEditor implements OnChanges, OnDestroy {
 
   public activeTool = signal<'color' | 'caption' | 'crop'>('color');
   public adjustments = signal<ColorAdjustments>({ ...DEFAULT_ADJUSTMENTS });
+  public activePresetLabel = computed(() => {
+    const current = this.adjustments();
+    const keys = Object.keys(DEFAULT_ADJUSTMENTS) as (keyof ColorAdjustments)[];
+    const activePreset = this.presets.find((preset) => {
+      const target = { ...DEFAULT_ADJUSTMENTS, ...preset.adjustments };
+      return keys.every((key) => current[key] === target[key]);
+    });
+    return activePreset?.label ?? null;
+  });
   public caption = signal<CaptionSettings>({ ...DEFAULT_CAPTION });
 
   // Applied crop (drives the real preview/export). While the user is

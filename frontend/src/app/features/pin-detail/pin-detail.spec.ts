@@ -64,7 +64,7 @@ describe('PinDetail visual search results', () => {
 
   afterEach(() => vi.useRealTimers());
 
-  it('replaces the gallery in place, excludes the current pin and scrolls to it', () => {
+  it('replaces the gallery in place, keeps the region picker open and scrolls to it', () => {
     const scrollIntoView = vi.fn();
     component.relatedSection = {
       nativeElement: { scrollIntoView },
@@ -76,7 +76,11 @@ describe('PinDetail visual search results', () => {
 
     expect(component.relatedPins().map((pin) => pin.id)).toEqual(['match-1', 'match-2']);
     expect(component.isVisualSearchResults()).toBe(true);
-    expect(component.showImageSearch()).toBe(false);
+    // Stays open on purpose: searchWithFile in image-region-search.ts emits the
+    // matches and deliberately does NOT close, so the user can drag the frame to
+    // a different part of the photo and search again without reopening it. This
+    // assertion said `false` from when the picker used to close itself.
+    expect(component.showImageSearch()).toBe(true);
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
     expect(router.navigate).not.toHaveBeenCalled();
   });

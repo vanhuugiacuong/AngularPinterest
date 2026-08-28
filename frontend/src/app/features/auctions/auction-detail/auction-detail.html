@@ -136,15 +136,17 @@
                   Đặt giá của bạn (tối thiểu {{ minAcceptableBidLabel() }})
                 </label>
                 <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-                  <app-money-input
-                    class="flex-1"
-                    [value]="bidAmount"
-                    (valueChange)="bidAmount = $event"
-                    [max]="maxBidAmount"
-                    [placeholder]="minAcceptableBidLabel()"
+                  <input
+                    id="bidAmount"
+                    appCurrencyInput
+                    [maxDigits]="10"
+                    [(ngModel)]="bidAmount"
+                    name="bidAmount"
+                    [placeholder]="'Tối thiểu ' + minAcceptableBidLabel()"
                     [disabled]="bidSubmitting()"
-                    ariaLabel="Giá đặt (VND)"
-                  ></app-money-input>
+                    aria-label="Giá đặt (VND)"
+                    class="flex-1 h-12 bg-surface border border-border focus:border-primary outline-none rounded-control px-4 text-lg font-extrabold mono-label text-text placeholder-text-muted placeholder:font-bold placeholder:text-sm focus:ring-2 focus:ring-primary/30"
+                  />
                   <button
                     type="submit"
                     [disabled]="bidSubmitting()"
