@@ -66,6 +66,46 @@ textarea:disabled {
   box-shadow: var(--shadow-card);
 }
 
+/* Platform admin profile — same layout, gold accent instead of the default
+   neutral card so an admin's profile reads apart at a glance, matching the
+   gold membership-frame variant on <app-user-avatar>. */
+.identity-card--admin {
+  border-color: color-mix(in srgb, var(--color-warning) 45%, var(--color-border));
+  background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-warning) 10%, var(--color-surface-elevated) 85%),
+      color-mix(in srgb, var(--color-bg-secondary) 72%, transparent)
+    ),
+    var(--color-surface);
+  box-shadow:
+    var(--shadow-card),
+    0 0 0 1px color-mix(in srgb, var(--color-warning) 18%, transparent);
+}
+
+.identity-kicker--admin {
+  color: var(--color-warning);
+}
+
+.admin-kicker-icon {
+  font-size: 15px;
+}
+
+.admin-name-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  margin-left: 10px;
+  padding: 0 8px;
+  border-radius: 999px;
+  vertical-align: middle;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--color-text-on-accent);
+  background: linear-gradient(135deg, var(--color-warning) 0%, #d99a1f 100%);
+}
+
 .identity-person,
 .identity-actions,
 .profile-stats {

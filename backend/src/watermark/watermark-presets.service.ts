@@ -92,9 +92,13 @@ export class WatermarkPresetsService {
   }
 
   private async validateInput(userId: string, input: WatermarkPresetInput, logoBuffer?: Buffer, isUpdate = false) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { plan: true, isAdmin: true },
+    });
     if (!user) throw new NotFoundException('Không tìm thấy người dùng.');
-    const entitlements = PLAN_ENTITLEMENTS[user.plan];
+    // Admin luôn được coi như đang ở gói Pro - toàn quyền watermark nâng cao.
+    const entitlements = PLAN_ENTITLEMENTS[user.isAdmin ? 'PRO' : user.plan];
     if (!entitlements.customWatermark) {
       throw new ForbiddenException('Gói hiện tại không hỗ trợ tạo watermark cá nhân.');
     }

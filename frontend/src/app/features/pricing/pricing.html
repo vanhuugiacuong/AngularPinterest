@@ -33,10 +33,7 @@
       <ul>
         <li *ngFor="let feature of plan.features"><span>✓</span>{{ feature }}</li>
       </ul>
-      <button
-        *ngIf="plan.id === 'FREE'"
-        disabled
-      >
+      <button *ngIf="plan.id === 'FREE'" disabled>
         {{
           membershipLoading()
             ? 'Đang kiểm tra gói…'
@@ -88,12 +85,20 @@
          there is nothing for a user to meaningfully do with them yet. -->
     <div class="payment-body">
       <div class="qr-payment">
-        <div class="qr-frame">
-          <img
-            *ngIf="currentPayment() as pay"
-            [src]="bankQr()"
-            alt="QR ngân hàng MB có sẵn số tiền và mã giao dịch"
-          /><span *ngIf="paymentLoading()">Đang tạo giao dịch…</span>
+        <div class="qr-visual">
+          <div class="qr-frame" [class.qr-frame--expired]="qrExpired()">
+            <img
+              *ngIf="currentPayment() as pay"
+              [src]="bankQr()"
+              alt="QR ngân hàng MB có sẵn số tiền và mã giao dịch"
+            /><span *ngIf="paymentLoading()">Đang tạo giao dịch…</span>
+            <span class="qr-expired-overlay" *ngIf="qrExpired()">MÃ QR ĐÃ HẾT HẠN</span>
+          </div>
+          <strong class="payment-countdown">{{
+            qrExpired()
+              ? 'Vui lòng đóng và tạo giao dịch mới'
+              : 'Mã QR còn hiệu lực ' + qrCountdown()
+          }}</strong>
         </div>
         <div class="qr-copy">
           <b><span class="live-dot"></span> Quét mã để thanh toán</b>
@@ -111,13 +116,6 @@
       </div>
     </div>
     <p class="payment-message" [class.is-error]="hasErrors()" *ngIf="message()">{{ message() }}</p>
-    <button
-      class="pay-button"
-      (click)="confirmPayment()"
-      [disabled]="processing() || paymentLoading() || !currentPayment()"
-    >
-      {{ processing() ? 'Đang kiểm tra…' : 'Tôi đã chuyển khoản ' + (priceOf(plan) | number: '1.0-0') + 'đ' }}
-    </button>
   </section>
 </div>
 

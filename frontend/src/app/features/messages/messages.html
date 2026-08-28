@@ -87,6 +87,7 @@
                       [name]="conversation.otherUser.username"
                       [size]="44"
                       [plan]="conversation.otherUser.plan"
+                      [isAdmin]="conversation.otherUser.isAdmin"
                     ></app-user-avatar>
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center justify-between gap-2">
@@ -177,7 +178,7 @@
                           (click)="navigateToProfile(request.sender?.username)"
                           class="flex items-center gap-2.5 text-left cursor-pointer bg-transparent border-none p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
                         >
-                          <app-user-avatar [src]="request.sender?.avatarUrl" [name]="request.sender?.username || ''" [size]="40" [plan]="request.sender?.plan"></app-user-avatar>
+                          <app-user-avatar [src]="request.sender?.avatarUrl" [name]="request.sender?.username || ''" [size]="40" [plan]="request.sender?.plan" [isAdmin]="request.sender?.isAdmin"></app-user-avatar>
                           <span class="text-sm font-bold text-text hover:underline">{{ request.sender?.username }}</span>
                         </button>
                         <div class="flex items-center gap-2">
@@ -224,7 +225,7 @@
                         (click)="navigateToProfile(request.receiver?.username)"
                         class="w-full flex items-center gap-3 p-3 border-b border-border text-left cursor-pointer hover:bg-surface-elevated transition-colors duration-150"
                       >
-                        <app-user-avatar [src]="request.receiver?.avatarUrl" [name]="request.receiver?.username || ''" [size]="40" [plan]="request.receiver?.plan"></app-user-avatar>
+                        <app-user-avatar [src]="request.receiver?.avatarUrl" [name]="request.receiver?.username || ''" [size]="40" [plan]="request.receiver?.plan" [isAdmin]="request.receiver?.isAdmin"></app-user-avatar>
                         <div class="flex-1 min-w-0">
                           <span class="text-sm font-bold text-text truncate block">{{ request.receiver?.username }}</span>
                           <span class="text-xs text-text-muted">{{ requestStatusLabel(request.status) }}</span>
@@ -266,7 +267,7 @@
                   (click)="navigateToProfile(otherUser.username)"
                   class="flex items-center gap-2.5 text-left cursor-pointer bg-transparent border-none p-0 min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control"
                 >
-                  <app-user-avatar [src]="otherUser.avatarUrl" [name]="otherUser.username" [size]="36" [plan]="otherUser.plan"></app-user-avatar>
+                  <app-user-avatar [src]="otherUser.avatarUrl" [name]="otherUser.username" [size]="36" [plan]="otherUser.plan" [isAdmin]="otherUser.isAdmin"></app-user-avatar>
                   <span class="flex flex-col min-w-0"><span class="text-sm font-bold text-text truncate hover:underline">{{ otherUser.username }}</span><span class="text-[10px] font-medium" [class.text-success]="otherUserOnline()" [class.text-text-muted]="!otherUserOnline()"><span class="inline-block w-1.5 h-1.5 rounded-full mr-1" aria-hidden="true" [class.bg-success]="otherUserOnline()" [class.bg-text-muted]="!otherUserOnline()"></span>{{ otherUserOnline() ? 'Đang hoạt động' : 'Ngoại tuyến' }}</span></span>
                 </button>
               }

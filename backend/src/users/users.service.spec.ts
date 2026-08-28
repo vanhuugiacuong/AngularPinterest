@@ -21,21 +21,22 @@ describe('UsersService profile data', () => {
   const blocksService = { isBlocked: jest.fn(), isBlockedEitherWay: jest.fn() };
   const notificationsService = { createNotification: jest.fn() };
   const supabaseService = { uploadImage: jest.fn() };
+  const membershipsService = { status: jest.fn() };
   let service: UsersService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     blocksService.isBlocked.mockResolvedValue(false);
     blocksService.isBlockedEitherWay.mockResolvedValue(false);
-    // Default: no pin in these tests is commerce-restricted — none of them
-    // exercise the pin-image-protection feature.
     prisma.auction.findMany.mockResolvedValue([]);
+    membershipsService.status.mockResolvedValue({ plan: 'FREE' });
     prisma.imagePurchase.findMany.mockResolvedValue([]);
     service = new UsersService(
       prisma as never,
       blocksService as never,
       notificationsService as never,
       supabaseService as never,
+      membershipsService as never,
     );
   });
 
@@ -261,19 +262,17 @@ describe('UsersService profile data', () => {
   describe('profile identifier resolution', () => {
     it('loads profile posts by Supabase UUID without treating it as a Mongo ObjectId', async () => {
       const userId = '123e4567-e89b-42d3-a456-426614174000';
-      prisma.user.findUnique
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({
-          id: userId,
-          username: 'minhchi',
-          isPrivate: false,
-        });
+      prisma.user.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
+        id: userId,
+        username: 'minhchi',
+        isPrivate: false,
+      });
       prisma.pin.findMany.mockResolvedValue([]);
       prisma.pin.count.mockResolvedValue(0);
 
-      await expect(
-        service.getUserPosts(userId, userId),
-      ).resolves.toEqual(expect.objectContaining({ items: [], total: 0 }));
+      await expect(service.getUserPosts(userId, userId)).resolves.toEqual(
+        expect.objectContaining({ items: [], total: 0 }),
+      );
 
       expect(prisma.user.findUnique).toHaveBeenNthCalledWith(2, {
         where: { id: userId },

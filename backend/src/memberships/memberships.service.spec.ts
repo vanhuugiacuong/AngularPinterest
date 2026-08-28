@@ -38,6 +38,64 @@ describe('MembershipsService.consumeAi', () => {
     expect(result).toEqual({ used: 5, limit: null, remaining: null, resetAt: expect.any(String) });
     expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
   });
+
+  it('gives an admin an unlimited AI quota even on the FREE plan', async () => {
+    prisma.user.findUnique.mockResolvedValue({ plan: 'FREE', planExpiresAt: null, isAdmin: true });
+    prisma.$queryRaw.mockResolvedValue([{ count: 40 }]);
+
+    const result = await service.consumeAi('admin-1');
+
+    expect(result).toEqual({ used: 40, limit: null, remaining: null, resetAt: expect.any(String) });
+  });
+});
+
+describe('MembershipsService.status', () => {
+  const prisma = {
+    user: { findUnique: jest.fn() },
+    aiUsage: { findUnique: jest.fn() },
+  };
+  const service = new MembershipsService(prisma as never);
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('reports FREE-plan entitlements for an ordinary user', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      plan: 'FREE',
+      ownedPlans: ['FREE'],
+      planStartedAt: null,
+      planExpiresAt: null,
+      isAdmin: false,
+    });
+    prisma.aiUsage.findUnique.mockResolvedValue(null);
+
+    const status = await service.status('user-1');
+
+    expect(status.plan).toBe('FREE');
+    expect(status.canSell).toBe(false);
+    expect(status.canAuction).toBe(false);
+    expect(status.aiLimit).toBe(3);
+  });
+
+  it('reports full PRO-tier entitlements for an admin whose real plan is still FREE', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      plan: 'FREE',
+      ownedPlans: ['FREE'],
+      planStartedAt: null,
+      planExpiresAt: null,
+      isAdmin: true,
+    });
+    prisma.aiUsage.findUnique.mockResolvedValue(null);
+
+    const status = await service.status('admin-1');
+
+    expect(status.plan).toBe('PRO');
+    expect(status.canSell).toBe(true);
+    expect(status.canAuction).toBe(true);
+    expect(status.canDownloadClean).toBe(true);
+    expect(status.advancedWatermark).toBe(true);
+    expect(status.maxWatermarkPresets).toBe(20);
+    expect(status.aiLimit).toBeNull();
+  });
 });
 
 describe('MembershipsService.changePlan', () => {

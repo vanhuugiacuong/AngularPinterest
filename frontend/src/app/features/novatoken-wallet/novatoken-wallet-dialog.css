@@ -30,8 +30,14 @@
   /* Theme-aware dark panel — was a hardcoded #142331/#0d1421/#0a0f19
      gradient with no light-theme equivalent, so this dialog rendered as a
      near-black card even under Sương Ngọc (light theme). */
-  background: linear-gradient(155deg, color-mix(in srgb, var(--color-accent) 10%, var(--color-surface-elevated)) 0%, var(--color-surface) 100%);
-  box-shadow: 0 36px 110px rgba(0, 0, 0, 0.72), 0 0 60px color-mix(in srgb, var(--color-accent) 9%, transparent);
+  background: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--color-accent) 10%, var(--color-surface-elevated)) 0%,
+    var(--color-surface) 100%
+  );
+  box-shadow:
+    0 36px 110px rgba(0, 0, 0, 0.72),
+    0 0 60px color-mix(in srgb, var(--color-accent) 9%, transparent);
 }
 
 .dialog-glow {
@@ -72,7 +78,9 @@
 }
 .dialog-close:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-nova-blue);
+  box-shadow:
+    0 0 0 2px var(--color-bg),
+    0 0 0 4px var(--color-nova-blue);
 }
 
 .dialog-header {
@@ -83,18 +91,18 @@
   padding: 0 42px 24px 0;
   border-bottom: 1px solid var(--color-border);
 }
-.dialog-coin-wrap {
+.dialog-wallet-icon {
   width: 104px;
   height: 104px;
   flex: 0 0 104px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--color-accent) 18%, transparent), transparent 68%);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
+  color: var(--color-accent);
 }
-.dialog-coin {
-  width: 96px;
-  filter: drop-shadow(0 15px 20px rgba(0, 0, 0, 0.5));
+.dialog-wallet-icon span {
+  font-size: 48px;
 }
 .dialog-header h2 {
   font-size: 38px;
@@ -149,6 +157,19 @@
   font: 600 9px var(--font-mono);
   color: var(--color-text-muted);
   margin-top: 10px;
+}
+.qr-countdown {
+  margin-top: 10px;
+  color: var(--color-accent);
+  font: 800 13px var(--font-mono);
+}
+.qr-shell.qr-expired .payment-qr {
+  filter: grayscale(1) blur(3px);
+  opacity: 0.25;
+  pointer-events: none;
+}
+.qr-shell.qr-expired .qr-countdown {
+  color: var(--color-error);
 }
 
 .payment-details {
@@ -252,7 +273,9 @@
   align-items: center;
   gap: 12px;
   box-shadow: 0 12px 30px color-mix(in srgb, var(--color-accent) 15%, transparent);
-  transition: 0.2s transform, 0.2s filter;
+  transition:
+    0.2s transform,
+    0.2s filter;
 }
 .confirm-button:disabled {
   opacity: 0.55;
@@ -264,7 +287,9 @@
 }
 .confirm-button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-nova-blue);
+  box-shadow:
+    0 0 0 2px var(--color-bg),
+    0 0 0 4px var(--color-nova-blue);
 }
 .confirm-button b {
   font-size: 20px;
@@ -289,8 +314,16 @@
   border: 1px solid color-mix(in srgb, var(--color-accent) 34%, var(--color-border));
   border-radius: 22px;
   background:
-    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--color-accent) 14%, transparent), transparent 45%),
-    linear-gradient(145deg, color-mix(in srgb, var(--color-text) 3.5%, transparent), color-mix(in srgb, var(--color-text) 1.2%, transparent));
+    radial-gradient(
+      circle at 50% 0%,
+      color-mix(in srgb, var(--color-accent) 14%, transparent),
+      transparent 45%
+    ),
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--color-text) 3.5%, transparent),
+      color-mix(in srgb, var(--color-text) 1.2%, transparent)
+    );
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-text) 5%, transparent);
 }
 .success-aura {
@@ -300,7 +333,11 @@
   place-items: center;
   margin-bottom: 6px;
   border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--color-accent) 22%, transparent), transparent 68%);
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--color-accent) 22%, transparent),
+    transparent 68%
+  );
   animation: success-breathe 2.8s ease-in-out infinite;
 }
 .success-mark {
@@ -310,8 +347,14 @@
   place-items: center;
   border: 1px solid color-mix(in srgb, var(--color-accent) 65%, white);
   border-radius: 50%;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--color-accent) 34%, transparent), color-mix(in srgb, var(--color-nova-blue) 18%, transparent));
-  box-shadow: 0 12px 32px color-mix(in srgb, var(--color-accent) 20%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--color-accent) 34%, transparent),
+    color-mix(in srgb, var(--color-nova-blue) 18%, transparent)
+  );
+  box-shadow:
+    0 12px 32px color-mix(in srgb, var(--color-accent) 20%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
   color: var(--color-accent);
 }
 .success-mark span {
@@ -384,7 +427,9 @@
   font-weight: 900;
   cursor: pointer;
   box-shadow: 0 12px 28px color-mix(in srgb, var(--color-accent) 15%, transparent);
-  transition: 0.2s transform, 0.2s filter;
+  transition:
+    0.2s transform,
+    0.2s filter;
 }
 .success-done span {
   margin-left: 8px;
@@ -396,7 +441,9 @@
 }
 .success-done:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-nova-blue);
+  box-shadow:
+    0 0 0 2px var(--color-bg),
+    0 0 0 4px var(--color-nova-blue);
 }
 
 @keyframes success-breathe {
@@ -420,13 +467,10 @@
     gap: 12px;
     padding-bottom: 18px;
   }
-  .dialog-coin-wrap {
+  .dialog-wallet-icon {
     width: 76px;
     height: 76px;
     flex-basis: 76px;
-  }
-  .dialog-coin {
-    width: 72px;
   }
   .dialog-header h2 {
     font-size: 29px;

@@ -7,7 +7,12 @@ import {
   PayloadTooLargeException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { MembershipPlan, AuctionStatus, Currency, Prisma } from '@prisma/client';
+import {
+  MembershipPlan,
+  AuctionStatus,
+  Currency,
+  Prisma,
+} from '@prisma/client';
 import sharp from 'sharp';
 import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
@@ -15,7 +20,11 @@ import { AiGeneratorService } from '../ai-generator/ai-generator.service';
 import { MembershipsService } from '../memberships/memberships.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PinPreviewProtectionService } from '../watermark/pin-preview-protection.service';
-import { applyPinImageProtection, resolveSinglePinImageUrl, resolveViewablePinImageUrl } from '../common/pin-access.util';
+import {
+  applyPinImageProtection,
+  resolveSinglePinImageUrl,
+  resolveViewablePinImageUrl,
+} from '../common/pin-access.util';
 import {
   isPinImageSizeAllowed,
   PIN_IMAGE_TOO_LARGE_MESSAGE,
@@ -42,6 +51,7 @@ interface SimilarPinRow {
   authorUsername: string | null;
   authorAvatarUrl: string | null;
   authorPlan: MembershipPlan | null;
+  authorIsAdmin: boolean | null;
   likesCount: number;
   similarity: number;
 }
@@ -82,8 +92,9 @@ interface PinEmbeddingRow {
 
 @Injectable()
 export class PinsService {
-  private readonly clipServiceUrl =
-    (process.env.CLIP_SERVICE_URL || 'http://127.0.0.1:8001').replace('localhost', '127.0.0.1');
+  private readonly clipServiceUrl = (
+    process.env.CLIP_SERVICE_URL || 'http://127.0.0.1:8001'
+  ).replace('localhost', '127.0.0.1');
 
   /** Minimum absolute cosine similarity (0-1) a reverse-image-search result
    * must clear to be considered a real match at all. Configurable via env
@@ -318,7 +329,9 @@ export class PinsService {
   /** Phiên đấu giá chưa CANCELLED mới nhất cho mỗi pinId (không bao giờ hơn 1
    * phiên chưa kết thúc/pin nhờ partial unique index ở DB, nhưng vẫn có thể
    * có nhiều phiên ENDED lịch sử — lấy bản mới nhất theo createdAt). */
-  private async fetchLatestAuctionsByPinIds(pinIds: string[]): Promise<Map<string, AuctionLike>> {
+  private async fetchLatestAuctionsByPinIds(
+    pinIds: string[],
+  ): Promise<Map<string, AuctionLike>> {
     const uniqueIds = [...new Set(pinIds)];
     if (uniqueIds.length === 0) return new Map();
     const rows = await this.prisma.auction.findMany({
@@ -350,14 +363,21 @@ export class PinsService {
     isForSale: boolean,
     auction?: AuctionLike,
   ): { listingType: PinListingType; auction: PinAuctionSummary | null } {
-    if (auction) return { listingType: 'AUCTION', auction: this.toAuctionSummary(auction) };
+    if (auction)
+      return {
+        listingType: 'AUCTION',
+        auction: this.toAuctionSummary(auction),
+      };
     if (isForSale) return { listingType: 'FIXED_PRICE', auction: null };
     return { listingType: 'NONE', auction: null };
   }
 
   /** Id của những pin trong danh sách mà viewerId đã thích - dùng để gắn cờ
    * isLiked hàng loạt (1 query) thay vì N+1 theo từng pin. */
-  private async fetchLikedPinIds(pinIds: string[], viewerId?: string): Promise<Set<string>> {
+  private async fetchLikedPinIds(
+    pinIds: string[],
+    viewerId?: string,
+  ): Promise<Set<string>> {
     if (!viewerId || pinIds.length === 0) return new Set();
     const rows = await this.prisma.like.findMany({
       where: { userId: viewerId, pinId: { in: pinIds } },
@@ -382,8 +402,14 @@ export class PinsService {
   >(pins: T[], viewerId?: string): Promise<Omit<T, 'originalStoragePath'>[]> {
     const [auctionMap, likedIds, purchasedIds, viewerPlan] = await Promise.all([
       this.fetchLatestAuctionsByPinIds(pins.map((p) => p.id)),
-      this.fetchLikedPinIds(pins.map((p) => p.id), viewerId),
-      this.fetchPaidPurchasePinIds(pins.map((p) => p.id), viewerId),
+      this.fetchLikedPinIds(
+        pins.map((p) => p.id),
+        viewerId,
+      ),
+      this.fetchPaidPurchasePinIds(
+        pins.map((p) => p.id),
+        viewerId,
+      ),
       // status() rather than the raw User.plan column: it applies lazy expiry,
       // so a lapsed plan stops unlocking previews (same reason getPinById uses
       // it for its 403 gate).
@@ -410,6 +436,7 @@ export class PinsService {
           viewerPlan,
         }),
         ...this.marketFieldsFor(p.isForSale, auction),
+        hasPurchased: purchasedIds.has(p.id),
         isLiked: likedIds.has(p.id),
       };
     });
@@ -418,7 +445,10 @@ export class PinsService {
   /** Id của những pin trong danh sách mà viewerId đã mua thành công (PAID) -
    * dùng để attachMarketInfoToList quyết định trả imageUrl thật hay bản đã
    * watermark, hàng loạt (1 query) thay vì N+1 theo từng pin. */
-  private async fetchPaidPurchasePinIds(pinIds: string[], viewerId?: string): Promise<Set<string>> {
+  private async fetchPaidPurchasePinIds(
+    pinIds: string[],
+    viewerId?: string,
+  ): Promise<Set<string>> {
     if (!viewerId || pinIds.length === 0) return new Set();
     const rows = await this.prisma.imagePurchase.findMany({
       where: { buyerId: viewerId, pinId: { in: pinIds }, status: 'PAID' },
@@ -454,7 +484,7 @@ export class PinsService {
         take: candidateLimit,
         include: {
           user: {
-            select: { id: true, username: true, avatarUrl: true, plan: true },
+            select: { id: true, username: true, avatarUrl: true, plan: true, isAdmin: true },
           },
           _count: {
             select: { likes: true },
@@ -531,7 +561,10 @@ export class PinsService {
     const sortedPins = pinsWithScores.map((item) => item.pin);
 
     // 4. Return paginated slice
-    return this.attachMarketInfoToList(sortedPins.slice(skip, skip + limit), userId);
+    return this.attachMarketInfoToList(
+      sortedPins.slice(skip, skip + limit),
+      userId,
+    );
   }
 
   async getRelatedPins(
@@ -556,7 +589,7 @@ export class PinsService {
       orderBy: { createdAt: 'desc' },
       include: {
         user: {
-          select: { id: true, username: true, avatarUrl: true, plan: true },
+          select: { id: true, username: true, avatarUrl: true, plan: true, isAdmin: true },
         },
         _count: { select: { likes: true } },
       },
@@ -613,6 +646,7 @@ export class PinsService {
             avatarUrl: true,
             bio: true,
             plan: true,
+            isAdmin: true,
           },
         },
         likes: {
@@ -630,6 +664,7 @@ export class PinsService {
                 displayName: true,
                 avatarUrl: true,
                 plan: true,
+                isAdmin: true,
               },
             },
           },
@@ -641,9 +676,17 @@ export class PinsService {
       throw new NotFoundException('Pin not found');
     }
 
-    const [auctionMap, viewerStatus] = await Promise.all([
+    const [auctionMap, viewerStatus, paidPurchase] = await Promise.all([
       this.fetchLatestAuctionsByPinIds([pin.id]),
-      viewerId ? this.membershipsService.status(viewerId) : Promise.resolve({ plan: 'FREE' as const }),
+      viewerId
+        ? this.membershipsService.status(viewerId)
+        : Promise.resolve({ plan: 'FREE' as const }),
+      viewerId
+        ? this.prisma.imagePurchase.findFirst({
+            where: { pinId: pin.id, buyerId: viewerId, status: 'PAID' },
+            select: { id: true },
+          })
+        : Promise.resolve(null),
     ]);
     const auction = auctionMap.get(pin.id);
     const isOwner = viewerId === pin.userId;
@@ -654,10 +697,14 @@ export class PinsService {
     if ((auction || pin.isForSale) && !isOwner) {
       const viewerPlan = viewerStatus.plan;
       if (auction && viewerPlan !== 'PRO') {
-        throw new ForbiddenException('Chỉ thành viên Pro mới có thể xem chi tiết tác phẩm đấu giá.');
+        throw new ForbiddenException(
+          'Chỉ thành viên Pro mới có thể xem chi tiết tác phẩm đấu giá.',
+        );
       }
       if (!auction && viewerPlan !== 'PLUS' && viewerPlan !== 'PRO') {
-        throw new ForbiddenException('Chỉ thành viên Plus hoặc Pro mới có thể xem chi tiết tác phẩm bán giá cố định.');
+        throw new ForbiddenException(
+          'Chỉ thành viên Plus hoặc Pro mới có thể xem chi tiết tác phẩm bán giá cố định.',
+        );
       }
     }
 
@@ -678,6 +725,7 @@ export class PinsService {
       _count,
       likeCount: _count.likes,
       isLiked: likes.length > 0,
+      hasPurchased: Boolean(paidPurchase),
       ...this.marketFieldsFor(pin.isForSale, auction),
     };
   }
@@ -697,18 +745,36 @@ export class PinsService {
     if (price) {
       const ownerStatus = await this.membershipsService.status(userId);
       if (!ownerStatus.canSell) {
-        throw new ForbiddenException('Chỉ thành viên Plus hoặc Pro mới có thể bán ảnh giá cố định.');
+        throw new ForbiddenException(
+          'Chỉ thành viên Plus hoặc Pro mới có thể bán ảnh giá cố định.',
+        );
       }
       const owner = await this.prisma.user.findUnique({
         where: { id: userId },
-        select: { payoutBankCode: true, payoutAccountNumber: true, payoutAccountName: true },
+        select: {
+          payoutBankCode: true,
+          payoutAccountNumber: true,
+          payoutAccountName: true,
+        },
       });
-      if (!owner?.payoutBankCode || !owner.payoutAccountNumber || !owner.payoutAccountName) {
-        throw new BadRequestException('Vui lòng cấu hình thông tin nhận thanh toán trong Cài đặt trước khi bán ảnh.');
+      if (
+        !owner?.payoutBankCode ||
+        !owner.payoutAccountNumber ||
+        !owner.payoutAccountName
+      ) {
+        throw new BadRequestException(
+          'Vui lòng cấu hình thông tin nhận thanh toán trong Cài đặt trước khi bán ảnh.',
+        );
       }
       salePrice = Number(price);
-      if (!Number.isFinite(salePrice) || !Number.isInteger(salePrice) || salePrice < 1000) {
-        throw new BadRequestException('Giá ảnh phải là số nguyên VND từ 1.000đ.');
+      if (
+        !Number.isFinite(salePrice) ||
+        !Number.isInteger(salePrice) ||
+        salePrice < 1000
+      ) {
+        throw new BadRequestException(
+          'Giá ảnh phải là số nguyên VND từ 1.000đ.',
+        );
       }
     }
 
@@ -832,7 +898,9 @@ export class PinsService {
       contentType,
     );
     if (moderation.nsfw) {
-      throw new BadRequestException('Ảnh có nội dung không phù hợp. Vui lòng thử prompt khác.');
+      throw new BadRequestException(
+        'Ảnh có nội dung không phù hợp. Vui lòng thử prompt khác.',
+      );
     }
 
     // 2. Store original (private) + preview (public)
@@ -933,8 +1001,13 @@ export class PinsService {
     // mỗi round-trip tới Supabase pooler có thể mất hàng trăm ms, gộp lại là
     // nguyên nhân chính khiến nút tim bấm vào cảm giác chậm.
     const [pin, existingLike] = await Promise.all([
-      this.prisma.pin.findUnique({ where: { id: pinId }, select: { id: true, userId: true } }),
-      this.prisma.like.findUnique({ where: { userId_pinId: { userId, pinId } } }),
+      this.prisma.pin.findUnique({
+        where: { id: pinId },
+        select: { id: true, userId: true },
+      }),
+      this.prisma.like.findUnique({
+        where: { userId_pinId: { userId, pinId } },
+      }),
     ]);
     if (!pin) {
       throw new NotFoundException('Pin not found');
@@ -971,7 +1044,9 @@ export class PinsService {
               pinId,
             ),
           )
-          .catch((err) => console.error('Failed to send like notification:', err));
+          .catch((err) =>
+            console.error('Failed to send like notification:', err),
+          );
       }
       return { liked: true, likeCount };
     }
@@ -999,6 +1074,7 @@ export class PinsService {
             displayName: true,
             avatarUrl: true,
             plan: true,
+            isAdmin: true,
           },
         },
       },
@@ -1223,7 +1299,7 @@ export class PinsService {
         orderBy: { createdAt: 'desc' },
         include: {
           user: {
-            select: { id: true, username: true, avatarUrl: true, plan: true },
+            select: { id: true, username: true, avatarUrl: true, plan: true, isAdmin: true },
           },
           _count: { select: { likes: true } },
         },
@@ -1294,12 +1370,20 @@ export class PinsService {
   ): Promise<{ buffer: Buffer; contentType: string }> {
     const pin = await this.prisma.pin.findUnique({
       where: { id: pinId },
-      select: { id: true, userId: true, imageUrl: true, protectedImageUrl: true, isForSale: true },
+      select: {
+        id: true,
+        userId: true,
+        imageUrl: true,
+        protectedImageUrl: true,
+        isForSale: true,
+      },
     });
     if (!pin) {
       throw new NotFoundException('Pin not found');
     }
-    const hasAuction = (await this.fetchLatestAuctionsByPinIds([pin.id])).has(pin.id);
+    const hasAuction = (await this.fetchLatestAuctionsByPinIds([pin.id])).has(
+      pin.id,
+    );
     /* Entitlement is decided by WHICH url we resolve, not by rejecting the
        request. The kai branch added a plan check that threw Forbidden here; it
        is dropped for two reasons. It gated on membership plan alone, so a viewer
@@ -1308,7 +1392,12 @@ export class PinsService {
        breaks that tool outright for restricted pins instead of letting it work
        on the preview the viewer is allowed to see. resolveSinglePinImageUrl
        already guarantees we never fetch bytes the viewer is not entitled to. */
-    const imageUrl = await resolveSinglePinImageUrl(this.prisma, pin, viewerId, hasAuction);
+    const imageUrl = await resolveSinglePinImageUrl(
+      this.prisma,
+      pin,
+      viewerId,
+      hasAuction,
+    );
 
     try {
       const response = await fetch(imageUrl);
@@ -1334,22 +1423,33 @@ export class PinsService {
     });
     if (!pin) throw new NotFoundException('Pin not found');
 
-    const auction = (await this.fetchLatestAuctionsByPinIds([pinId])).get(pinId);
-    if (!auction && !pin.isForSale) throw new NotFoundException('Locked preview not found');
+    const auction = (await this.fetchLatestAuctionsByPinIds([pinId])).get(
+      pinId,
+    );
+    if (!auction && !pin.isForSale)
+      throw new NotFoundException('Locked preview not found');
 
     try {
       const response = await fetch(pin.imageUrl);
-      if (!response.ok) throw new Error(`Image fetch failed (${response.status})`);
+      if (!response.ok)
+        throw new Error(`Image fetch failed (${response.status})`);
       const source = Buffer.from(await response.arrayBuffer());
       return await sharp(source, { limitInputPixels: 60_000_000 })
         .rotate()
-        .resize({ width: 480, height: 480, fit: 'inside', withoutEnlargement: true })
+        .resize({
+          width: 480,
+          height: 480,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
         .blur(24)
         .jpeg({ quality: 52, progressive: true })
         .toBuffer();
     } catch (error) {
       console.error('Locked preview render error:', error);
-      throw new ServiceUnavailableException('Không thể tạo ảnh xem trước lúc này.');
+      throw new ServiceUnavailableException(
+        'Không thể tạo ảnh xem trước lúc này.',
+      );
     }
   }
 
@@ -1368,7 +1468,9 @@ export class PinsService {
    * closed would take the whole search-by-image feature down every time the
    * CLIP service is unreachable. The upload path keeps failing closed, because
    * there the image would be persisted and served to everyone. */
-  private async assertSearchImageAllowed(file: Express.Multer.File): Promise<void> {
+  private async assertSearchImageAllowed(
+    file: Express.Multer.File,
+  ): Promise<void> {
     let moderation: { nsfw: boolean; nsfwScore: number; topLabel: string };
     try {
       moderation = await this.moderateImage(
@@ -1465,7 +1567,7 @@ export class PinsService {
         SELECT
           p.id, p.title, p.description, p."imageUrl", p."protectedImageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
           p.price, p."isForSale", p.currency,
-          u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl", u.plan AS "authorPlan",
+          u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl", u.plan AS "authorPlan", u."isAdmin" AS "authorIsAdmin",
           COUNT(l."pinId")::int AS "likesCount",
           1 - (p.embedding <=> $1::vector) AS similarity
         FROM "Pin" p
@@ -1475,7 +1577,7 @@ export class PinsService {
           AND (u."isPrivate" = false OR u.id = $3 OR EXISTS (
             SELECT 1 FROM "Follow" f WHERE f."followerId" = $3 AND f."followingId" = u.id
           ))
-        GROUP BY p.id, u.username, u."avatarUrl", u.plan, u."isPrivate"
+        GROUP BY p.id, u.username, u."avatarUrl", u.plan, u."isAdmin", u."isPrivate"
         ORDER BY p.embedding <=> $1::vector, p.id
         LIMIT $4 OFFSET $5
       `,
@@ -1490,7 +1592,7 @@ export class PinsService {
         SELECT
           p.id, p.title, p.description, p."imageUrl", p."protectedImageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
           p.price, p."isForSale", p.currency,
-          u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl", u.plan AS "authorPlan",
+          u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl", u.plan AS "authorPlan", u."isAdmin" AS "authorIsAdmin",
           COUNT(l."pinId")::int AS "likesCount",
           1 - (p.embedding <=> $1::vector) AS similarity
         FROM "Pin" p
@@ -1500,7 +1602,7 @@ export class PinsService {
           AND (u."isPrivate" = false OR u.id = $2 OR EXISTS (
             SELECT 1 FROM "Follow" f WHERE f."followerId" = $2 AND f."followingId" = u.id
           ))
-        GROUP BY p.id, u.username, u."avatarUrl", u.plan, u."isPrivate"
+        GROUP BY p.id, u.username, u."avatarUrl", u.plan, u."isAdmin", u."isPrivate"
         ORDER BY p.embedding <=> $1::vector, p.id
         LIMIT $3 OFFSET $4
       `,
@@ -1532,7 +1634,10 @@ export class PinsService {
     const page = filteredPins.slice(0, limit);
     const [auctionMap, purchasedIds, viewerPlan] = await Promise.all([
       this.fetchLatestAuctionsByPinIds(page.map((p) => p.id)),
-      this.fetchPaidPurchasePinIds(page.map((p) => p.id), viewerId),
+      this.fetchPaidPurchasePinIds(
+        page.map((p) => p.id),
+        viewerId,
+      ),
       viewerId
         ? this.membershipsService.status(viewerId).then((st) => st.plan)
         : Promise.resolve<MembershipPlan>('FREE'),
@@ -1562,6 +1667,7 @@ export class PinsService {
         username: p.authorUsername || 'Pinterest AI',
         avatarUrl: p.authorAvatarUrl,
         plan: p.authorPlan ?? 'FREE',
+        isAdmin: p.authorIsAdmin ?? false,
       },
       _count: {
         likes: p.likesCount || 0,

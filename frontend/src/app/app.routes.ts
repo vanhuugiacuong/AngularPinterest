@@ -10,6 +10,7 @@ import { Settings } from './features/settings/settings';
 import { authGuard } from './core/guards/auth';
 import { Pricing } from './features/pricing/pricing';
 import { NovaTokenWalletPage } from './features/novatoken-wallet/novatoken-wallet';
+import { NovaTokenWithdrawPage } from './features/novatoken-withdraw/novatoken-withdraw';
 import { LegalPage } from './features/legal/legal-page';
 
 export const routes: Routes = [
@@ -23,6 +24,7 @@ export const routes: Routes = [
   { path: 'create', component: Create, canActivate: [authGuard] },
   { path: 'pricing', component: Pricing, canActivate: [authGuard] },
   { path: 'novatoken', component: NovaTokenWalletPage, canActivate: [authGuard] },
+  { path: 'novatoken/withdraw', component: NovaTokenWithdrawPage, canActivate: [authGuard] },
   {
     path: 'collage',
     loadComponent: () => import('./features/collage/collage').then((module) => module.Collage),

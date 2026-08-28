@@ -40,6 +40,7 @@ model User {
   novaTokenTopUps     NovaTokenTopUp[]
   novaTokenEntries    NovaTokenLedger[]
   novaTokenHolds      AuctionTokenHold[]
+  demoWithdrawals     DemoWithdrawal[]
   watermarkPresets    WatermarkPreset[]
 
   pins     Pin[]
@@ -232,6 +233,7 @@ enum NovaTokenEntryType {
   AUCTION_SALE
   REFUND
   ADMIN_ADJUSTMENT
+  PLATFORM_FEE
 }
 
 model NovaTokenTopUp {
@@ -282,6 +284,22 @@ model AuctionTokenHold {
 
   @@unique([auctionId, bidderId])
   @@index([bidderId])
+}
+
+model DemoWithdrawal {
+  id            String   @id @default(uuid())
+  userId        String
+  amount        Decimal  @db.Decimal(18, 0)
+  bankCode      String
+  accountNumber String
+  accountName   String
+  status        String   @default("DEMO_COMPLETED")
+  note          String   @default("Mô phỏng thử nghiệm - không chuyển tiền thật")
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 enum WatermarkType {

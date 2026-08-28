@@ -53,6 +53,13 @@
   box-shadow: 0 0 5px 0 color-mix(in srgb, var(--color-studio-aqua) 45%, transparent);
 }
 
+/* Platform admin — gold, not the Plus/Pro brand colors on purpose: this
+   marks "runs the site", a different kind of fact than a paid tier. */
+.uav-outer--admin .uav-ring--primary {
+  background: var(--color-warning);
+  box-shadow: 0 0 6px 0 color-mix(in srgb, var(--color-warning) 45%, transparent);
+}
+
 .uav-ring--pro-outer {
   inset: calc(-1 * clamp(4.5px, calc(var(--uav-size, 36px) * 0.16), 8px));
   padding: clamp(1.2px, calc(var(--uav-size, 36px) * 0.045), 2px);
@@ -62,6 +69,15 @@
     color-mix(in srgb, var(--color-iris-violet) 55%, var(--color-nova-blue)) 100%
   );
   box-shadow: 0 0 8px 0 color-mix(in srgb, var(--color-iris-violet) 35%, transparent);
+}
+
+.uav-outer--admin .uav-ring--pro-outer {
+  background: linear-gradient(
+    135deg,
+    var(--color-warning) 0%,
+    color-mix(in srgb, var(--color-warning) 55%, #fff2cc) 100%
+  );
+  box-shadow: 0 0 9px 0 color-mix(in srgb, var(--color-warning) 40%, transparent);
 }
 
 /* Shimmer is reserved for large, singular avatars (profile hero, navbar
@@ -77,12 +93,14 @@
   }
 }
 
-.uav-outer--pro.uav-outer--lg .uav-ring--pro-outer {
+.uav-outer--pro.uav-outer--lg .uav-ring--pro-outer,
+.uav-outer--admin.uav-outer--lg .uav-ring--pro-outer {
   animation: uav-pro-pulse 2.6s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .uav-outer--pro.uav-outer--lg .uav-ring--pro-outer {
+  .uav-outer--pro.uav-outer--lg .uav-ring--pro-outer,
+  .uav-outer--admin.uav-outer--lg .uav-ring--pro-outer {
     animation: none;
   }
 }
@@ -108,6 +126,10 @@
 
 .uav-plan-icon--pro {
   background: linear-gradient(135deg, var(--color-studio-aqua) 0%, var(--color-iris-violet) 100%);
+}
+
+.uav-plan-icon--admin {
+  background: linear-gradient(135deg, var(--color-warning) 0%, #d99a1f 100%);
 }
 
 .uav-plan-icon svg {
@@ -143,4 +165,8 @@
 
 .uav-plan-badge--pro {
   background: linear-gradient(135deg, var(--color-studio-aqua) 0%, var(--color-iris-violet) 100%);
+}
+
+.uav-plan-badge--admin {
+  background: linear-gradient(135deg, var(--color-warning) 0%, #d99a1f 100%);
 }

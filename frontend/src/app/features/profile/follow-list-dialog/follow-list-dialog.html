@@ -68,7 +68,7 @@
           @for (u of currentState().items; track u.id) {
             <li class="fld-row">
               <button type="button" class="fld-identity" (click)="goToProfile(u.username)">
-                <app-user-avatar [src]="u.avatarUrl" [name]="u.username" [size]="44" [plan]="u.plan"></app-user-avatar>
+                <app-user-avatar [src]="u.avatarUrl" [name]="u.username" [size]="44" [plan]="u.plan" [isAdmin]="u.isAdmin"></app-user-avatar>
                 <span class="fld-identity-text">
                   <span class="fld-username">{{ u.username }}</span>
                   @if (u.bio) {

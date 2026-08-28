@@ -24,6 +24,7 @@ export interface PublicUserSummary {
   username: string;
   avatarUrl?: string | null;
   plan: MembershipPlan;
+  isAdmin?: boolean;
 }
 
 export interface MessageRequestRecord {

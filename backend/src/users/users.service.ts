@@ -17,6 +17,7 @@ import {
 import { BlocksService } from '../blocks/blocks.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { MembershipsService } from '../memberships/memberships.service';
 import { applyPinImageProtection } from '../common/pin-access.util';
 
 export type MessageRequestRelationshipStatus =
@@ -41,10 +42,7 @@ const MAX_DISPLAY_NAME_LENGTH = 50;
  * render the right label ("Đã gửi yêu cầu" vs "Chấp nhận/Từ chối") without
  * knowing who sent it. */
 export type FollowRelationshipStatus =
-  | 'NONE'
-  | 'PENDING_OUTGOING'
-  | 'PENDING_INCOMING'
-  | 'ACCEPTED';
+  'NONE' | 'PENDING_OUTGOING' | 'PENDING_INCOMING' | 'ACCEPTED';
 
 @Injectable()
 export class UsersService {
@@ -53,7 +51,29 @@ export class UsersService {
     private readonly blocksService: BlocksService,
     private readonly notificationsService: NotificationsService,
     private readonly supabaseService: SupabaseService,
+    private readonly membershipsService: MembershipsService,
   ) {}
+
+  /** Replaces clear CDN URLs before profile/board/favorites responses leave
+   * the backend. A CSS blur is not security: the browser would still expose
+   * the clear file through F12 and "Save image as". */
+  private async protectMarketPinImages<
+    T extends {
+      id: string;
+      userId: string;
+      imageUrl: string;
+      protectedImageUrl?: string | null;
+      isForSale: boolean;
+    },
+  >(pins: T[], viewerId?: string): Promise<T[]> {
+    if (pins.length === 0) return pins;
+    const viewerPlan = viewerId
+      ? await this.membershipsService
+          .status(viewerId)
+          .then((status) => status.plan)
+      : undefined;
+    return applyPinImageProtection(this.prisma, pins, viewerId, viewerPlan);
+  }
 
   /** Turns an OAuth display name (spaces, accents, any script) into a
    * username-pattern-safe slug — the raw name was previously stored
@@ -329,6 +349,7 @@ export class UsersService {
         createdAt: true,
         plan: true,
         isPrivate: true,
+        isAdmin: true,
       },
     });
 
@@ -408,8 +429,10 @@ export class UsersService {
 
     let followRequestStatus: FollowRelationshipStatus = 'NONE';
     if (isFollowing) followRequestStatus = 'ACCEPTED';
-    else if (followingRow?.status === 'PENDING') followRequestStatus = 'PENDING_OUTGOING';
-    else if (followedByRow?.status === 'PENDING') followRequestStatus = 'PENDING_INCOMING';
+    else if (followingRow?.status === 'PENDING')
+      followRequestStatus = 'PENDING_OUTGOING';
+    else if (followedByRow?.status === 'PENDING')
+      followRequestStatus = 'PENDING_INCOMING';
 
     const relationship = await this.getMessagingRelationship(
       viewerId,
@@ -434,8 +457,7 @@ export class UsersService {
         isFollowedBy,
         isMutualFollow,
         hasPendingFollowRequest:
-          hasPendingFollowRequest ||
-          followRequestStatus === 'PENDING_OUTGOING',
+          hasPendingFollowRequest || followRequestStatus === 'PENDING_OUTGOING',
         followRequestStatus,
         canViewFavorites: isOwnProfile,
         canViewPrivateBoards: isOwnProfile,
@@ -551,7 +573,7 @@ export class UsersService {
           generationModel: true,
           category: true,
           user: {
-            select: { id: true, username: true, avatarUrl: true, plan: true },
+            select: { id: true, username: true, avatarUrl: true, plan: true, isAdmin: true },
           },
           _count: { select: { likes: true, comments: true } },
           likes: {
@@ -564,21 +586,14 @@ export class UsersService {
       this.prisma.pin.count({ where }),
     ]);
 
-    // This route is publicly reachable (OptionalSupabeAuthGuard, no login
-    // required) — a for-sale/auctioned post must not hand its real preview
-    // to an anonymous or non-buyer viewer just because it showed up on the
-    // profile's posts tab instead of the feed.
-    await applyPinImageProtection(this.prisma, items, viewerId);
-
-    return this.pageResult(
+    const protectedItems = await this.protectMarketPinImages(
       items.map(({ likes, ...pin }) => ({
         ...pin,
         isLiked: likes.length > 0,
       })),
-      total,
-      page,
-      limit,
+      viewerId,
     );
+    return this.pageResult(protectedItems, total, page, limit);
   }
 
   async getUserBoards(
@@ -632,20 +647,16 @@ export class UsersService {
       this.prisma.board.count({ where }),
     ]);
 
+    const flatPins = boards.flatMap((board) =>
+      board.boardPins.map(({ pin }) => pin),
+    );
+    const protectedPins = await this.protectMarketPinImages(flatPins, viewerId);
+    const protectedById = new Map(protectedPins.map((pin) => [pin.id, pin]));
     const items = boards.map(({ boardPins, _count, ...board }) => ({
       ...board,
       pinCount: _count.boardPins,
-      thumbnails: boardPins.map(({ pin }) => pin),
+      thumbnails: boardPins.map(({ pin }) => protectedById.get(pin.id) ?? pin),
     }));
-
-    // A board's thumbnails can include someone else's pin (boards can save
-    // pins from other owners) — gate each thumbnail on its own pin's
-    // owner/commerce state, not the profile being viewed.
-    await applyPinImageProtection(
-      this.prisma,
-      items.flatMap((item) => item.thumbnails),
-      viewerId,
-    );
 
     return this.pageResult(items, total, page, limit);
   }
@@ -684,6 +695,7 @@ export class UsersService {
                   username: true,
                   avatarUrl: true,
                   plan: true,
+                  isAdmin: true,
                 },
               },
               _count: { select: { likes: true, comments: true } },
@@ -700,11 +712,9 @@ export class UsersService {
       isLiked: true,
     }));
 
-    // Liking a pin isn't buying it — a for-sale/auctioned pin the caller
-    // merely favorited still needs the same purchase gate as everywhere else.
-    await applyPinImageProtection(this.prisma, items, userId);
+    const protectedItems = await this.protectMarketPinImages(items, userId);
 
-    return this.pageResult(items, total, page, limit);
+    return this.pageResult(protectedItems, total, page, limit);
   }
 
   /** Toggles the follow relationship. Every account now requires approval —
@@ -736,14 +746,18 @@ export class UsersService {
     let followRequestStatus: FollowRelationshipStatus;
     if (existingFollow) {
       // Already following or already requested — toggle means "undo".
-      await this.prisma.follow.deleteMany({ where: { followerId, followingId } });
+      await this.prisma.follow.deleteMany({
+        where: { followerId, followingId },
+      });
       followRequestStatus = 'NONE';
     } else {
       // deleteMany/create thay vì findUnique-rồi-create để giảm cửa sổ race, và
       // bắt lỗi P2002 (đã tồn tại do request đồng thời khác vừa tạo) thay vì
       // để nó văng ra ngoài thành lỗi 500.
       try {
-        await this.prisma.follow.create({ data: { followerId, followingId, status: 'PENDING' } });
+        await this.prisma.follow.create({
+          data: { followerId, followingId, status: 'PENDING' },
+        });
       } catch (error) {
         if (!isUniqueConstraintError(error)) throw error;
       }
@@ -774,7 +788,11 @@ export class UsersService {
   /** Target user accepts a pending follow request from `requesterId`. */
   async acceptFollowRequest(currentUserId: string, requesterId: string) {
     const result = await this.prisma.follow.updateMany({
-      where: { followerId: requesterId, followingId: currentUserId, status: 'PENDING' },
+      where: {
+        followerId: requesterId,
+        followingId: currentUserId,
+        status: 'PENDING',
+      },
       data: { status: 'ACCEPTED', respondedAt: new Date() },
     });
     if (result.count === 0) {
@@ -798,7 +816,11 @@ export class UsersService {
   /** Target user rejects (or the requester withdraws) a pending request. */
   async rejectFollowRequest(currentUserId: string, requesterId: string) {
     const result = await this.prisma.follow.deleteMany({
-      where: { followerId: requesterId, followingId: currentUserId, status: 'PENDING' },
+      where: {
+        followerId: requesterId,
+        followingId: currentUserId,
+        status: 'PENDING',
+      },
     });
     if (result.count === 0) {
       throw new NotFoundException('Không tìm thấy yêu cầu theo dõi này.');
@@ -906,11 +928,19 @@ export class UsersService {
       const ids = visibleUsers.map((u) => u.id);
       const [followingRows, followerRows] = await Promise.all([
         this.prisma.follow.findMany({
-          where: { followerId: viewerId, followingId: { in: ids }, status: 'ACCEPTED' },
+          where: {
+            followerId: viewerId,
+            followingId: { in: ids },
+            status: 'ACCEPTED',
+          },
           select: { followingId: true },
         }),
         this.prisma.follow.findMany({
-          where: { followerId: { in: ids }, followingId: viewerId, status: 'ACCEPTED' },
+          where: {
+            followerId: { in: ids },
+            followingId: viewerId,
+            status: 'ACCEPTED',
+          },
           select: { followerId: true },
         }),
       ]);
@@ -967,21 +997,16 @@ export class UsersService {
       this.prisma.board.count({ where }),
     ]);
 
+    const flatPins = boards.flatMap((board) =>
+      board.boardPins.map(({ pin }) => pin),
+    );
+    const protectedPins = await this.protectMarketPinImages(flatPins, userId);
+    const protectedById = new Map(protectedPins.map((pin) => [pin.id, pin]));
     const items = boards.map(({ boardPins, _count, ...board }) => ({
       ...board,
       pinCount: _count.boardPins,
-      thumbnails: boardPins.map(({ pin }) => pin),
+      thumbnails: boardPins.map(({ pin }) => protectedById.get(pin.id) ?? pin),
     }));
-
-    // Same as getUserBoards — a private board's thumbnails can include a
-    // pin saved from someone else, gate on that pin's own owner/commerce
-    // state (userId here is always the caller viewing their own private
-    // boards, per the controller guard).
-    await applyPinImageProtection(
-      this.prisma,
-      items.flatMap((item) => item.thumbnails),
-      userId,
-    );
 
     return this.pageResult(items, total, page, limit);
   }
@@ -1004,7 +1029,7 @@ export class UsersService {
 
     const matches = await this.prisma.user.findMany({
       where: { username: { contains: query, mode: 'insensitive' } },
-      select: { id: true, username: true, avatarUrl: true, plan: true },
+      select: { id: true, username: true, avatarUrl: true, plan: true, isAdmin: true },
       take: limit * 3,
     });
 
@@ -1030,8 +1055,7 @@ export class UsersService {
    * `/sync` is loading. A displayName fallback is restricted to the signed-in
    * user's own row because display names are intentionally not unique. */
   private async findUserByIdentifier(identifier: string, viewerId?: string) {
-    const normalized =
-      typeof identifier === 'string' ? identifier.trim() : '';
+    const normalized = typeof identifier === 'string' ? identifier.trim() : '';
     if (!normalized || normalized.length > MAX_PROFILE_IDENTIFIER_LENGTH) {
       throw new BadRequestException('Profile identifier is invalid');
     }

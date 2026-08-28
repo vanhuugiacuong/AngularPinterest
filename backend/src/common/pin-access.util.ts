@@ -82,7 +82,15 @@ export function resolveViewablePinImageUrl(
   ) {
     return pin.protectedImageUrl ?? pin.imageUrl;
   }
-  return pin.protectedImageUrl ?? lockedPinPreviewPath(pin.id);
+  // Not entitled to browse this listing at all (tier 3 in the doc comment
+  // above) — always the fully-blurred server render, never the watermarked
+  // preview. protectedImageUrl only has a small text stamp (see
+  // WatermarkRenderService.applyMandatoryWatermark) meant for tier 2
+  // ("entitled to browse, hasn't bought") — falling back to it here for a
+  // viewer with NO entitlement handed them the clear subject with nothing
+  // but a corner stamp hiding it, e.g. a FREE-plan viewer on someone's
+  // profile page seeing a for-sale pin fully unobscured.
+  return lockedPinPreviewPath(pin.id);
 }
 
 type PinAccessClient = Pick<PrismaClient, 'auction' | 'imagePurchase'>;

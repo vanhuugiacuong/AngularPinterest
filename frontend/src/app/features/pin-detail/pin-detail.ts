@@ -39,13 +39,13 @@ import { masonryColumnCount, masonryContentWidth } from '../../core/utils/masonr
  * PinsService.getPinById ở backend — dùng để phân biệt "cần nâng cấp gói"
  * với các lỗi tải pin khác (404, mất mạng...). */
 const UPGRADE_REQUIRED_MESSAGE = 'Chỉ thành viên Pro mới có thể xem chi tiết tác phẩm đấu giá.';
-const FIXED_PRICE_REQUIRED_MESSAGE = 'Chỉ thành viên Plus hoặc Pro mới có thể xem chi tiết tác phẩm bán giá cố định.';
+const FIXED_PRICE_REQUIRED_MESSAGE =
+  'Chỉ thành viên Plus hoặc Pro mới có thể xem chi tiết tác phẩm bán giá cố định.';
 
 /** Tỉ lệ tạm dùng cho khung ảnh trước khi đo được tỉ lệ thật. Backend không
  * lưu kích thước ảnh nên tỉ lệ chỉ biết sau khi ảnh tải xong; 0.75 là dáng
  * dọc phổ biến nhất, giúp layout ít nhảy nhất khi tỉ lệ thật được áp vào. */
 const RELATED_PLACEHOLDER_RATIO = 0.75;
-
 
 @Component({
   selector: 'app-pin-detail',
@@ -138,6 +138,10 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
    * onto dbUser so a slow/failed membership fetch never shows a wrong frame. */
   myPlan(): MembershipPlan | null | undefined {
     return this.membership.status()?.plan ?? this.supabaseService.dbUser()?.plan;
+  }
+
+  myIsAdmin(): boolean {
+    return this.supabaseService.dbUser()?.isAdmin ?? false;
   }
 
   myDisplayName(): string {
@@ -260,13 +264,35 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   }
 
   async downloadPin() {
-    const p = this.pin(); if (!p || this.downloading()) return;
+    const p = this.pin();
+    if (!p || this.downloading()) return;
+
+    const isOwner = p.user?.id === this.supabaseService.user()?.id;
+    // Chỉ hỏi xác nhận khi đây thực sự là một lượt MUA mới - đã mua rồi thì
+    // tải lại không phát sinh thêm giao dịch, không cần hỏi lại mỗi lần.
+    const needsPurchase = p.isForSale && !isOwner && !p.hasPurchased;
+
+    if (needsPurchase) {
+      const confirmed = await this.dialogService.confirm({
+        variant: 'confirm',
+        title: 'Xác nhận mua tác phẩm',
+        description: `Bạn sắp mua "${p.title}" với giá ${formatNovaToken(vndToNovaToken(p.price))}. Số tiền sẽ được trừ ngay từ ví của bạn và không thể hoàn lại.`,
+        confirmLabel: 'Mua ngay',
+        cancelLabel: 'Hủy',
+      });
+      if (!confirmed) return;
+    }
+
     this.downloadMessage.set('Đang chuẩn bị ảnh...');
     this.downloading.set(true);
     try {
-      const isOwner = p.user?.id === this.supabaseService.user()?.id;
-      if (p.isForSale && !isOwner) {
+      if (needsPurchase) {
         await this.novaTokens.purchase(p.id);
+        // Mua thành công ngay trong luồng tải này — cập nhật lại pin đang
+        // hiển thị để nút "Lưu vào bộ sưu tập" (canSavePin) mở khóa ngay,
+        // không cần người dùng tải lại trang mới thấy hasPurchased = true.
+        const current = this.pin();
+        if (current) this.pin.set({ ...current, hasPurchased: true });
       }
       await this.fetchAndSaveDownload(p.id, p.title);
       this.downloadMessage.set('Đã tải ảnh.');
@@ -369,7 +395,12 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       onConfirm: async () => {
         const token = await this.supabaseService.getSessionToken();
         if (!token) throw new Error('Vui lòng đăng nhập lại để báo cáo.');
-        await this.safetyService.reportUser(current.userId, 'INAPPROPRIATE_CONTENT', undefined, token);
+        await this.safetyService.reportUser(
+          current.userId,
+          'INAPPROPRIATE_CONTENT',
+          undefined,
+          token,
+        );
       },
     });
     if (confirmed) this.toast.success('Đã gửi báo cáo. Cảm ơn bạn đã phản hồi.');
@@ -455,12 +486,15 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       // frontend hiển thị đúng dialog thay vì lỗi tải chung chung.
       if (
         error instanceof Error &&
-        (error.message === UPGRADE_REQUIRED_MESSAGE || error.message === FIXED_PRICE_REQUIRED_MESSAGE)
+        (error.message === UPGRADE_REQUIRED_MESSAGE ||
+          error.message === FIXED_PRICE_REQUIRED_MESSAGE)
       ) {
         void this.handleUpgradeRequired(error.message);
         return;
       }
-      this.loadError.set('Không thể tải tác phẩm này. Có thể đường liên kết không còn tồn tại hoặc mạng đang gặp sự cố.');
+      this.loadError.set(
+        'Không thể tải tác phẩm này. Có thể đường liên kết không còn tồn tại hoặc mạng đang gặp sự cố.',
+      );
     }
   }
 
@@ -487,7 +521,8 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   navigateToPin(pinOrId: string | { id: string; listingType?: string }) {
     const pin = typeof pinOrId === 'string' ? null : pinOrId;
     if (pin && this.isAuctionRestricted(pin)) {
-      const message = pin.listingType === 'AUCTION' ? UPGRADE_REQUIRED_MESSAGE : FIXED_PRICE_REQUIRED_MESSAGE;
+      const message =
+        pin.listingType === 'AUCTION' ? UPGRADE_REQUIRED_MESSAGE : FIXED_PRICE_REQUIRED_MESSAGE;
       void this.handleUpgradeRequired(message);
       return;
     }
@@ -541,10 +576,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
     const previousLiked = currentPin.isLiked === true;
     const previousLikeCount = currentPin.likeCount ?? currentPin._count?.likes ?? 0;
-    const optimisticLikeCount = Math.max(
-      0,
-      previousLikeCount + (previousLiked ? -1 : 1),
-    );
+    const optimisticLikeCount = Math.max(0, previousLikeCount + (previousLiked ? -1 : 1));
 
     this.pin.set({
       ...currentPin,
@@ -585,10 +617,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
             const currentLiked = latestPin.isLiked === true;
             const rolledBackLiked = !currentLiked;
             const currentLikeCount = latestPin.likeCount ?? latestPin._count?.likes ?? 0;
-            const rolledBackLikeCount = Math.max(
-              0,
-              currentLikeCount + (rolledBackLiked ? 1 : -1),
-            );
+            const rolledBackLikeCount = Math.max(0, currentLikeCount + (rolledBackLiked ? 1 : -1));
             this.pin.set({
               ...latestPin,
               isLiked: rolledBackLiked,
@@ -636,7 +665,18 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
   toggleBoardDropdown(event: MouseEvent) {
     event.stopPropagation();
+    if (!this.canSavePin(this.pin())) {
+      this.toast.error('Bạn cần thanh toán tác phẩm trước khi lưu vào bộ sưu tập.');
+      return;
+    }
     this.showBoardDropdown.update((val) => !val);
+  }
+
+  canSavePin(pin: any | null): boolean {
+    if (!pin) return false;
+    if (pin.userId === this.supabaseService.user()?.id) return true;
+    if (!pin.listingType || pin.listingType === 'NONE') return true;
+    return pin.hasPurchased === true;
   }
 
   selectBoard(board: Board, event: MouseEvent) {
@@ -661,6 +701,10 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     const currentPin = this.pin();
     const currentUser = this.supabaseService.user();
     if (!currentPin || !currentUser) return;
+    if (!this.canSavePin(currentPin)) {
+      this.toast.error('Bạn cần thanh toán tác phẩm trước khi lưu vào bộ sưu tập.');
+      return;
+    }
 
     try {
       const token = await this.supabaseService.getSessionToken();
@@ -775,6 +819,11 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
   toggleRelatedBoardDropdown(pinId: string, event: MouseEvent) {
     event.stopPropagation();
+    const relatedPin = this.relatedPins().find((pin) => pin.id === pinId);
+    if (!this.canSavePin(relatedPin)) {
+      this.toast.error('Bạn cần thanh toán tác phẩm trước khi lưu vào bộ sưu tập.');
+      return;
+    }
     if (this.relatedActiveDropdownPinId() === pinId) {
       this.closeRelatedBoardDropdown();
       return;
@@ -809,6 +858,11 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
   saveRelatedPinToBoard(pinId: string, event: MouseEvent) {
     event.stopPropagation();
+    const relatedPin = this.relatedPins().find((pin) => pin.id === pinId);
+    if (!this.canSavePin(relatedPin)) {
+      this.toast.error('Bạn cần thanh toán tác phẩm trước khi lưu vào bộ sưu tập.');
+      return;
+    }
     void this.performSaveRelatedToBoard(pinId);
   }
 
@@ -870,6 +924,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       author: p.user?.username || 'NovaFrame AI',
       authorAvatarUrl: p.user?.avatarUrl || null,
       authorPlan: p.user?.plan || 'FREE',
+      authorIsAdmin: p.user?.isAdmin ?? false,
       likes: p._count?.likes ?? 0,
       isLiked: p.isLiked === true,
       isAiGenerated: p.isAiGenerated,
@@ -1008,7 +1063,9 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   minAcceptableBid(): number {
     const a = this.auction();
     if (!a) return 0;
-    return a.bidCount === 0 ? Number(a.startingPrice) : Number(a.currentPrice) + Number(a.minimumIncrement);
+    return a.bidCount === 0
+      ? Number(a.startingPrice)
+      : Number(a.currentPrice) + Number(a.minimumIncrement);
   }
 
   minAcceptableBidLabel(): string {
@@ -1038,21 +1095,27 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     const amount = this.bidAmount;
     const minTokens = vndToNovaToken(this.minAcceptableBid());
     if (!amount || !Number.isInteger(amount) || amount < minTokens) {
-      this.bidError.set(`Giá đặt phải là số NovaToken nguyên, tối thiểu ${formatNovaToken(minTokens)}.`);
+      this.bidError.set(
+        `Giá đặt phải là số tiền VND nguyên, tối thiểu ${formatNovaToken(minTokens)}.`,
+      );
       return;
     }
 
     this.bidSubmitting.set(true);
     try {
       const requestKey = crypto.randomUUID();
-      const updated = await this.auctionService.placeBid(a.id, amount * 1000, requestKey);
+      const updated = await this.auctionService.placeBid(a.id, amount, requestKey);
       this.auction.set(updated);
       this.applyServerTimeOffset(updated.serverNow);
       this.bidAmount = null;
-      this.bidSuccessMessage.set(`${formatNovaToken(amount)} đã được giữ an toàn cho lượt đặt giá.`);
+      this.bidSuccessMessage.set(
+        `${formatNovaToken(amount)} đã được giữ an toàn cho lượt đặt giá.`,
+      );
       this.scheduleAuctionPolling();
     } catch (e) {
-      this.bidError.set(e instanceof Error ? e.message : 'Không thể đặt giá lúc này. Vui lòng thử lại.');
+      this.bidError.set(
+        e instanceof Error ? e.message : 'Không thể đặt giá lúc này. Vui lòng thử lại.',
+      );
     } finally {
       this.bidSubmitting.set(false);
     }
@@ -1100,7 +1163,11 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     if (!viewer) return true;
     if (viewer.isBlocked || viewer.isBlockedByTarget) return true;
     if (viewer.messageRequestStatus === 'PENDING_OUTGOING') return true;
-    return !viewer.canMessage && !viewer.canSendMessageRequest && viewer.messageRequestStatus !== 'REJECTED';
+    return (
+      !viewer.canMessage &&
+      !viewer.canSendMessageRequest &&
+      viewer.messageRequestStatus !== 'REJECTED'
+    );
   }
 
   async onContactOwner(): Promise<void> {
@@ -1115,19 +1182,28 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
       if (viewer.canMessage) {
         const conversationId =
-          viewer.conversationId || (await this.messagingService.openDirectConversation(p.user.id, token)).id;
+          viewer.conversationId ||
+          (await this.messagingService.openDirectConversation(p.user.id, token)).id;
         const prefill = `Chào bạn, mình quan tâm đến tác phẩm "${p.title}".`;
-        void this.router.navigate(['/messages', conversationId], { queryParams: { prefill, pinId: p.id } });
+        void this.router.navigate(['/messages', conversationId], {
+          queryParams: { prefill, pinId: p.id },
+        });
         return;
       }
 
       if (viewer.canSendMessageRequest || viewer.messageRequestStatus === 'REJECTED') {
         await this.messagingService.sendMessageRequest(p.user.id, token);
-        this.contactViewer.set({ ...viewer, messageRequestStatus: 'PENDING_OUTGOING', canSendMessageRequest: false });
+        this.contactViewer.set({
+          ...viewer,
+          messageRequestStatus: 'PENDING_OUTGOING',
+          canSendMessageRequest: false,
+        });
         this.toast.success('Đã gửi yêu cầu trao đổi tới chủ sở hữu.');
       }
     } catch (error) {
-      this.toast.error(error instanceof Error ? error.message : 'Không thể trao đổi với chủ sở hữu lúc này.');
+      this.toast.error(
+        error instanceof Error ? error.message : 'Không thể trao đổi với chủ sở hữu lúc này.',
+      );
     } finally {
       this.contactActionPending.set(false);
     }
@@ -1171,10 +1247,8 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
         this.limit,
       );
       // Route may have changed to a different pin while this request was in flight.
-      if (
-        this.currentPinId !== requestedPinId ||
-        this.relatedRequestVersion !== relatedVersion
-      ) return;
+      if (this.currentPinId !== requestedPinId || this.relatedRequestVersion !== relatedVersion)
+        return;
       if (related && related.length > 0) {
         const mappedRelated = this.mapRelatedPins(related);
         this.relatedPins.update((current) => [...current, ...mappedRelated]);

@@ -3,9 +3,10 @@ import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { BlocksModule } from '../blocks/blocks.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { MembershipsModule } from '../memberships/memberships.module';
 
 @Module({
-  imports: [BlocksModule, NotificationsModule],
+  imports: [BlocksModule, NotificationsModule, MembershipsModule],
   controllers: [UsersController],
   providers: [UsersService],
 })

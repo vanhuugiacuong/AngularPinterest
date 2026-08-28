@@ -192,6 +192,12 @@ export class Navbar implements OnInit, OnDestroy {
     return this.membership.status()?.plan ?? this.supabaseService.dbUser()?.plan;
   }
 
+  /** dbUser is the only source that carries isAdmin (a static flag, not a
+   * membership-status concern), unlike myPlan() above. */
+  myIsAdmin(): boolean {
+    return this.supabaseService.dbUser()?.isAdmin ?? false;
+  }
+
   displayName(): string {
     const dbUser = this.supabaseService.dbUser();
     if (dbUser) return dbUser.displayName || dbUser.username;

@@ -30,6 +30,7 @@ export interface Notification {
     username: string;
     avatarUrl?: string;
     plan: MembershipPlan;
+    isAdmin?: boolean;
   };
   pin?: {
     id: string;

@@ -160,6 +160,7 @@
             [name]="displayName()"
             [size]="36"
             [plan]="supabaseService.dbUser()?.plan"
+            [isAdmin]="supabaseService.dbUser()?.isAdmin"
           ></app-user-avatar>
         </span>
         <span class="nf-rail-label nf-rail-profile__copy">
@@ -257,6 +258,7 @@
             [name]="item.sender?.username || 'P'"
             [size]="40"
             [plan]="item.sender?.plan"
+            [isAdmin]="item.sender?.isAdmin"
             [showPlanBadge]="false"
           ></app-user-avatar>
 

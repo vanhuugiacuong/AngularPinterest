@@ -505,6 +505,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       author: p.user?.username || 'NovaFrame AI',
       authorAvatarUrl: p.user?.avatarUrl || null,
       authorPlan: p.user?.plan || 'FREE',
+      authorIsAdmin: p.user?.isAdmin ?? false,
       likes: (p as any)._count?.likes ?? 0,
       isLiked: p.isLiked === true,
       isAiGenerated: p.isAiGenerated,

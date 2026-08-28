@@ -27,22 +27,33 @@
         </button>
       </section>
     } @else if (profile(); as p) {
-      <section class="identity-card" aria-labelledby="profile-username">
+      <section class="identity-card" [class.identity-card--admin]="p.user.isAdmin" aria-labelledby="profile-username">
         <div class="identity-person">
           <app-user-avatar
             [src]="p.user.avatarUrl"
             [name]="p.user.username"
             [size]="profileAvatarSize()"
             [plan]="p.user.plan"
+            [isAdmin]="p.user.isAdmin"
             class="profile-avatar-slot"
           ></app-user-avatar>
 
           <div class="identity-copy">
-            <div class="identity-kicker">
-              <span class="signal-dot" aria-hidden="true"></span>
-              Hồ sơ sáng tạo
+            <div class="identity-kicker" [class.identity-kicker--admin]="p.user.isAdmin">
+              @if (p.user.isAdmin) {
+                <span class="material-symbols-outlined admin-kicker-icon" aria-hidden="true">shield_person</span>
+                Quản trị viên nền tảng
+              } @else {
+                <span class="signal-dot" aria-hidden="true"></span>
+                Hồ sơ sáng tạo
+              }
             </div>
-            <h1 id="profile-username">{{ p.user.displayName || p.user.username }}</h1>
+            <h1 id="profile-username">
+              {{ p.user.displayName || p.user.username }}
+              @if (p.user.isAdmin) {
+                <span class="admin-name-badge" title="Quản trị viên NovaFrame">ADMIN</span>
+              }
+            </h1>
             @if (p.user.displayName) {
               <p class="profile-handle">&#64;{{ p.user.username }}</p>
             }

@@ -9,11 +9,15 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    // Migrations must run over a DIRECT/session connection, NOT the pgbouncer
-    // transaction pooler (port 6543) the app runtime uses — transaction mode
-    // doesn't support the advisory locks `migrate deploy` takes, so it hangs
-    // there. DIRECT_URL points at the session pooler (port 5432); it falls back
-    // to DATABASE_URL for local setups that don't set it.
+    // CLI only (migrate / generate / studio). Migrations must run over a
+    // DIRECT/session connection, NOT the transaction pooler on port 6543 that
+    // the app runtime uses: transaction mode does not support the advisory
+    // locks `migrate deploy` takes, so it hangs there. DIRECT_URL points at the
+    // session pooler (port 5432) — see backend/.env — and falls back to
+    // DATABASE_URL for local setups that do not set it.
+    //
+    // `||`, not `??`: a DIRECT_URL that is set but EMPTY is the realistic
+    // mistake here, and `??` would hand that empty string straight through.
     url: process.env["DIRECT_URL"] || process.env["DATABASE_URL"],
   },
 });

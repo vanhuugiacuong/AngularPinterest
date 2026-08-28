@@ -18,7 +18,11 @@ interface HomePrivate {
 
 describe('Home — save to board toast feedback', () => {
   let component: Home;
-  let boardService: { getBoards: ReturnType<typeof vi.fn>; createBoard: ReturnType<typeof vi.fn>; addPinToBoard: ReturnType<typeof vi.fn> };
+  let boardService: {
+    getBoards: ReturnType<typeof vi.fn>;
+    createBoard: ReturnType<typeof vi.fn>;
+    addPinToBoard: ReturnType<typeof vi.fn>;
+  };
   let toastService: ToastService;
 
   beforeEach(() => {
@@ -45,7 +49,12 @@ describe('Home — save to board toast feedback', () => {
         },
         {
           provide: ImageSearchStore,
-          useValue: { previewUrl: () => null, isLoading: () => false, error: () => null, results: () => [] },
+          useValue: {
+            previewUrl: () => null,
+            isLoading: () => false,
+            error: () => null,
+            results: () => [],
+          },
         },
       ],
     });
@@ -62,7 +71,10 @@ describe('Home — save to board toast feedback', () => {
 
     expect(boardService.addPinToBoard).toHaveBeenCalledWith('board-1', 'pin-1', 'token');
     expect(toastService.toasts()).toHaveLength(1);
-    expect(toastService.toasts()[0]).toMatchObject({ kind: 'success', message: 'Đã lưu vào bộ sưu tập' });
+    expect(toastService.toasts()[0]).toMatchObject({
+      kind: 'success',
+      message: 'Đã lưu vào bộ sưu tập',
+    });
   });
 
   it('never opens a dialog for the successful save — only the toast fires', async () => {
@@ -95,9 +107,7 @@ describe('Home — save to board toast feedback', () => {
 
 describe('Home — optimistic like feedback', () => {
   it('accepts repeated clicks immediately and syncs them to the API in order', async () => {
-    const toggleResolvers: Array<
-      (value: { liked: boolean; likeCount: number }) => void
-    > = [];
+    const toggleResolvers: Array<(value: { liked: boolean; likeCount: number }) => void> = [];
     const pinService = {
       toggleLike: vi.fn().mockImplementation(
         () =>
@@ -206,11 +216,20 @@ describe('Home — tác phẩm có giá trị (badge & gating trên feed)', () =
         { provide: UserService, useValue: {} },
         {
           provide: SupabaseService,
-          useValue: { dbUser: () => null, user: () => ({ id: 'viewer-1' }), getSessionToken: vi.fn() },
+          useValue: {
+            dbUser: () => null,
+            user: () => ({ id: 'viewer-1' }),
+            getSessionToken: vi.fn(),
+          },
         },
         {
           provide: ImageSearchStore,
-          useValue: { previewUrl: () => null, isLoading: () => false, error: () => null, results: () => [] },
+          useValue: {
+            previewUrl: () => null,
+            isLoading: () => false,
+            error: () => null,
+            results: () => [],
+          },
         },
         { provide: MembershipService, useValue: { status: () => membershipStatus } },
         { provide: DialogService, useValue: dialogService },
@@ -224,14 +243,14 @@ describe('Home — tác phẩm có giá trị (badge & gating trên feed)', () =
     expect(component.valueBadgeText(normalPin)).toBe('');
   });
 
-  it('shows the converted NovaToken fixed price on the badge', () => {
-    expect(component.valueBadgeText(fixedPin)).toContain('2.500 NT');
+  it('shows the fixed price directly in VND on the badge', () => {
+    expect(component.valueBadgeText(fixedPin)).toContain('2.500.000đ');
   });
 
   it('shows "Giá hiện tại · ..." with the real current price for an active auction', () => {
     const text = component.valueBadgeText(auctionPin);
     expect(text).toContain('Giá hiện tại');
-    expect(text).toContain('2.500 NT');
+    expect(text).toContain('2.500.000đ');
   });
 
   it('opens a normal pin directly regardless of plan — no gating for non-monetized pins', () => {

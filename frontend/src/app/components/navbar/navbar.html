@@ -20,7 +20,9 @@
       *ngIf="supabaseService.user()"
       (click)="sidebarState.toggleSidebar()"
       class="flex relative h-11 w-11 shrink-0 items-center justify-center rounded-control text-text transition-colors duration-150 hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg cursor-pointer"
-      [attr.aria-label]="sidebarState.isExpanded() ? 'Thu gọn menu điều hướng' : 'Mở rộng menu điều hướng'"
+      [attr.aria-label]="
+        sidebarState.isExpanded() ? 'Thu gọn menu điều hướng' : 'Mở rộng menu điều hướng'
+      "
       [attr.aria-expanded]="sidebarState.isExpanded()"
       aria-controls="app-sidebar-panel"
     >
@@ -47,7 +49,11 @@
       [class.cursor-pointer]="!supabaseService.user()"
       class="nf-search flex items-center gap-2"
     >
-      <span class="nf-search-icon material-symbols-outlined text-xl leading-none shrink-0" aria-hidden="true">search</span>
+      <span
+        class="nf-search-icon material-symbols-outlined text-xl leading-none shrink-0"
+        aria-hidden="true"
+        >search</span
+      >
       <input
         *ngIf="supabaseService.user()"
         type="search"
@@ -57,13 +63,19 @@
         (keydown.enter)="onEnterKey()"
         (keydown.arrowdown)="onArrowDown($event)"
         (keydown.arrowup)="onArrowUp($event)"
-        [placeholder]="isProfilePage() ? 'Tìm kiếm tác phẩm của bạn' : 'Tìm kiếm ý tưởng, tác phẩm, hoặc tác giả...'"
+        [placeholder]="
+          isProfilePage()
+            ? 'Tìm kiếm tác phẩm của bạn'
+            : 'Tìm kiếm ý tưởng, tác phẩm, hoặc tác giả...'
+        "
         aria-label="Tìm kiếm"
         role="combobox"
         aria-haspopup="listbox"
         [attr.aria-expanded]="showSearchDropdown()"
         aria-controls="nf-search-listbox"
-        [attr.aria-activedescendant]="activeSuggestionIndex() >= 0 ? 'nf-suggestion-' + activeSuggestionIndex() : null"
+        [attr.aria-activedescendant]="
+          activeSuggestionIndex() >= 0 ? 'nf-suggestion-' + activeSuggestionIndex() : null
+        "
         class="bg-transparent border-none outline-none flex-1 min-w-0 text-sm text-text placeholder-text-muted"
         (click)="$event.stopPropagation()"
       />
@@ -168,14 +180,19 @@
               class="w-full flex items-center justify-between gap-2 text-left px-3 py-2 rounded-control hover:bg-surface-elevated cursor-pointer border-none outline-none bg-transparent focus-visible:ring-2 focus-visible:ring-accent"
             >
               <span class="flex items-center gap-2 min-w-0 text-sm text-text">
-                <span class="material-symbols-outlined text-base text-text-muted leading-none" aria-hidden="true">history</span>
+                <span
+                  class="material-symbols-outlined text-base text-text-muted leading-none"
+                  aria-hidden="true"
+                  >history</span
+                >
                 <span class="truncate">{{ term }}</span>
               </span>
               <span
                 (click)="removeRecentSearch(term, $event)"
                 class="material-symbols-outlined text-base text-text-muted hover:text-text leading-none shrink-0"
                 aria-label="Xóa khỏi lịch sử"
-              >close</span>
+                >close</span
+              >
             </button>
           </div>
         </ng-container>
@@ -184,13 +201,17 @@
              the space it occupies. -->
         <ng-template #noHistory>
           <div class="flex flex-col items-center gap-2 px-4 py-7 text-center select-none">
-            <span class="w-11 h-11 rounded-full bg-surface border border-border flex items-center justify-center text-text-muted">
-              <span class="material-symbols-outlined text-xl leading-none" aria-hidden="true">search</span>
+            <span
+              class="w-11 h-11 rounded-full bg-surface border border-border flex items-center justify-center text-text-muted"
+            >
+              <span class="material-symbols-outlined text-xl leading-none" aria-hidden="true"
+                >search</span
+              >
             </span>
             <p class="text-sm font-bold text-text">Bắt đầu tìm kiếm</p>
             <p class="text-xs text-text-muted leading-relaxed max-w-[280px]">
-              Gõ để tìm ý tưởng, tác phẩm hoặc tác giả trên NovaFrame — hoặc bấm
-              biểu tượng máy ảnh để tìm bằng hình ảnh.
+              Gõ để tìm ý tưởng, tác phẩm hoặc tác giả trên NovaFrame — hoặc bấm biểu tượng máy ảnh
+              để tìm bằng hình ảnh.
             </p>
           </div>
         </ng-template>
@@ -198,21 +219,35 @@
 
       <ng-container *ngIf="searchQuery().trim()">
         <!-- Loading -->
-        <div *ngIf="isSuggesting()" class="flex items-center gap-2 px-2 py-1 text-xs text-text-muted select-none">
-          <span class="material-symbols-outlined text-base animate-spin leading-none" aria-hidden="true">progress_activity</span>
+        <div
+          *ngIf="isSuggesting()"
+          class="flex items-center gap-2 px-2 py-1 text-xs text-text-muted select-none"
+        >
+          <span
+            class="material-symbols-outlined text-base animate-spin leading-none"
+            aria-hidden="true"
+            >progress_activity</span
+          >
           Đang tìm gợi ý...
         </div>
 
         <!-- Error -->
-        <div *ngIf="!isSuggesting() && suggestError()" class="flex items-center gap-2 px-2 py-1 text-xs text-error select-none">
-          <span class="material-symbols-outlined text-base leading-none" aria-hidden="true">cloud_off</span>
+        <div
+          *ngIf="!isSuggesting() && suggestError()"
+          class="flex items-center gap-2 px-2 py-1 text-xs text-error select-none"
+        >
+          <span class="material-symbols-outlined text-base leading-none" aria-hidden="true"
+            >cloud_off</span
+          >
           {{ suggestError() }}
         </div>
 
         <ng-container *ngIf="!isSuggesting()">
           <!-- Keyword suggestions -->
           <ng-container *ngIf="suggestKeywords().length > 0">
-            <span class="text-xs font-semibold text-text-muted px-2 select-none">Từ khóa liên quan</span>
+            <span class="text-xs font-semibold text-text-muted px-2 select-none"
+              >Từ khóa liên quan</span
+            >
             <div class="flex flex-col">
               <button
                 *ngFor="let term of suggestKeywords(); let i = index"
@@ -224,7 +259,11 @@
                 [class.bg-surface-elevated]="activeSuggestionIndex() === i"
                 class="w-full text-left flex items-center gap-2 px-3 py-2 rounded-control hover:bg-surface-elevated cursor-pointer border-none outline-none bg-transparent text-sm text-text focus-visible:ring-2 focus-visible:ring-accent"
               >
-                <span class="material-symbols-outlined text-base text-text-muted leading-none" aria-hidden="true">search</span>
+                <span
+                  class="material-symbols-outlined text-base text-text-muted leading-none"
+                  aria-hidden="true"
+                  >search</span
+                >
                 <span class="truncate">{{ term }}</span>
               </button>
             </div>
@@ -232,19 +271,32 @@
 
           <!-- Account matches -->
           <ng-container *ngIf="suggestUsers().length > 0">
-            <span class="text-xs font-semibold text-text-muted px-2 select-none">Tài khoản phù hợp</span>
+            <span class="text-xs font-semibold text-text-muted px-2 select-none"
+              >Tài khoản phù hợp</span
+            >
             <div class="flex flex-col">
               <button
                 *ngFor="let u of suggestUsers(); let i = index"
                 type="button"
                 [id]="'nf-suggestion-' + (suggestKeywords().length + pinsSuggestionCount() + i)"
                 role="option"
-                [attr.aria-selected]="activeSuggestionIndex() === suggestKeywords().length + pinsSuggestionCount() + i"
+                [attr.aria-selected]="
+                  activeSuggestionIndex() === suggestKeywords().length + pinsSuggestionCount() + i
+                "
                 (click)="selectSuggestion({ kind: 'user', user: u })"
-                [class.bg-surface-elevated]="activeSuggestionIndex() === suggestKeywords().length + pinsSuggestionCount() + i"
+                [class.bg-surface-elevated]="
+                  activeSuggestionIndex() === suggestKeywords().length + pinsSuggestionCount() + i
+                "
                 class="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-control hover:bg-surface-elevated cursor-pointer border-none outline-none bg-transparent focus-visible:ring-2 focus-visible:ring-accent"
               >
-                <app-user-avatar [src]="u.avatarUrl" [name]="u.username" [size]="28" [ring]="false" [plan]="u.plan"></app-user-avatar>
+                <app-user-avatar
+                  [src]="u.avatarUrl"
+                  [name]="u.username"
+                  [size]="28"
+                  [ring]="false"
+                  [plan]="u.plan"
+                  [isAdmin]="u.isAdmin"
+                ></app-user-avatar>
                 <span class="text-sm font-bold text-text truncate">{{ u.username }}</span>
               </button>
             </div>
@@ -252,7 +304,9 @@
 
           <!-- Matching pins -->
           <ng-container *ngIf="suggestPins().length > 0">
-            <span class="text-xs font-semibold text-text-muted px-2 select-none">Hình ảnh phù hợp</span>
+            <span class="text-xs font-semibold text-text-muted px-2 select-none"
+              >Hình ảnh phù hợp</span
+            >
             <div class="grid grid-cols-3 gap-2 px-1">
               <button
                 *ngFor="let pin of suggestPins().slice(0, 6); let i = index"
@@ -266,13 +320,23 @@
                 [class.ring-accent]="activeSuggestionIndex() === suggestKeywords().length + i"
                 class="relative aspect-square overflow-hidden rounded-control bg-surface cursor-pointer border-none outline-none p-0 focus-visible:ring-2 focus-visible:ring-accent"
               >
-                <img [src]="pin.imageUrl" [alt]="pin.title" loading="lazy" class="w-full h-full object-cover block" />
+                <img
+                  [src]="pin.imageUrl"
+                  [alt]="pin.title"
+                  loading="lazy"
+                  class="w-full h-full object-cover block"
+                />
               </button>
             </div>
           </ng-container>
 
           <p
-            *ngIf="!suggestKeywords().length && !suggestUsers().length && !suggestPins().length && !suggestError()"
+            *ngIf="
+              !suggestKeywords().length &&
+              !suggestUsers().length &&
+              !suggestPins().length &&
+              !suggestError()
+            "
             class="text-xs text-text-muted px-2 py-1 select-none"
           >
             Không tìm thấy gợi ý nào cho "{{ searchQuery() }}".
@@ -296,10 +360,12 @@
       *ngIf="supabaseService.user()"
       (click)="navigateToNovaToken()"
       class="hidden sm:flex nf-gradient-pill px-3.5"
-      aria-label="Mở ví NovaToken"
+      aria-label="Mở ví"
     >
-      <img src="/assets/novatoken/novatoken-coin.png" alt="" class="w-6 h-6 object-contain" />
-      <span>{{ (novaTokens.wallet()?.balance || '0') | number:'1.0-0' }} NT</span>
+      <span class="material-symbols-outlined text-base leading-none" aria-hidden="true"
+        >account_balance_wallet</span
+      >
+      <span>{{ novaTokens.wallet()?.balance || '0' | number: '1.0-0' }}đ</span>
     </button>
     <button
       *ngIf="supabaseService.user()"
@@ -307,11 +373,16 @@
       class="hidden sm:flex nf-gradient-pill px-4"
       aria-label="Xem các gói thành viên"
     >
-      <span class="material-symbols-outlined text-base leading-none" aria-hidden="true">diamond</span>
+      <span class="material-symbols-outlined text-base leading-none" aria-hidden="true"
+        >diamond</span
+      >
       <span>Thành viên</span>
     </button>
     <!-- Quick theme switch — visibility controlled from /settings -->
-    <app-theme-toggle *ngIf="themeService.showQuickToggle()" class="hidden sm:inline-flex"></app-theme-toggle>
+    <app-theme-toggle
+      *ngIf="themeService.showQuickToggle()"
+      class="hidden sm:inline-flex"
+    ></app-theme-toggle>
     <!-- Logged in state -->
     <div class="relative flex items-center" *ngIf="supabaseService.user() as user">
       <!-- Trigger button: avatar in soft frame + chevron down -->
@@ -323,7 +394,13 @@
         aria-haspopup="menu"
         [attr.aria-expanded]="showProfilePopup()"
       >
-        <app-user-avatar [src]="avatarUrl()" [name]="displayName()" [size]="36" [plan]="myPlan()"></app-user-avatar>
+        <app-user-avatar
+          [src]="avatarUrl()"
+          [name]="displayName()"
+          [size]="36"
+          [plan]="myPlan()"
+          [isAdmin]="myIsAdmin()"
+        ></app-user-avatar>
         <span
           class="material-symbols-outlined text-[20px] text-text-muted font-semibold leading-none select-none"
           aria-hidden="true"
@@ -338,13 +415,17 @@
         class="account-menu absolute right-0 top-12 mt-2 z-50 animate-fade-in text-left"
       >
         <!-- Header: Đang đăng nhập -->
-        <span class="account-menu-eyebrow select-none">
-          Đang đăng nhập
-        </span>
+        <span class="account-menu-eyebrow select-none"> Đang đăng nhập </span>
 
         <!-- User Card -->
         <div class="account-menu-user select-none">
-          <app-user-avatar [src]="avatarUrl()" [name]="displayName()" [size]="50" [plan]="myPlan()"></app-user-avatar>
+          <app-user-avatar
+            [src]="avatarUrl()"
+            [name]="displayName()"
+            [size]="50"
+            [plan]="myPlan()"
+            [isAdmin]="myIsAdmin()"
+          ></app-user-avatar>
           <div class="flex-1 min-w-0 flex flex-col justify-center">
             <!-- Full Name -->
             <span class="text-[15px] font-extrabold text-text truncate leading-tight font-display">
@@ -358,9 +439,7 @@
         </div>
 
         <!-- Section: Tài khoản của bạn -->
-        <span class="account-menu-section select-none">
-          Tài khoản của bạn
-        </span>
+        <span class="account-menu-section select-none"> Tài khoản của bạn </span>
 
         <!-- View Profile Option -->
         <button
@@ -369,7 +448,9 @@
           (click)="navigateToMyProfile()"
           class="account-menu-item"
         >
-          <span class="material-symbols-outlined" aria-hidden="true">person</span><span>Trang cá nhân</span><i class="material-symbols-outlined" aria-hidden="true">chevron_right</i>
+          <span class="material-symbols-outlined" aria-hidden="true">person</span
+          ><span>Trang cá nhân</span
+          ><i class="material-symbols-outlined" aria-hidden="true">chevron_right</i>
         </button>
 
         <!-- Settings Option -->
@@ -379,7 +460,9 @@
           (click)="navigateToSettings()"
           class="account-menu-item"
         >
-          <span class="material-symbols-outlined" aria-hidden="true">settings</span><span>Cài đặt</span><i class="material-symbols-outlined" aria-hidden="true">chevron_right</i>
+          <span class="material-symbols-outlined" aria-hidden="true">settings</span
+          ><span>Cài đặt</span
+          ><i class="material-symbols-outlined" aria-hidden="true">chevron_right</i>
         </button>
 
         <!-- Quick theme switch — mobile only; sm: and up already has it in
@@ -398,7 +481,15 @@
           role="menuitem"
           (click)="navigateToNovaToken()"
           class="account-menu-item account-menu-wallet"
-        ><img src="/assets/novatoken/novatoken-coin.png" alt="" /><span><b>Ví NovaToken</b><small>{{ (novaTokens.wallet()?.balance || '0') | number:'1.0-0' }} NT khả dụng</small></span><i class="material-symbols-outlined" aria-hidden="true">chevron_right</i></button>
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">account_balance_wallet</span
+          ><span
+            ><b>Ví của bạn</b
+            ><small
+              >{{ novaTokens.wallet()?.balance || '0' | number: '1.0-0' }}đ khả dụng</small
+            ></span
+          ><i class="material-symbols-outlined" aria-hidden="true">chevron_right</i>
+        </button>
 
         <!-- Pricing Option -->
         <button
@@ -406,7 +497,11 @@
           role="menuitem"
           (click)="navigateToPricing()"
           class="account-menu-item account-menu-membership"
-        ><span class="material-symbols-outlined" aria-hidden="true">diamond</span><span>Gói thành viên</span><em>{{ myPlan() || 'FREE' }}</em><i class="material-symbols-outlined" aria-hidden="true">chevron_right</i></button>
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">diamond</span
+          ><span>Gói thành viên</span><em>{{ myPlan() || 'FREE' }}</em
+          ><i class="material-symbols-outlined" aria-hidden="true">chevron_right</i>
+        </button>
 
         <!-- Sign Out Option -->
         <button
@@ -415,7 +510,8 @@
           (click)="signOut()"
           class="account-menu-item account-menu-signout"
         >
-          <span class="material-symbols-outlined" aria-hidden="true">logout</span><span>Đăng xuất</span>
+          <span class="material-symbols-outlined" aria-hidden="true">logout</span
+          ><span>Đăng xuất</span>
         </button>
       </div>
     </div>

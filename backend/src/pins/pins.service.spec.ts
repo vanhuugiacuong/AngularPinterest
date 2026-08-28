@@ -4,9 +4,18 @@ describe('PinsService privacy', () => {
   const prisma = {
     pin: { findFirst: jest.fn(), findUnique: jest.fn() },
     auction: { findMany: jest.fn().mockResolvedValue([]) },
+    imagePurchase: { findFirst: jest.fn().mockResolvedValue(null) },
   };
-  const membershipsService = { status: jest.fn().mockResolvedValue({ plan: 'FREE' }) };
-  const service = new PinsService(prisma as never, {} as never, {} as never, membershipsService as never, {} as never);
+  const membershipsService = {
+    status: jest.fn().mockResolvedValue({ plan: 'FREE' }),
+  };
+  const service = new PinsService(
+    prisma as never,
+    {} as never,
+    {} as never,
+    membershipsService as never,
+    {} as never,
+  );
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -87,7 +96,12 @@ describe('PinsService privacy', () => {
 describe('PinsService notifications', () => {
   const prisma = {
     pin: { findUnique: jest.fn() },
-    like: { findUnique: jest.fn(), delete: jest.fn(), create: jest.fn(), count: jest.fn() },
+    like: {
+      findUnique: jest.fn(),
+      delete: jest.fn(),
+      create: jest.fn(),
+      count: jest.fn(),
+    },
     comment: { create: jest.fn() },
     user: { findUnique: jest.fn() },
   };
@@ -121,7 +135,10 @@ describe('PinsService notifications', () => {
 
     jest.clearAllMocks();
     prisma.pin.findUnique.mockResolvedValue({ id: 'pin-1', userId: 'owner-1' });
-    prisma.like.findUnique.mockResolvedValue({ userId: 'liker-1', pinId: 'pin-1' });
+    prisma.like.findUnique.mockResolvedValue({
+      userId: 'liker-1',
+      pinId: 'pin-1',
+    });
     prisma.like.count.mockResolvedValue(2);
 
     await service.toggleLike('pin-1', 'liker-1');
@@ -144,7 +161,12 @@ describe('PinsService notifications', () => {
     prisma.comment.create.mockResolvedValue({
       id: 'c1',
       content: 'nice!',
-      user: { id: 'commenter-1', username: 'fan', avatarUrl: null, plan: 'FREE' },
+      user: {
+        id: 'commenter-1',
+        username: 'fan',
+        avatarUrl: null,
+        plan: 'FREE',
+      },
     });
 
     await service.addComment('pin-1', 'commenter-1', 'nice!');

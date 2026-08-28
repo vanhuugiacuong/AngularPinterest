@@ -1,0 +1,1 @@
+ALTER TYPE "NovaTokenEntryType" ADD VALUE 'PLATFORM_FEE';
