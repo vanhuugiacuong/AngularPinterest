@@ -46,6 +46,18 @@
             Sửa ảnh
           </span>
         </div>
+
+        <!-- Its own entry rather than a mode inside "Sửa ảnh": that editor
+             decorates one photo at its own aspect ratio, this composes several
+             cutouts onto a fixed 9:16 artboard. Navigates to /collage — the
+             editor needs the whole viewport, so it is a page rather than an
+             overlay squeezed into this one. -->
+        <div (click)="openCollage()" class="relative cursor-pointer transition-all pb-1 opacity-60 hover:opacity-100">
+          <span class="text-[13px] font-bold text-black dark:text-white flex items-center gap-1">
+            <span class="material-symbols-outlined text-sm leading-none text-[#F94083] font-bold">dashboard_customize</span>
+            Ghép ảnh
+          </span>
+        </div>
       </div>
 
       <app-create-post-modal

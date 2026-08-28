@@ -1,11 +1,12 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, inject, signal, computed, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, NgZone, inject, signal, computed, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
 import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
-import { BoardService, Board } from '../../core/services/board';
+import { PinCardActionsService } from '../../core/services/pin-card-actions';
 import { ToastService } from '../../core/services/toast';
+import { advanceMarqueePosition } from './interest-marquee';
 
 @Component({
   selector: 'app-home',
@@ -17,8 +18,8 @@ import { ToastService } from '../../core/services/toast';
 export class Home implements OnInit, AfterViewInit, OnDestroy {
   private pinService = inject(PinService);
   private supabaseService = inject(SupabaseService);
-  private boardService = inject(BoardService);
   private toastService = inject(ToastService);
+  private zone = inject(NgZone);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
@@ -27,9 +28,6 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('scrollSentinel') scrollSentinel!: ElementRef;
 
   public pins = signal<any[]>([]);
-  public boards = signal<Board[]>([]);
-  public activeDropdownPinId = signal<string | null>(null);
-  public selectedBoardMap = signal<Record<string, Board>>({});
   public isLoading = signal<boolean>(true);
   public isScrollingLoad = signal<boolean>(false);
   public numColumns = signal<number>(4);
@@ -40,13 +38,75 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
 
   // Once the user manually drags/touches the interest strip, pause the auto-scroll
   // animation so it doesn't fight their scroll position. Resumes after 10s of no interaction.
-  public isInterestMarqueePaused = signal<boolean>(false);
-  private marqueeResumeTimer: any = null;
+  /* --- Interest strip auto-scroll ------------------------------------------
+     Driven by scrollLeft in requestAnimationFrame, NOT by a CSS transform.
+
+     It was a `translateX(0 -> -50%)` keyframe animation before, and the strip is
+     also manually scrollable, so the two moved the content along two independent
+     offsets that simply added up -- the old comment in home.css admitted as much
+     and worked around it by pausing the animation on any interaction. Two things
+     followed from that. The animation also paused on :hover, and after a wheel
+     scroll the cursor is still sitting over the strip, so it stayed stopped for
+     as long as the pointer stayed there, well past the 10s resume timer -- which
+     is what reads as "it turns off and never comes back". And once resumed, the
+     transform carried on from its own position while the manual scrollLeft
+     offset stayed added on top.
+
+     Moving the auto-scroll onto scrollLeft removes the conflict rather than
+     scheduling around it: both now write the same value, so a manual scroll just
+     relocates the animation and it carries on from where the user left it. */
+  @ViewChild('interestMarquee') private interestMarqueeRef?: ElementRef<HTMLElement>;
+  private marqueeRaf: number | null = null;
+  private marqueeLastFrame = 0;
+  /** Auto-scroll is suppressed until this timestamp; each interaction pushes it
+   * out. 1.6s, not the old 10s: the point is to stay out of the user's way while
+   * they are actually dragging, not to stop for a quarter of a minute. */
+  private marqueeIdleUntil = 0;
+  /** The authoritative offset, as a float. Never read back from scrollLeft while
+   * animating -- see advanceMarqueePosition for why that mattered. */
+  private marqueePos = 0;
+
   pauseInterestMarquee() {
-    this.isInterestMarqueePaused.set(true);
-    clearTimeout(this.marqueeResumeTimer);
-    this.marqueeResumeTimer = setTimeout(() => this.isInterestMarqueePaused.set(false), 10000);
+    this.marqueeIdleUntil = performance.now() + 1600;
   }
+
+  private startInterestMarquee(): void {
+    // Honour the OS setting: a strip that slides on its own is exactly the kind
+    // of motion this asks to be spared, and the CSS version got this for free
+    // from a prefers-reduced-motion rule.
+    if (typeof window === 'undefined') return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    // Outside Angular: this fires 60 times a second and changes nothing the
+    // template reads, so inside the zone it would run change detection over the
+    // whole feed on every frame.
+    this.zone.runOutsideAngular(() => {
+      this.marqueeRaf = requestAnimationFrame(this.stepInterestMarquee);
+    });
+  }
+
+  private stepInterestMarquee = (now: number): void => {
+    this.marqueeRaf = requestAnimationFrame(this.stepInterestMarquee);
+
+    const dt = this.marqueeLastFrame ? (now - this.marqueeLastFrame) / 1000 : 0;
+    this.marqueeLastFrame = now;
+
+    // Only exists once the pins have loaded -- it is inside an @if.
+    const el = this.interestMarqueeRef?.nativeElement;
+    if (!el) return;
+
+    // While the user is in control, follow the DOM rather than write to it, so
+    // the strip carries on from wherever they left it instead of snapping back
+    // to where the animation had got to.
+    if (now < this.marqueeIdleUntil) {
+      this.marqueePos = el.scrollLeft;
+      return;
+    }
+
+    const next = advanceMarqueePosition(this.marqueePos, dt, el.scrollWidth / 2);
+    if (next === null) return;
+    this.marqueePos = next;
+    el.scrollLeft = next;
+  };
 
   // Pins the user likely has an interest in, derived from the (personalized) feed order
   public interestPins = computed(() => this.pins().slice(0, 15));
@@ -174,12 +234,18 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit() {
     this.setupIntersectionObserver();
+    // Safe to start before the strip exists: the loop skips frames while the
+    // @if has not produced the element yet.
+    this.startInterestMarquee();
   }
 
   ngOnDestroy() {
     if (this.observer) {
       this.observer.disconnect();
     }
+    // Otherwise the burst timer fires into a destroyed component after a fast
+    // like-then-navigate; pin-detail.ts clears its own the same way.
+    if (this.marqueeRaf !== null) cancelAnimationFrame(this.marqueeRaf);
   }
 
   setupIntersectionObserver() {
@@ -198,18 +264,9 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   }
 
   async loadBoards() {
-    const currentUser = this.supabaseService.user();
-    if (currentUser) {
-      try {
-        const token = await this.supabaseService.getSessionToken();
-        if (token) {
-          const list = await this.boardService.getBoards(token);
-          this.boards.set(list);
-        }
-      } catch (error) {
-        console.error('Error fetching user boards:', error);
-      }
-    }
+    // Delegated: the service loads once per session, and every page that
+    // shows a card shares the one result.
+    await this.cardActions.loadBoards();
   }
 
   async loadPins() {
@@ -296,118 +353,14 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     this.router.navigate(['/pin', pinId]);
   }
 
-  // Pins the current user has liked this session — the feed list endpoint only returns a
-  // like count, not a per-user "did I like this" flag, so this starts empty on load and
-  // fills in as the user actually clicks hearts (good enough for the heart's black->pink
-  // click feedback; it won't reflect likes from a previous session until reloaded).
-  public likedPinIds = signal<Set<string>>(new Set());
+  /** Save/like live in a shared service — see PinCardActionsService for why
+   * this page no longer carries its own copy. Public so the template can
+   * bind straight to its signals. */
+  public readonly cardActions = inject(PinCardActionsService);
 
-  async toggleLike(pin: any, event: MouseEvent) {
-    event.stopPropagation();
-    const currentUser = this.supabaseService.user();
-    if (!currentUser) return;
-
-    // 1. Optimistic UI update (0ms instant response)
-    const currentlyLiked = this.likedPinIds().has(pin.id);
-    const nextLiked = !currentlyLiked;
-
-    if (nextLiked) {
-      pin.likes = (pin.likes || 0) + 1;
-    } else {
-      pin.likes = Math.max(0, (pin.likes || 0) - 1);
-    }
-
-    this.likedPinIds.update(current => {
-      const next = new Set(current);
-      if (nextLiked) next.add(pin.id);
-      else next.delete(pin.id);
-      return next;
-    });
-    this.pins.update(current => [...current]);
-
-    // 2. Perform network call asynchronously
-    try {
-      const token = await this.supabaseService.getSessionToken();
-      if (token) {
-        const result = await this.pinService.toggleLike(pin.id, token);
-        if (result.liked !== nextLiked) {
-          // Revert if server mismatch
-          this.likedPinIds.update(current => {
-            const next = new Set(current);
-            if (result.liked) next.add(pin.id);
-            else next.delete(pin.id);
-            return next;
-          });
-          this.pins.update(current => [...current]);
-        }
-      }
-    } catch (error) {
-      console.error('Error toggling like:', error);
-      // Revert on error
-      this.likedPinIds.update(current => {
-        const next = new Set(current);
-        if (currentlyLiked) next.add(pin.id);
-        else next.delete(pin.id);
-        return next;
-      });
-      if (currentlyLiked) pin.likes = (pin.likes || 0) + 1;
-      else pin.likes = Math.max(0, (pin.likes || 0) - 1);
-      this.pins.update(current => [...current]);
-    }
-  }
-
-  toggleBoardDropdown(pinId: string, event: MouseEvent) {
-    event.stopPropagation();
-    if (this.activeDropdownPinId() === pinId) {
-      this.activeDropdownPinId.set(null);
-    } else {
-      this.activeDropdownPinId.set(pinId);
-    }
-  }
-
-  // "Lưu" opens the board picker so the user chooses where to save — if they have
-  // no boards yet, there's nothing to pick from, so we fall back to saving into an
-  // auto-created default board immediately (same as before).
-  async onSaveClick(pinId: string, event: MouseEvent) {
-    event.stopPropagation();
-    if (this.boards().length > 0) {
-      this.activeDropdownPinId.set(this.activeDropdownPinId() === pinId ? null : pinId);
-      return;
-    }
-    await this.saveToBoard(pinId, null, event);
-  }
-
-  async saveToBoard(pinId: string, board: Board | null, event: MouseEvent) {
-    event.stopPropagation();
-    this.activeDropdownPinId.set(null);
-    const currentUser = this.supabaseService.user();
-    if (!currentUser) return;
-
-    try {
-      const token = await this.supabaseService.getSessionToken();
-      if (!token) return;
-
-      let boardId = board?.id;
-      let boardName = board?.name;
-
-      if (!boardId) {
-        const newBoard = await this.boardService.createBoard(
-          'Hồ sơ',
-          'Bảng lưu mặc định',
-          false,
-          token
-        );
-        this.boards.update(current => [newBoard, ...current]);
-        boardId = newBoard.id;
-        boardName = newBoard.name;
-      }
-
-      this.selectedBoardMap.update(current => ({ ...current, [pinId]: { id: boardId!, name: boardName! } as Board }));
-      await this.boardService.addPinToBoard(boardId, pinId, token);
-      this.toastService.success(`Đã lưu vào bảng "${boardName}"!`);
-    } catch (error) {
-      console.error('Error saving pin to board:', error);
-      this.toastService.error('Lỗi khi lưu ảnh vào bảng.');
-    }
-  }
+  /** Handed to cardActions.toggleLike: the pins list holds plain objects that
+   * the service mutates in place, so the signal needs poking for the new count
+   * to reach the template. Bound as a field, not a method, because it is passed
+   * by reference from the template. */
+  public readonly refreshPins = () => this.pins.update((current) => [...current]);
 }

@@ -421,14 +421,18 @@
 </nav>
 
 <!-- Live notification toasts -->
-<div class="fixed top-20 right-6 z-[60] flex flex-col gap-2 w-80 pointer-events-none">
+<!-- top-20 = 64px header + 16px gap, so the toast starts right below the header
+     instead of covering the bell/avatar controls (a toast on top of them at z-60
+     would swallow clicks meant for those buttons). --><div class="fixed top-20 right-6 z-[60] flex flex-col-reverse gap-2 w-80 pointer-events-none">
   <div
     *ngFor="let toast of toasts()"
-    class="pointer-events-auto bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-[0_16px_48px_rgba(0,0,0,0.18)] dark:shadow-[0_16px_48px_rgba(0,0,0,0.5)] border border-[#dadad3] dark:border-[#333] p-2 flex items-center gap-2 animate-fade-in"
+    class="pointer-events-auto bg-white dark:bg-[#1a1a1e] rounded-2xl shadow-[0_16px_48px_rgba(0,0,0,0.18)] dark:shadow-[0_16px_48px_rgba(0,0,0,0.5)] border border-[#dadad3] dark:border-[#333] p-2 flex items-center gap-2 animate-fade-in"
   >
     <div class="flex-1 min-w-0">
       <app-notification-item
         [notification]="toast.notification"
+        [showUnreadDot]="false"
+        [unreadHighlight]="false"
         (itemClick)="onToastClick(toast.id, $event)"
       ></app-notification-item>
     </div>

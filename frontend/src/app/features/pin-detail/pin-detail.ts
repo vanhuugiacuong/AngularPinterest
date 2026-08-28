@@ -6,6 +6,7 @@ import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
 import { ToastService } from '../../core/services/toast';
+import { PinCardActionsService } from '../../core/services/pin-card-actions';
 import { ConfirmService } from '../../core/services/confirm';
 import { ReportService } from '../../core/services/report';
 import { ChatService, ConversationSummary } from '../../core/services/chat';
@@ -55,7 +56,15 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
 
   /** Bật trong ~0.5s ngay sau khi bấm thích để chạy hiệu ứng nảy + vòng loang. */
   public likeBurst = signal<boolean>(false);
+  /* Stays local: the main pin's heart is driven by isLikedByUser(), which reads
+     the likes array the API sends for this pin — real server state, unlike the
+     session-scoped Set the cards share. Its burst is a plain boolean because
+     there is only ever one main pin. */
   private likeBurstTimer: any = null;
+  /** Card save/like state, shared with the feed and the search grid — see
+   * PinCardActionsService. The related cards on this page bind to it, and the
+   * top-row save button reports into it via markSaved(). */
+  public readonly cardActions = inject(PinCardActionsService);
   public isScrollingLoad = signal<boolean>(false);
   public isLandscape = signal<boolean>(false);
   public isDesktop = signal<boolean>(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
@@ -301,18 +310,10 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   }
 
   async loadBoards() {
-    const currentUser = this.supabaseService.user();
-    if (currentUser) {
-      try {
-        const token = await this.supabaseService.getSessionToken();
-        if (token) {
-          const list = await this.boardService.getBoards(token);
-          this.boards.set(list);
-        }
-      } catch (error) {
-        console.error('Error fetching user boards:', error);
-      }
-    }
+    // Delegated: the service holds the one list every card picker reads, and
+    // loads it once per session.
+    await this.cardActions.loadBoards();
+    this.boards.set(this.cardActions.boards());
   }
 
   async loadPinDetail(id: string) {
@@ -340,6 +341,10 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       if (this.cropMode() && detailPin?.id) {
         this.runRegionSearch();
       }
+
+      // The API sends the whole likes array for this pin, so unlike the cards
+      // we actually know whether the viewer liked it — hand that over.
+      if (this.isLikedByUser()) this.cardActions.seedLiked([id]);
 
       // 2. Fetch related feed by category (excluding this one)
       try {
@@ -622,7 +627,13 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
   async toggleLike() {
     const currentPin = this.pin();
     const currentUser = this.supabaseService.user();
-    if (!currentPin || !currentUser) return;
+    if (!currentPin) return;
+    // Was a silent no-op when signed out, so the button simply did nothing and
+    // gave no reason. Same message shape as saving to a board.
+    if (!currentUser) {
+      this.toastService.error('Bạn cần đăng nhập để thích ảnh.');
+      return;
+    }
 
     // 1. Optimistic UI update (0ms instant response)
     const currentlyLiked = this.isLikedByUser();
@@ -642,6 +653,15 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       this.likeBurstTimer = setTimeout(() => this.likeBurst.set(false), 520);
     }
 
+    // Toast rides with the optimistic update, not the network reply, so it
+    // lands at the same moment the heart fills. The catch below undoes both the
+    // state and this claim if the call fails.
+    if (currentlyLiked) {
+      this.toastService.success('Đã bỏ thích ảnh này.');
+    } else {
+      this.toastService.success('Đã thích ảnh này!');
+    }
+
     // 2. Perform network call asynchronously
     try {
       const token = await this.supabaseService.getSessionToken();
@@ -652,6 +672,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       console.error('Error toggling like:', error);
       // Revert state on error
       this.pin.set(currentPin);
+      this.toastService.error('Không thể cập nhật lượt thích. Vui lòng thử lại.');
     }
   }
 
@@ -738,6 +759,7 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
       }
 
       await this.boardService.addPinToBoard(boardId, currentPin.id, token);
+      this.cardActions.markSaved(currentPin.id);
       this.toastService.success(`Đã lưu vào bảng "${boardName}"!`);
     } catch (error) {
       console.error('Error saving pin to board:', error);

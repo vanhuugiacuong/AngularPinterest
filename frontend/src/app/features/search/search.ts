@@ -4,6 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
 import { ProAvatar } from '../../shared/pro-avatar/pro-avatar';
 import { PinService } from '../../core/services/pin';
+import { PinCardActionsService } from '../../core/services/pin-card-actions';
 import { ChatService, PublicUserSummary } from '../../core/services/chat';
 import { SupabaseService } from '../../core/services/supabase';
 import { VisualSearchService } from '../../core/services/visual-search';
@@ -43,6 +44,11 @@ export class Search implements OnInit {
   public refinementTags = signal<{ label: string; imageUrl: string | null }[]>([]);
   public visualQueryPreviewUrl = signal<string | null>(null);
 
+  /** Save/like live in a shared service — see PinCardActionsService for why
+   * this page no longer carries its own copy. Public so the template can bind
+   * straight to its signals. */
+  public readonly cardActions = inject(PinCardActionsService);
+
   // When the user runs another image search while already on the results page,
   // the router sees the same /search?visual=1 URL and skips re-navigation, so
   // ngOnInit never re-runs. React to the service's results signal directly so a
@@ -79,6 +85,7 @@ export class Search implements OnInit {
   }
 
   ngOnInit() {
+    void this.cardActions.loadBoards();
     this.route.queryParamMap.subscribe(params => {
       const isVisualSearch = params.get('visual') === '1' && this.visualSearchService.results() !== null;
       if (isVisualSearch) {

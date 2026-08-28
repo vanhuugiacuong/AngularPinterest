@@ -1,0 +1,283 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+.panel {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+/* Plain always-visible section header. Replaces a button+chevron whose only job
+   was hiding this column's sole content. */
+.panel-head {
+  /* Fixed chrome: never shrink. This only started mattering once the panel
+     got a definite height (see the min-width:1101px block in collage.css):
+     until then nothing was over-constrained, so the default `flex: 0 1 auto`
+     never shrank anything. With a real height flex takes the overflow out of
+     every shrinkable child, and this one collapsed. */
+  flex: 0 0 auto;
+  padding: 16px 14px 10px;
+}
+.panel-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.panel-head p {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* Takes the leftover height under the header and scrolls inside it, instead of
+   a `calc(100vh - 230px)` guess that had to be kept in sync by hand. */
+.panel-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  padding: 0 12px 14px;
+}
+.empty-state {
+  margin: 0;
+  padding: 18px 10px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+.layer-row-group {
+  display: flex;
+  align-items: stretch;
+}
+
+/* The frame itself — bottom of the stack, and not something the store can move
+   or delete, so it is deliberately not a button. */
+/* --- Background row + colour popover -------------------------------------
+   The row is a button (its colour is editable) but must not read as a cutout
+   that can be dragged or deleted, so it keeps the lock and drops the drag
+   affordance the layer rows have. */
+.background-row {
+  position: relative;
+}
+.layer-row--background {
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+}
+
+/* Bordered, because a white swatch on a light colour or a #121212 swatch on
+   the dark panel would otherwise have no edge at all. */
+.layer-thumb--swatch {
+  box-shadow: inset 0 0 0 1px var(--color-border-strong);
+}
+
+/* Anchored to the row and allowed to overhang the panel — the layers column is
+   248px wide and the grid alone is wider than that, so a popover confined
+   inside would have to wrap to two columns and stop matching the reference
+   layout. Left edge starts at the row so it reads as belonging to it. */
+.colour-popover {
+  position: absolute;
+  z-index: 40;
+  bottom: calc(100% + 8px);
+  left: 0;
+  display: flex;
+  width: max-content;
+  flex-direction: column;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface-elevated);
+  box-shadow: 0 18px 44px -18px rgba(0, 0, 0, 0.75);
+  gap: 12px;
+}
+.colour-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 26px);
+  gap: 8px;
+}
+.colour-swatch {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  /* Hairline ring on every swatch so #FFFFFF and #121212 are both visible
+     against the panel; the selected ring below sits outside it. */
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  cursor: pointer;
+  transition: transform 0.14s ease;
+}
+.colour-swatch:hover {
+  transform: scale(1.12);
+}
+.colour-swatch:focus-visible {
+  outline: 2px solid var(--color-nova-blue);
+  outline-offset: 2px;
+}
+/* Detached ring rather than a border, so selecting a colour does not shrink
+   the swatch and shift the whole grid by a pixel. */
+.colour-swatch.active {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 0 0 2px var(--color-surface-elevated),
+    0 0 0 4px var(--color-nova-blue);
+}
+.colour-hex {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  color: var(--color-text);
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.colour-hex:focus-visible {
+  border-color: var(--color-nova-blue);
+  outline: none;
+}
+.lock-icon {
+  font-size: 16px;
+  color: var(--color-text-muted);
+}
+.layer-row {
+  display: grid;
+  /* handle · thumb · name. The trailing z-index column went with the raw
+     zIndex number it showed — the row's own position in the list already
+     communicates stacking order, and the number leaked an internal value. */
+  grid-template-columns: 18px 48px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--color-text);
+  background: var(--color-surface-elevated);
+  cursor: grab;
+  touch-action: none;
+  text-align: left;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+.layer-row:active {
+  cursor: grabbing;
+}
+.layer-row:hover,
+.layer-row.selected {
+  border-color: var(--color-accent);
+  background: var(--color-surface-high);
+}
+.layer-row.dragging {
+  border-style: dashed;
+  opacity: 0.2;
+}
+.layer-row.drop-target {
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+.drag-handle {
+  color: var(--color-text-muted);
+  font-size: 18px;
+  pointer-events: none;
+}
+.layer-thumb,
+.layer-drag-preview .preview-thumb {
+  display: flex;
+  width: 48px;
+  height: 48px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 8px;
+  /* Transparency checkerboard — theme-independent by convention, same as
+     --color-canvas-neutral's purpose: shows real alpha regardless of theme. */
+  background: repeating-conic-gradient(#fff 0 25%, #dfe3ef 0 50%) 50% / 12px 12px;
+}
+.layer-thumb {
+  pointer-events: none;
+}
+.layer-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.layer-name {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.layer-drag-preview {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 300;
+  display: grid;
+  grid-template-columns: 18px 48px minmax(0, 1fr);
+  max-width: calc(100vw - 24px);
+  min-height: 66px;
+  align-items: center;
+  gap: 9px;
+  padding: 8px;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-control);
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-surface-high) 94%, transparent);
+  box-shadow:
+    0 18px 45px rgba(0, 0, 0, 0.48),
+    0 0 24px color-mix(in srgb, var(--color-accent) 16%, transparent);
+  pointer-events: none;
+  will-change: transform;
+}
+.layer-drag-preview > .material-symbols-outlined {
+  color: var(--color-accent);
+  font-size: 18px;
+}
+.layer-drag-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.layer-drag-preview strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 1100px) {
+  .panel-body {
+    max-height: 360px;
+  }
+}
+
+@media (min-width: 1101px) {
+  .panel {
+    height: 100%;
+    max-height: none;
+  }
+}
+
+/* Text and drawing rows have no picture, so the thumb shows the kind's glyph. */
+.kind-glyph {
+  font-size: 22px;
+  color: var(--color-text-muted);
+}

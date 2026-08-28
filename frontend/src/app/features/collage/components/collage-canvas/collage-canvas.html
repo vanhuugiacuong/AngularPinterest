@@ -1,0 +1,52 @@
+<div #canvasShell class="canvas-shell" aria-label="Khung ảnh ghép tỷ lệ 9:16">
+  <!-- Wraps the canvas element exactly, so the selection toolbar below can be
+       positioned in the canvas element's own coordinate space. The parent
+       cannot do this: .canvas-shell pads and centres the element, so its offset
+       is not knowable from outside this component. -->
+  <div
+    class="canvas-stage"
+    [style.background-color]="store.background()"
+    [style.--stage-dot]="stageDotColor()"
+  >
+    <canvas #canvasElement></canvas>
+
+    <!-- Actions for the selected cutout, anchored under its bounding box the
+         way Pinterest anchors them — rather than parked at a fixed spot, where
+         the link between control and target has to be inferred. Lives here
+         because this component owns the Fabric ↔ screen coordinate mapping. -->
+    @if (selectionBox(); as box) {
+      <div
+        class="selection-tools"
+        role="toolbar"
+        aria-label="Hành động cho phần cắt đang chọn"
+        [style.left.px]="box.left + box.width / 2"
+        [style.top.px]="box.top + box.height"
+      >
+        <button
+          type="button"
+          (click)="store.duplicate()"
+          title="Nhân bản phần cắt"
+          aria-label="Nhân bản phần cắt"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">library_add</span>
+        </button>
+        <button
+          type="button"
+          (click)="store.remove()"
+          title="Xóa phần cắt (Delete)"
+          aria-label="Xóa phần cắt"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+        </button>
+        <button
+          type="button"
+          (click)="recut.emit()"
+          title="Cắt lại phần ảnh này"
+          aria-label="Cắt lại phần ảnh này"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">content_cut</span>
+        </button>
+      </div>
+    }
+  </div>
+</div>

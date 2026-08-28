@@ -1,9 +1,11 @@
 /* Component-specific styles for Home */
 
 /* Infinite left-to-right auto scroll for the "for you" interest strip.
-   The track renders the pin list twice; animating to -50% loops seamlessly.
-   The viewport is also manually scrollable (drag/wheel/touch) — interacting with it
-   pauses the auto-scroll via the .marquee-paused class so the two don't fight. */
+   The track renders the pin list twice so the wrap is invisible, but the motion
+   itself is driven from home.ts by scrollLeft rather than by a keyframe here:
+   the viewport is manually scrollable too, and a CSS transform would move the
+   content along a second, independent offset. See the note on
+   stepInterestMarquee for what that cost. Only the scrollbar hiding is left. */
 .interest-marquee-viewport {
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -13,20 +15,3 @@
   display: none;
 }
 
-.interest-marquee-track {
-  animation: interest-marquee 40s linear infinite;
-}
-
-.interest-marquee-viewport:hover .interest-marquee-track,
-.interest-marquee-viewport.marquee-paused .interest-marquee-track {
-  animation-play-state: paused;
-}
-
-@keyframes interest-marquee {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}

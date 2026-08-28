@@ -189,22 +189,34 @@
                 <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-3 pb-6 border-b border-[#dadad3] dark:border-[#333]">
                   <div class="flex items-center gap-2 shrink-0">
                     <!-- Hearts / Likes count -->
+                    <!-- Background switches via ngClass rather than [class.x] toggles:
+                         the liked look has to REPLACE the grey utilities, not sit
+                         under them. `dark:bg-[#2a2a2a]` is `.dark .bg-...`, two
+                         classes of specificity, so a single-class rule of ours would
+                         lose to it however it were written -- and a `.dark .like-on`
+                         rule cannot work from component CSS at all, since emulated
+                         encapsulation would scope `.dark` to an element that carries
+                         no content attribute. Dropping the utilities avoids the
+                         fight entirely. -->
                     <button 
                       (click)="toggleLike()" 
-                      class="h-10 px-3 bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] rounded-full flex items-center gap-1 cursor-pointer transition-colors active:scale-95 border-none outline-none select-none text-black dark:text-white shrink-0"
+                      class="h-10 px-3 rounded-full flex items-center gap-1 cursor-pointer transition-colors active:scale-95 border-none outline-none select-none shrink-0"
+                      [ngClass]="isLikedByUser()
+                        ? 'like-on'
+                        : 'bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] text-black dark:text-white'"
                       [title]="isLikedByUser() ? 'Bỏ thích' : 'Thích'"
                     >
                       <span class="relative flex items-center justify-center">
                         <!-- Vòng loang toả ra khi vừa bấm thích -->
                         @if (likeBurst()) {
-                          <span class="like-burst" aria-hidden="true"></span>
+                          <span class="icon-burst" aria-hidden="true"></span>
                         }
                         <span
                           class="material-symbols-outlined text-lg leading-none font-bold relative z-10"
                           [class.text-[#F94083]]="isLikedByUser()"
                           [class.text-black]="!isLikedByUser()"
                           [class.dark:text-white]="!isLikedByUser()"
-                          [class.like-pop]="likeBurst()"
+                          [class.icon-pop]="likeBurst()"
                           [style.font-variation-settings]="isLikedByUser() ? &quot;'FILL' 1&quot; : &quot;'FILL' 0&quot;"
                         >
                           favorite
@@ -220,7 +232,7 @@
                         title="Chia sẻ"
                         class="w-9 h-9 rounded-full bg-gray-100 dark:bg-[#2a2a2a] hover:bg-gray-200 dark:hover:bg-[#333] flex items-center justify-center cursor-pointer transition-colors active:scale-90 border-none outline-none select-none text-black dark:text-white shrink-0"
                       >
-                        <span class="material-symbols-outlined text-lg leading-none">upload</span>
+                        <span class="material-symbols-outlined text-lg leading-none">share</span>
                       </button>
 
                       @if (showSharePopover()) {
@@ -307,7 +319,7 @@
                   </div>
 
                   <!-- Profile Board save -->
-                  <div class="flex items-center gap-2 select-none relative shrink-0">
+                  <div class="flex items-center gap-2 select-none relative shrink-0 ml-auto">
                     <!-- Dropdown Trigger -->
                     <button
                       (click)="toggleBoardDropdown($event)"
@@ -322,7 +334,7 @@
                       <div class="absolute left-0 top-11 w-48 bg-white dark:bg-[#242424] rounded-2xl overflow-hidden shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-50 text-left">
                         <span class="text-[9px] uppercase tracking-wider text-gray-400 dark:text-[#777] font-bold px-4 py-1 block">Lưu vào bảng</span>
                         <div class="max-h-[140px] overflow-y-auto">
-                          @for (b of boards(); track b.id) {
+                          @for (b of cardActions.boards(); track b.id) {
                             <div
                               (click)="selectBoard(b, $event)"
                               class="px-4 py-2 text-xs font-bold text-black dark:text-white hover:bg-gray-50 dark:hover:bg-[#333] cursor-pointer truncate"
@@ -334,13 +346,32 @@
                       </div>
                     }
 
-                    <!-- Save button -->
+                    <!-- Short label by necessity: this row holds four controls in
+                         about 450px, and "Lưu vào bộ sưu tập" at text-sm needs ~229px
+                         of it, which left the album name no room and pushed this
+                         button past the card edge. The bookmark icon carries the
+                         "collection" meaning; the full wording stays in the tooltip
+                         and the accessible name. -->
                     <button
                       (click)="savePinToBoard()"
-                      class="h-10 px-6 bg-[#F94083] hover:bg-[#dc2f6d] text-white rounded-full text-sm font-bold cursor-pointer active:scale-95 border-none outline-none shrink-0 inline-flex items-center gap-1.5"
+                      title="Lưu vào bộ sưu tập"
+                      aria-label="Lưu vào bộ sưu tập"
+                      class="h-10 px-6 rounded-full text-sm font-bold cursor-pointer active:scale-95 border-none outline-none shrink-0 inline-flex items-center gap-1.5 transition-colors"
+                      [ngClass]="cardActions.isSaved(p.id)
+                        ? 'save-on'
+                        : 'bg-[#F94083] hover:bg-[#dc2f6d] text-white'"
                     >
-                      <span class="material-symbols-outlined text-[17px] leading-none save-icon">bookmark</span>
-                      Lưu
+                      <span class="relative flex items-center justify-center">
+                        @if (cardActions.saveBurstPinId() === p.id) {
+                          <span class="icon-burst" aria-hidden="true"></span>
+                        }
+                        <span
+                          class="material-symbols-outlined text-[17px] leading-none relative z-10"
+                          [class.save-icon]="cardActions.isSaved(p.id)"
+                          [class.icon-pop]="cardActions.saveBurstPinId() === p.id"
+                        >bookmark</span>
+                      </span>
+                      {{ cardActions.isSaved(p.id) ? 'Đã lưu' : 'Lưu' }}
                     </button>
                   </div>
                 </div>
@@ -502,22 +533,58 @@
                               fetchpriority="low"
                               class="w-full h-auto rounded-[24px] block transition-transform duration-300 group-hover:scale-102"
                             />
-                            <!-- Hover overlay -->
+                            <!-- Hover overlay. Same three states as a feed card: save, pick a board, see
+                                 whose pin it is. The save button previously carried no (click) at all, and
+                                 the row under it paired a hardcoded source-domain chip with a "..." button
+                                 that did nothing either -- neither had an equivalent in the feed card nor
+                                 any data behind it, so rel.author (which the mapper already loads) took
+                                 their place. -->
                             <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3.5 text-white z-10">
-                              <div class="flex justify-end">
-                                <button class="bg-[#F94083] hover:bg-[#dc2f6d] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none inline-flex items-center gap-1">
-                                  <span class="material-symbols-outlined text-[15px] leading-none save-icon">bookmark</span>
-                                  Lưu
-                                </button>
-                              </div>
-                              <div class="flex items-center justify-between w-full min-w-0">
-                                <div class="flex items-center gap-1 bg-white/20 backdrop-blur-md px-2 py-1 rounded-full text-[10px] font-semibold text-white">
-                                  <span class="material-symbols-outlined text-[10px] leading-none">arrow_outward</span>
-                                  <span class="truncate max-w-[60px]">pinterest.com</span>
+                              <!-- Stops the card's own (click)="navigateToPin" -- saving must not also
+                                   leave the page for the pin being saved. -->
+                              <div class="flex justify-end" (click)="$event.stopPropagation()">
+                                <div class="relative shrink-0">
+                                  <button
+                                    (click)="cardActions.onSaveClick(rel.id, $event)"
+                                    class="font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none inline-flex items-center gap-1 active:scale-95 transition-colors"
+                                    [ngClass]="cardActions.isSaved(rel.id)
+                                      ? 'save-on'
+                                      : 'bg-[#F94083] hover:bg-[#dc2f6d] text-white'"
+                                  >
+                                    <span class="relative flex items-center justify-center">
+                                      @if (cardActions.saveBurstPinId() === rel.id) {
+                                        <span class="icon-burst" aria-hidden="true"></span>
+                                      }
+                                      <span
+                                        class="material-symbols-outlined text-[15px] leading-none relative z-10"
+                                        [class.save-icon]="cardActions.isSaved(rel.id)"
+                                        [class.icon-pop]="cardActions.saveBurstPinId() === rel.id"
+                                      >bookmark</span>
+                                    </span>
+                                    {{ cardActions.isSaved(rel.id) ? 'Đã lưu' : 'Lưu' }}
+                                  </button>
+
+                                  @if (cardActions.activeDropdownPinId() === rel.id) {
+                                    <div class="absolute right-0 top-11 w-44 bg-white dark:bg-[#242424] rounded-2xl overflow-hidden shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-[100] text-left">
+                                      <span class="text-[9px] uppercase tracking-wider text-gray-400 dark:text-[#777] font-bold px-3.5 py-1 block">Chọn bảng để lưu</span>
+                                      <div class="max-h-[140px] overflow-y-auto">
+                                        @for (b of cardActions.boards(); track b.id) {
+                                          <div
+                                            (click)="cardActions.saveToBoard(rel.id, b, $event)"
+                                            class="px-3.5 py-2 text-xs font-bold text-black dark:text-white hover:bg-gray-50 dark:hover:bg-[#333] cursor-pointer truncate"
+                                          >
+                                            {{ b.name }}
+                                          </div>
+                                        }
+                                      </div>
+                                    </div>
+                                  }
                                 </div>
-                                <button class="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-100 cursor-pointer border-none outline-none">
-                                  <span class="material-symbols-outlined text-sm font-bold">more_horiz</span>
-                                </button>
+                              </div>
+
+                              <div class="flex items-center gap-1 bg-white/20 backdrop-blur-md px-2 py-1 rounded-full text-[10px] font-semibold text-white self-start max-w-full min-w-0">
+                                <span class="material-symbols-outlined text-[10px] leading-none shrink-0">person</span>
+                                <span class="truncate">{{ rel.author }}</span>
                               </div>
                             </div>
                           </div>
@@ -583,23 +650,59 @@
                             fetchpriority="low"
                             class="w-full h-auto rounded-[24px] block transition-transform duration-300 group-hover:scale-102"
                           />
-                          <!-- Hover overlay -->
+                          <!-- Hover overlay. Same three states as a feed card: save, pick a board, see
+                               whose pin it is. The save button previously carried no (click) at all, and
+                               the row under it paired a hardcoded source-domain chip with a "..." button
+                               that did nothing either -- neither had an equivalent in the feed card nor
+                               any data behind it, so rel.author (which the mapper already loads) took
+                               their place. -->
                           <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3.5 text-white z-10">
-                            <div class="flex justify-end">
-                              <button class="bg-[#F94083] hover:bg-[#dc2f6d] text-white font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none inline-flex items-center gap-1">
-                                <span class="material-symbols-outlined text-[15px] leading-none save-icon">bookmark</span>
-                                Lưu
-                              </button>
-                            </div>
-                            <div class="flex items-center justify-between w-full min-w-0">
-                              <div class="flex items-center gap-1 bg-white/20 backdrop-blur-md px-2 py-1 rounded-full text-[10px] font-semibold text-white">
-                                  <span class="material-symbols-outlined text-[10px] leading-none">arrow_outward</span>
-                                  <span class="truncate max-w-[60px]">pinterest.com</span>
-                                </div>
-                                <button class="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-100 cursor-pointer border-none outline-none">
-                                  <span class="material-symbols-outlined text-sm font-bold">more_horiz</span>
+                            <!-- Stops the card's own (click)="navigateToPin" -- saving must not also
+                                 leave the page for the pin being saved. -->
+                            <div class="flex justify-end" (click)="$event.stopPropagation()">
+                              <div class="relative shrink-0">
+                                <button
+                                  (click)="cardActions.onSaveClick(rel.id, $event)"
+                                  class="font-bold px-4 py-2 rounded-full text-xs cursor-pointer border-none outline-none inline-flex items-center gap-1 active:scale-95 transition-colors"
+                                  [ngClass]="cardActions.isSaved(rel.id)
+                                    ? 'save-on'
+                                    : 'bg-[#F94083] hover:bg-[#dc2f6d] text-white'"
+                                >
+                                  <span class="relative flex items-center justify-center">
+                                    @if (cardActions.saveBurstPinId() === rel.id) {
+                                      <span class="icon-burst" aria-hidden="true"></span>
+                                    }
+                                    <span
+                                      class="material-symbols-outlined text-[15px] leading-none relative z-10"
+                                      [class.save-icon]="cardActions.isSaved(rel.id)"
+                                      [class.icon-pop]="cardActions.saveBurstPinId() === rel.id"
+                                    >bookmark</span>
+                                  </span>
+                                  {{ cardActions.isSaved(rel.id) ? 'Đã lưu' : 'Lưu' }}
                                 </button>
+
+                                @if (cardActions.activeDropdownPinId() === rel.id) {
+                                  <div class="absolute right-0 top-11 w-44 bg-white dark:bg-[#242424] rounded-2xl overflow-hidden shadow-2xl border border-gray-100 dark:border-[#333] py-1.5 z-[100] text-left">
+                                    <span class="text-[9px] uppercase tracking-wider text-gray-400 dark:text-[#777] font-bold px-3.5 py-1 block">Chọn bảng để lưu</span>
+                                    <div class="max-h-[140px] overflow-y-auto">
+                                      @for (b of cardActions.boards(); track b.id) {
+                                        <div
+                                          (click)="cardActions.saveToBoard(rel.id, b, $event)"
+                                          class="px-3.5 py-2 text-xs font-bold text-black dark:text-white hover:bg-gray-50 dark:hover:bg-[#333] cursor-pointer truncate"
+                                        >
+                                          {{ b.name }}
+                                        </div>
+                                      }
+                                    </div>
+                                  </div>
+                                }
                               </div>
+                            </div>
+
+                            <div class="flex items-center gap-1 bg-white/20 backdrop-blur-md px-2 py-1 rounded-full text-[10px] font-semibold text-white self-start max-w-full min-w-0">
+                              <span class="material-symbols-outlined text-[10px] leading-none shrink-0">person</span>
+                              <span class="truncate">{{ rel.author }}</span>
+                            </div>
                           </div>
                         </div>
                       </div>

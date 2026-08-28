@@ -1,0 +1,67 @@
+/* Design tokens for the ported collage editor, mapped onto PinHub's palette.
+ *
+ * Why this file exists: the collage feature came from a branch built on a CSS
+ * custom-property design system (--color-surface, --radius-panel, and 22 more).
+ * This app has no such system — it styles with Tailwind utilities and literal
+ * hex (#F94083, #121212, …), and its styles.css is 57 lines of Tailwind import
+ * plus a few globals. Every var() in the ported CSS would otherwise resolve to
+ * nothing: transparent panels, unstyled text, square corners. Not merely
+ * off-brand — broken.
+ *
+ * Defining the tokens once here beats find-and-replacing colours through six
+ * stylesheets: the ported files stay diffable against their origin branch, and
+ * re-theming later means editing this file rather than hunting hex codes again.
+ *
+ * DARK-ONLY, deliberately. ThemeService fixes the app to dark
+ * (`export type Theme = 'dark'`, always adding `.dark` to documentElement), so
+ * there is no light mode to serve. The first version of this file did define a
+ * light palette here with dark overrides under `html.dark .collage-page` — and
+ * every panel rendered white on the dark page, because Angular's emulated
+ * encapsulation rewrites that selector into `html.dark[_ngcontent-x]
+ * .collage-page[_ngcontent-x]`, and <html> carries no component content
+ * attribute, so the dark block never matched. Single palette, no ancestor
+ * selector, nothing to mis-scope.
+ *
+ * Values come from what the app actually uses (create.html, edit-image, home):
+ * #F94083 as the brand, #FF6F9C as its lighter partner, and the
+ * #121212/#1a1a1a/#242424/#2a2a2a dark ladder.
+ *
+ * Scoped to the class, not :root, so nothing here can leak out and start
+ * overriding Tailwind-styled components elsewhere in the app. */
+
+.collage-page {
+  /* Brand. The origin branch drove its gradients from two distinct hues
+     (blue + violet); both map into the pink family here so a gradient built
+     from them still reads as a gradient rather than a flat fill. */
+  --color-nova-blue: #f94083;
+  --color-iris-violet: #ff6f9c;
+  --color-accent: #f94083;
+  --color-secondary: #ff6f9c;
+  --color-text-on-accent: #ffffff;
+
+  --color-error: #e5484d;
+  --color-success: #30a46c;
+
+  --color-bg: #121212;
+  --color-bg-secondary: #1a1a1a;
+  --color-surface: #1a1a1a;
+  --color-surface-elevated: #242424;
+  --color-surface-high: #2a2a2a;
+  --color-border: #2a2a2a;
+  --color-border-strong: #3a3a3a;
+  --color-text: #ffffff;
+  --color-text-muted: #9a9a94;
+  /* Scrims and overlay pills that sit over artwork — dark by role, not by
+     theme, so this stays the same value the origin branch used. */
+  --color-ink: #121212;
+
+  --font-sans: inherit;
+  --ease-trace: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --radius-control: 10px;
+  --radius-cta: 10px;
+  --radius-frame: 16px;
+  --radius-panel: 16px;
+
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.45);
+}

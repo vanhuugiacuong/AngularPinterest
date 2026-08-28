@@ -14,8 +14,29 @@ import sharp from 'sharp';
  */
 @Injectable()
 export class WatermarkService {
-  /** Cạnh dài tối đa của bản preview — đủ xem, không đủ dùng lại. */
-  private readonly PREVIEW_MAX_EDGE = 1200;
+  /**
+   * Cạnh dài tối đa của bản preview có watermark (trang chi tiết).
+   *
+   * web246 hạ xuống 560 kèm blur sigma 18. Lập luận của họ ĐÚNG về mặt kỹ
+   * thuật: blur là một phép chập nên ảnh mờ ở độ phân giải cao có thể khôi
+   * phục một phần bằng deconvolution, còn thu nhỏ thì mất thông tin vĩnh viễn.
+   *
+   * Nhưng bản này KHÔNG nướng blur, vì hai lý do:
+   *  1. Chủ dự án đã báo lỗi đúng hiện tượng đó — bản preview nhoè tới mức
+   *     không nhìn ra ảnh gì (430x560, 6.8KB) — và yêu cầu sửa. Nướng blur vào
+   *     là dựng lại đúng thứ vừa bị bỏ.
+   *  2. Từ khi tách ba bản, thứ hiển thị ngoài feed đã là `makeThumb` (sạch,
+   *     600px). Preview mờ đậm hơn cả thumbnail ngoài feed thì người xem thấy
+   *     ảnh ở trang chi tiết XẤU HƠN lúc lướt — ngược đời với việc bán hàng.
+   *
+   * Bảo vệ thật nằm ở chỗ khác: bản công khai không phải file gốc, bản gốc HD
+   * nằm trong bucket riêng tư và chỉ cấp link ký tạm 5 phút cho người đã mua.
+   *
+   * Vẫn nhận phần đúng của web246 về mặt kích thước: giữ 900 thay vì 1200 —
+   * ảnh nguồn thường dưới 1000px nên không khác gì về hiển thị, mà bản công
+   * khai thì nhỏ hơn được chút nào tốt chút đó.
+   */
+  private readonly PREVIEW_MAX_EDGE = 900;
 
   /**
    * Cạnh dài tối đa của ảnh đại diện ngoài feed.

@@ -20,6 +20,9 @@ export interface AppNotification {
   } | null;
   groupCount?: number;
   groupedIds?: string[];
+  /** Only set for client-side "message" toasts (see Navbar.pushChatToast) — tells
+   * onNotificationClick to open this chat instead of the sender's profile. */
+  conversationId?: string;
 }
 
 @Injectable({

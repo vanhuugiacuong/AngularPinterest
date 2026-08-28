@@ -8,7 +8,7 @@ import { NotificationSocketService } from '../../core/services/notification-sock
 import { NotificationItem } from '../notification-item/notification-item';
 import { Icon } from '../../shared/icon/icon';
 import { PinService, Pin } from '../../core/services/pin';
-import { ChatService, PublicUserSummary } from '../../core/services/chat';
+import { ChatService, ChatMessage, PublicUserSummary } from '../../core/services/chat';
 import { BillingService } from '../../core/services/billing';
 import { AdminService } from '../../core/services/admin';
 import { badgeCount } from '../../shared/badge-count';
@@ -115,10 +115,11 @@ export class Navbar {
       }
     });
 
-    // Leaving the chat page usually means whatever was open just got marked read —
-    // re-sync the badge so it doesn't keep counting a conversation you just read.
+    // Re-sync the badge from the server on every navigation — in particular, opening
+    // a conversation (still "/chat", just a different URL) marks it read server-side,
+    // so the badge needs to drop right away rather than waiting to leave /chat entirely.
     this.router.events.subscribe((event) => {
-      if (event instanceof NavigationEnd && !event.urlAfterRedirects.startsWith('/chat')) {
+      if (event instanceof NavigationEnd) {
         this.refreshChatUnreadCount();
       }
     });
@@ -171,10 +172,13 @@ export class Navbar {
     const client = this.supabaseService.getRealtimeClient();
     this.chatUnreadChannel = client
       .channel(`chat-user:${userId}`, { config: { broadcast: { self: false } } })
-      .on('broadcast', { event: 'message' }, () => {
-        if (!this.isChatPage()) {
-          this.chatUnreadCount.update((count) => count + 1);
-        }
+      .on('broadcast', { event: 'message' }, ({ payload }) => {
+        const message = payload as ChatMessage & { sender?: PublicUserSummary };
+        // Already looking at exactly this conversation — Chat's own inbox listener
+        // appends the message live and marks it read, so no badge bump or toast needed.
+        if (this.chatService.activeConversationId() === message.conversationId) return;
+        this.chatUnreadCount.update((count) => count + 1);
+        this.pushChatToast(message);
       })
       .subscribe();
   }
@@ -212,7 +216,9 @@ export class Navbar {
 
   onNotificationClick(notification: AppNotification) {
     this.showNotifPopup.set(false);
-    if (notification.pin) {
+    if (notification.type === 'message' && notification.conversationId) {
+      this.router.navigate(['/chat', notification.conversationId]);
+    } else if (notification.pin) {
       this.router.navigate(['/pin', notification.pin.id]);
     } else if (notification.sender) {
       this.router.navigate(['/profile', notification.sender.username]);
@@ -224,6 +230,23 @@ export class Navbar {
     this.toasts.update((list) => [...list, { id, notification }].slice(-3));
     const timer = setTimeout(() => this.dismissToast(id), 5000);
     this.toastTimers.set(id, timer);
+  }
+
+  /** Messenger-style "new message" toast — built client-side from the broadcast
+   * payload (no notification row exists server-side for this), reusing the same
+   * toast/notification-item UI as real notifications. */
+  private pushChatToast(message: ChatMessage & { sender?: PublicUserSummary }) {
+    const sender = message.sender;
+    this.pushToast({
+      id: `chat-${message.id}`,
+      type: 'message',
+      isRead: false,
+      createdAt: message.createdAt,
+      content: 'đã gửi cho bạn một tin nhắn',
+      sender: sender ? { id: sender.id, username: sender.username, avatarUrl: sender.avatarUrl || undefined } : null,
+      pin: null,
+      conversationId: message.conversationId,
+    });
   }
 
   dismissToast(id: number) {

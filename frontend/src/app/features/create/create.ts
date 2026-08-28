@@ -11,12 +11,19 @@ import { ToastService } from '../../core/services/toast';
 import { ModerationService } from '../../core/services/moderation';
 import { BillingService, PREMIUM_PRICE_MIN, PREMIUM_PRICE_MAX } from '../../core/services/billing';
 import { CreateDraftService } from '../../core/services/create-draft';
+import { CollageTransferService } from '../collage/services/collage-transfer.service';
 import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-create',
   standalone: true,
-  imports: [CommonModule, Navbar, FormsModule, CreatePostModalComponent, EditImageComponent],
+  imports: [
+    CommonModule,
+    Navbar,
+    FormsModule,
+    CreatePostModalComponent,
+    EditImageComponent,
+  ],
   templateUrl: './create.html',
   styleUrl: './create.css'
 })
@@ -29,6 +36,7 @@ export class Create implements OnInit {
   public supabaseService = inject(SupabaseService);
   public billing = inject(BillingService);
   private draft = inject(CreateDraftService);
+  private collageTransfer = inject(CollageTransferService);
 
   // Form Fields
   public title = '';
@@ -152,7 +160,24 @@ export class Create implements OnInit {
     // Restore first (local IndexedDB/sessionStorage reads) so a reloaded edit session
     // reappears immediately, without waiting on the boards network request.
     await this.restoreEditDraft();
+    this.adoptCollageHandoff();
     await this.loadBoards();
+  }
+
+  /** Picks up the PNG the collage editor exported before it navigated here.
+   * Without this the file is set on the service and then silently dropped — the
+   * user finishes a collage and lands on an empty Create form.
+   *
+   * Runs AFTER restoreEditDraft so an arriving collage wins over a stale
+   * half-finished edit session: the user just asked for this file explicitly. */
+  private adoptCollageHandoff(): void {
+    const collageFile = this.collageTransfer.take();
+    if (!collageFile) return;
+    this.releaseEditedPreview();
+    this.editedPreviewUrl = URL.createObjectURL(collageFile);
+    this.selectedFile = collageFile;
+    this.imagePreviewUrl.set(this.editedPreviewUrl);
+    this.activeTab.set('upload');
   }
 
   // Re-open the "Chỉnh sửa" step with the same images if this page just reloaded mid-edit
@@ -189,6 +214,14 @@ export class Create implements OnInit {
         console.error('Error fetching user boards inside Create page:', error);
       }
     }
+  }
+
+  /** "Ghép ảnh" tab. Its own route rather than an overlay here: the editor needs
+   * the full viewport for a three-column layout, and squeezing that into this
+   * page's overlay left the artboard tiny. The finished PNG comes back through
+   * CollageTransferService — see adoptCollageHandoff below. */
+  openCollage() {
+    void this.router.navigate(['/collage']);
   }
 
   // "Sửa ảnh" tab opens the multi-file create-post modal in place,

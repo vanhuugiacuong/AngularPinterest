@@ -29,6 +29,12 @@ export const routes: Routes = [
   { path: 'board/:id/ideas', component: BoardIdeas },
   { path: 'board/:id', component: BoardDetail },
   { path: 'create', component: Create },
+  // Lazy-loaded on its own route: the editor pulls in fabric plus the
+  // segmentation models, and no other page needs that weight.
+  {
+    path: 'collage',
+    loadComponent: () => import('./features/collage/collage').then((m) => m.Collage),
+  },
   { path: 'search', component: Search },
   { path: 'notifications', component: Notifications },
   { path: 'settings', component: Settings },

@@ -5,6 +5,7 @@ import { PinService, Pin } from '../../core/services/pin';
 import { BoardService } from '../../core/services/board';
 import { SupabaseService } from '../../core/services/supabase';
 import { ToastService } from '../../core/services/toast';
+import { PinCardActionsService } from '../../core/services/pin-card-actions';
 
 @Component({
   selector: 'app-board-ideas',
@@ -24,7 +25,12 @@ export class BoardIdeas implements OnInit {
   private boardId = '';
   public ideaPins = signal<Pin[]>([]);
   public isLoading = signal(true);
-  public savedPinIds = signal<Set<string>>(new Set());
+  /* Saved state comes from the shared service, so a pin saved here shows as
+     saved on the feed and under the pin too. The SAVE ITSELF stays local: this
+     page adds to one specific board (the one being viewed), with no picker and
+     no default-board fallback, which is a different flow from a card's save
+     rather than another copy of it. */
+  public readonly cardActions = inject(PinCardActionsService);
   public savingPinId = signal<string | null>(null);
 
   async ngOnInit() {
@@ -75,7 +81,7 @@ export class BoardIdeas implements OnInit {
   }
 
   isSaved(pinId: string): boolean {
-    return this.savedPinIds().has(pinId);
+    return this.cardActions.isSaved(pinId);
   }
 
   async saveToBoard(pin: Pin, event: Event) {
@@ -90,7 +96,7 @@ export class BoardIdeas implements OnInit {
         return;
       }
       await this.boardService.addPinToBoard(this.boardId, pin.id, token);
-      this.savedPinIds.update((set) => new Set(set).add(pin.id));
+      this.cardActions.markSaved(pin.id);
       this.toastService.success('Đã lưu vào bảng!');
     } catch (error) {
       console.error('Error saving idea pin to board:', error);

@@ -19,7 +19,7 @@ const ICON_COLOR_BY_TYPE: Record<NotificationType, string> = {
   save: 'bg-[#F59E0B]',
   new_pin: 'bg-[#10B981]',
   message_request: 'bg-[#F97316]',
-  message: 'bg-[#F97316]'
+  message: 'bg-[#F94083]'
 };
 
 // Custom artwork overrides for specific types — takes priority over the icon-font badge above.
@@ -46,6 +46,13 @@ const ICON_IMAGE_SIZE_BY_TYPE: Partial<Record<NotificationType, string>> = {
 })
 export class NotificationItem {
   @Input({ required: true }) notification!: AppNotification;
+  // Popup list uses the dot to distinguish read/unread among many rows; a toast is
+  // inherently "new", so the dot next to its own close button is redundant there.
+  @Input() showUnreadDot = true;
+  // Popup list tints the row pink while unread; a toast is always "unread" by
+  // definition, so that tint would just bleed pink/purple across its whole
+  // background instead of the flat --pinhub-surface used elsewhere in the app.
+  @Input() unreadHighlight = true;
   @Output() itemClick = new EventEmitter<AppNotification>();
 
   get typeIcon(): string {
