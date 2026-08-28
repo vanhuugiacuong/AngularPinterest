@@ -14,6 +14,7 @@ import {
   PLATFORM_FEE_PERCENT_YEARLY,
   PAYOUT_VND_PER_CREDIT,
   PAYOUT_MIN_CREDITS,
+  PAYOUT_MAX_CREDITS,
   QR_EXPIRE_MS,
   buildQrUrl,
   findPack,
@@ -174,6 +175,24 @@ export class BillingService {
     return { status: payment!.status };
   }
 
+  /**
+   * Dọn các đơn PENDING đã quá `expiresAt` sang EXPIRED.
+   *
+   * Trước đây việc này chỉ xảy ra "lười" — khi frontend gọi lại getPaymentStatus
+   * đúng ref đó. Nếu người dùng bấm tạo QR rồi thoát trang luôn (không quay lại,
+   * không bấm Huỷ) thì không có gì gọi tới nữa, đơn nằm PENDING vĩnh viễn dù QR
+   * đã hết hạn từ lâu — khiến danh sách "Chờ" ở trang quản trị lẫn lộn giữa đơn
+   * đang chờ thật và đơn đã bị bỏ ngang. Quét định kỳ (SepayPollerService) để
+   * việc này không phụ thuộc frontend.
+   */
+  async expireStalePendingPayments(): Promise<number> {
+    const { count } = await this.prisma.payment.updateMany({
+      where: { status: 'PENDING', expiresAt: { lt: new Date() } },
+      data: { status: 'EXPIRED' },
+    });
+    return count;
+  }
+
   // ── Đối soát tự động qua API SePay (không cần webhook công khai) ──────────────
   /** Poll tất cả đơn đang chờ. Trả về số đơn vừa được ghi nhận đã trả. */
   async reconcilePendingViaSepay(): Promise<number> {
@@ -297,6 +316,7 @@ export class BillingService {
       totalEarned: wallet.earnings,
       vndPerCredit: PAYOUT_VND_PER_CREDIT,
       minCredits: PAYOUT_MIN_CREDITS,
+      maxCredits: PAYOUT_MAX_CREDITS,
       canRequest: !pending && wallet.spendable >= PAYOUT_MIN_CREDITS,
       pending,
       history,
@@ -324,6 +344,9 @@ export class BillingService {
     }
     if (credits < PAYOUT_MIN_CREDITS) {
       throw new BadRequestException(`Rút tối thiểu ${PAYOUT_MIN_CREDITS} credit.`);
+    }
+    if (credits > PAYOUT_MAX_CREDITS) {
+      throw new BadRequestException(`Rút tối đa ${PAYOUT_MAX_CREDITS} credit/lần.`);
     }
 
     return this.prisma.$transaction(async (tx) => {

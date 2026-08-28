@@ -16,6 +16,8 @@ export class SupabaseService {
   public user = signal<User | null>(null);
   public loading = signal<boolean>(true);
   public dbUser = signal<any | null>(null);
+  /** Tài khoản bị quản trị viên khoá — xem trang /banned. */
+  public isBanned = signal<boolean>(false);
 
   constructor() {
     const supabaseUrl = 'https://ccepvvaicgjvuaxutrxd.supabase.co';
@@ -123,6 +125,17 @@ export class SupabaseService {
 
       if (!response.ok) {
         const errorText = await response.text();
+        // Bị khoá: backend chặn ở tầng guard nên MỌI request sau đó cũng 403.
+        // Bắt riêng ở đây (sync là request đầu tiên sau khi đăng nhập) để đưa
+        // thẳng sang trang giải thích, thay vì để người dùng lang thang trong
+        // một app hỏng toàn tập mà không biết vì sao.
+        if (response.status === 403 && errorText.includes('ACCOUNT_BANNED')) {
+          this.isBanned.set(true);
+          if (!location.pathname.startsWith('/banned')) {
+            location.assign('/banned');
+          }
+          return;
+        }
         throw new Error(`Failed to sync user: ${errorText}`);
       }
 

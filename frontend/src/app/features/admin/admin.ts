@@ -6,6 +6,7 @@ import { Navbar } from '../../components/navbar/navbar';
 import { Icon } from '../../shared/icon/icon';
 import { ProAvatar } from '../../shared/pro-avatar/pro-avatar';
 import { ToastService } from '../../core/services/toast';
+import { badgeCount } from '../../shared/badge-count';
 import { ConfirmService } from '../../core/services/confirm';
 import { BillingService } from '../../core/services/billing';
 import {
@@ -20,7 +21,10 @@ import {
   AdminPin,
 } from '../../core/services/admin';
 
-type Tab = 'overview' | 'payouts' | 'reports' | 'users' | 'revenue' | 'content';
+/** `txreports` = sự cố chuyển khoản (tiền), tách hẳn khỏi `reports` = báo cáo
+    ảnh vi phạm (nội dung). Hai loại việc khác nhau hoàn toàn, gộp chung một
+    trang thì phải cuộn qua danh sách rút tiền mới thấy được sự cố. */
+type Tab = 'overview' | 'payouts' | 'txreports' | 'reports' | 'users' | 'revenue' | 'content';
 
 @Component({
   selector: 'app-admin',
@@ -30,16 +34,24 @@ type Tab = 'overview' | 'payouts' | 'reports' | 'users' | 'revenue' | 'content';
   styleUrl: './admin.css',
 })
 export class Admin implements OnInit {
-  private admin = inject(AdminService);
+  // public vì thẻ báo lỗi trong template đọc `admin.lastError()` để hiện chi
+  // tiết hỏng ở đâu (mã HTTP, URL) thay vì chỉ báo chung chung.
+  public admin = inject(AdminService);
   private toast = inject(ToastService);
   private confirmService = inject(ConfirmService);
   private router = inject(Router);
   public billing = inject(BillingService);
 
+  /** Số trên huy hiệu tab — quá 9 thì hiện "9+" (xem shared/badge-count.ts). */
+  public badgeCount = badgeCount;
+
   public tab = signal<Tab>('overview');
   public loading = signal(true);
   public allowed = signal<boolean | null>(null);
   public busy = signal(false);
+  /** AdminService nuốt lỗi và trả null, nên nếu không tự bắt thì API hỏng =
+      trang trắng trơn, không phân biệt được với "chưa có dữ liệu". */
+  public loadError = signal<string | null>(null);
 
   public stats = signal<AdminStats | null>(null);
   public payouts = signal<AdminPayout[]>([]);
@@ -55,17 +67,45 @@ export class Admin implements OnInit {
   public pinQuery = '';
   public pinFilter = signal<'all' | 'premium' | 'ai'>('all');
   public payoutFilter = signal<'ALL' | 'PENDING' | 'APPROVED' | 'PAID' | 'REJECTED'>('ALL');
+  /**
+   * 'ACTIVE' = chỉ Chờ + Đã trả (mặc định). Đơn Hết hạn là QR bị bỏ ngang
+   * (người dùng thoát trang, không hề nói lên chuyện gì đang xảy ra) nên xen
+   * vào danh sách chỉ gây nhiễu — chừa lại 'Xem thêm' cho ai thật sự cần soát.
+   */
+  public paymentFilter = signal<'ACTIVE' | 'ALL' | 'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED'>('ACTIVE');
+
+  visiblePayments(): AdminPayment[] {
+    const f = this.paymentFilter();
+    const all = this.payments();
+    if (f === 'ALL') return all;
+    if (f === 'ACTIVE') return all.filter((p) => p.status === 'PENDING' || p.status === 'PAID');
+    return all.filter((p) => p.status === f);
+  }
 
   async ngOnInit() {
     // Backend mới là nơi chặn thật; đây chỉ để chuyển hướng cho gọn giao diện.
-    const ok = await this.admin.checkAdmin();
-    this.allowed.set(ok);
-    if (!ok) {
+    const verdict = await this.admin.checkAdminDetailed();
+
+    // CHỈ đá về trang chủ khi backend nói rõ là không có quyền. Nếu chỉ là
+    // không hỏi được (máy chủ chập chờn) thì ở lại và hiện thẻ báo lỗi có nút
+    // thử lại — trước đây gộp hai trường hợp nên máy chủ trục trặc là bị đẩy ra
+    // ngoài, không thấy lỗi gì, tưởng như mất quyền admin.
+    if (verdict === 'no') {
+      this.allowed.set(false);
       this.loading.set(false);
       this.toast.error('Bạn không có quyền truy cập khu vực quản trị.');
       this.router.navigate(['/feed']);
       return;
     }
+
+    if (verdict === 'unknown') {
+      this.allowed.set(null);
+      this.loadError.set('Không kết nối được máy chủ');
+      this.loading.set(false);
+      return;
+    }
+
+    this.allowed.set(true);
     await this.loadTab('overview');
     this.loading.set(false);
   }
@@ -75,35 +115,116 @@ export class Admin implements OnInit {
     await this.loadTab(t);
   }
 
+  /**
+   * Tiêu đề hero đổi theo mục đang mở — mỗi mục là một loại việc khác hẳn
+   * nhau, nên hero nói đúng việc đang làm thay vì một dòng "Khu vực quản trị"
+   * chung chung cho cả bảy mục. Phần `accent` được tô gradient theo --ad-accent
+   * của mục đó (xem .ad-accent trong admin.css).
+   */
+  heroTitle(): { lead: string; accent: string; sub: string } {
+    switch (this.tab()) {
+      case 'payouts':
+        return { lead: 'Duyệt', accent: 'rút tiền', sub: 'Đối chiếu tài khoản, chuyển khoản rồi chốt sổ từng yêu cầu.' };
+      case 'txreports':
+        return { lead: 'Sự cố', accent: 'chuyển khoản', sub: 'Người dùng báo đã chuyển nhưng chưa nhận — đối chiếu sao kê.' };
+      case 'reports':
+        return { lead: 'Nội dung bị', accent: 'báo cáo', sub: 'Ảnh vi phạm do cộng đồng báo cáo, chờ bạn gỡ hoặc bỏ qua.' };
+      case 'users':
+        return { lead: 'Quản lý', accent: 'người dùng', sub: 'Tìm kiếm, xem gói và khoá tài khoản vi phạm.' };
+      case 'revenue':
+        return { lead: 'Dòng tiền', accent: 'toàn hệ thống', sub: 'Doanh thu theo ngày, giao dịch và số dư credit của từng người.' };
+      case 'content':
+        return { lead: 'Kho', accent: 'nội dung', sub: 'Toàn bộ ảnh trên nền tảng, lọc theo Premium hoặc ảnh AI.' };
+      default:
+        return { lead: 'Điều hành', accent: 'PinHub', sub: 'Toàn cảnh người dùng, doanh thu và những việc đang chờ bạn.' };
+    }
+  }
+
+  /** Tổng số việc đang chờ xử lý — hiện trên chip "còn N việc" ở hero. */
+  pendingWork(): number {
+    const s = this.stats();
+    if (!s) return 0;
+    return s.pendingPayouts + s.openReports + s.openPaymentReports;
+  }
+
   private async loadTab(t: Tab) {
     this.loading.set(true);
+    this.loadError.set(null);
     try {
       switch (t) {
-        case 'overview':
-          this.stats.set(await this.admin.stats());
+        case 'overview': {
+          // Gọi song song: mỗi endpoint tự tuần tự hoá bên trong nên chỉ tốn
+          // 2 kết nối ngắn hạn, không phải kiểu Promise.all(10 query) từng gây
+          // sập tab này.
+          const [s, rd] = await Promise.all([this.admin.stats(), this.admin.revenueDaily()]);
+          if (!s) return this.fail('số liệu tổng quan');
+          this.stats.set(s);
+          if (rd) this.revenueDaily.set(rd);
           break;
-        case 'payouts':
-          this.payouts.set((await this.admin.payouts(this.payoutFilter())) ?? []);
-          this.paymentReports.set((await this.admin.paymentReports('OPEN')) ?? []);
+        }
+        case 'payouts': {
+          const ps = await this.admin.payouts(this.payoutFilter());
+          if (!ps) return this.fail('danh sách rút tiền');
+          this.payouts.set(ps);
           break;
-        case 'reports':
-          this.reports.set((await this.admin.reports('OPEN')) ?? []);
+        }
+        case 'txreports': {
+          const prs = await this.admin.paymentReports('OPEN');
+          if (!prs) return this.fail('danh sách sự cố chuyển khoản');
+          this.paymentReports.set(prs);
           break;
-        case 'users':
-          this.users.set((await this.admin.users(this.userQuery)) ?? []);
+        }
+        case 'reports': {
+          const rs = await this.admin.reports('OPEN');
+          if (!rs) return this.fail('danh sách báo cáo');
+          this.reports.set(rs);
           break;
-        case 'revenue':
-          this.payments.set((await this.admin.payments('ALL')) ?? []);
-          this.wallets.set((await this.admin.wallets()) ?? []);
-          this.revenueDaily.set((await this.admin.revenueDaily()) ?? []);
+        }
+        case 'users': {
+          const us = await this.admin.users(this.userQuery);
+          if (!us) return this.fail('danh sách người dùng');
+          this.users.set(us);
           break;
-        case 'content':
-          this.pins.set((await this.admin.pins(this.pinFilter(), this.pinQuery)) ?? []);
+        }
+        case 'revenue': {
+          const [pm, wl, rd] = await Promise.all([
+            this.admin.payments('ALL'),
+            this.admin.wallets(),
+            this.admin.revenueDaily(),
+          ]);
+          if (!pm || !wl || !rd) return this.fail('dữ liệu doanh thu');
+          this.payments.set(pm);
+          this.wallets.set(wl);
+          this.revenueDaily.set(rd);
           break;
+        }
+        case 'content': {
+          const ps = await this.admin.pins(this.pinFilter(), this.pinQuery);
+          if (!ps) return this.fail('danh sách ảnh');
+          this.pins.set(ps);
+          break;
+        }
       }
     } finally {
       this.loading.set(false);
     }
+  }
+
+  private fail(what: string) {
+    this.loadError.set(`Không tải được ${what}.`);
+  }
+
+  /**
+   * Bấm "Thử lại" ở thẻ báo lỗi. Nếu lần trước hỏng ngay ở bước kiểm quyền
+   * (allowed vẫn là null) thì phải kiểm lại quyền chứ không chỉ tải lại dữ
+   * liệu — nếu không, bấm mãi cũng không qua được bước đầu tiên.
+   */
+  async retry() {
+    if (this.allowed() === null) {
+      await this.ngOnInit();
+      return;
+    }
+    await this.loadTab(this.tab());
   }
 
   // ── Rút tiền ────────────────────────────────────────────────────────────────
@@ -151,6 +272,13 @@ export class Admin implements OnInit {
 
   public rejectReasonInput: Record<string, string> = {};
 
+  /** Id đơn đang mở ô nhập lý do từ chối (mỗi lúc chỉ mở một đơn). */
+  public rejectOpen = signal<string | null>(null);
+
+  toggleReject(id: string) {
+    this.rejectOpen.set(this.rejectOpen() === id ? null : id);
+  }
+
   async rejectPayout(p: AdminPayout) {
     const reason = (this.rejectReasonInput[p.id] || '').trim();
     if (!reason) {
@@ -166,6 +294,7 @@ export class Admin implements OnInit {
     try {
       await this.admin.rejectPayout(p.id, reason);
       this.toast.success('Đã từ chối và hoàn credit.');
+      this.rejectOpen.set(null);
       await this.loadTab('payouts');
     } finally {
       this.busy.set(false);
@@ -177,7 +306,7 @@ export class Admin implements OnInit {
     try {
       await this.admin.resolvePaymentReport(r.id);
       this.toast.success('Đã đánh dấu xử lý xong.');
-      await this.loadTab('payouts');
+      await this.loadTab('txreports');
     } finally {
       this.busy.set(false);
     }
@@ -277,7 +406,10 @@ export class Admin implements OnInit {
     switch (s) {
       case 'PAID': return 'st-paid';
       case 'REJECTED': return 'st-rejected';
-      case 'APPROVED': return 'st-approved';
+      // st-processing (xanh dương), KHÔNG phải st-approved (tím) — tím dành
+      // riêng cho huy hiệu ADMIN/AI. Màu này trùng khít wallet.css để cùng một
+      // đơn không hiện hai màu ở hai trang.
+      case 'APPROVED': return 'st-processing';
       default: return 'st-pending';
     }
   }
@@ -301,6 +433,48 @@ export class Admin implements OnInit {
   barHeight(v: number): number {
     const max = Math.max(1, ...this.revenueDaily().map((d) => d.amountVnd));
     return Math.max(2, Math.round((v / max) * 100));
+  }
+
+  /** Tổng doanh thu trong khoảng biểu đồ đang hiện (30 ngày). */
+  chartTotal(): number {
+    return this.revenueDaily().reduce((sum, d) => sum + d.amountVnd, 0);
+  }
+
+  chartAvg(): number {
+    const days = this.revenueDaily();
+    return days.length ? Math.round(this.chartTotal() / days.length) : 0;
+  }
+
+  /** Ngày doanh thu cao nhất trong khoảng — null nếu cả kỳ đều 0. */
+  chartBest(): { date: string; amountVnd: number } | null {
+    const days = this.revenueDaily();
+    if (!days.length) return null;
+    const best = days.reduce((a, b) => (b.amountVnd > a.amountVnd ? b : a));
+    return best.amountVnd > 0 ? best : null;
+  }
+
+  /** So sánh nửa sau với nửa đầu kỳ — cho biết doanh thu đang lên hay xuống. */
+  chartTrendPct(): number | null {
+    const days = this.revenueDaily();
+    if (days.length < 4) return null;
+    const mid = Math.floor(days.length / 2);
+    const firstHalf = days.slice(0, mid).reduce((s, d) => s + d.amountVnd, 0);
+    const secondHalf = days.slice(mid).reduce((s, d) => s + d.amountVnd, 0);
+    if (firstHalf === 0) return secondHalf > 0 ? 100 : null;
+    return Math.round(((secondHalf - firstHalf) / firstHalf) * 100);
+  }
+
+  /** Nhãn ngày ngắn dd/MM — chỉ hiện ở một vài mốc để trục không rối chữ. */
+  shortDate(iso: string): string {
+    const d = new Date(iso);
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  /** true nếu vị trí `i` trong mảng `total` phần tử nên hiện nhãn ngày dưới cột. */
+  showDateLabel(i: number, total: number): boolean {
+    if (i === 0 || i === total - 1) return true;
+    const step = Math.ceil(total / 6);
+    return i % step === 0;
   }
 
   copy(text: string) {

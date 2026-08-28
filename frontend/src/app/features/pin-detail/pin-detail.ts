@@ -157,6 +157,22 @@ export class PinDetail implements OnInit, AfterViewInit, OnDestroy {
     return this.isPremiumPin && !this.canDownloadHd;
   }
 
+  /**
+   * Ảnh hiển thị ở trang chi tiết.
+   *
+   * Ngoài feed dùng `imageUrl` — bản nhỏ SẠCH, không watermark, để ảnh nhìn
+   * hấp dẫn mà người lướt còn muốn bấm vào. Vào tới đây mới đổi sang
+   * `previewUrl` (bản lớn hơn, watermark phủ kín): đây là chỗ người ta ngắm kỹ
+   * và cân nhắc mua, nên phải chặn chụp lại dùng luôn.
+   *
+   * Ảnh cũ tạo trước khi tách hai bản chưa có previewUrl → lùi về imageUrl.
+   */
+  get displayImageUrl(): string {
+    const p = this.pin();
+    if (!p) return '';
+    return (this.isPremiumPin && p.previewUrl) || p.imageUrl;
+  }
+
   async buyDownload() {
     const id = this.pin()?.id;
     if (!id) return;

@@ -13,6 +13,15 @@
 }
 
 /* ── Vùng thả ảnh sinh động: icon nổi bồng bềnh + glow + tia lấp lánh ────── */
+.drag-drop-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(46% 46% at 50% 42%, rgba(249, 64, 131, 0.12), transparent 70%);
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
 .drag-drop-icon {
   background: var(--grad-brand);
   box-shadow: 0 10px 26px -8px rgba(249, 64, 131, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.25);
@@ -21,15 +30,6 @@
 @keyframes drag-drop-bob {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-6px); }
-}
-
-.drag-drop-glow {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: radial-gradient(46% 46% at 50% 42%, rgba(249, 64, 131, 0.12), transparent 70%);
-  opacity: 0.8;
-  transition: opacity 0.2s ease;
 }
 
 .drag-drop-spark {
@@ -236,8 +236,8 @@
   transition: background 0.25s ease, box-shadow 0.25s ease;
 }
 .premium-toggle-on {
-  background: linear-gradient(120deg, #e8c468, #c99b2f);
   box-shadow: 0 4px 14px -4px rgba(232, 196, 104, 0.7);
+  background: linear-gradient(120deg, #e8c468, #c99b2f);
 }
 .premium-knob {
   transition: left 0.25s cubic-bezier(0.2, 1.4, 0.4, 1);
@@ -290,3 +290,83 @@
   .premium-glow::after { animation: none; display: none; }
 }
 
+/* ── Dropdown chọn model AI ──────────────────────────────────────────────────
+   Tự vẽ thay cho <select> gốc: phần popup của select do hệ điều hành vẽ (nền
+   trắng, dòng đang chọn tô xanh dương mặc định của Windows) nên không style
+   được, đặt giữa giao diện tối nhìn lạc hẳn. Cùng cách làm với ô chọn ngân
+   hàng ở trang Ví. */
+.ai-model-picker {
+  position: relative;
+}
+.ai-model-trigger {
+  cursor: pointer;
+}
+.ai-model-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ai-model-caret {
+  transition: transform 0.18s ease;
+}
+.ai-model-caret-open {
+  transform: rotate(180deg);
+}
+
+/* Huy hiệu icon của từng model — cho mỗi lựa chọn một "mặt" thay vì một dòng
+   chữ trần, dùng tím-hồng đúng tông nút "Bắt đầu tạo ảnh AI" ngay bên dưới. */
+.ai-model-ico {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.16), rgba(177, 92, 170, 0.16));
+  color: #8b7bf0;
+}
+.ai-model-ico .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.ai-model-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  padding: 5px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid #dadad3;
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.25);
+}
+:host-context(.dark) .ai-model-menu {
+  background: #1e1e22;
+  border-color: #3a3a42;
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.7);
+}
+
+.ai-model-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 9px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+.ai-model-item:hover {
+  background: rgba(139, 123, 240, 0.1);
+}
+.ai-model-item-on {
+  background: rgba(139, 123, 240, 0.16);
+  color: #6d5ee0;
+}
+:host-context(.dark) .ai-model-item-on {
+  color: #b3a8ff;
+}

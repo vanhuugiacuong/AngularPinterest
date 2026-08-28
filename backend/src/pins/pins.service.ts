@@ -371,16 +371,30 @@ export class PinsService {
     const extension = file.originalname.split('.').pop() || 'png';
     const base = `${userId}/pin_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
-    // Ảnh Premium: thứ công khai KHÔNG phải file gốc.
-    //   - bucket public  : bản thu nhỏ + đóng dấu chìm (ai xem/F12 cũng chỉ thấy bản này)
-    //   - bucket riêng tư: file gốc HD, không có URL công khai, chỉ cấp link ký
-    //     tạm thời cho người đã mua (xem getPremiumDownloadUrl).
+    // Ảnh Premium: thứ công khai KHÔNG phải file gốc. Ba bản, ba mục đích:
+    //   - imageUrl    (public) : bản nhỏ SẠCH, không watermark — dùng ngoài feed.
+    //     Watermark ngoài feed làm ảnh xấu, không ai buồn bấm vào, mà không bấm
+    //     vào thì không ai mua. Đổi lại bản này ai cũng tải được nên phải nhỏ.
+    //   - previewUrl  (public) : bản lớn hơn CÓ watermark phủ kín — dùng ở trang
+    //     chi tiết, nơi người ta ngắm kỹ trước khi quyết định mua.
+    //   - originalPath(private): file gốc HD, không có URL công khai, chỉ cấp
+    //     link ký tạm thời cho người đã mua (xem getPremiumDownloadUrl).
     let imageUrl: string;
+    let previewUrl: string | null = null;
     let originalPath: string | null = null;
 
     if (premium.isPremium) {
-      const preview = await this.watermarkService.makePreview(file.buffer, 'PinHub');
+      const [thumb, preview] = await Promise.all([
+        this.watermarkService.makeThumb(file.buffer),
+        this.watermarkService.makePreview(file.buffer, 'PinHub'),
+      ]);
       imageUrl = await this.supabaseService.uploadImage(
+        'pins',
+        `${base}_thumb.jpg`,
+        thumb,
+        'image/jpeg',
+      );
+      previewUrl = await this.supabaseService.uploadImage(
         'pins',
         `${base}_preview.jpg`,
         preview,
@@ -420,9 +434,7 @@ export class PinsService {
         category,
         isPremium: premium.isPremium,
         priceCredits: premium.priceCredits,
-        // Bản công khai chính là preview có watermark; giữ cùng giá trị để chỗ
-        // nào đọc previewUrl cũng ra đúng thứ được phép hiển thị.
-        previewUrl: premium.isPremium ? imageUrl : null,
+        previewUrl,
         originalPath,
         isCollage: !!isCollage,
       },

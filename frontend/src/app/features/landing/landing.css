@@ -1,19 +1,48 @@
 /* Component-specific styles for Landing page */
 
 /* Orchid CTA button: solid pastel surface, dark ink (matches swatch-card reference) */
+/* CTA chính của trang giới thiệu.
+   Trước đây dùng gradient hoa cà nhạt + chữ đen — một bảng màu chỉ tồn tại ở
+   đúng trang này, nên nút "cửa ngõ" vào app lại là nút DUY NHẤT không giống
+   bất kỳ nút nào bên trong. Đổi sang gradient thương hiệu dùng chung
+   (--grad-brand trong styles.css) + chữ trắng, giống .grad-btn, .upgrade-cta
+   và nút mua ở trang Pro: người dùng bấm nút này rồi vào app là thấy đúng
+   hình ngôn ngữ đó lặp lại. */
 .btn-orchid {
-  color: #1d1d1d;
-  background: linear-gradient(150deg, #e5bddf 0%, #cf9bc7 100%);
-  box-shadow: 0 10px 26px -8px rgba(229, 189, 223, 0.35);
+  box-shadow: 0 12px 30px -8px rgba(249, 64, 131, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+  background-image: var(--grad-brand);
 }
 
 .btn-orchid:hover {
-  box-shadow: 0 14px 32px -6px rgba(229, 189, 223, 0.5);
+  box-shadow: 0 16px 36px -8px rgba(249, 64, 131, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+/* Dải sáng lướt qua — cùng thủ pháp với .cta trang Pro và .upgrade-cta ở rail.
+   Đây là bề mặt bán hàng nên hiệu ứng này đúng chỗ (không dùng cho nút thao
+   tác thường). */
+.btn-orchid::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.3) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: btn-orchid-sweep 3.6s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes btn-orchid-sweep {
+  0%, 100% { transform: translateX(-120%); }
+  55%, 72% { transform: translateX(120%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-orchid::after { animation: none; display: none; }
 }
 
 /* Headline accent: solid, glowing orchid-magenta so it pops against dark bg
    instead of washing out pale/near-white */
 .headline-accent {
-  color: #ff6fd8;
   filter: drop-shadow(0 0 22px rgba(255, 111, 216, 0.55));
+  color: #ff6fd8;
 }

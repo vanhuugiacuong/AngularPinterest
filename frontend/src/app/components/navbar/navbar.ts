@@ -11,6 +11,7 @@ import { PinService, Pin } from '../../core/services/pin';
 import { ChatService, PublicUserSummary } from '../../core/services/chat';
 import { BillingService } from '../../core/services/billing';
 import { AdminService } from '../../core/services/admin';
+import { badgeCount } from '../../shared/badge-count';
 import { VisualSearchService } from '../../core/services/visual-search';
 
 // Lowercases and strips Vietnamese diacritics so "meo" matches "mèo" — same normalizer
@@ -39,6 +40,9 @@ export class Navbar {
   private notificationSocket = inject(NotificationSocketService);
   private router = inject(Router);
   public adminService = inject(AdminService);
+
+  /** Số trên huy hiệu — quá 9 thì hiện "9+" (xem shared/badge-count.ts). */
+  public badgeCount = badgeCount;
   private elementRef = inject(ElementRef);
   private pinService = inject(PinService);
   private chatService = inject(ChatService);

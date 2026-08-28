@@ -17,9 +17,15 @@ export interface AdminStats {
   pendingPayouts: number;
   revenueTotal: number;
   revenueMonth: number;
+  revenueWeek: number;
   proCount: number;
   creditsCirculating: number;
   creditsEarnedTotal: number;
+  newUsersWeek: number;
+  newPinsWeek: number;
+  payoutPaidTotal: number;
+  bannedUsers: number;
+  aiPins: number;
 }
 
 export interface AdminUserRef {
@@ -124,6 +130,54 @@ export class AdminService {
   /** null = chưa kiểm tra, true/false = kết quả. */
   readonly isAdmin = signal<boolean | null>(null);
 
+  /**
+   * Tổng việc đang chờ admin xử lý (rút tiền + báo cáo ảnh + sự cố chuyển
+   * khoản) — hiện thành huy hiệu số trên nút Quản trị ở sidebar, để admin biết
+   * có việc mới mà không phải mở trang ra xem.
+   */
+  readonly pendingWork = signal<number>(0);
+
+  /** Nạp số việc tồn cho huy hiệu. Nuốt lỗi: hỏng thì để huy hiệu 0, không
+      chặn gì cả — đây chỉ là chỉ báo phụ. */
+  async refreshPendingWork(): Promise<void> {
+    const s = await this.stats();
+    if (!s) return;
+    this.pendingWork.set(
+      (s.pendingPayouts ?? 0) + (s.openReports ?? 0) + (s.openPaymentReports ?? 0),
+    );
+  }
+
+  /** Nhớ kết quả lần trước theo từng tài khoản, để lúc tải lại trang nút Quản
+      trị hiện ngay thay vì biến mất cho tới khi /check trả lời. Chỉ là chuyện
+      hiển thị — chặn thật vẫn nằm ở AdminGuard phía backend, nên giá trị cũ có
+      sai cũng không mở thêm được quyền gì. Gắn theo userId để máy dùng chung
+      không hiện nút của người trước. */
+  private cacheKey(): string | null {
+    const id = this.supa.user()?.id;
+    return id ? `pinhub.isAdmin.${id}` : null;
+  }
+
+  private readCache(): boolean | null {
+    const k = this.cacheKey();
+    if (!k) return null;
+    try {
+      const v = localStorage.getItem(k);
+      return v === null ? null : v === '1';
+    } catch {
+      return null;
+    }
+  }
+
+  private writeCache(ok: boolean) {
+    const k = this.cacheKey();
+    if (!k) return;
+    try {
+      localStorage.setItem(k, ok ? '1' : '0');
+    } catch {
+      /* chế độ ẩn danh chặn localStorage — bỏ qua, chỉ mất phần hiện sớm */
+    }
+  }
+
   private async token(): Promise<string | null> {
     try {
       return await this.supa.getSessionToken();
@@ -132,26 +186,86 @@ export class AdminService {
     }
   }
 
+  /**
+   * Lý do hỏng của lần gọi gần nhất, để thẻ báo lỗi nói được CHUYỆN GÌ đã xảy
+   * ra thay vì chỉ "không tải được". Trước đây mọi thất bại đều thành `null`
+   * như nhau, nên không phân biệt nổi hết hạn đăng nhập, máy chủ 500 hay tắt
+   * hẳn — mà ba thứ đó cách xử lý khác hẳn nhau.
+   */
+  readonly lastError = signal<string | null>(null);
+
   private async req<T>(path: string, init: RequestInit = {}): Promise<T | null> {
     const token = await this.token();
-    if (!token) return null;
+    if (!token) {
+      this.lastError.set('Chưa đăng nhập (không lấy được phiên Supabase)');
+      return null;
+    }
     try {
       const headers = new Headers(init.headers);
       headers.set('Authorization', `Bearer ${token}`);
       if (init.body) headers.set('Content-Type', 'application/json');
       const res = await fetch(`${this.api}${path}`, { ...init, headers });
-      if (!res.ok) return null;
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        this.lastError.set(`${path} trả về HTTP ${res.status}${body ? ' — ' + body.slice(0, 160) : ''}`);
+        return null;
+      }
+      this.lastError.set(null);
       return (await res.json()) as T;
-    } catch {
+    } catch (e) {
+      // fetch chỉ ném khi không tới được máy chủ (tắt, sai cổng, CORS chặn).
+      this.lastError.set(
+        `Không gọi được ${this.api}${path} — ${e instanceof Error ? e.message : 'lỗi mạng'}`,
+      );
       return null;
     }
   }
 
+  /**
+   * Ba kết quả, KHÔNG phải hai:
+   *   'yes'     backend xác nhận là admin
+   *   'no'      backend xác nhận KHÔNG phải admin
+   *   'unknown' không hỏi được backend (mất mạng, 500, chưa có token)
+   *
+   * Phân biệt 'no' với 'unknown' mới là điểm chính: gộp chúng làm một thì lúc
+   * máy chủ chập chờn, trang admin tưởng bạn không có quyền và đá về trang chủ
+   * — không thấy lỗi, không có nút thử lại, chỉ thấy "tự nhiên vào không được".
+   */
+  async checkAdminDetailed(): Promise<'yes' | 'no' | 'unknown'> {
+    const cached = this.readCache();
+    if (cached !== null) this.isAdmin.set(cached);
+
+    const r = await this.req<{ isAdmin: boolean }>('/check');
+    if (r === null) return 'unknown';
+
+    const ok = !!r.isAdmin;
+    this.isAdmin.set(ok);
+    this.writeCache(ok);
+    return ok ? 'yes' : 'no';
+  }
+
   /** Kiểm tra quyền để hiện/ẩn mục menu. Kết quả thật do backend quyết. */
   async checkAdmin(): Promise<boolean> {
+    // Hiện nút ngay từ giá trị nhớ được, khỏi phải chờ mạng. Đặt vô điều kiện:
+    // lúc tải lại trang, effect ở app.ts chạy một nhịp với user = null (phiên
+    // chưa khôi phục xong) và đã hạ isAdmin xuống false, nên nếu chỉ ghi đè khi
+    // đang là null thì giá trị nhớ chẳng bao giờ được dùng. Khoá theo userId
+    // nên chỉ áp cho đúng người vừa đăng nhập, và câu trả lời thật ngay bên
+    // dưới sẽ sửa lại nếu sai.
+    const cached = this.readCache();
+    if (cached !== null) this.isAdmin.set(cached);
+
     const r = await this.req<{ isAdmin: boolean }>('/check');
-    const ok = !!r?.isAdmin;
+
+    // `req` trả null cho CẢ "mất mạng / API 500" lẫn "bị từ chối", nên nếu cứ
+    // thấy null là hạ xuống false thì mỗi lần API chớp một cái là nút Quản trị
+    // biến mất tới tận lần tải trang sau. Không có câu trả lời thì giữ nguyên
+    // thứ đang biết, đừng đoán.
+    if (r === null) return this.isAdmin() === true;
+
+    const ok = !!r.isAdmin;
     this.isAdmin.set(ok);
+    this.writeCache(ok);
     return ok;
   }
 

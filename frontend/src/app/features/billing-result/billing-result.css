@@ -16,9 +16,9 @@
 /* ── Thẻ "Đã nhận thanh toán" — nhuốm xanh lá + glow, để không bị hoà vào
    nền tối (trước đây chỉ khác nền trang đúng 1 sắc độ, gần như vô hình). ── */
 .success-card {
+  box-shadow: 0 20px 50px -16px rgba(31, 157, 85, 0.18);
   background: linear-gradient(180deg, #fbfffd 0%, #ffffff 70%);
   border-color: #dff5e6;
-  box-shadow: 0 20px 50px -16px rgba(31, 157, 85, 0.18);
 }
 :host-context(.dark) .success-card {
   background:
@@ -28,6 +28,7 @@
   box-shadow: 0 24px 60px -18px rgba(31, 157, 85, 0.4), inset 0 0 0 1px rgba(31, 157, 85, 0.06);
 }
 
+/* Tia lấp lánh trang trí quanh thẻ */
 .success-glow {
   position: absolute;
   inset: -20% -20% auto -20%;
@@ -37,7 +38,6 @@
   filter: blur(10px);
 }
 
-/* Tia lấp lánh trang trí quanh thẻ */
 .success-spark {
   position: absolute;
   width: 14px;
@@ -108,6 +108,11 @@
 }
 .report-link:hover:not(:disabled) {
   color: #ff6fa1;
+}
+/* Gạch chân đặt trên CHỮ, không đặt trên nút. Nút là flex container nên
+   text-decoration ở đó khiến icon và chữ mỗi bên tự vẽ một đoạn gạch riêng,
+   chừa hẳn khoảng `gap` ở giữa — nhìn như gạch bị đứt và lệch khỏi chữ. */
+.report-link:hover:not(:disabled) span {
   text-decoration: underline;
   text-underline-offset: 3px;
 }

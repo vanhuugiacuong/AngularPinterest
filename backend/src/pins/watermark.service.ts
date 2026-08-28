@@ -15,7 +15,33 @@ import sharp from 'sharp';
 @Injectable()
 export class WatermarkService {
   /** Cạnh dài tối đa của bản preview — đủ xem, không đủ dùng lại. */
-  private readonly PREVIEW_MAX_EDGE = 900;
+  private readonly PREVIEW_MAX_EDGE = 1200;
+
+  /**
+   * Cạnh dài tối đa của ảnh đại diện ngoài feed.
+   *
+   * Nhỏ hơn preview vì đây là bản KHÔNG có watermark: ai cũng tải về được nên
+   * phải nhỏ tới mức chỉ đủ làm hình xem lướt, không dùng thay bản đã mua.
+   */
+  private readonly THUMB_MAX_EDGE = 600;
+
+  /**
+   * Bản sạch (không watermark) để hiện ngoài feed.
+   *
+   * Vì sao không dùng luôn bản watermark ngoài feed: watermark phủ kín làm ảnh
+   * xấu, người lướt không buồn bấm vào — mà không bấm vào thì chẳng ai mua.
+   * Đổi lại phải chấp nhận bản feed là hàng "sờ được": giữ nó thật nhỏ để chỉ
+   * đủ xem lướt.
+   */
+  async makeThumb(original: Buffer): Promise<Buffer> {
+    return sharp(original, { failOn: 'none' })
+      .resize(this.THUMB_MAX_EDGE, this.THUMB_MAX_EDGE, {
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: 78, mozjpeg: true })
+      .toBuffer();
+  }
 
   /**
    * Trả về bản preview: thu nhỏ, nén, phủ chữ chìm lặp kín mặt ảnh.
@@ -38,8 +64,10 @@ export class WatermarkService {
     return sharp(original, { failOn: 'none' })
       .resize(outW, outH, { fit: 'inside', withoutEnlargement: true })
       .composite([{ input: overlay, blend: 'over' }])
-      // Chất lượng vừa đủ nhìn — người lấy trộm cũng không dùng in ấn được.
-      .jpeg({ quality: 72, mozjpeg: true })
+      // Watermark đã lo phần chống lấy cắp, nên chất lượng nén không cần bóp
+      // thấp nữa — bóp thấp chỉ làm ảnh rỗ, người mua nhìn bản preview xấu quá
+      // thì cũng không tin bản HD đẹp mà trả tiền.
+      .jpeg({ quality: 82, mozjpeg: true })
       .toBuffer();
   }
 

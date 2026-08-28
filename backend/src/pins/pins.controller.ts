@@ -16,6 +16,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { PinsService } from './pins.service';
 import { SupabaseAuthGuard } from '../supabase/supabase.guard';
 import { CurrentUser, UserPayload } from '../supabase/current-user.decorator';
+import { verifiedUserIdFromHeader } from '../supabase/supabase-jwt';
 
 @Controller('api/pins')
 export class PinsController {
@@ -31,25 +32,11 @@ export class PinsController {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
 
-    let userId: string | undefined = undefined;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
-      if (token === 'mock-token') {
-        userId = 'mock-user-id-12345';
-      } else {
-        try {
-          const payloadBase64 = token.split('.')[1];
-          if (payloadBase64) {
-            const decodedPayload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf8'));
-            if (decodedPayload && decodedPayload.sub) {
-              userId = decodedPayload.sub;
-            }
-          }
-        } catch (e) {
-          // Silent catch for invalid/anonymous request tokens
-        }
-      }
-    }
+    // Endpoint công khai, đăng nhập chỉ để cá nhân hoá thứ tự bảng tin. Nhưng
+    // vẫn phải KIỂM CHỮ KÝ: trước đây chỗ này chỉ giải mã base64 rồi tin `sub`,
+    // nên chỉ cần bịa token là xem được bảng tin cá nhân hoá của người khác
+    // (suy ra được họ thích gì). Chữ ký sai thì coi như khách vãng lai.
+    const userId = await verifiedUserIdFromHeader(authHeader);
 
     return this.pinsService.getAllPins(pageNum, limitNum, userId, seed);
   }

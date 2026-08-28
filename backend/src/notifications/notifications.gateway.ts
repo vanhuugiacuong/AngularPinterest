@@ -6,30 +6,19 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import * as jwt from 'jsonwebtoken';
+import { verifySupabaseToken } from '../supabase/supabase-jwt';
 
-function resolveUserId(token: string | undefined): string | null {
-  if (!token) return null;
-
-  const secret = process.env.SUPABASE_JWT_SECRET;
-  if (secret) {
-    try {
-      const payload = jwt.verify(token, secret) as jwt.JwtPayload;
-      if (payload?.sub) return payload.sub;
-    } catch {
-      // fall through to the same unverified-decode fallback the HTTP guard uses,
-      // so socket auth matches the app's existing (documented) auth behavior
-    }
-  }
-
-  try {
-    const payloadBase64 = token.split('.')[1];
-    if (!payloadBase64) return null;
-    const decoded = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf8'));
-    return decoded?.sub ?? null;
-  } catch {
-    return null;
-  }
+/**
+ * Chỉ nhận token đúng chữ ký, và dùng chung cách kiểm với HTTP (supabase-jwt.ts)
+ * để socket không tụt lại phía sau khi Supabase đổi kiểu khoá.
+ *
+ * Trước đây chỗ này kiểm HS256 rồi hỏng thì rơi xuống giải mã base64 tin luôn —
+ * mà token thật lại ký ES256 nên nhánh hỏng LUÔN được dùng: ai bịa `sub` cũng
+ * vào được phòng thông báo của người khác và đọc thông báo riêng của họ.
+ */
+async function resolveUserId(token: string | undefined): Promise<string | null> {
+  const payload = await verifySupabaseToken(token);
+  return typeof payload?.sub === 'string' ? payload.sub : null;
 }
 
 @Injectable()
@@ -40,9 +29,9 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
 
   private readonly logger = new Logger(NotificationsGateway.name);
 
-  handleConnection(client: Socket) {
+  async handleConnection(client: Socket) {
     const token = (client.handshake.auth?.token as string) || (client.handshake.query?.token as string);
-    const userId = resolveUserId(token);
+    const userId = await resolveUserId(token);
 
     if (!userId) {
       client.disconnect(true);

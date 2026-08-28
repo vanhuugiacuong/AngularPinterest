@@ -6,42 +6,268 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Huy hiệu tiêu đề — tông tím "quản trị", tách khỏi hồng (người dùng),
-   vàng (bán ảnh) và xanh (rút tiền) để nhận ra ngay đây là khu vực riêng. */
-.admin-crest {
-  background: linear-gradient(135deg, #8b7bf0, #5b4bc4);
-  color: #fff;
-  box-shadow: 0 8px 20px -6px rgba(139, 123, 240, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+/* ── Màu nhấn theo từng mục ────────────────────────────────────────────────
+   Tím là màu của cả khu quản trị, nhưng mỗi mục lại đụng một loại việc khác
+   nhau, nên nút/chip/ô nhập đổi màu theo mục đang mở. Nhờ vậy nhìn màu là biết
+   mình đang ở đâu và nút mình sắp bấm thuộc nhóm việc nào — đúng bảng màu
+   toàn app: xanh lá = dòng tiền (wallet), đỏ = vi phạm, vàng = tiền/premium,
+   hồng = nội dung, xanh dương = tài khoản.
+   Khai báo dạng RGB rời để pha alpha bằng rgb(... / x). */
+.ad-scope {
+  --ad-accent: #8b7bf0;
+  --ad-accent-2: #5b4bc4;
+  --ad-accent-ink: #c9bfff;
+  --ad-accent-rgb: 139 123 240;
+  --ad-accent-fg: #fff;
+}
+.ad-scope[data-tab='payouts'] {
+  --ad-accent: #34c17f;
+  --ad-accent-2: #17794a;
+  --ad-accent-ink: #7fe3b4;
+  --ad-accent-rgb: 52 193 127;
+}
+/* Sự cố chuyển khoản: cam hổ phách — vẫn thuộc nhóm "tiền" như rút tiền/doanh
+   thu, nhưng đủ khác đỏ của báo cáo ảnh để không nhầm hai loại báo cáo. */
+.ad-scope[data-tab='txreports'] {
+  --ad-accent: #f0a03c;
+  --ad-accent-2: #a35f14;
+  --ad-accent-ink: #ffcb8a;
+  --ad-accent-rgb: 240 160 60;
+  --ad-accent-fg: #2a1804;
+}
+.ad-scope[data-tab='reports'] {
+  --ad-accent: #ff5c7a;
+  --ad-accent-2: #a82943;
+  --ad-accent-ink: #ff9fb1;
+  --ad-accent-rgb: 255 92 122;
+}
+.ad-scope[data-tab='users'] {
+  --ad-accent: #5b9cff;
+  --ad-accent-2: #2b5fb8;
+  --ad-accent-ink: #a6c8ff;
+  --ad-accent-rgb: 91 156 255;
+}
+.ad-scope[data-tab='revenue'] {
+  --ad-accent: #e8c468;
+  --ad-accent-2: #a3812a;
+  --ad-accent-ink: #f2d894;
+  --ad-accent-rgb: 232 196 104;
+  /* Chữ trắng trên nền vàng không đọc được — mục này dùng chữ tối. */
+  --ad-accent-fg: #241a05;
+}
+.ad-scope[data-tab='content'] {
+  --ad-accent: #f94083;
+  --ad-accent-2: #b15caa;
+  --ad-accent-ink: #ff9ec4;
+  --ad-accent-rgb: 249 64 131;
 }
 
-/* ── Thanh chuyển mục ─────────────────────────────────────────────────────── */
+/* Tiêu đề phụ có gạch màu theo mục */
+.ad-h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+.ad-h2::before {
+  content: '';
+  width: 3px;
+  height: 15px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--ad-accent), var(--ad-accent-2));
+}
+
+/* Tải hỏng thì phải NÓI ra. AdminService nuốt lỗi và trả null, nên trước đây
+   API lỗi là trang trắng trơn, không phân biệt được với "chưa có dữ liệu". */
+.ad-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 92, 122, 0.07);
+  border: 1px solid rgba(255, 92, 122, 0.26);
+  border-radius: 18px;
+  padding: 34px 24px;
+  text-align: center;
+}
+.ad-error-ico {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 92, 122, 0.14);
+  color: #ff8098;
+}
+.ad-error-ico .material-symbols-outlined {
+  font-size: 22px;
+}
+.ad-error-t {
+  font-size: 14px;
+  font-weight: 800;
+}
+.ad-error-s {
+  font-size: 12.5px;
+  color: #8b8791;
+  max-width: 380px;
+}
+/* Mục gập chứa chi tiết kỹ thuật — mặc định đóng, chỉ còn một dòng chữ mờ. */
+.ad-error-more {
+  width: 100%;
+  max-width: 520px;
+}
+.ad-error-more > summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: 11.5px;
+  color: #6c6674;
+  user-select: none;
+  transition: color 0.15s ease;
+}
+.ad-error-more > summary::-webkit-details-marker {
+  display: none;
+}
+.ad-error-more > summary::before {
+  content: '▸ ';
+}
+.ad-error-more[open] > summary::before {
+  content: '▾ ';
+}
+.ad-error-more > summary:hover {
+  color: #a29aac;
+}
+
+/* Chi tiết kỹ thuật (mã HTTP, URL) — xấu nhưng đây là thứ duy nhất chỉ đúng
+   được chỗ hỏng khi phải sửa từ xa. */
+.ad-error-detail {
+  margin-top: 8px;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #d99aa6;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 92, 122, 0.2);
+  border-radius: 10px;
+  padding: 8px 11px;
+  max-width: 520px;
+  word-break: break-word;
+  text-align: left;
+}
+
+/* Huy hiệu tiêu đề — cùng chất bạc với nút Quản trị ở rail (navbar.css
+   .nav-rail-admin), nên lúc đang ở trang này thì huy hiệu trên rail và huy
+   hiệu đầu trang là MỘT vật. Bạc lạnh không đụng hồng (thương hiệu), vàng
+   (Premium) hay đỏ (vi phạm) nên không cướp nghĩa của màu nào đang có. */
+.admin-crest {
+  background: linear-gradient(135deg, #ffffff 0%, #cfd9f0 28%, #9fb0d8 50%, #e6ecfa 72%, #b9c6e4 100%);
+  color: #171b26;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.45), 0 10px 26px -8px rgba(184, 198, 255, 0.65);
+}
+
+/* ── Hero ────────────────────────────────────────────────────────────────────
+   Mượn đúng ngôn ngữ của trang Pro (.pro-hero/.ph-glow/.ph-accent): khối bo
+   lớn, hai quầng sáng chéo nhau, icon khổng lồ mờ làm nền, chữ mào nhỏ giãn
+   cách rộng, headline có một từ tô gradient. Trước đây trang này mở đầu bằng
+   một dòng tiêu đề 24px trần trụi rồi vào thẳng lưới thẻ xám — đúng dáng một
+   bảng quản trị mẫu, không nhận ra là cùng một app với trang Pro.
+   Màu ăn theo --ad-accent nên mỗi mục hero lại đổi tông, không phải tím cứng. */
+.ad-hero {
+  border: 1px solid rgb(var(--ad-accent-rgb) / 0.22);
+  background:
+    radial-gradient(120% 150% at 50% -30%, rgb(var(--ad-accent-rgb) / 0.13), transparent 58%),
+    linear-gradient(180deg, #1a1a20 0%, #141418 72%);
+  box-shadow: 0 22px 50px -30px rgba(0, 0, 0, 0.9);
+  transition: border-color 0.25s ease, background 0.25s ease;
+}
+.ad-hero-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(46% 66% at 100% -10%, rgb(var(--ad-accent-rgb) / 0.14), transparent 62%),
+    radial-gradient(50% 70% at -6% 112%, rgb(var(--ad-accent-rgb) / 0.1), transparent 62%);
+}
+
+/* Icon nền khổng lồ — cùng thủ pháp với vương miện mờ ở .pro-hero */
+.ad-hero-mark {
+  position: absolute;
+  right: -26px;
+  bottom: -54px;
+  font-size: 210px;
+  line-height: 1;
+  color: rgb(var(--ad-accent-rgb) / 0.055);
+  pointer-events: none;
+  user-select: none;
+}
+.ad-eyebrow {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  color: var(--ad-accent-ink);
+}
+/* Một từ trong headline tô gradient — giống .ph-accent bên trang Pro */
+.ad-accent-text {
+  background: linear-gradient(90deg, var(--ad-accent), var(--ad-accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.ad-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: rgba(34, 197, 94, 0.1);
+  color: #5fd39a;
+  white-space: nowrap;
+}
+.ad-live-warn {
+  background: rgba(255, 92, 122, 0.12);
+  color: #ff9fb1;
+}
+
+/* ── Thanh chuyển mục ────────────────────────────────────────────────────────
+   Dạng "segmented control" (viên thuốc trượt trong khay) thay cho hàng chữ
+   gạch chân kiểu tab mặc định — cùng hình ngôn ngữ bo tròn với chip/nút trong
+   app, và mục đang mở nổi hẳn thành khối màu chứ không chỉ một gạch mảnh. */
 .admin-tabs {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding-bottom: 2px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  padding: 4px;
+  gap: 2px;
 }
 .admin-tab {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 9px 14px;
+  padding: 8px 15px;
   border: none;
   background: transparent;
   color: #8b8791;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  border-radius: 10px 10px 0 0;
+  border-radius: 999px;
   white-space: nowrap;
-  border-bottom: 2px solid transparent;
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.2s ease;
 }
 .admin-tab:hover {
   color: #fff;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.05);
 }
 .admin-tab-on {
   color: #fff;
-  border-bottom-color: #8b7bf0;
+  background: rgb(var(--ad-accent-rgb) / 0.16);
+  box-shadow: inset 0 0 0 1px rgb(var(--ad-accent-rgb) / 0.4), 0 4px 14px -8px rgb(var(--ad-accent-rgb) / 0.9);
+}
+.admin-tab-on .material-symbols-outlined,
+.admin-tab-on app-icon {
+  color: var(--ad-accent-ink);
 }
 .admin-badge {
   min-width: 18px;
@@ -58,14 +284,64 @@
 }
 
 /* ── Thẻ số liệu ──────────────────────────────────────────────────────────── */
+/* Mỗi thẻ tự có màu riêng (không ăn theo --ad-accent của tab) để 4 chỉ số
+   phân biệt nhau ngay từ cái nhìn đầu, giống cách các tab đã phân biệt màu
+   theo loại việc. */
 .ad-stat {
-  background: #1a1a1a;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #1c1c1c 0%, #171717 100%);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
-  padding: 16px 18px;
+  padding: 18px 18px 16px;
   display: flex;
   flex-direction: column;
   gap: 3px;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.ad-stat::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--stat-c), transparent 130%);
+}
+.ad-stat:hover {
+  box-shadow: 0 14px 30px -18px rgb(var(--stat-c-rgb) / 0.55);
+  transform: translateY(-2px);
+  border-color: rgb(var(--stat-c-rgb) / 0.35);
+}
+.ad-stat-blue   { --stat-c: #5b9cff; --stat-c-rgb: 91 156 255; }
+.ad-stat-pink   { --stat-c: #f94083; --stat-c-rgb: 249 64 131; }
+.ad-stat-purple { --stat-c: #8b7bf0; --stat-c-rgb: 139 123 240; }
+.ad-stat-gold   { --stat-c: #e8c468; --stat-c-rgb: 232 196 104; }
+
+.ad-stat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 9px;
+}
+.ad-stat-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: rgb(var(--stat-c-rgb) / 0.14);
+  color: var(--stat-c);
+}
+.ad-stat-icon .material-symbols-outlined {
+  font-size: 18px;
+}
+.ad-stat-delta {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #7fe3b4;
+  background: rgba(34, 197, 94, 0.12);
+  border-radius: 999px;
+  padding: 3px 8px;
+  white-space: nowrap;
 }
 .ad-stat-v {
   font-size: 26px;
@@ -92,6 +368,15 @@
     linear-gradient(180deg, #16221b 0%, #141814 72%);
   border-color: rgba(34, 197, 94, 0.26);
 }
+/* Đã chi trả cho creator — cùng tông xanh dương với thẻ "Người dùng" phía
+   trên, vì đây là tiền đã RA khỏi hệ thống tới tay người dùng, khác với
+   credit lưu hành (nghĩa vụ CHƯA trả, xanh lá) và doanh thu (thu VÀO, tím). */
+.ad-money-payout {
+  background:
+    radial-gradient(120% 140% at 100% -10%, rgba(91, 156, 255, 0.12), transparent 58%),
+    linear-gradient(180deg, #161c26 0%, #131417 72%);
+  border-color: rgba(91, 156, 255, 0.26);
+}
 .ad-money-k {
   font-size: 11px;
   font-weight: 700;
@@ -112,21 +397,44 @@
   margin-top: 4px;
 }
 
-/* Ô "cần xử lý" — sáng lên khi có việc */
+/* Ô "cần xử lý" — trước chỉ có cursor:pointer nên trông y hệt thẻ số liệu bên
+   trên (không bấm được). Thêm mũi tên góc phải + viền/nền đổi rõ lúc rê chuột
+   để khẳng định đây là nút, không phải thẻ hiển thị. */
 .ad-todo {
+  position: relative;
   background: #1a1a1a;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
-  padding: 16px 18px;
+  padding: 16px 44px 16px 18px;
   display: flex;
   flex-direction: column;
   gap: 4px;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.2s ease, transform 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.ad-todo::after {
+  content: 'arrow_forward';
+  font-family: 'Material Symbols Outlined';
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  font-size: 17px;
+  color: #565059;
+  transition: color 0.2s ease, transform 0.2s ease;
 }
 .ad-todo:hover {
   transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 12px 26px -16px rgba(0, 0, 0, 0.6);
+}
+.ad-todo:hover::after {
+  color: #cfc9d6;
+  transform: translateX(2px);
+}
+.ad-todo:active {
+  transform: translateY(0);
 }
 .ad-todo-v {
   font-size: 24px;
@@ -143,35 +451,119 @@
   border-color: rgba(255, 92, 122, 0.4);
   background: rgba(255, 92, 122, 0.06);
 }
+.ad-todo-on::after {
+  color: rgba(255, 92, 122, 0.55);
+}
+.ad-todo-on:hover {
+  background: rgba(255, 92, 122, 0.11);
+  border-color: rgba(255, 92, 122, 0.6);
+}
+.ad-todo-on:hover::after {
+  color: #ff8098;
+}
 .ad-todo-on .ad-todo-v {
   color: #ff8098;
 }
 
 /* ── Thẻ nội dung ─────────────────────────────────────────────────────────── */
+/* Nền dốc nhẹ thay vì một màu #1a1a1a phẳng lì: chỉ hai sắc độ chênh nhau
+   chút xíu nhưng đủ để thẻ có "mặt trên - mặt dưới", đỡ cảm giác hộp dán
+   phẳng lên nền — cùng cách .ph-tile bên trang Pro làm. */
 .ad-card {
-  background: #1a1a1a;
+  background: linear-gradient(180deg, #1c1c21 0%, #171719 100%);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 18px;
   padding: 16px 18px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .ad-empty {
-  background: rgba(255, 255, 255, 0.03);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background:
+    radial-gradient(90% 120% at 50% -20%, rgb(var(--ad-accent-rgb) / 0.06), transparent 60%),
+    rgba(255, 255, 255, 0.025);
   border: 1px dashed rgba(255, 255, 255, 0.12);
-  border-radius: 18px;
-  padding: 36px;
+  border-radius: 20px;
+  padding: 44px 24px;
   text-align: center;
   font-size: 13px;
   color: #8b8791;
 }
+/* Dấu tích lớn mờ phía trên chữ — trạng thái "sạch việc" là tin vui, nên nhìn
+   như một lời xác nhận chứ không phải một ô trống vì lỗi tải. */
+.ad-empty::before {
+  content: 'task_alt';
+  font-family: 'Material Symbols Outlined';
+  font-size: 34px;
+  line-height: 1;
+  color: rgb(var(--ad-accent-rgb) / 0.45);
+}
 
-/* Khối thông tin ngân hàng — nổi rõ vì đây là thứ admin phải chép tay */
+.ad-spinner {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 4px solid var(--ad-accent);
+  border-top-color: transparent;
+  animation: ad-spin 0.7s linear infinite;
+}
+@keyframes ad-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Thẻ trong "Sự cố chuyển khoản" và "Báo cáo ảnh": viền trái theo màu mục để
+   đồng bộ với cách thẻ rút tiền đã làm (.ad-payout-card). */
+.ad-case-card {
+  border-left: 3px solid var(--ad-accent);
+}
+.ad-case-card:hover {
+  box-shadow: 0 14px 30px -22px rgb(var(--ad-accent-rgb) / 0.8);
+  border-color: rgb(var(--ad-accent-rgb) / 0.35);
+  border-left-color: var(--ad-accent);
+}
+/* Huy hiệu icon đầu thẻ — cho mỗi vụ việc một "mặt" thay vì mở đầu bằng chữ */
+.ad-case-crest {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: rgb(var(--ad-accent-rgb) / 0.14);
+  color: var(--ad-accent-ink);
+}
+.ad-case-crest .material-symbols-outlined {
+  font-size: 19px;
+}
+
+/* Khối thông tin ngân hàng — nổi rõ vì đây là thứ admin phải chép tay.
+   Trước đây LUÔN nhuộm xanh lá bất kể đơn đã Từ chối hay Đã chuyển, nên màu
+   xanh mất hết ý nghĩa "thành công" — nhìn thẻ nào cũng y hệt nhau, không
+   phân biệt được đơn nào cần chú ý. Đổi về trung tính, để MÀU chỉ còn ở viền
+   trái + nhãn trạng thái (xem .ad-payout-card) — nhìn lướt là biết ngay đơn
+   nào chờ (vàng), đã duyệt (tím), đã xong (xanh) hay bị từ chối (đỏ). */
 .ad-bank {
-  background: rgba(34, 197, 94, 0.06);
-  border: 1px solid rgba(34, 197, 94, 0.2);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 14px;
   padding: 12px 14px;
 }
+
+/* Viền trái đổi màu theo trạng thái — tầng nhận diện thứ hai ngoài nhãn chữ,
+   giúp quét cả danh sách dài mà không cần đọc từng badge. */
+.ad-payout-card {
+  border-left: 3px solid transparent;
+  transition: border-color 0.15s ease;
+}
+.ad-payout-card.st-pending  { border-left-color: #E8C468; }
+.ad-payout-card.st-processing { border-left-color: #7fb4ff; }
+.ad-payout-card.st-paid     { border-left-color: #5fd39a; }
+.ad-payout-card.st-rejected { border-left-color: #ff8098; }
 .ad-bank-k {
   font-size: 10px;
   font-weight: 700;
@@ -186,67 +578,154 @@
   margin-top: 2px;
   word-break: break-all;
 }
+/* Số tài khoản / tên chủ tài khoản: bấm là chép. Trước đây trông y hệt chữ
+   thường nên không ai biết bấm được — giờ có nền mờ + icon sáng lên khi rê. */
 .ad-copy {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  margin: -3px -7px;
+  padding: 3px 7px;
+  border-radius: 8px;
   background: transparent;
-  border: none;
-  padding: 0;
+  border: 1px solid transparent;
   cursor: pointer;
   text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.ad-copy .material-symbols-outlined,
+.ad-copy app-icon {
+  opacity: 0.45;
+  transition: opacity 0.15s ease;
 }
 .ad-copy:hover {
-  color: #5fd39a;
+  color: #7fe3b4;
+  background: rgba(52, 193, 127, 0.12);
+  border-color: rgba(52, 193, 127, 0.3);
+}
+.ad-copy:hover .material-symbols-outlined,
+.ad-copy:hover app-icon {
+  opacity: 1;
+}
+.ad-copy:active {
+  transform: scale(0.97);
 }
 
-/* ── Nút ──────────────────────────────────────────────────────────────────── */
+/* ── Nút ───────────────────────────────────────────────────────────────────
+   Mỗi nút ở đây đều đụng tiền thật hoặc xoá vĩnh viễn, nên hình thức phải nói
+   đúng mức độ: `primary` (theo màu mục) cho việc chính, `ok` xanh cho việc
+   đóng sổ, `danger` đỏ cho việc không hoàn tác, `ghost` xám cho việc bỏ qua.
+   Hai nhóm ok/danger cố tình để dạng nhạt lúc nghỉ và ĐẶC lại khi rê chuột —
+   nhìn nhạt thì không bấm nhầm, mà lúc sắp bấm thì thấy rõ mình đang làm gì. */
 .ad-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   height: 34px;
-  padding: 0 14px;
+  padding: 0 15px;
   border-radius: 999px;
   font-size: 12.5px;
   font-weight: 700;
+  line-height: 1;
   cursor: pointer;
   border: 1px solid transparent;
   outline: none;
   white-space: nowrap;
-  transition: background-color 0.15s ease, transform 0.15s ease;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease,
+    box-shadow 0.18s ease, transform 0.12s ease;
+}
+.ad-btn .material-symbols-outlined {
+  font-size: 16px;
+  font-variation-settings: 'wght' 600;
+}
+.ad-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.ad-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.97);
+}
+.ad-btn:focus-visible {
+  box-shadow: 0 0 0 3px rgb(var(--ad-accent-rgb) / 0.4);
 }
 .ad-btn:disabled {
-  opacity: 0.55;
+  opacity: 0.45;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
+
+/* Nút nhỏ cho ô trong bảng / thẻ ảnh */
+.ad-btn-sm {
+  height: 28px;
+  padding: 0 11px;
+  font-size: 11.5px;
+  gap: 5px;
+}
+.ad-btn-sm .material-symbols-outlined {
+  font-size: 14px;
+}
+
 .ad-btn-primary {
-  background: #8b7bf0;
-  color: #fff;
+  box-shadow: 0 6px 16px -8px rgb(var(--ad-accent-rgb) / 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  background-image: linear-gradient(135deg, var(--ad-accent) 0%, var(--ad-accent-2) 100%);
+  color: var(--ad-accent-fg);
+}
+/* Bóng lướt qua khi rê chuột — cùng thủ pháp với nút nâng cấp Pro và mặt thẻ
+   ngân hàng ở ví, để nút chính của trang này thuộc cùng một ngôn ngữ. */
+.ad-btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 38%, rgba(255, 255, 255, 0.34) 50%, transparent 62%);
+  transform: translateX(-130%);
+  transition: transform 0.55s ease;
+  pointer-events: none;
+}
+.ad-btn-primary:hover:not(:disabled)::after {
+  transform: translateX(130%);
 }
 .ad-btn-primary:hover:not(:disabled) {
-  background: #7a68e8;
+  box-shadow: 0 11px 24px -8px rgb(var(--ad-accent-rgb) / 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
+
 .ad-btn-ok {
-  background: rgba(34, 197, 94, 0.16);
-  color: #5fd39a;
-  border-color: rgba(34, 197, 94, 0.32);
+  background: linear-gradient(135deg, rgba(52, 193, 127, 0.2), rgba(52, 193, 127, 0.1));
+  color: #7fe3b4;
+  border-color: rgba(52, 193, 127, 0.34);
 }
 .ad-btn-ok:hover:not(:disabled) {
-  background: rgba(34, 197, 94, 0.26);
+  box-shadow: 0 9px 20px -8px rgba(52, 193, 127, 0.85);
+  background: linear-gradient(135deg, #34c17f, #17794a);
+  color: #fff;
+  border-color: transparent;
 }
+
 .ad-btn-danger {
-  background: rgba(255, 92, 122, 0.14);
+  background: linear-gradient(135deg, rgba(255, 92, 122, 0.18), rgba(255, 92, 122, 0.09));
   color: #ff8098;
-  border-color: rgba(255, 92, 122, 0.3);
+  border-color: rgba(255, 92, 122, 0.32);
 }
 .ad-btn-danger:hover:not(:disabled) {
-  background: rgba(255, 92, 122, 0.24);
+  box-shadow: 0 9px 20px -8px rgba(255, 92, 122, 0.85);
+  background: linear-gradient(135deg, #ff5c7a, #a82943);
+  color: #fff;
+  border-color: transparent;
 }
+
 .ad-btn-ghost {
   background: rgba(255, 255, 255, 0.06);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.1);
+  color: #d6d2dc;
+  border-color: rgba(255, 255, 255, 0.12);
 }
 .ad-btn-ghost:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.13);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .ad-input {
@@ -258,16 +737,53 @@
   color: #fff;
   font-size: 13px;
   outline: none;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 .ad-input::placeholder {
   color: #6c6674;
 }
 .ad-input:focus {
-  border-color: #8b7bf0;
+  border-color: var(--ad-accent);
+  background: rgb(var(--ad-accent-rgb) / 0.07);
+  box-shadow: 0 0 0 3px rgb(var(--ad-accent-rgb) / 0.14);
+}
+
+/* Khung nhập lý do từ chối — bung xuống dòng riêng, rộng hết thẻ. Lý do này
+   người gửi đọc được nên phải gõ cho tử tế, không nhét vào một ô hẹp. */
+.ad-reject {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 92, 122, 0.06);
+  border: 1px solid rgba(255, 92, 122, 0.24);
+}
+.ad-reject-k {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #d99aa6;
+}
+.ad-textarea {
+  height: auto;
+  min-height: 58px;
+  padding: 9px 12px;
+  line-height: 1.45;
+  resize: vertical;
+  font-family: inherit;
+  width: 100%;
+}
+.ad-count {
+  font-size: 11px;
+  color: #8b8791;
+  font-variant-numeric: tabular-nums;
 }
 
 .ad-chip {
+  display: inline-flex;
+  align-items: center;
   height: 32px;
   padding: 0 14px;
   border-radius: 999px;
@@ -279,29 +795,100 @@
   cursor: pointer;
   outline: none;
   white-space: nowrap;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 .ad-chip:hover {
   color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
 }
 .ad-chip-on {
-  background: rgba(139, 123, 240, 0.18);
-  border-color: rgba(139, 123, 240, 0.45);
-  color: #b3a8ff;
+  box-shadow: 0 4px 14px -8px rgb(var(--ad-accent-rgb) / 0.9);
+  background: rgb(var(--ad-accent-rgb) / 0.16);
+  border-color: rgb(var(--ad-accent-rgb) / 0.45);
+  color: var(--ad-accent-ink);
+}
+
+/* Chip lọc theo trạng thái (Chờ duyệt/Đã duyệt/Đã chuyển/Từ chối) — trước
+   dùng chung màu accent của tab (luôn xanh lá ở Rút tiền), nên bấm qua từng
+   trạng thái mà màu không đổi, không biết đang lọc cái gì nếu không đọc chữ.
+   Giờ mỗi chip mang đúng màu của trạng thái nó lọc, kể cả lúc chưa bấm (chấm
+   tròn mờ) lẫn lúc đang chọn (tô đậm hẳn). */
+.ad-chip-status::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  margin-right: 6px;
+  opacity: 0.8;
+}
+.ad-chip.st-pending  { color: #E8C468; }
+.ad-chip.st-processing { color: #7fb4ff; }
+.ad-chip.st-paid     { color: #5fd39a; }
+.ad-chip.st-rejected { color: #ff8098; }
+.ad-chip.st-pending.ad-chip-on {
+  box-shadow: 0 4px 14px -8px rgba(232, 196, 104, 0.7);
+  background: rgba(232, 196, 104, 0.16);
+  border-color: rgba(232, 196, 104, 0.45);
+}
+.ad-chip.st-processing.ad-chip-on {
+  box-shadow: 0 4px 14px -8px rgba(96, 165, 250, 0.7);
+  background: rgba(96, 165, 250, 0.18);
+  border-color: rgba(96, 165, 250, 0.45);
+}
+.ad-chip.st-paid.ad-chip-on {
+  box-shadow: 0 4px 14px -8px rgba(34, 197, 94, 0.7);
+  background: rgba(34, 197, 94, 0.16);
+  border-color: rgba(34, 197, 94, 0.45);
+}
+.ad-chip.st-rejected.ad-chip-on {
+  box-shadow: 0 4px 14px -8px rgba(255, 92, 122, 0.7);
+  background: rgba(255, 92, 122, 0.16);
+  border-color: rgba(255, 92, 122, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ad-btn,
+  .ad-btn-primary::after {
+    transition: none;
+  }
+  .ad-btn:hover:not(:disabled) {
+    transform: none;
+  }
 }
 
 /* ── Nhãn trạng thái ──────────────────────────────────────────────────────── */
 .ad-status {
   display: inline-flex;
   align-items: center;
+  gap: 5px;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.04em;
-  padding: 3px 8px;
+  padding: 3px 9px;
   border-radius: 999px;
   white-space: nowrap;
 }
+/* Chấm tròn trước chữ — thêm một tầng nhận diện màu ngoài chữ, đọc được cả
+   khi chỉ liếc thoáng qua danh sách dài mà không cần đọc từng dòng chữ. */
+.ad-status::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+  flex-shrink: 0;
+}
 .st-pending  { background: rgba(232, 196, 104, 0.14); color: #E8C468; }
+/* Tím: chỉ dùng cho huy hiệu danh tính (ADMIN, AI) — KHÔNG dùng cho trạng
+   thái đơn rút tiền, xem .st-processing ngay dưới. */
 .st-approved { background: rgba(139, 123, 240, 0.16); color: #b3a8ff; }
+/* Đơn đã duyệt, đang chờ chuyển khoản. Phải trùng khít .payout-status-approved
+   trong wallet.css: cùng MỘT đơn hiện ở cả hai trang (admin duyệt / người dùng
+   theo dõi), hai nơi hai màu thì người dùng tưởng là hai trạng thái khác nhau. */
+.st-processing { background: rgba(96, 165, 250, 0.14); color: #7fb4ff; }
 .st-paid     { background: rgba(34, 197, 94, 0.14);  color: #5fd39a; }
 .st-rejected { background: rgba(255, 92, 122, 0.14); color: #ff8098; }
 .st-premium  { background: rgba(232, 196, 104, 0.16); color: #E8C468; }
@@ -368,7 +955,7 @@
 .ad-bar {
   width: 100%;
   border-radius: 3px 3px 0 0;
-  background: linear-gradient(180deg, #8b7bf0, #5b4bc4);
+  background: linear-gradient(180deg, var(--ad-accent), var(--ad-accent-2));
   transition: filter 0.15s ease;
 }
 .ad-bar-wrap:hover .ad-bar {
@@ -376,6 +963,97 @@
 }
 .ad-bar-zero {
   background: rgba(255, 255, 255, 0.07);
+}
+
+/* Trục ngày dưới biểu đồ — chỉ hiện vài mốc (xem showDateLabel trong .ts) để
+   30 nhãn không đè chữ lên nhau trên một hàng hẹp. */
+.ad-chart-axis {
+  display: flex;
+  gap: 3px;
+  margin-top: 6px;
+}
+.ad-chart-axis-cell {
+  flex: 1;
+  min-width: 4px;
+  text-align: center;
+  font-size: 9.5px;
+  color: #6c6674;
+  white-space: nowrap;
+}
+
+/* Chip xu hướng: so nửa sau với nửa đầu kỳ, để biết doanh thu đang lên hay
+   xuống chứ không chỉ nhìn cột cao thấp mà đoán. */
+.ad-trend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #7fe3b4;
+  background: rgba(34, 197, 94, 0.12);
+  border-radius: 999px;
+  padding: 3px 9px;
+  white-space: nowrap;
+}
+.ad-trend-down {
+  color: #ff9fb1;
+  background: rgba(255, 92, 122, 0.12);
+}
+/* Bản mini ở Tổng quan: tô vàng cố định (không ăn theo --ad-accent, vì tab
+   Tổng quan tím) — vàng là màu doanh thu/tiền trong cả app. */
+.ad-chart-gold .ad-bar {
+  background: linear-gradient(180deg, #f2d894, #a3812a);
+}
+.ad-mini-chart {
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.ad-mini-chart:hover {
+  transform: translateY(-2px);
+  border-color: rgba(232, 196, 104, 0.4);
+}
+
+/* Icon tròn trong ô "cần xử lý" */
+.ad-todo-ico {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  color: #8b8791;
+  margin-bottom: 2px;
+}
+.ad-todo-ico .material-symbols-outlined {
+  font-size: 17px;
+}
+.ad-todo-on .ad-todo-ico {
+  background: rgba(255, 92, 122, 0.14);
+  color: #ff8098;
+}
+
+/* Chip "sức khoẻ nền tảng" — nhạt, chỉ cảnh báo (đỏ) khi có việc thật */
+.ad-health-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: #b3aabf;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.ad-health-chip:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.ad-health-chip-warn {
+  color: #ff9fb1;
+  background: rgba(255, 92, 122, 0.08);
+  border-color: rgba(255, 92, 122, 0.24);
 }
 
 /* ── Lưới ảnh ─────────────────────────────────────────────────────────────── */
