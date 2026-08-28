@@ -25,24 +25,31 @@ export function lockedPinPreviewPath(pinId: string): string {
 }
 
 /** Picks which image URL one specific viewer should receive for one pin.
- * Exactly two outcomes for a commerce-restricted pin (isForSale or a live
- * auction): the real, clear original for the owner or a viewer who has
- * actually PAID (bought it outright, or won and paid for the auction) — and
- * the fully-blurred server-rendered stand-in for absolutely everyone else,
- * with no middle ground.
+ * Three outcomes for a commerce-restricted pin (isForSale or a live
+ * auction), and no plan check anywhere in the decision:
  *
- * There used to be a middle tier here: a viewer whose PLAN merely entitled
- * them to "browse" (Plus for fixed-price, Pro for auctions) got a lightly
- * watermarked preview instead of the blur, on the reasoning that being
- * plan-entitled to look wasn't the same risk as a stranger with no plan at
- * all. Product direction is that it is: "entitled to browse" and "entitled
- * to the downloadable original" are not the same thing for a commerce pin,
- * and a watermark is not a real barrier — right-click "Save image as" on
- * that preview handed a Pro/Plus viewer who never actually paid essentially
- * the full picture. Only actually owning or having paid for a pin unlocks
- * anything but the blur now; there is nothing left for a viewer's plan to
- * distinguish, so it was removed from this function and its two callers
- * below, along with the now-unused viewerPlanAllowsPinPreview() gate. */
+ *  - clear original — the owner, or a viewer who has actually PAID (bought
+ *    it outright, or won and paid for the auction).
+ *  - watermarked preview — anyone else, as long as one has been generated.
+ *    Still fully recognizable (a small "NovaFrame · author" text stamp, see
+ *    WatermarkRenderService.applyMandatoryWatermark) — a marketplace listing
+ *    a browser can't recognize is useless as a listing, and hiding what's
+ *    for sale doesn't sell it. The watermark is what stops a right-click
+ *    "Save image as" from handing out a clean, sellable copy for free; it is
+ *    not meant to make the subject unrecognizable.
+ *  - fully-blurred server-rendered stand-in — only when no watermarked
+ *    preview exists YET (generation can fail transiently — network hiccup,
+ *    Sharp error, upload retry — see PinPreviewProtectionService, which
+ *    retries on the next write to this pin's commerce state). This is the
+ *    ONLY tier that ever looks like "you can't tell what this is"; it is a
+ *    brief, self-healing fallback, not the normal browsing experience.
+ *
+ * Membership plan does not appear anywhere above: "allowed to browse the
+ * marketplace" and "allowed to view a for-sale/auction listing's picture"
+ * are the same thing for every viewer here, paid or not — plan only ever
+ * gated the separate, unrelated question of whether the *detail page* loads
+ * at all (see PinsService.getPinById / AuctionsService.getAuction's 403s),
+ * which this function has no part in. */
 export function resolveViewablePinImageUrl(
   pin: RestrictablePinImage,
   opts: {
@@ -54,7 +61,7 @@ export function resolveViewablePinImageUrl(
   if (opts.viewerId && opts.viewerId === pin.userId) return pin.imageUrl;
   if (!isPinCommerceRestricted(pin.isForSale, opts.hasAuction)) return pin.imageUrl;
   if (opts.hasPaidPurchase) return pin.imageUrl;
-  return lockedPinPreviewPath(pin.id);
+  return pin.protectedImageUrl ?? lockedPinPreviewPath(pin.id);
 }
 
 type PinAccessClient = Pick<PrismaClient, 'auction' | 'imagePurchase'>;
