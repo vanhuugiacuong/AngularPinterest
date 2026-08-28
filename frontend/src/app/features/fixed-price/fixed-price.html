@@ -71,22 +71,19 @@
                   [alt]="item.title"
                   loading="lazy"
                   class="w-full h-full object-cover block transition-transform duration-500 group-hover:scale-[1.05]"
-                  [class.blur-lg]="isRestricted(item)"
-                  [class.scale-110]="isRestricted(item)"
                 />
-
-                @if (isRestricted(item)) {
-                  <div class="absolute inset-0 z-10 flex items-center justify-center bg-bg/25 pointer-events-none">
-                    <span class="w-9 h-9 rounded-full bg-surface-high/95 border border-border-strong flex items-center justify-center shadow-card">
-                      <span class="material-symbols-outlined text-[18px] text-primary leading-none" aria-hidden="true">lock</span>
-                    </span>
-                  </div>
-                }
 
                 <span class="nf-shop-card__badge mono-label">
                   <span class="material-symbols-outlined text-[13px] leading-none" aria-hidden="true">sell</span>
                   Giá cố định
                 </span>
+
+                @if (item.hasPurchased) {
+                  <span class="nf-shop-card__owned mono-label">
+                    <span class="material-symbols-outlined text-[13px] leading-none" aria-hidden="true">check_circle</span>
+                    Đã mua
+                  </span>
+                }
               </div>
 
               <div class="flex flex-col gap-2 p-3">

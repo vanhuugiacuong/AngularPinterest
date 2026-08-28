@@ -49,6 +49,23 @@
   pointer-events: none;
 }
 
+.nf-shop-card__owned {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-success) 88%, black 6%);
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  pointer-events: none;
+}
+
 .nf-shop-card {
   transition: border-color 0.2s ease;
 }

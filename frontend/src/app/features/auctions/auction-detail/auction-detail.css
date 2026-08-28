@@ -1,3 +1,27 @@
+.nf-detail-frame {
+  transition: box-shadow 0.25s ease;
+}
+
+.nf-detail-frame:hover {
+  box-shadow: var(--shadow-glow-soft);
+}
+
+.nf-detail-seller {
+  transition: background-color 0.15s ease;
+}
+
+.nf-detail-seller:hover {
+  background-color: var(--color-surface-elevated);
+}
+
+.nf-detail-stats {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-nova-blue) 8%, var(--color-surface-elevated)) 0%,
+    var(--color-surface-elevated) 100%
+  );
+}
+
 .nf-detail-status {
   position: absolute;
   top: 12px;

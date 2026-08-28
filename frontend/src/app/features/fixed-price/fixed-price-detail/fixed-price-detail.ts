@@ -8,6 +8,8 @@ import { MembershipService } from '../../../core/services/membership';
 import { SupabaseService } from '../../../core/services/supabase';
 import { DialogService } from '../../../core/services/dialog';
 import { NovaTokenService } from '../../../core/services/novatoken';
+import { BoardService, Board } from '../../../core/services/board';
+import { ToastService } from '../../../core/services/toast';
 import { API_BASE_URL } from '../../../core/api-base';
 import { formatNovaToken, vndToNovaToken } from '../../../core/utils/novatoken';
 
@@ -31,6 +33,8 @@ export class FixedPriceDetailPage implements OnInit {
   private pinService = inject(PinService);
   private dialogService = inject(DialogService);
   private novaTokens = inject(NovaTokenService);
+  private boardService = inject(BoardService);
+  private toast = inject(ToastService);
   public membership = inject(MembershipService);
   public supabaseService = inject(SupabaseService);
 
@@ -45,18 +49,35 @@ export class FixedPriceDetailPage implements OnInit {
   public downloading = signal(false);
   public downloadMessage = signal<string | null>(null);
 
+  public boards = signal<Board[]>([]);
+  public showBoardDropdown = signal(false);
+  public selectedBoard = signal<Board | null>(null);
+  public saving = signal(false);
+
   private pinId = '';
 
   ngOnInit(): void {
     if (!this.membership.status()) {
       this.membership.load().catch(() => undefined);
     }
+    void this.loadBoards();
     this.route.paramMap.subscribe((params) => {
       const id = params.get('id');
       if (!id) return;
       this.pinId = id;
       void this.loadPin();
     });
+  }
+
+  private async loadBoards(): Promise<void> {
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (!token) return;
+      this.boards.set(await this.boardService.getBoards(token));
+    } catch {
+      // Bảng chọn bộ sưu tập không tải được thì vẫn cho tạo bộ sưu tập mặc
+      // định khi lưu — không chặn luồng chính chỉ vì danh sách này lỗi.
+    }
   }
 
   goBack(): void {
@@ -95,6 +116,73 @@ export class FixedPriceDetailPage implements OnInit {
 
   goToPricing(): void {
     this.router.navigate(['/pricing']);
+  }
+
+  /** Chỉ chủ sở hữu hoặc người ĐÃ MUA thật sự mới được lưu vào bộ sưu tập —
+   * ai chỉ đang xem (kể cả có gói Plus/Pro) thì không, khớp đúng quy tắc
+   * canSavePin() ở pin-detail.ts. */
+  canSave(): boolean {
+    const p = this.pin();
+    return !!p && (this.isOwner() || p.hasPurchased === true);
+  }
+
+  toggleBoardDropdown(event: MouseEvent): void {
+    event.stopPropagation();
+    if (!this.canSave()) {
+      this.toast.error('Bạn cần mua tác phẩm trước khi lưu vào bộ sưu tập.');
+      return;
+    }
+    this.showBoardDropdown.update((v) => !v);
+  }
+
+  selectBoard(board: Board, event: MouseEvent): void {
+    event.stopPropagation();
+    this.selectedBoard.set(board);
+    this.showBoardDropdown.set(false);
+  }
+
+  getSelectedBoardName(): string {
+    const active = this.selectedBoard();
+    if (active) return active.name;
+    const list = this.boards();
+    return list.length > 0 ? list[0].name : 'Lưu vào';
+  }
+
+  async saveToBoard(): Promise<void> {
+    const p = this.pin();
+    if (!p || this.saving()) return;
+    if (!this.canSave()) {
+      this.toast.error('Bạn cần mua tác phẩm trước khi lưu vào bộ sưu tập.');
+      return;
+    }
+
+    this.saving.set(true);
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (!token) return;
+
+      let boardId = this.selectedBoard()?.id;
+      if (!boardId && this.boards().length > 0) {
+        boardId = this.boards()[0].id;
+      }
+      if (!boardId) {
+        const newBoard = await this.boardService.createBoard(
+          'Bộ sưu tập của tôi',
+          'Bộ sưu tập lưu mặc định',
+          false,
+          token,
+        );
+        this.boards.update((current) => [newBoard, ...current]);
+        boardId = newBoard.id;
+      }
+
+      await this.boardService.addPinToBoard(boardId, p.id, token);
+      this.toast.success('Đã lưu vào bộ sưu tập.');
+    } catch (e) {
+      this.toast.error(e instanceof Error ? e.message : 'Không thể lưu vào bộ sưu tập.');
+    } finally {
+      this.saving.set(false);
+    }
   }
 
   async buyNow(): Promise<void> {

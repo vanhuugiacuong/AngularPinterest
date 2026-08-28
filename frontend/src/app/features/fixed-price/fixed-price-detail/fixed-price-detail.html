@@ -44,32 +44,87 @@
 
           <!-- Image -->
           <div class="lg:col-span-5">
-            <div class="relative aspect-square rounded-frame overflow-hidden bg-surface-elevated border border-border shadow-card sticky top-20">
-              <img [src]="p.imageUrl" [alt]="p.title" class="w-full h-full object-cover block" />
+            <div class="nf-shop-detail-frame group relative aspect-square rounded-frame overflow-hidden bg-surface-elevated border border-border shadow-card sticky top-20">
+              <img [src]="p.imageUrl" [alt]="p.title" class="w-full h-full object-cover block transition-transform duration-500 group-hover:scale-[1.03]" />
               <span class="nf-shop-detail-badge">
                 <span class="material-symbols-outlined text-[14px] leading-none" aria-hidden="true">sell</span>
                 Giá cố định
               </span>
+              @if (p.hasPurchased) {
+                <span class="nf-shop-detail-owned">
+                  <span class="material-symbols-outlined text-[14px] leading-none" aria-hidden="true">check_circle</span>
+                  Đã mua
+                </span>
+              }
             </div>
           </div>
 
           <!-- Info -->
           <div class="lg:col-span-7 flex flex-col gap-5">
-            <div class="flex flex-col gap-1.5">
+            <div class="flex flex-col gap-2">
               <div class="flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-primary text-lg" aria-hidden="true">sell</span>
                 <span class="mono-label text-[11px] text-primary font-extrabold uppercase tracking-wider">Bán giá cố định</span>
               </div>
               <h1 class="text-2xl sm:text-[28px] font-extrabold text-text font-display tracking-tight">{{ p.title || 'Tác phẩm' }}</h1>
-              <a [routerLink]="['/profile', p.user.username]" class="flex items-center gap-2 w-fit no-underline">
-                <app-user-avatar [src]="p.user.avatarUrl" [name]="p.user.username" [size]="24" [plan]="p.user.plan" [isAdmin]="p.user.isAdmin"></app-user-avatar>
+              <a [routerLink]="['/profile', p.user.username]" class="nf-shop-seller flex items-center gap-2 w-fit no-underline rounded-control px-1.5 py-1 -ml-1.5">
+                <app-user-avatar [src]="p.user.avatarUrl" [name]="p.user.username" [size]="26" [plan]="p.user.plan" [isAdmin]="p.user.isAdmin"></app-user-avatar>
                 <span class="text-xs text-text-muted">Người bán · <strong class="text-text font-bold">{{ p.user.username }}</strong></span>
               </a>
             </div>
 
-            <div class="flex flex-col gap-1 p-4 rounded-panel bg-surface-elevated border border-border">
-              <span class="text-[10px] uppercase font-bold text-text-muted">Giá bán</span>
-              <span class="text-3xl font-extrabold text-primary mono-label">{{ formatNovaToken(vndToNovaToken(p.price)) }}</span>
+            <div class="nf-shop-price-card flex items-center justify-between gap-3 p-5 rounded-panel border border-primary/25">
+              <div class="flex flex-col gap-1">
+                <span class="text-[10px] uppercase font-bold text-text-muted tracking-wide">Giá bán</span>
+                <span class="text-3xl font-extrabold text-primary mono-label">{{ formatNovaToken(vndToNovaToken(p.price)) }}</span>
+              </div>
+              <span class="material-symbols-outlined text-primary/50 text-4xl" aria-hidden="true">sell</span>
+            </div>
+
+            <!-- Lưu vào bộ sưu tập — chỉ chủ sở hữu hoặc người đã mua thật sự -->
+            <div class="nf-collection-save select-none relative flex items-center gap-2">
+              <div class="relative">
+                <button
+                  type="button"
+                  (click)="toggleBoardDropdown($event)"
+                  [disabled]="!canSave()"
+                  [title]="canSave() ? 'Chọn bộ sưu tập' : 'Mua tác phẩm để mở khóa tính năng lưu'"
+                  class="h-10 px-4 bg-surface-elevated hover:bg-surface-high rounded-full text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer border border-border/60 outline-none text-text select-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-surface-elevated"
+                  aria-haspopup="listbox"
+                  [attr.aria-expanded]="showBoardDropdown()"
+                >
+                  <span class="truncate max-w-[120px]">{{ getSelectedBoardName() }}</span>
+                  <span class="material-symbols-outlined text-base leading-none" aria-hidden="true">keyboard_arrow_down</span>
+                </button>
+
+                @if (showBoardDropdown()) {
+                  <div class="absolute top-[calc(100%+6px)] left-0 w-52 glass-elevated rounded-panel shadow-card border border-border py-2 z-[100] text-left overflow-hidden" role="listbox">
+                    <span class="text-xs font-semibold text-text-muted px-4 py-1 block select-none">Lưu vào bộ sưu tập</span>
+                    <div class="max-h-[140px] overflow-y-auto">
+                      @for (b of boards(); track b.id) {
+                        <button
+                          type="button"
+                          (click)="selectBoard(b, $event)"
+                          class="w-full text-left px-4 py-2 text-xs font-bold text-text hover:bg-surface-elevated cursor-pointer truncate border-none bg-transparent transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        >
+                          {{ b.name }}
+                        </button>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+
+              <button
+                type="button"
+                (click)="saveToBoard()"
+                [disabled]="!canSave() || saving()"
+                [title]="canSave() ? 'Lưu vào bộ sưu tập' : 'Mua tác phẩm để mở khóa tính năng lưu'"
+                class="h-10 px-5 bg-gradient-to-r from-nova-blue to-studio-aqua rounded-full text-text-on-accent text-xs font-bold cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-accent hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100 flex items-center gap-1.5"
+              >
+                <span class="material-symbols-outlined text-base leading-none" aria-hidden="true">bookmark_add</span>
+                {{ saving() ? 'Đang lưu...' : 'Lưu' }}
+              </button>
             </div>
 
             @if (isOwner()) {

@@ -10,6 +10,7 @@ import { MembershipService } from '../../../core/services/membership';
 import { SupabaseService } from '../../../core/services/supabase';
 import { DialogService } from '../../../core/services/dialog';
 import { ToastService } from '../../../core/services/toast';
+import { BoardService, Board } from '../../../core/services/board';
 import { API_BASE_URL } from '../../../core/api-base';
 import { formatNovaToken, vndToNovaToken } from '../../../core/utils/novatoken';
 
@@ -29,6 +30,7 @@ export class AuctionDetailPage implements OnInit, OnDestroy {
   private auctionService = inject(AuctionService);
   private dialogService = inject(DialogService);
   private toastService = inject(ToastService);
+  private boardService = inject(BoardService);
   public membership = inject(MembershipService);
   public supabaseService = inject(SupabaseService);
 
@@ -50,6 +52,11 @@ export class AuctionDetailPage implements OnInit, OnDestroy {
   public downloading = signal(false);
   public downloadMessage = signal<string | null>(null);
 
+  public boards = signal<Board[]>([]);
+  public showBoardDropdown = signal(false);
+  public selectedBoard = signal<Board | null>(null);
+  public saving = signal(false);
+
   private auctionId = '';
   private serverTimeOffsetMs = 0;
   private pollTimer?: ReturnType<typeof setInterval>;
@@ -59,12 +66,24 @@ export class AuctionDetailPage implements OnInit, OnDestroy {
     if (!this.membership.status()) {
       this.membership.load().catch(() => undefined);
     }
+    void this.loadBoards();
     this.route.paramMap.subscribe((params) => {
       const id = params.get('id');
       if (!id) return;
       this.auctionId = id;
       void this.loadAuction();
     });
+  }
+
+  private async loadBoards(): Promise<void> {
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (!token) return;
+      this.boards.set(await this.boardService.getBoards(token));
+    } catch {
+      // Bảng chọn bộ sưu tập không tải được thì vẫn cho tạo bộ sưu tập mặc
+      // định khi lưu — không chặn luồng chính chỉ vì danh sách này lỗi.
+    }
   }
 
   ngOnDestroy(): void {
@@ -208,6 +227,76 @@ export class AuctionDetailPage implements OnInit, OnDestroy {
 
   goToPricing(): void {
     this.router.navigate(['/pricing']);
+  }
+
+  /** Chỉ chủ sở hữu, hoặc người đấu giá THẮNG và đã thanh toán thật sự (auction
+   * ENDED, đúng winnerId, myPurchase đã PAID) mới được lưu vào bộ sưu tập —
+   * mọi người khác thì không, kể cả khi họ từng đặt giá. */
+  canSave(): boolean {
+    const a = this.auction();
+    if (!a) return false;
+    if (this.isOwner()) return true;
+    const userId = this.supabaseService.user()?.id;
+    return a.status === 'ENDED' && a.winnerId === userId && a.myPurchase?.status === 'PAID';
+  }
+
+  toggleBoardDropdown(event: MouseEvent): void {
+    event.stopPropagation();
+    if (!this.canSave()) {
+      this.toastService.error('Bạn cần thắng và thanh toán phiên đấu giá trước khi lưu vào bộ sưu tập.');
+      return;
+    }
+    this.showBoardDropdown.update((v) => !v);
+  }
+
+  selectBoard(board: Board, event: MouseEvent): void {
+    event.stopPropagation();
+    this.selectedBoard.set(board);
+    this.showBoardDropdown.set(false);
+  }
+
+  getSelectedBoardName(): string {
+    const active = this.selectedBoard();
+    if (active) return active.name;
+    const list = this.boards();
+    return list.length > 0 ? list[0].name : 'Lưu vào';
+  }
+
+  async saveToBoard(): Promise<void> {
+    const a = this.auction();
+    if (!a || this.saving()) return;
+    if (!this.canSave()) {
+      this.toastService.error('Bạn cần thắng và thanh toán phiên đấu giá trước khi lưu vào bộ sưu tập.');
+      return;
+    }
+
+    this.saving.set(true);
+    try {
+      const token = await this.supabaseService.getSessionToken();
+      if (!token) return;
+
+      let boardId = this.selectedBoard()?.id;
+      if (!boardId && this.boards().length > 0) {
+        boardId = this.boards()[0].id;
+      }
+      if (!boardId) {
+        const newBoard = await this.boardService.createBoard(
+          'Bộ sưu tập của tôi',
+          'Bộ sưu tập lưu mặc định',
+          false,
+          token,
+        );
+        this.boards.update((current) => [newBoard, ...current]);
+        boardId = newBoard.id;
+      }
+
+      await this.boardService.addPinToBoard(boardId, a.pin.id, token);
+      this.toastService.success('Đã lưu vào bộ sưu tập.');
+    } catch (e) {
+      this.toastService.error(e instanceof Error ? e.message : 'Không thể lưu vào bộ sưu tập.');
+    } finally {
+      this.saving.set(false);
+    }
   }
 
   async submitBid(): Promise<void> {
