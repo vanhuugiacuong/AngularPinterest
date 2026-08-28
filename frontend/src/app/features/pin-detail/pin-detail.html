@@ -498,9 +498,7 @@
                             <label class="sr-only" for="bidAmount">Giá đặt (VND)</label>
                             <input
                               id="bidAmount"
-                              type="number"
-                              step="1"
-                              [min]="vndToNovaToken(minAcceptableBid())"
+                              appCurrencyInput
                               [(ngModel)]="bidAmount"
                               name="bidAmount"
                               [placeholder]="'Tối thiểu ' + minAcceptableBidLabel()"

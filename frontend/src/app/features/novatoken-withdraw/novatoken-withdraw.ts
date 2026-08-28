@@ -6,13 +6,14 @@ import { Navbar } from '../../components/navbar/navbar';
 import { NovaTokenService } from '../../core/services/novatoken';
 import { ToastService } from '../../core/services/toast';
 import { DialogService } from '../../core/services/dialog';
+import { CurrencyInputDirective } from '../../shared/currency-input.directive';
 
 const QUICK_PERCENTS = [25, 50, 100] as const;
 
 @Component({
   selector: 'app-novatoken-withdraw',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, Navbar],
+  imports: [CommonModule, FormsModule, RouterLink, Navbar, CurrencyInputDirective],
   templateUrl: './novatoken-withdraw.html',
   styleUrl: './novatoken-withdraw.css',
 })

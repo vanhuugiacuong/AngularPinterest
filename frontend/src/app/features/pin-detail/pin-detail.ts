@@ -26,6 +26,7 @@ import { API_BASE_URL } from '../../core/api-base';
 import { WatermarkPreset, WatermarkService } from '../../core/services/watermark';
 import { ToastService } from '../../core/services/toast';
 import { showsCardByline, showsCardTitle } from '../../core/utils/card-caption';
+import { CurrencyInputDirective } from '../../shared/currency-input.directive';
 import { DialogService } from '../../core/services/dialog';
 import { AuctionService, AuctionDetail } from '../../core/services/auction';
 import { UserService, ProfileViewerState } from '../../core/services/user';
@@ -50,7 +51,7 @@ const RELATED_PLACEHOLDER_RATIO = 0.75;
 @Component({
   selector: 'app-pin-detail',
   standalone: true,
-  imports: [CommonModule, Navbar, FormsModule, UserAvatar, ImageRegionSearch, LikeButton],
+  imports: [CommonModule, Navbar, FormsModule, UserAvatar, ImageRegionSearch, LikeButton, CurrencyInputDirective],
   templateUrl: './pin-detail.html',
   styleUrl: './pin-detail.css',
 })
