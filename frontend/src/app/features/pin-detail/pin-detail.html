@@ -635,9 +635,17 @@
                         ></app-user-avatar>
                       </div>
 
+                      <!-- min-w-0 la bat buoc, khong phai trang tri: `flex-1` cho form
+                           duoc PHEP co, nhung mac dinh `min-width: auto` cua mot flex
+                           item khong cho no co duoi min-content cua chinh no — va
+                           min-content cua mot <input> la be rong mac dinh ~20 ky tu.
+                           Thieu no thi hang nay rong hon panel va nut "Gửi" bi day
+                           qua mep. Input ben trong da co min-w-0 nhung dieu do chi
+                           dieu chinh viec co BEN TRONG form, khong go duoc san cua
+                           chinh form. -->
                       <form
                         (submit)="submitComment(); $event.preventDefault()"
-                        class="flex-1 flex gap-2"
+                        class="flex-1 min-w-0 flex gap-2"
                       >
                         <input
                           type="text"
