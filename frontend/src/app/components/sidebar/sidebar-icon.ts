@@ -12,8 +12,7 @@ const ICON_PATHS: Record<SidebarIconName, string> = {
   messages:
     'M20 11.5a8 8 0 0 1-8 8 8.2 8.2 0 0 1-3.25-.67L4 20l1.35-4.2A8 8 0 1 1 20 11.5ZM9 11.5h.01M12 11.5h.01M15 11.5h.01',
   settings: 'M4 7h7M15 7h5M4 12h2M10 12h10M4 17h9M17 17h3M13 5v4M8 10v4M15 15v4',
-  auction:
-    'M7 10 L11 6 L15 10 L11 14 Z M11 14 L17.5 20.5 M14 20.5 L21 20.5',
+  auction: '', // dedicated @if branch below — needs filled shapes, not a single stroked path
   'fixed-price': 'M4 4 L13 4 L20 11 L13 18 L4 18 Z M7 7 L9 7 L9 9 L7 9 Z',
 };
 
@@ -88,6 +87,22 @@ const ICON_PATHS: Record<SidebarIconName, string> = {
           stroke-linecap="round"
           stroke-linejoin="round"
         />
+      } @else if (icon() === 'auction') {
+        <!-- Búa đấu giá — đầu búa và đế gõ phải TÔ ĐẶC (fill), không chỉ
+             viền, nếu không đầu búa hiện ra như một vòng thoi rỗng và dễ bị
+             đọc nhầm thành gậy/chìa khóa thay vì cái búa. -->
+        <rect
+          x="2.3" y="4.8" width="8.4" height="4.4" rx="1.4"
+          transform="rotate(-45 6.5 7)"
+          fill="currentColor"
+        />
+        <path
+          d="M9.5 10 L16 16.5"
+          stroke="currentColor"
+          stroke-width="2.3"
+          stroke-linecap="round"
+        />
+        <rect x="12.5" y="17.6" width="9.2" height="3.6" rx="1.1" fill="currentColor" />
       } @else {
         <path
           [attr.d]="path()"
