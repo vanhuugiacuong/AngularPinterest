@@ -205,6 +205,25 @@ export class PinService {
     }
   }
 
+  /**
+   * Gợi ý bộ lọc cho một câu tìm (danh mục + khái niệm có thật trong kết quả).
+   * Lấy riêng khỏi /search vì chỉ cần một lần cho mỗi câu tìm, không lấy lại
+   * mỗi lần cuộn thêm trang.
+   */
+  async searchFacets(query: string): Promise<{
+    categories: { key: string; label: string; count: number; imageUrl: string | null; type: 'category' }[];
+    concepts: { key: string; label: string; count: number; imageUrl: string | null; type: 'concept' }[];
+  }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/search-facets?q=${encodeURIComponent(query)}`);
+      if (!response.ok) return { categories: [], concepts: [] };
+      return await response.json();
+    } catch {
+      // Gợi ý lọc là phần phụ trợ — hỏng thì trang kết quả vẫn phải chạy.
+      return { categories: [], concepts: [] };
+    }
+  }
+
   async searchByImage(formData: FormData): Promise<any[]> {
     try {
       const response = await fetch(`${this.baseUrl}/search-by-image`, {

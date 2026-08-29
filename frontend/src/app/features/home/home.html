@@ -153,7 +153,15 @@
 
                   <!-- Bottom Bar: title on the left, likes count (clickable toggle) on the right -->
                   <div class="px-1 flex items-center justify-between w-full min-w-0 mt-2">
-                    <span class="text-xs font-bold text-[#211922] dark:text-white truncate max-w-[70%]">{{ pin.title }}</span>
+                    <!-- Tiêu đề để TRỐNG là chuyện bình thường (không còn bắt buộc
+                         lúc đăng), nên chỉ vẽ khi thật sự có chữ. Vẽ vô điều kiện
+                         thì ảnh không tiêu đề vẫn chiếm một dòng rỗng, làm lưới
+                         ảnh so le nhau. -->
+                    @if (pin.title?.trim()) {
+                      <span class="text-xs font-bold text-[#211922] dark:text-white truncate max-w-[70%]">{{ pin.title }}</span>
+                    } @else {
+                      <span></span>
+                    }
                     <!-- Padding is constant in both states so the pill appearing on
                          like does not nudge the row; only the background and ring
                          come and go. ngClass rather than [class.x] because the liked

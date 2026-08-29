@@ -1,4 +1,14 @@
-import { Component, OnInit, effect, inject, signal } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
@@ -9,17 +19,14 @@ import { ChatService, PublicUserSummary } from '../../core/services/chat';
 import { SupabaseService } from '../../core/services/supabase';
 import { VisualSearchService } from '../../core/services/visual-search';
 
-// Lowercases and strips Vietnamese diacritics (tone marks via NFD decomposition, plus
-// đ/Đ which don't decompose that way) so "cho" matches "chó" the same way real
-// Pinterest's search tolerates missing accents.
-function normalizeForSearch(value: string | null | undefined): string {
-  if (!value) return '';
-  return value
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D')
-    .toLowerCase();
+/** Một nút trong thanh "Gợi ý bộ lọc". Bấm vào là thêm `label` vào câu tìm.
+ *  `type` chỉ cho biết từ khoá đến từ đâu (danh mục hay khái niệm) — cả hai
+ *  hành xử giống hệt nhau khi bấm. */
+interface SearchTag {
+  key: string;
+  label: string;
+  imageUrl: string | null;
+  type: 'category' | 'concept';
 }
 
 @Component({
@@ -29,7 +36,9 @@ function normalizeForSearch(value: string | null | undefined): string {
   templateUrl: './search.html',
   styleUrl: './search.css'
 })
-export class Search implements OnInit {
+export class Search implements OnInit, AfterViewInit, OnDestroy {
+  @ViewChild('scrollSentinel') scrollSentinel?: ElementRef<HTMLElement>;
+  private observer?: IntersectionObserver;
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private pinService = inject(PinService);
@@ -41,8 +50,22 @@ export class Search implements OnInit {
   public results = signal<any[]>([]);
   public userResults = signal<PublicUserSummary[]>([]);
   public isLoading = signal<boolean>(true);
-  public refinementTags = signal<{ label: string; imageUrl: string | null }[]>([]);
+  public refinementTags = signal<SearchTag[]>([]);
   public visualQueryPreviewUrl = signal<string | null>(null);
+
+  /** Cuộn tới đâu tải tới đó. Trước đây trang này tải TOÀN BỘ thư viện trước
+   *  khi vẽ được ô nào — 1.500+ ảnh qua 26 lượt gọi nối đuôi nhau, nên gõ xong
+   *  chỉ thấy vòng xoay đứng im. Giờ mỗi lần một trang. */
+  public isLoadingMore = signal<boolean>(false);
+  public hasMore = signal<boolean>(true);
+  private page = 1;
+  private readonly pageSize = 30;
+  /** Tăng mỗi lần đổi câu tìm, để kết quả của câu cũ về trễ thì bị bỏ qua. */
+  private runId = 0;
+
+  /** Câu tìm không ra gì -> vẫn hiện ảnh phổ biến thay vì một trang trắng,
+   *  đúng cách Pinterest xử lý. Cờ này để tiêu đề nói rõ đây là gợi ý. */
+  public isShowingFallback = signal<boolean>(false);
 
   /** Save/like live in a shared service — see PinCardActionsService for why
    * this page no longer carries its own copy. Public so the template can bind
@@ -59,15 +82,6 @@ export class Search implements OnInit {
       this.showVisualSearchResults();
     }
   });
-
-  // Rough Vietnamese stop-word list (diacritic-stripped) so common filler words never
-  // show up as a "related" tag — this is a best-effort heuristic, not a real dictionary.
-  private readonly stopWords = new Set([
-    'va', 'la', 'cua', 'cho', 'cac', 'mot', 'nhung', 'co', 'khong', 'nay', 'do', 'voi',
-    'trong', 'tren', 'de', 'khi', 'se', 'da', 'thi', 'ma', 'nhu', 'vi', 'nen', 'hay',
-    'hoac', 'roi', 'sau', 'truoc', 'tu', 'den', 'theo', 'duoc', 'bi', 'rat', 'qua', 'it',
-    'nhieu', 'moi', 'tat', 'ca', 'nguoi', 'minh', 'ban', 'anh', 'chi', 'em', 'toi', 'nhe',
-  ]);
 
   private readonly pillPalette = [
     'bg-[#F9D9E7] dark:bg-[#3a2530]',
@@ -95,7 +109,7 @@ export class Search implements OnInit {
       this.visualQueryPreviewUrl.set(null);
       const q = params.get('q') || '';
       this.query.set(q);
-      this.runSearch(q);
+      void this.runSearch(q);
     });
   }
 
@@ -105,40 +119,61 @@ export class Search implements OnInit {
     this.userResults.set([]);
     this.refinementTags.set([]);
     this.results.set(this.visualSearchService.results() || []);
+    this.isShowingFallback.set(false);
+    this.hasMore.set(false);
     this.isLoading.set(false);
   }
 
+  /**
+   * Gọi thẳng API tìm kiếm của máy chủ.
+   *
+   * BẢN TRƯỚC LÀM SAI CĂN BẢN: nó tải về TOÀN BỘ thư viện ảnh (phân trang 60
+   * một, lặp tới khi hết — hơn 1.500 ảnh, hơn 20 lượt gọi nối đuôi) rồi mới lọc
+   * bằng `includes()` ngay trên trình duyệt. Hậu quả:
+   *   - Gõ xong ngồi nhìn vòng xoay rất lâu, câu không có kết quả thì xoay
+   *     hết cả lượt tải mới biết là không có gì.
+   *   - Vứt bỏ toàn bộ phần thông minh ở máy chủ: không bỏ dấu, không đồng
+   *     nghĩa Việt–Anh, không ngữ nghĩa CLIP, không chịu lỗi gõ sai. Gõ "chó"
+   *     không bao giờ ra ảnh tên "dog" dù máy chủ thừa sức trả về.
+   *   - Khớp chuỗi con nên "gai" lọt cả "gãi".
+   */
   async runSearch(q: string) {
+    const run = ++this.runId;
+    this.page = 1;
+    this.hasMore.set(true);
+    this.isShowingFallback.set(false);
     this.isLoading.set(true);
+
     try {
-      const [pins] = await Promise.all([this.loadAllPins(), this.loadMatchingUsers(q)]);
-      // Match each word of the query independently (AND, not one literal phrase) so a
-      // combined query from a refinement tag — e.g. "chó" + "cưng" — still finds pins
-      // whose title has both words but not necessarily next to each other.
-      const needleWords = normalizeForSearch(q.trim()).split(/\s+/).filter(Boolean);
-      const filtered = needleWords.length
-        ? pins.filter(p => {
-            const haystack = [
-              normalizeForSearch(p.title),
-              normalizeForSearch(p.description),
-              normalizeForSearch(p.user?.username),
-            ].join(' ');
-            return needleWords.every(w => haystack.includes(w));
-          })
-        : pins;
-      // Most-liked first, same ordering the home feed's "trending" sort uses —
-      // otherwise results come back in whatever order the DB happens to return them.
-      filtered.sort((a, b) => ((b as any)._count?.likes ?? 0) - ((a as any)._count?.likes ?? 0));
-      this.results.set(filtered);
-      this.refinementTags.set(needleWords.length ? this.computeRefinementTags(filtered, needleWords) : []);
+      const [pins] = await Promise.all([
+        this.pinService.searchPins(q, 1, this.pageSize),
+        this.loadMatchingUsers(q),
+        this.loadFacets(q, run),
+      ]);
+      if (run !== this.runId) return; // câu tìm đã đổi, kết quả này lỗi thời
+
+      if (pins.length === 0) {
+        // Không có gì khớp -> vẫn cho xem ảnh phổ biến. Trang trắng trơn trông
+        // như hệ thống hỏng, còn Pinterest thì luôn có ảnh để lướt tiếp.
+        await this.loadFallback(run);
+        return;
+      }
+
+      this.results.set(pins);
+      this.hasMore.set(pins.length === this.pageSize);
+      queueMicrotask(() => this.observeSentinel());
     } catch (error) {
       console.error('Error searching pins:', error);
-      this.results.set([]);
+      if (run === this.runId) {
+        this.results.set([]);
+        this.hasMore.set(false);
+      }
     } finally {
-      this.isLoading.set(false);
+      if (run === this.runId) this.isLoading.set(false);
     }
   }
 
+  /** Tài khoản khớp câu tìm, hiện thành hàng avatar phía trên lưới ảnh. */
   private async loadMatchingUsers(q: string) {
     const trimmed = q.trim();
     if (!trimmed) {
@@ -158,56 +193,114 @@ export class Search implements OnInit {
     }
   }
 
-  // Was only checking the first 60 pins — a match further down the list (there can be
-  // hundreds) would silently never show up. Pages through everything instead, same
-  // "fewer than a full page = done" stopping rule used elsewhere in the app.
-  private async loadAllPins() {
-    const pageSize = 60;
-    let page = 1;
-    const all: any[] = [];
-    while (true) {
-      const pins = await this.pinService.getPins(page, pageSize);
-      if (!pins || pins.length === 0) break;
-      all.push(...pins);
-      if (pins.length < pageSize) break;
-      page++;
+  /** Cuộn chạm đáy thì lấy thêm một trang. */
+  async loadMore() {
+    if (this.isLoading() || this.isLoadingMore() || !this.hasMore() || this.isShowingFallback()) return;
+    const run = this.runId;
+    this.isLoadingMore.set(true);
+    try {
+      const next = await this.pinService.searchPins(
+        this.query(),
+        this.page + 1,
+        this.pageSize,
+      );
+      if (run !== this.runId) return;
+      this.page++;
+      // Máy chủ có thể trả lại ảnh đã thấy (nhánh ngữ nghĩa và nhánh khớp chữ
+      // chồng nhau), lọc trùng theo id chứ đừng vẽ hai lần.
+      const seen = new Set(this.results().map((p) => p.id));
+      this.results.update((cur) => [...cur, ...next.filter((p: any) => !seen.has(p.id))]);
+      this.hasMore.set(next.length === this.pageSize);
+    } catch (error) {
+      console.error('Error loading more results:', error);
+      this.hasMore.set(false);
+    } finally {
+      this.isLoadingMore.set(false);
     }
-    return all;
   }
 
-  // "Gợi ý bộ lọc" (guided search pills) — a lightweight stand-in for Pinterest's
-  // AI co-occurrence tags. Real Pinterest pulls these from words that show up on other
-  // boards/pins saved alongside the ones you're looking at — including plenty that look
-  // unrelated on their own. We don't have that saved-together data, so we approximate it
-  // by pulling words from title + description + uploader name across every matched pin,
-  // which casts a wide enough net to include some "unrelated" ones the same way.
-  private computeRefinementTags(pins: any[], needleWords: string[]): { label: string; imageUrl: string | null }[] {
-    const counts = new Map<string, { label: string; count: number; imageUrl: string | null }>();
-    for (const pin of pins) {
-      const text = [pin.title, pin.description, pin.user?.username].filter(Boolean).join(' ');
-      if (!text.trim()) continue;
-      for (const raw of text.split(/\s+/)) {
-        const word = raw.replace(/[^\p{L}\p{N}]/gu, '');
-        if (word.length < 2) continue;
-        const key = normalizeForSearch(word);
-        if (!key || needleWords.includes(key) || this.stopWords.has(key)) continue;
-        const existing = counts.get(key);
-        if (existing) {
-          existing.count++;
-        } else {
-          counts.set(key, { label: word, count: 1, imageUrl: pin.imageUrl ?? null });
-        }
-      }
+  private async loadFallback(run: number) {
+    try {
+      const popular = await this.pinService.getPins(1, this.pageSize);
+      if (run !== this.runId) return;
+      this.isShowingFallback.set(true);
+      this.results.set(popular ?? []);
+      this.hasMore.set(false);
+    } catch {
+      this.results.set([]);
+      this.hasMore.set(false);
     }
-    return Array.from(counts.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 30);
   }
 
-  applyRefinementTag(tag: string) {
+  /**
+   * Gợi ý bộ lọc lấy từ máy chủ.
+   *
+   * Bản trước tự tách chữ từ tiêu đề ngay trên trình duyệt, nên gõ "code" thì
+   * hiện "màn", "hình", "lập", "trình", "lucasacoustics" — mảnh vụn của một
+   * câu, bấm vào không mở ra chủ đề nào. Máy chủ mới trả về danh mục thật của
+   * ảnh cộng các khái niệm có chọn lọc, nên mỗi nút là một chủ đề tra được.
+   */
+  private async loadFacets(q: string, run: number) {
+    if (!q.trim()) {
+      this.refinementTags.set([]);
+      return;
+    }
+    const facets = await this.pinService.searchFacets(q);
+    if (run !== this.runId) return;
+    // Danh mục lên trước: bấm vào là mở sang tập ảnh khác hẳn, đúng thứ người
+    // dùng mong đợi nhất từ thanh này.
+    this.refinementTags.set([...facets.categories, ...facets.concepts]);
+  }
+
+  /**
+   * Bấm một nút gợi ý: THÊM TỪ KHOÁ vào câu tìm, đúng như Pinterest.
+   *
+   * Bản trước có hai kiểu nút — "danh mục" thì bật một bộ lọc riêng kèm chip
+   * hồng, "khái niệm" thì nối chữ. Hai lối đi cho một hàng nút trông giống hệt
+   * nhau là chỗ gây rối: bấm "Tranh vẽ" ra bộ lọc danh mục `drawing`, mà ảnh
+   * màn hình code lại đang được xếp vào danh mục đó, nên nhìn như hệ thống
+   * trả bừa. Giờ mọi nút làm CÙNG MỘT VIỆC và việc đó nhìn thấy được ngay
+   * trên thanh tìm kiếm, nên bấm xong người dùng hiểu vì sao kết quả đổi.
+   */
+  applyTag(tag: SearchTag) {
     const current = this.query().trim();
-    const combined = current ? `${current} ${tag}` : tag;
-    this.router.navigate(['/search'], { queryParams: { q: combined } });
+    // Đã có sẵn trong câu tìm thì bấm lần nữa là GỠ ra, để còn đường lùi.
+    const words = current.split(/\s+/).filter(Boolean);
+    const idx = words.findIndex((w) => w.toLowerCase() === tag.label.toLowerCase());
+    const next = idx >= 0 ? words.filter((_, i) => i !== idx).join(' ') : `${current} ${tag.label}`.trim();
+    this.router.navigate(['/search'], { queryParams: next ? { q: next } : {} });
+  }
+
+  /** Từ khoá này đã nằm trong câu tìm chưa — để tô sáng nút tương ứng. */
+  isTagActive(tag: SearchTag): boolean {
+    return this.query()
+      .trim()
+      .split(/\s+/)
+      .some((w) => w.toLowerCase() === tag.label.toLowerCase());
+  }
+
+  /**
+   * Mốc cuộn nằm trong nhánh @else của template nên chỉ tồn tại khi ĐÃ có kết
+   * quả — theo dõi lại mỗi lần nó xuất hiện, chứ gắn một lần lúc khởi tạo thì
+   * lần tìm đầu tiên sẽ không bao giờ tải thêm được trang nào.
+   */
+  ngAfterViewInit() {
+    this.observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) void this.loadMore();
+      },
+      { rootMargin: '600px' }, // tải trước khi chạm đáy, đỡ khựng
+    );
+    this.observeSentinel();
+  }
+
+  private observeSentinel() {
+    const el = this.scrollSentinel?.nativeElement;
+    if (el && this.observer) this.observer.observe(el);
+  }
+
+  ngOnDestroy() {
+    this.observer?.disconnect();
   }
 
   navigateToPin(pinId: string) {

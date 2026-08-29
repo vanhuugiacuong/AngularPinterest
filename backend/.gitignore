@@ -8,3 +8,12 @@ node_modules
 venv/
 __pycache__/
 *.pyc
+
+# Môi trường ảo + bộ nhớ đệm model của clip-service. Nặng vài GB, dựng lại
+# được bằng setup.bat nên tuyệt đối không đưa vào git.
+.venv/
+services/clip-service/.venv/
+services/clip-service/.hf-cache/
+services/clip-service/.pip-cache/
+services/clip-service/clip.log
+scratch/*.log

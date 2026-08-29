@@ -14,6 +14,14 @@ import {
   type Classification,
   type VisualCategory,
 } from './visual-search';
+import {
+  expandQuery,
+  toEnglishHint,
+  normalizeVi,
+  categoryLabel,
+  extractConcepts,
+  tokenizeQuery,
+} from './search-terms';
 
 // Tài khoản hệ thống sở hữu ảnh nạp sẵn (vd Unsplash seed — xem
 // scratch/seed-unsplash.cjs) để feed có nội dung khi chưa nhiều người đăng.
@@ -508,6 +516,7 @@ export class PinsService {
     // at the Network tab and the file was yours, and the entitlement check on
     // the download endpoint guarded a door with no wall around it.
     let imageUrl: string;
+    let previewUrlPublic: string | null = null;
     let originalPath: string | null = null;
 
     if (premium.isPremium) {
@@ -519,8 +528,21 @@ export class PinsService {
       const contentType = source.headers.get('Content-Type') || 'image/png';
       const base = `${userId}/ai_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
-      const preview = await this.watermarkService.makePreview(original, 'PinHub');
+      // Tách BA bản y hệt createUploadPin. Trước đây nhánh này chỉ tạo hai bản
+      // và gán imageUrl = bản watermark, nên ảnh AI bán Premium bị đóng dấu
+      // ngay ngoài feed — khác hẳn ảnh tải lên, và người mua tải về vẫn dính
+      // dấu vì mọi chỗ đọc imageUrl đều ra bản có dấu.
+      const [thumb, preview] = await Promise.all([
+        this.watermarkService.makeThumb(original),
+        this.watermarkService.makePreview(original, 'PinHub'),
+      ]);
       imageUrl = await this.supabaseService.uploadImage(
+        'pins',
+        `${base}_thumb.jpg`,
+        thumb,
+        'image/jpeg',
+      );
+      previewUrlPublic = await this.supabaseService.uploadImage(
         'pins',
         `${base}_preview.jpg`,
         preview,
@@ -566,7 +588,7 @@ export class PinsService {
         category,
         isPremium: premium.isPremium,
         priceCredits: premium.priceCredits,
-        previewUrl: premium.isPremium ? imageUrl : null,
+        previewUrl: previewUrlPublic,
         originalPath,
       },
     });
@@ -768,84 +790,267 @@ export class PinsService {
     return Math.abs(hash % 1000) / 1000;
   }
 
+  /**
+   * Tìm ghim theo chữ.
+   *
+   * THỨ TỰ HAI NHÁNH ĐÃ BỊ ĐẢO LẠI, và đây là quyết định quan trọng nhất ở
+   * đây. Trước kia nhánh ngữ nghĩa (CLIP) chạy TRƯỚC và nuốt hết kết quả.
+   * Đo thực tế trên chính thư viện này cho thấy không thể tin nó làm nguồn
+   * chính:
+   *
+   *     câu tìm      trung bình  cao nhất  z(cao nhất)
+   *     dog             0.193     0.301       3.52
+   *     qwertyuiop      0.207     0.259       3.51   <-- chữ vô nghĩa
+   *
+   * Gõ bừa "qwertyuiop" vẫn cho phân bố nhọn y hệt "dog". Nghĩa là KHÔNG có
+   * ngưỡng nào — tuyệt đối hay tương đối — tách được câu có nghĩa khỏi câu vô
+   * nghĩa. Ngưỡng 0.18 cũ chỉ là con số cho có, và hậu quả người dùng thấy là
+   * gõ "hoàng hôn" ra "Rùa biển xanh bơi lội".
+   *
+   * Nên giờ:
+   *   1. KHỚP CHỮ là nguồn chính — chắc chắn đúng, và đã nở sang tiếng Anh
+   *      qua từ điển nên vẫn tìm được ảnh đặt tên tiếng Anh.
+   *   2. NGỮ NGHĨA chỉ BÙ THÊM vào cuối, và chỉ khi nhánh 1 đã tìm được gì đó
+   *      (tức câu tìm chắc chắn có nghĩa) mà chưa đủ một trang. Nó kéo về
+   *      những ảnh đúng nội dung nhưng tiêu đề không nhắc tới — ví dụ ảnh chó
+   *      đặt tên "Ánh mắt hoang dã". Đó là giá trị thật của CLIP ở đây.
+   *
+   * Nhánh 1 không ra gì thì trả rỗng, KHÔNG để CLIP bịa: giao diện sẽ chuyển
+   * sang "gợi ý cho bạn", trung thực hơn là một nắm ảnh ngẫu nhiên.
+   */
   async searchPins(query: string, page: number = 1, limit: number = 30) {
     const needle = query ? query.trim() : '';
-    if (!needle) {
-      return [];
-    }
+    if (!needle) return [];
 
     const skip = (page - 1) * limit;
+    const include = {
+      user: { select: { id: true, username: true, avatarUrl: true, isPro: true, pinhubProPlan: true } },
+      _count: { select: { likes: true } },
+    };
 
-    // 1. Get text embedding from CLIP service
-    const embedding = await this.getTextEmbedding(needle);
-    if (!embedding) {
-      // Fallback: simple text keyword contains query
-      return this.prisma.pin.findMany({
-        where: {
-          OR: [
-            { title: { contains: needle, mode: 'insensitive' } },
-            { description: { contains: needle, mode: 'insensitive' } },
-            { category: { contains: needle, mode: 'insensitive' } },
-            { user: { username: { contains: needle, mode: 'insensitive' } } },
-          ],
-        },
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          user: { select: { id: true, username: true, avatarUrl: true, isPro: true, pinhubProPlan: true } },
-          _count: { select: { likes: true } }
-        }
-      });
-    }
+    const textHits: any[] = (await this.searchPinsByText(needle, skip, limit, include)) as any[];
+    if (textHits.length >= limit || textHits.length === 0) return textHits;
 
-    // 2. Query pgvector using Raw SQL for cosine similarity
-    const vectorString = JSON.stringify(embedding);
-    const queryLimit = limit * 2;
-    const pins: any[] = await this.prisma.$queryRawUnsafe(`
-      SELECT 
-        p.id, p.title, p.description, p."imageUrl", p."sourceUrl", p."userId", p."createdAt", p."isAiGenerated", p."category",
-        u.username AS "authorUsername", u."avatarUrl" AS "authorAvatarUrl",
-        COUNT(l."pinId")::int AS "likesCount",
-        1 - (p.embedding <=> $1::vector) AS similarity
+    // Chưa đủ một trang -> nhờ CLIP bù. Dịch sang tiếng Anh trước vì bộ mã hoá
+    // chữ của CLIP huấn luyện chủ yếu trên tiếng Anh ("chó" cho vector kém hơn
+    // hẳn "dog").
+    const embedding = await this.getTextEmbedding(toEnglishHint(needle));
+    if (!embedding) return textHits;
+
+    const seen = new Set<string>(textHits.map((p) => p.imageUrl).filter(Boolean));
+    const seenIds = new Set<string>(textHits.map((p) => p.id));
+    const need = limit - textHits.length;
+
+    const rows: any[] = await this.prisma.$queryRawUnsafe(
+      `
+      SELECT p.id, 1 - (p.embedding <=> $1::vector) AS similarity
       FROM "Pin" p
-      LEFT JOIN "User" u ON p."userId" = u.id
-      LEFT JOIN "Like" l ON p.id = l."pinId"
       WHERE p.embedding IS NOT NULL
-      GROUP BY p.id, u.username, u."avatarUrl"
       ORDER BY p.embedding <=> $1::vector
-      LIMIT $2 OFFSET $3
-    `, vectorString, queryLimit, skip);
+      LIMIT $2
+      `,
+      JSON.stringify(embedding),
+      need * 4, // lấy dư để còn chỗ loại trùng
+    );
 
-    const seenUrls = new Set<string>();
-    const uniquePins: any[] = [];
-    for (const p of pins) {
-      if (!seenUrls.has(p.imageUrl)) {
-        seenUrls.add(p.imageUrl);
-        uniquePins.push(p);
-      }
+    const extraIds = rows.map((r) => r.id).filter((id) => !seenIds.has(id));
+    if (!extraIds.length) return textHits;
+
+    const extras = await this.prisma.pin.findMany({ where: { id: { in: extraIds } }, include });
+    const order = new Map(extraIds.map((id, i) => [id, i]));
+    const simById = new Map(rows.map((r) => [r.id, Number(r.similarity)]));
+
+    const filled = extras
+      .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+      .filter((p: any) => {
+        if (!p.imageUrl) return true;
+        if (seen.has(p.imageUrl)) return false;
+        seen.add(p.imageUrl);
+        return true;
+      })
+      .slice(0, need)
+      .map((p: any) => ({ ...p, similarity: simById.get(p.id) }));
+
+    return [...textHits, ...filled];
+  }
+
+  private async searchPinsByText(needle: string, skip: number, limit: number, include: any) {
+    const escapeRe = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Neo CẢ HAI đầu từ: \m ranh giới đầu, \M ranh giới cuối. Chỉ neo đầu thì
+    // "cat" vẫn khớp "cathedral", "gai" khớp "gai góc".
+    const wordRe = (t: string) => '\\m' + escapeRe(t) + '\\M';
+
+    const raw = needle.trim().toLowerCase();
+    const norm = normalizeVi(needle);
+    if (!norm) return [];
+
+    const tokens = tokenizeQuery(needle);
+    if (!tokens.length) return [];
+
+    // Mỗi từ thành một mẫu "từ-này-HOẶC-các-cách-viết-tương-đương".
+    const tokenRes = tokens.map((alts) => alts.map(wordRe).join('|'));
+
+    // $1 = nguyên cụm còn dấu (chỉ dùng để CỘNG ĐIỂM, không phải điều kiện lọc)
+    // $2.. = từng từ
+    const params: any[] = [wordRe(raw), ...tokenRes];
+    const tokenParam = (i: number) => `$${i + 2}::text`;
+
+    // Phải có đủ mọi từ, tìm trong tiêu đề + mô tả + danh mục gộp lại.
+    // Cột gộp KHÔNG được đặt tên `full`: đó là từ khoá SQL (FULL JOIN) nên
+    // Postgres báo lỗi cú pháp ngay tại toán tử so khớp đứng sau nó.
+    const whereAll = tokens.map((_, i) => `alltext ~ ${tokenParam(i)}`).join(' AND ');
+
+    // Từ nằm ở tiêu đề đáng giá hơn hẳn nằm ở mô tả hay danh mục.
+    const scoreParts = [
+      `CASE WHEN ta ~ $1 THEN 100 ELSE 0 END`,
+      ...tokens.map((_, i) => `CASE WHEN t ~ ${tokenParam(i)} THEN 25 ELSE 0 END`),
+      ...tokens.map((_, i) => `CASE WHEN d ~ ${tokenParam(i)} THEN 8 ELSE 0 END`),
+      ...tokens.map((_, i) => `CASE WHEN c ~ ${tokenParam(i)} THEN 5 ELSE 0 END`),
+    ].join(' + ');
+
+    const limitIdx = params.length + 1;
+    params.push(limit, skip);
+
+    let rows: any[] = await this.prisma.$queryRawUnsafe(
+      `
+      WITH hay AS (
+        SELECT p.id,
+               p."createdAt",
+               lower(coalesce(p.title, '')) AS ta,
+               pinhub_norm(p.title) AS t,
+               pinhub_norm(p.description) AS d,
+               pinhub_norm(p.category) AS c,
+               pinhub_norm(coalesce(p.title, '') || ' ' || coalesce(p.description, '') || ' ' || coalesce(p.category, '')) AS alltext
+        FROM "Pin" p
+      )
+      SELECT id, (${scoreParts}) AS score
+      FROM hay
+      WHERE ${whereAll}
+      ORDER BY score DESC, "createdAt" DESC
+      LIMIT $${limitIdx} OFFSET $${limitIdx + 1}
+      `,
+      ...params,
+    );
+
+    // Không khớp được từ nào -> thử KHỚP GẦN ĐÚNG trước khi chịu thua.
+    // Người dùng gõ sai chính tả ("portrat", "anmie") là chuyện thường.
+    //
+    // Dùng word_similarity chứ KHÔNG dùng similarity: similarity() so câu tìm
+    // với NGUYÊN CẢ tiêu đề, nên một câu ngắn đọ với tiêu đề dài luôn ra điểm
+    // thấp — "portrat" đối đầu "Chân dung cô gái vintage hoài cổ" gần như bằng
+    // không. word_similarity() so với ĐOẠN KHỚP NHẤT bên trong tiêu đề.
+    //
+    // CHỈ áp dụng cho câu MỘT TỪ: câu nhiều từ mà phải viện tới khớp gần đúng
+    // thì gần như luôn ra rác — đó chính là thứ đã biến "code Ban đêm" thành
+    // một nắm ảnh ngẫu nhiên. Câu nhiều từ không khớp thì trả rỗng, để giao
+    // diện chuyển sang "gợi ý cho bạn" — thà nói thẳng còn hơn bịa.
+    if (rows.length === 0 && tokens.length === 1) {
+      const fuzzy: any[] = await this.prisma.$queryRawUnsafe(
+        `
+        SELECT p.id,
+               GREATEST(
+                 word_similarity($1, pinhub_norm(p.title)),
+                 word_similarity($1, pinhub_norm(p.description)) * 0.7
+               ) AS score
+        FROM "Pin" p
+        WHERE ($1 <% pinhub_norm(p.title) OR $1 <% pinhub_norm(p.description))
+          AND GREATEST(
+                word_similarity($1, pinhub_norm(p.title)),
+                word_similarity($1, pinhub_norm(p.description))
+              ) >= 0.55
+        ORDER BY score DESC, p."createdAt" DESC
+        LIMIT $2 OFFSET $3
+        `,
+        norm,
+        limit,
+        skip,
+      );
+      if (fuzzy.length === 0) return [];
+      rows = fuzzy;
     }
 
-    return uniquePins.slice(0, limit).map(p => ({
-      id: p.id,
-      title: p.title,
-      description: p.description,
-      imageUrl: p.imageUrl,
-      sourceUrl: p.sourceUrl,
-      userId: p.userId,
-      createdAt: p.createdAt,
-      isAiGenerated: p.isAiGenerated,
-      category: p.category,
-      user: {
-        id: p.userId,
-        username: p.authorUsername || 'Pinterest AI',
-        avatarUrl: p.authorAvatarUrl,
-      },
-      _count: {
-        likes: p.likesCount || 0
-      },
-      similarity: p.similarity
+    if (rows.length === 0) return [];
+
+    // Lấy đủ quan hệ (user, số lượt thích) qua Prisma rồi xếp lại theo thứ hạng
+    // trên — truy vấn thô ở trên chỉ dùng để CHẤM ĐIỂM, không dựng lại nguyên
+    // hình dạng dữ liệu mà phần còn lại của app đang trông đợi.
+    const ids = rows.map((r) => r.id);
+    const pins = await this.prisma.pin.findMany({ where: { id: { in: ids } }, include });
+    const order = new Map(ids.map((id, i) => [id, i]));
+    const sorted = pins.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+
+    // Bỏ ảnh trùng nhau. Thư viện có nhiều ghim khác id nhưng dùng CHUNG một
+    // ảnh, nên một câu tìm hẹp trả về cùng tấm ảnh ba bốn lần liền — nhìn như
+    // tìm kiếm hỏng. Nhánh ngữ nghĩa đã khử trùng theo imageUrl từ trước,
+    // nhánh khớp chữ thì chưa, nên bổ sung cho khớp.
+    const seen = new Set<string>();
+    return sorted.filter((p: any) => {
+      if (!p.imageUrl) return true;
+      if (seen.has(p.imageUrl)) return false;
+      seen.add(p.imageUrl);
+      return true;
+    });
+  }
+
+  /**
+   * "Gợi ý bộ lọc" — thanh nút tròn phía trên kết quả, kiểu Pinterest.
+   *
+   * Mỗi nút là một TỪ KHOÁ; bấm vào là từ khoá đó được thêm thẳng vào thanh
+   * tìm kiếm, nên người dùng luôn thấy vì sao kết quả đổi. Từ khoá dựng từ
+   * hai nguồn có nghĩa, và chỉ giữ thứ chiếm tỉ trọng đáng kể trong kết quả:
+   *
+   *   1. DANH MỤC của chính những ảnh vừa tìm được (mọi ghim đều có danh mục).
+   *   2. KHÁI NIỆM lấy từ danh sách có chọn lọc, chỉ giữ khái niệm thật sự
+   *      xuất hiện trong kết quả.
+   *
+   * Bản đầu tách nhỏ tiêu đề thành từng chữ, nên gõ "code" hiện "màn", "hình",
+   * "lập", "trình", "lucasacoustics" — mảnh vụn của một câu, bấm vào vô nghĩa.
+   */
+  async searchFacets(query: string) {
+    const needle = query ? query.trim() : '';
+    if (!needle) return { categories: [], concepts: [] };
+
+    // Lấy rộng hơn một trang: gợi ý lọc phải nhìn được toàn cảnh kết quả, chứ
+    // dựa vào 30 ảnh đầu thì chủ đề nào xếp sau sẽ không bao giờ hiện ra.
+    const pins = await this.searchPins(needle, 1, 240);
+    if (!pins.length) return { categories: [], concepts: [] };
+
+    const byCategory = new Map<string, { count: number; imageUrl: string | null }>();
+    for (const p of pins as any[]) {
+      const key = p.category || 'other';
+      const cur = byCategory.get(key);
+      if (cur) cur.count++;
+      else byCategory.set(key, { count: 1, imageUrl: p.previewUrl || p.imageUrl || null });
+    }
+
+    // Chỉ giữ chủ đề CHIẾM TỈ TRỌNG ĐÁNG KỂ trong kết quả. Trước đây lấy 8
+    // danh mục đông nhất bất kể tỉ lệ, nên một câu tìm về "code" vẫn hiện
+    // "Xe cộ", "Meme", "Thiên nhiên" chỉ vì mỗi thứ lọt một hai tấm — bấm vào
+    // là lạc sang chỗ khác hẳn. Chủ đề thật phải chiếm ít nhất 8% kết quả.
+    const minShare = Math.max(2, Math.ceil(pins.length * 0.08));
+    const categories = [...byCategory.entries()]
+      .filter(([key, v]) => key !== 'other' && v.count >= minShare)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 8)
+      .map(([key, v]) => ({
+        key,
+        label: categoryLabel(key),
+        count: v.count,
+        imageUrl: v.imageUrl,
+        type: 'category' as const,
+      }));
+
+    // Không lặp lại chính câu người ta vừa gõ, và không lặp lại tên danh mục.
+    const exclude = [needle, ...expandQuery(needle), ...categories.map((c) => c.label)];
+    const concepts = extractConcepts(pins as any[], exclude, 12, minShare).map((c) => ({
+      key: c.label,
+      label: c.label,
+      count: c.count,
+      imageUrl: c.imageUrl,
+      type: 'concept' as const,
     }));
+
+    return { categories, concepts };
   }
 
   /**

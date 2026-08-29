@@ -169,14 +169,42 @@ export class Wallet implements OnInit {
    */
   onCreditsInput(ev: Event, info: PayoutInfo) {
     const el = ev.target as HTMLInputElement;
-    let n = Math.floor(Number(el.value) || 0);
-    if (n < 0) n = 0;
+
+    // Chỉ giữ CHỮ SỐ. `type="number"` vẫn cho gõ '-', '+', 'e', dấu chấm — và
+    // với ký tự không hợp lệ thì trình duyệt trả el.value = '' nên không thể
+    // dựa vào Number(el.value) để bắt. Lọc thẳng trên chuỗi mới chắc.
+    const raw = (el.value ?? '').replace(/[^\d]/g, '');
+    let n = raw === '' ? 0 : Math.floor(Number(raw));
+
     const cap = this.payoutCap(info);
-    if (n > cap) {
-      n = cap;
-      el.value = String(n);
-    }
+    if (n > cap) n = cap;
+
+    // Ghi ngược vào ô mỗi khi giá trị đã lọc KHÁC thứ đang hiện. Trước đây chỉ
+    // ghi lại khi vượt trần, nên gõ số âm thì biến trong code về 0 mà ô vẫn
+    // hiện "-10000000000" — nhìn như chưa chặn gì.
+    const shown = String(n);
+    if (el.value !== shown) el.value = shown;
+
     this.payoutCredits = n;
+  }
+
+  /** Chặn ngay ở bàn phím các ký tự `type="number"` vẫn cho gõ nhưng ở đây vô nghĩa. */
+  onCreditsKeydown(ev: KeyboardEvent) {
+    if (['-', '+', 'e', 'E', '.', ','].includes(ev.key)) ev.preventDefault();
+  }
+
+  /**
+   * Kéo lên mức tối thiểu khi RỜI ô, không phải lúc đang gõ.
+   *
+   * Kéo lúc đang gõ thì không gõ nổi: muốn nhập 600 mà vừa bấm '6' đã bị nhảy
+   * thành 500, bấm tiếp '0' thành 5000. Trong lúc gõ cứ để số nhỏ, có dòng báo
+   * đỏ nhắc và nút gửi vẫn khoá; rời ô mới chốt lại.
+   */
+  onCreditsBlur(info: PayoutInfo) {
+    const n = Math.floor(Number(this.payoutCredits) || 0);
+    const cap = this.payoutCap(info);
+    if (cap < info.minCredits) return; // số dư chưa đủ ngưỡng, không kéo lên vô nghĩa
+    if (n < info.minCredits) this.payoutCredits = info.minCredits;
   }
 
   async ngOnInit() {
