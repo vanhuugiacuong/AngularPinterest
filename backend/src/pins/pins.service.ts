@@ -20,6 +20,7 @@ import { AiGeneratorService } from '../ai-generator/ai-generator.service';
 import { MembershipsService } from '../memberships/memberships.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PinPreviewProtectionService } from '../watermark/pin-preview-protection.service';
+import { WatermarkRenderService } from '../watermark/watermark-render.service';
 import {
   applyPinImageProtection,
   resolveSinglePinImageUrl,
@@ -146,6 +147,7 @@ export class PinsService {
     private readonly membershipsService: MembershipsService,
     private readonly notificationsService: NotificationsService,
     private readonly pinPreviewProtection: PinPreviewProtectionService,
+    private readonly watermarkRender: WatermarkRenderService,
   ) {}
 
   // Lưu bản gốc vào bucket private "pins-original" (chỉ backend đọc được) và
@@ -417,7 +419,7 @@ export class PinsService {
       originalStoragePath?: string | null;
     },
   >(pins: T[], viewerId?: string): Promise<Omit<T, 'originalStoragePath'>[]> {
-    const [auctionMap, likedIds, purchasedIds, viewerPlan] = await Promise.all([
+    const [auctionMap, likedIds, purchasedIds] = await Promise.all([
       this.fetchLatestAuctionsByPinIds(pins.map((p) => p.id)),
       this.fetchLikedPinIds(
         pins.map((p) => p.id),
@@ -427,30 +429,20 @@ export class PinsService {
         pins.map((p) => p.id),
         viewerId,
       ),
-      // status() rather than the raw User.plan column: it applies lazy expiry,
-      // so a lapsed plan stops unlocking previews (same reason getPinById uses
-      // it for its 403 gate).
-      viewerId
-        ? this.membershipsService.status(viewerId).then((s) => s.plan)
-        : Promise.resolve<MembershipPlan>('FREE'),
     ]);
     return pins.map((p) => {
       const { originalStoragePath, ...rest } = p;
       const auction = auctionMap.get(p.id);
       return {
         ...rest,
-        // Entitlement stays in resolveViewablePinImageUrl (owner / not
-        // restricted / PAID purchase). The kai branch computed restriction from
-        // the membership plan alone here, which would have handed a blurred
-        // preview to someone who had actually BOUGHT the pin. Its real fix —
-        // never letting a restricted viewer see the clear CDN URL — now lives
-        // in that helper's fallback instead, so every caller gets it, not just
-        // this one.
+        // Only the owner or a PAID buyer ever gets the real imageUrl here —
+        // see resolveViewablePinImageUrl's doc comment. Everyone else gets
+        // the fully-blurred stand-in, regardless of plan.
         imageUrl: resolveViewablePinImageUrl(p, {
           viewerId,
           hasAuction: Boolean(auction),
+          auctionStatus: auction?.status,
           hasPaidPurchase: purchasedIds.has(p.id),
-          viewerPlan,
         }),
         ...this.marketFieldsFor(p.isForSale, auction),
         hasPurchased: purchasedIds.has(p.id),
@@ -480,6 +472,7 @@ export class PinsService {
     userId?: string,
     seed?: string,
     category?: string,
+    recentSearchTerms: string[] = [],
   ) {
     const skip = (page - 1) * limit;
 
@@ -494,9 +487,19 @@ export class PinsService {
         // còn vài tấm khiến sentinel luôn nằm trong viewport và kéo cạn feed.
         // Prisma AND các field cùng cấp, nên `category` giao với OR của
         // visibilityFilter đúng như mong đợi.
-        where: category
-          ? { ...this.visibilityFilter(userId), category }
-          : this.visibilityFilter(userId),
+        //
+        // Loại hẳn pin đang bán giá cố định/đấu giá khỏi feed chính — hai loại
+        // này giờ chỉ hiện ở trang riêng của chúng (/fixed-price, /auctions).
+        // Điều kiện phải khớp CHÍNH XÁC nghịch đảo của marketFieldsFor() ở
+        // dưới (FIXED_PRICE = isForSale; AUCTION = có phiên chưa CANCELLED),
+        // không chỉ check isForSale, vì một pin có thể có phiên đấu giá dù
+        // isForSale đã bị tắt khi phiên được tạo.
+        where: {
+          ...this.visibilityFilter(userId),
+          isForSale: false,
+          auctions: { none: { status: { not: 'CANCELLED' } } },
+          ...(category ? { category } : {}),
+        },
         orderBy: { createdAt: 'desc' },
         take: candidateLimit,
         include: {
@@ -550,6 +553,23 @@ export class PinsService {
     const pinsWithScores = pins.map((pin) => {
       let score = 0;
 
+      // Ảnh của chính người xem đăng lên luôn được ưu tiên lên đầu feed —
+      // mức cộng vượt xa tổng điểm tối đa các nhánh khác (100 + 96 + 80 =
+      // 276) nên không bao giờ bị lấn bởi category/recency/noise, nhưng vẫn
+      // giữ đúng thứ tự MỚI NHẤT trước giữa các pin của chính họ (điểm
+      // recency/noise bên dưới vẫn cộng thêm phía sau).
+      if (userId && pin.userId === userId) {
+        score += 10_000;
+      }
+
+      // Ảnh liên quan tới từ khoá đã tìm gần đây (gửi lên từ localStorage
+      // phía client - xem SearchHistoryService) xếp ngay sau ảnh của chính
+      // mình, nhưng vẫn vượt xa category/recency/noise cộng lại (tối đa
+      // ~576) nên không bị các nhánh đó lấn thứ tự.
+      if (recentSearchTerms.length > 0 && this.matchesRecentSearch(pin, recentSearchTerms)) {
+        score += 2_000;
+      }
+
       // Category preference score
       if (preferredCategories.length > 0) {
         const index = preferredCategories.indexOf(pin.category);
@@ -582,6 +602,49 @@ export class PinsService {
       sortedPins.slice(skip, skip + limit),
       userId,
     );
+  }
+
+  /** Danh sách công khai cho trang "Giá cố định" riêng — duyệt được không cần
+   * đăng nhập, ảnh áp dụng cùng luật bảo vệ (blur/watermark theo gói) như feed
+   * chính qua attachMarketInfoToList; chỉ xem CHI TIẾT (getPinById) mới bắt
+   * buộc Plus/Pro. `isForSale: true` + không có phiên đấu giá chưa CANCELLED
+   * khớp đúng nhánh FIXED_PRICE của marketFieldsFor(). */
+  async listFixedPriceForSale(
+    viewerId: string | undefined,
+    skip: number,
+    take: number,
+  ) {
+    const [pins, total] = await Promise.all([
+      this.prisma.pin.findMany({
+        where: {
+          ...this.visibilityFilter(viewerId),
+          isForSale: true,
+          auctions: { none: { status: { not: 'CANCELLED' } } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+        include: {
+          user: {
+            select: { id: true, username: true, avatarUrl: true, plan: true, isAdmin: true },
+          },
+          _count: { select: { likes: true } },
+        },
+      }),
+      this.prisma.pin.count({
+        where: {
+          ...this.visibilityFilter(viewerId),
+          isForSale: true,
+          auctions: { none: { status: { not: 'CANCELLED' } } },
+        },
+      }),
+    ]);
+    return {
+      items: await this.attachMarketInfoToList(pins, viewerId),
+      total,
+      skip,
+      take,
+    };
   }
 
   async getRelatedPins(
@@ -628,7 +691,14 @@ export class PinsService {
   ): Promise<{ code: string; count: number }[]> {
     const grouped = await this.prisma.pin.groupBy({
       by: ['category'],
-      where: this.visibilityFilter(viewerId),
+      // Đếm khớp đúng tập pin getAllPins thực sự trả về — loại luôn pin đang
+      // bán/đấu giá (giờ chỉ hiện ở trang riêng), không thì chip hiện số đếm
+      // cao hơn số pin thật sự bấm vào thấy được.
+      where: {
+        ...this.visibilityFilter(viewerId),
+        isForSale: false,
+        auctions: { none: { status: { not: 'CANCELLED' } } },
+      },
       _count: { _all: true },
     });
 
@@ -728,13 +798,13 @@ export class PinsService {
     const { likes, _count, originalStoragePath, ...safePin } = pin;
     // Plan check above only gates whether the *page* can be viewed at all;
     // it doesn't imply a purchase. An eligible-but-not-yet-buying Plus/Pro
-    // viewer still gets the watermarked preview, not the real one.
+    // viewer still only gets the blurred preview, never the real one.
     const imageUrl = await resolveSinglePinImageUrl(
       this.prisma,
       pin,
       viewerId,
       Boolean(auction),
-      viewerStatus.plan,
+      auction?.status,
     );
     return {
       ...safePin,
@@ -1287,6 +1357,23 @@ export class PinsService {
     return Math.abs(hash % 1000) / 1000;
   }
 
+  /** Cùng chuẩn so khớp với nhánh fallback từ khoá của searchPins() (title/
+   * description contains, không phân biệt hoa thường) — dùng để ưu tiên
+   * trong feed những pin liên quan tới từ khoá người xem vừa tìm gần đây,
+   * thay vì lặp lại một query CLIP embedding riêng chỉ để chấm điểm. */
+  private matchesRecentSearch(
+    pin: { title: string; description: string | null; category: string },
+    terms: string[],
+  ): boolean {
+    const haystacks = [pin.title, pin.description ?? '', pin.category]
+      .join(' ')
+      .toLowerCase();
+    return terms.some((term) => {
+      const needle = term.trim().toLowerCase();
+      return needle.length > 0 && haystacks.includes(needle);
+    });
+  }
+
   async searchPins(
     query: string,
     page: number = 1,
@@ -1398,7 +1485,7 @@ export class PinsService {
     if (!pin) {
       throw new NotFoundException('Pin not found');
     }
-    const hasAuction = (await this.fetchLatestAuctionsByPinIds([pin.id])).has(
+    const auction = (await this.fetchLatestAuctionsByPinIds([pin.id])).get(
       pin.id,
     );
     /* Entitlement is decided by WHICH url we resolve, not by rejecting the
@@ -1413,7 +1500,8 @@ export class PinsService {
       this.prisma,
       pin,
       viewerId,
-      hasAuction,
+      Boolean(auction),
+      auction?.status,
     );
 
     try {
@@ -1464,6 +1552,63 @@ export class PinsService {
         .toBuffer();
     } catch (error) {
       console.error('Locked preview render error:', error);
+      throw new ServiceUnavailableException(
+        'Không thể tạo ảnh xem trước lúc này.',
+      );
+    }
+  }
+
+  /** Public preview for FIXED_PRICE pins the viewer hasn't bought yet —
+   * unlike getLockedPinPreview this is recognizable (watermarked, not
+   * blurred), so a shopper can tell what they're buying, but its dimensions
+   * are always well under half the original's — a right-click "Save image
+   * as" here can never substitute for actually paying. Computed fresh on
+   * every request (never stored), so there is no "not generated yet" state
+   * to fall back from, unlike Pin.protectedImageUrl. Auction pins never use
+   * this — they're never isForSale (see AuctionsService.createAuction) and
+   * go through getLockedPinPreview/protectedImageUrl instead, gated by
+   * auction status in resolveViewablePinImageUrl. */
+  async getDownscaledPinPreview(pinId: string): Promise<Buffer> {
+    const pin = await this.prisma.pin.findUnique({
+      where: { id: pinId },
+      select: {
+        imageUrl: true,
+        isForSale: true,
+        user: { select: { username: true } },
+      },
+    });
+    if (!pin) throw new NotFoundException('Pin not found');
+    if (!pin.isForSale)
+      throw new NotFoundException('Downscaled preview not found');
+
+    try {
+      const response = await fetch(pin.imageUrl);
+      if (!response.ok)
+        throw new Error(`Image fetch failed (${response.status})`);
+      const source = Buffer.from(await response.arrayBuffer());
+      const meta = await sharp(source, {
+        limitInputPixels: 60_000_000,
+      }).metadata();
+      const sourceWidth = meta.width ?? 1000;
+      const sourceHeight = meta.height ?? 1000;
+      // 45% giữ biên an toàn dưới ngưỡng "thấp hơn 50%" yêu cầu.
+      const resized = await sharp(source, { limitInputPixels: 60_000_000 })
+        .rotate()
+        .resize({
+          width: Math.max(1, Math.round(sourceWidth * 0.45)),
+          height: Math.max(1, Math.round(sourceHeight * 0.45)),
+          fit: 'inside',
+        })
+        .toBuffer();
+      const watermarked = await this.watermarkRender.applyMandatoryWatermark(
+        resized,
+        pin.user.username,
+      );
+      return await sharp(watermarked)
+        .jpeg({ quality: 68, progressive: true })
+        .toBuffer();
+    } catch (error) {
+      console.error('Downscaled preview render error:', error);
       throw new ServiceUnavailableException(
         'Không thể tạo ảnh xem trước lúc này.',
       );
@@ -1649,15 +1794,12 @@ export class PinsService {
       : uniquePins;
 
     const page = filteredPins.slice(0, limit);
-    const [auctionMap, purchasedIds, viewerPlan] = await Promise.all([
+    const [auctionMap, purchasedIds] = await Promise.all([
       this.fetchLatestAuctionsByPinIds(page.map((p) => p.id)),
       this.fetchPaidPurchasePinIds(
         page.map((p) => p.id),
         viewerId,
       ),
-      viewerId
-        ? this.membershipsService.status(viewerId).then((st) => st.plan)
-        : Promise.resolve<MembershipPlan>('FREE'),
     ]);
 
     return page.map((p) => ({
@@ -1667,8 +1809,8 @@ export class PinsService {
       imageUrl: resolveViewablePinImageUrl(p, {
         viewerId,
         hasAuction: Boolean(auctionMap.get(p.id)),
+        auctionStatus: auctionMap.get(p.id)?.status,
         hasPaidPurchase: purchasedIds.has(p.id),
-        viewerPlan,
       }),
       sourceUrl: p.sourceUrl,
       userId: p.userId,

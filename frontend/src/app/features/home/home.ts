@@ -6,13 +6,13 @@ import { Navbar } from '../../components/navbar/navbar';
 import { PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
 import { BoardService, Board } from '../../core/services/board';
-import { UserService, ProfilePin } from '../../core/services/user';
 import { UserAvatar } from '../../shared/user-avatar/user-avatar';
 import { LikeButton } from '../../shared/like-button/like-button';
 import { ImageSearchStore } from '../../core/services/image-search-store';
 import { ToastService } from '../../core/services/toast';
 import { MembershipService } from '../../core/services/membership';
 import { DialogService } from '../../core/services/dialog';
+import { SearchHistoryService } from '../../core/services/search-history';
 import { formatVnd } from '../../core/utils/currency';
 import { formatNovaToken, vndToNovaToken } from '../../core/utils/novatoken';
 import { masonryColumnCount, masonryContentWidth } from '../../core/utils/masonry';
@@ -49,9 +49,9 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   private supabaseService = inject(SupabaseService);
   private boardService = inject(BoardService);
   private toast = inject(ToastService);
-  private userService = inject(UserService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private searchHistory = inject(SearchHistoryService);
   private imageSearchStore = inject(ImageSearchStore);
   public membership = inject(MembershipService);
   private dialogService = inject(DialogService);
@@ -92,13 +92,6 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
 
   public activeCategory = signal<string | null>(null);
 
-  /** "Tiếp tục sáng tạo" — the logged-in user's own most recent pins, reusing
-   * the same UserService.getUserPosts endpoint Profile already calls. Loads
-   * independently of the main feed and never blocks it. */
-  public recentCreations = signal<ProfilePin[]>([]);
-  public isRecentLoading = signal<boolean>(false);
-  public recentCreationsLoaded = signal<boolean>(false);
-
   private currentPage = 1;
   private limit = 20;
   private hasMore = true;
@@ -109,42 +102,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
    * one (e.g. fast typing while the results page is live-updating). */
   private searchRequestId = 0;
 
-  /** The viewer's own unique username — the URL-safe identifier, distinct
-   * from displayName() below (free-text, not routable). Only ever use this
-   * one for navigation (e.g. `navigateToProfile`). */
-  public myUsername = computed(() => this.supabaseService.dbUser()?.username || '');
-
-  /** Real display name sourced from the backend-synced profile (falls back to
-   * OAuth metadata briefly while that sync is in flight) — same resolution
-   * order as Navbar.displayName(). Empty string renders no greeting. Display
-   * text only — never pass this to navigateToProfile(), it is not a valid
-   * username once the person has set a custom display name. */
-  public displayName = computed(() => {
-    const dbUser = this.supabaseService.dbUser();
-    if (dbUser) return dbUser.displayName || dbUser.username;
-    const user = this.supabaseService.user();
-    if (!user) return '';
-    return (
-      user.user_metadata?.['full_name'] ||
-      user.user_metadata?.['name'] ||
-      user.email?.split('@')[0] ||
-      ''
-    );
-  });
-
   constructor() {
-    // dbUser syncs asynchronously after sign-in (see SupabaseService), so this
-    // reacts once it becomes available instead of racing it in ngOnInit.
-    effect(() => {
-      const dbUser = this.supabaseService.dbUser();
-      if (dbUser?.username && !this.recentCreationsLoaded() && !this.isRecentLoading()) {
-        void this.loadRecentCreations(dbUser.username);
-      } else if (!dbUser && this.recentCreationsLoaded()) {
-        this.recentCreations.set([]);
-        this.recentCreationsLoaded.set(false);
-      }
-    });
-
     // Mirrors ImageSearchStore reactively (not just once on navigation) so
     // uploading a second image while already on the results page updates
     // this view too, even when the URL (/feed?mode=image) doesn't change.
@@ -184,8 +142,8 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   public filteredPins = computed(() => this.pins());
 
   /** True while either a text search or a reverse-image search is active —
-   * gates the feed-only UI (greeting, recent creations, category chips)
-   * that only makes sense outside of search mode. */
+   * gates the feed-only UI (category chips) that only makes sense outside of
+   * search mode. */
   public isSearchActive = computed(() => this.searchQuery() !== null || this.isImageSearch());
 
   async ngOnInit() {
@@ -300,21 +258,6 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  async loadRecentCreations(username: string) {
-    this.isRecentLoading.set(true);
-    try {
-      const token = await this.supabaseService.getSessionToken() || undefined;
-      const page = await this.userService.getUserPosts(username, 1, 6, token);
-      this.recentCreations.set(page.items || []);
-    } catch (error) {
-      console.error('Error loading recent creations:', error);
-      this.recentCreations.set([]);
-    } finally {
-      this.isRecentLoading.set(false);
-      this.recentCreationsLoaded.set(true);
-    }
-  }
-
   async loadBoards() {
     const currentUser = this.supabaseService.user();
     if (currentUser) {
@@ -347,6 +290,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
         token,
         this.feedSeed,
         this.activeCategory(),
+        this.searchHistory.recentSearches(),
       );
       const mapped = this.mapPins(apiPins || []);
       this.pins.set(mapped);
@@ -382,6 +326,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
             token,
             this.feedSeed,
             this.activeCategory(),
+            this.searchHistory.recentSearches(),
           );
       if (apiPins && apiPins.length > 0) {
         const mapped = this.mapPins(apiPins);

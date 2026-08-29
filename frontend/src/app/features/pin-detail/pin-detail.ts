@@ -11,7 +11,7 @@ import {
   HostListener,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Navbar } from '../../components/navbar/navbar';
 import { Pin, PinService } from '../../core/services/pin';
 import { SupabaseService } from '../../core/services/supabase';
@@ -51,7 +51,16 @@ const RELATED_PLACEHOLDER_RATIO = 0.75;
 @Component({
   selector: 'app-pin-detail',
   standalone: true,
-  imports: [CommonModule, Navbar, FormsModule, UserAvatar, ImageRegionSearch, LikeButton, CurrencyInputDirective],
+  imports: [
+    CommonModule,
+    RouterLink,
+    Navbar,
+    FormsModule,
+    UserAvatar,
+    ImageRegionSearch,
+    LikeButton,
+    CurrencyInputDirective,
+  ],
   templateUrl: './pin-detail.html',
   styleUrl: './pin-detail.css',
 })

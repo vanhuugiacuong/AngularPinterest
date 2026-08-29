@@ -1,4 +1,4 @@
-import { MembershipPlan, PrismaClient } from '@prisma/client';
+import { AuctionStatus, PrismaClient } from '@prisma/client';
 
 /** A pin is "commerce-restricted" once it's listed for a fixed price or has
  * a non-cancelled auction — only the owner or a PAID buyer should ever see
@@ -24,88 +24,81 @@ export function lockedPinPreviewPath(pinId: string): string {
   return `/api/pins/${pinId}/locked-preview`;
 }
 
-/** Whether the viewer's membership plan lets them LOOK at a commerce pin at
- * all. Mirrors the gate PinsService.getPinById enforces with a 403 — auctions
- * are Pro-only, fixed-price is Plus/Pro — because a feed list cannot throw:
- * one restricted pin must not fail the whole page, so the image is swapped
- * instead of the request being refused. Keeping the rule in one function is
- * what stops the two paths drifting apart. */
-export function viewerPlanAllowsPinPreview(
-  plan: MembershipPlan,
-  isForSale: boolean,
-  hasAuction: boolean,
-): boolean {
-  if (hasAuction) return plan === 'PRO';
-  if (isForSale) return plan === 'PLUS' || plan === 'PRO';
-  return true;
+/** Same-origin path to the server-rendered, watermarked, resolution-reduced
+ * (under half the original's dimensions) stand-in for a FIXED_PRICE pin's
+ * unpaid viewers — see PinsService.getDownscaledPinPreview. Recognizable
+ * enough to shop by, useless as a right-click "Save image as" theft since
+ * it is neither full-resolution nor the real file. Computed on demand, not
+ * stored, so unlike protectedImageUrl there is no "not generated yet" race —
+ * it never falls back to anything else. */
+export function downscaledPinPreviewPath(pinId: string): string {
+  return `/api/pins/${pinId}/downscaled-preview`;
+}
+
+/** Auction statuses that still show a recognizable preview to a browsing,
+ * not-yet-winning viewer. SCHEDULED (hasn't started) and ENDED (you didn't
+ * win) both fall back to the fully-blurred stand-in instead — only a live
+ * ACTIVE auction needs bidders to actually see what they're bidding on. */
+function isBiddableAuctionStatus(status: AuctionStatus | undefined): boolean {
+  return status === 'ACTIVE';
 }
 
 /** Picks which image URL one specific viewer should receive for one pin.
- * Three tiers, and every one of them is load-bearing:
+ * No membership-plan check anywhere below: "allowed to browse the
+ * marketplace" and "allowed to view a for-sale/auction listing's picture"
+ * are the same thing for every viewer here, paid or not — plan only ever
+ * gated the separate, unrelated question of whether the *detail page* loads
+ * at all (see PinsService.getPinById / AuctionsService.getAuction's 403s),
+ * which this function has no part in.
  *
- *  - clear original — the owner, an unrestricted pin, or a PAID buyer.
- *  - watermarked preview — the plan entitles them to browse but they have not
- *    bought it. This is the "look, with a watermark, until you buy" step.
- *  - server-blurred preview — the plan does not entitle them at all.
+ * The owner and a PAID buyer always get the real, clear original. For
+ * everyone else, the two commerce types diverge on purpose:
  *
- * That last tier is the fix. This used to fall back to the real `imageUrl`
- * whenever no protected variant had been generated, reasoning that the previous
- * preview beat a broken image — but it handed the clear CDN asset to a viewer
- * with no entitlement. Frontend CSS blur does not help: the browser has already
- * downloaded the original, and it is one glance at the Network panel away.
- *
- * The clear fallback survives only in the middle tier, where the viewer IS
- * entitled to look — there, showing the unwatermarked preview is a cosmetic
- * miss, not a leak.
- *
- * `viewerPlan` is optional because most callers (boards, users, notifications,
- * auctions) do not have the viewer's membership status to hand, and threading
- * MembershipsService through all of them is a change of its own. Omitting it
- * skips the middle tier, i.e. errs strict: an entitled viewer may get the
- * blurred preview where they could have had the watermarked one. Too strict is
- * a cosmetic bug; too loose is the leak this function exists to prevent. */
+ *  - FIXED_PRICE: the resolution-reduced, watermarked stand-in
+ *    (downscaledPinPreviewPath) — recognizable enough to shop by, computed
+ *    fresh on every request so there is no "not ready yet" fallback to
+ *    reason about.
+ *  - AUCTION, status ACTIVE: the full-resolution watermarked preview
+ *    (protectedImageUrl) if one has been generated yet, otherwise the
+ *    fully-blurred stand-in as a brief, self-healing fallback (watermark
+ *    generation can fail transiently — see PinPreviewProtectionService).
+ *    Bidders need to see the real subject to bid on it.
+ *  - AUCTION, status SCHEDULED or ENDED: always the fully-blurred stand-in.
+ *    Nothing to bid on yet, or you didn't win — no reason to keep showing
+ *    the picture clearly either way. */
 export function resolveViewablePinImageUrl(
   pin: RestrictablePinImage,
   opts: {
     viewerId?: string;
     hasAuction: boolean;
+    auctionStatus?: AuctionStatus;
     hasPaidPurchase: boolean;
-    viewerPlan?: MembershipPlan;
   },
 ): string {
   if (opts.viewerId && opts.viewerId === pin.userId) return pin.imageUrl;
   if (!isPinCommerceRestricted(pin.isForSale, opts.hasAuction)) return pin.imageUrl;
   if (opts.hasPaidPurchase) return pin.imageUrl;
-  if (
-    opts.viewerPlan &&
-    viewerPlanAllowsPinPreview(opts.viewerPlan, pin.isForSale, opts.hasAuction)
-  ) {
-    return pin.protectedImageUrl ?? pin.imageUrl;
+
+  if (opts.hasAuction) {
+    if (!isBiddableAuctionStatus(opts.auctionStatus)) return lockedPinPreviewPath(pin.id);
+    return pin.protectedImageUrl ?? lockedPinPreviewPath(pin.id);
   }
-  // Not entitled to browse this listing at all (tier 3 in the doc comment
-  // above) — always the fully-blurred server render, never the watermarked
-  // preview. protectedImageUrl only has a small text stamp (see
-  // WatermarkRenderService.applyMandatoryWatermark) meant for tier 2
-  // ("entitled to browse, hasn't bought") — falling back to it here for a
-  // viewer with NO entitlement handed them the clear subject with nothing
-  // but a corner stamp hiding it, e.g. a FREE-plan viewer on someone's
-  // profile page seeing a for-sale pin fully unobscured.
-  return lockedPinPreviewPath(pin.id);
+  return downscaledPinPreviewPath(pin.id);
 }
 
 type PinAccessClient = Pick<PrismaClient, 'auction' | 'imagePurchase'>;
 
-/** Batches the two lookups resolveViewablePinImageUrl needs (which pins
- * have a live auction, which of those the viewer already paid for) across
- * a whole page of pins in at most 2 queries instead of N+1, then swaps
- * imageUrl in place for every pin whose viewer isn't entitled to the real
- * one. Mutates and returns the same array for convenience at call sites -
- * safe because callers always pass a freshly-fetched, request-scoped array. */
+/** Batches the lookups resolveViewablePinImageUrl needs (which pins have a
+ * live auction and its status, which of those the viewer already paid for)
+ * across a whole page of pins in at most 2 queries instead of N+1, then
+ * swaps imageUrl in place for every pin whose viewer isn't entitled to the
+ * real one. Mutates and returns the same array for convenience at call
+ * sites - safe because callers always pass a freshly-fetched, request-
+ * scoped array. */
 export async function applyPinImageProtection<T extends RestrictablePinImage>(
   prisma: PinAccessClient,
   pins: T[],
   viewerId: string | undefined,
-  viewerPlan?: MembershipPlan,
 ): Promise<T[]> {
   if (pins.length === 0) return pins;
   const ids = pins.map((p) => p.id);
@@ -113,7 +106,7 @@ export async function applyPinImageProtection<T extends RestrictablePinImage>(
   const [auctionRows, purchaseRows] = await Promise.all([
     prisma.auction.findMany({
       where: { pinId: { in: ids }, status: { not: 'CANCELLED' } },
-      select: { pinId: true },
+      select: { pinId: true, status: true },
     }),
     viewerId
       ? prisma.imagePurchase.findMany({
@@ -122,15 +115,15 @@ export async function applyPinImageProtection<T extends RestrictablePinImage>(
         })
       : Promise.resolve([]),
   ]);
-  const auctionedIds = new Set(auctionRows.map((a) => a.pinId));
+  const auctionStatusByPinId = new Map(auctionRows.map((a) => [a.pinId, a.status]));
   const purchasedIds = new Set(purchaseRows.map((p) => p.pinId));
 
   for (const pin of pins) {
     pin.imageUrl = resolveViewablePinImageUrl(pin, {
       viewerId,
-      hasAuction: auctionedIds.has(pin.id),
+      hasAuction: auctionStatusByPinId.has(pin.id),
+      auctionStatus: auctionStatusByPinId.get(pin.id),
       hasPaidPurchase: purchasedIds.has(pin.id),
-      viewerPlan,
     });
   }
   return pins;
@@ -146,7 +139,7 @@ export async function resolveSinglePinImageUrl<T extends RestrictablePinImage>(
   pin: T,
   viewerId: string | undefined,
   hasAuction: boolean,
-  viewerPlan?: MembershipPlan,
+  auctionStatus?: AuctionStatus,
 ): Promise<string> {
   if (viewerId === pin.userId) return pin.imageUrl;
   if (!isPinCommerceRestricted(pin.isForSale, hasAuction)) return pin.imageUrl;
@@ -161,7 +154,7 @@ export async function resolveSinglePinImageUrl<T extends RestrictablePinImage>(
   return resolveViewablePinImageUrl(pin, {
     viewerId,
     hasAuction,
+    auctionStatus,
     hasPaidPurchase,
-    viewerPlan,
   });
 }

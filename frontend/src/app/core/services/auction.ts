@@ -27,6 +27,7 @@ export interface AuctionDetail {
   pinId: string;
   pin: { id: string; title: string; imageUrl: string; userId: string };
   sellerId: string;
+  seller: AuctionBidder;
   status: AuctionStatus;
   currency: 'VND';
   startingPrice: string;
@@ -84,10 +85,53 @@ export interface CreateAuctionInput {
   endsAt: string;
 }
 
+export type AuctionListStatusFilter = 'active' | 'scheduled' | 'ended';
+
+export interface AuctionListItem {
+  id: string;
+  pin: { id: string; title: string; imageUrl: string; likeCount: number; isLiked: boolean };
+  seller: AuctionBidder;
+  status: AuctionStatus;
+  currency: 'VND';
+  startingPrice: string;
+  currentPrice: string;
+  minimumIncrement: string;
+  startsAt: string;
+  endsAt: string;
+  bidCount: number;
+  /** Server-computed — khớp đúng luật canSave() ở trang chi tiết: chỉ chủ
+   * phiên, hoặc người thắng đã thanh toán, mới lưu được vào bộ sưu tập. */
+  canSave: boolean;
+}
+
+export interface AuctionListResult {
+  items: AuctionListItem[];
+  total: number;
+  skip: number;
+  take: number;
+  serverNow: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuctionService {
   private auth = inject(SupabaseService);
   private baseUrl = `${API_BASE_URL}/api/auctions`;
+
+  /** Cùng chuẩn hoá với PinService.request — ảnh trả về từ backend có thể là
+   * đường dẫn tương đối (/api/pins/:id/locked-preview) cần gắn API_BASE_URL
+   * để đúng host khi frontend/backend không cùng origin. */
+  private normalizeImageUrls(value: unknown): void {
+    if (!value || typeof value !== 'object') return;
+    if (Array.isArray(value)) {
+      value.forEach((item) => this.normalizeImageUrls(item));
+      return;
+    }
+    const record = value as Record<string, unknown>;
+    if (typeof record['imageUrl'] === 'string' && record['imageUrl'].startsWith('/api/')) {
+      record['imageUrl'] = `${API_BASE_URL}${record['imageUrl']}`;
+    }
+    Object.values(record).forEach((item) => this.normalizeImageUrls(item));
+  }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const token = await this.auth.getSessionToken();
@@ -105,11 +149,18 @@ export class AuctionService {
       }
       throw new Error(message);
     }
-    return response.json() as Promise<T>;
+    const payload = (await response.json()) as T;
+    this.normalizeImageUrls(payload);
+    return payload;
   }
 
   create(body: CreateAuctionInput): Promise<AuctionDetail> {
     return this.request<AuctionDetail>('', { method: 'POST', body: JSON.stringify(body) });
+  }
+
+  /** Trang "Đấu giá" công khai — duyệt được kể cả chưa đăng nhập. */
+  listAuctions(status: AuctionListStatusFilter, skip = 0, take = 24): Promise<AuctionListResult> {
+    return this.request<AuctionListResult>(`?status=${status}&skip=${skip}&take=${take}`);
   }
 
   getById(id: string): Promise<AuctionDetail> {

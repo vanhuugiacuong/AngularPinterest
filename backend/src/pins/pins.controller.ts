@@ -31,9 +31,18 @@ export class PinsController {
     @Query('limit') limit: string,
     @Query('seed') seed?: string,
     @Query('category') category?: string,
+    @Query('recentSearches') recentSearches?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
+    // Danh sách từ khoá tìm gần đây (localStorage phía client, xem
+    // SearchHistoryService) — chỉ dùng để CHẤM ĐIỂM ưu tiên trong feed
+    // chính, không phải bộ lọc, nên tối đa 8 từ, chuỗi rỗng bị loại.
+    const recentSearchTerms = (recentSearches || '')
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .slice(0, 8);
 
     return this.pinsService.getAllPins(
       pageNum,
@@ -41,6 +50,7 @@ export class PinsController {
       user?.id,
       seed,
       category,
+      recentSearchTerms,
     );
   }
 
@@ -55,6 +65,21 @@ export class PinsController {
   @UseGuards(OptionalSupabaseAuthGuard)
   async getFeedCategories(@CurrentUser() user: UserPayload | undefined) {
     return this.pinsService.getFeedCategories(user?.id);
+  }
+
+  /** Trang "Giá cố định" công khai — duyệt được không cần đăng nhập, giống
+   * feed chính. Phải khai báo TRƯỚC `@Get(':id')`, không thì 'fixed-price' bị
+   * bắt làm id. */
+  @Get('fixed-price')
+  @UseGuards(OptionalSupabaseAuthGuard)
+  async listFixedPrice(
+    @CurrentUser() user: UserPayload | undefined,
+    @Query('skip') skip?: string,
+    @Query('take') take?: string,
+  ) {
+    const skipNum = skip ? Math.max(0, parseInt(skip, 10) || 0) : 0;
+    const takeNum = take ? Math.min(60, Math.max(1, parseInt(take, 10) || 24)) : 24;
+    return this.pinsService.listFixedPriceForSale(user?.id, skipNum, takeNum);
   }
 
   @Get('search')
@@ -157,6 +182,19 @@ export class PinsController {
   @Get(':id/locked-preview')
   async lockedPinPreview(@Param('id') id: string, @Res() res: Response) {
     const buffer = await this.pinsService.getLockedPinPreview(id);
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.send(buffer);
+  }
+
+  /** Public, watermarked, always-under-half-resolution stand-in for a
+   * FIXED_PRICE pin a viewer hasn't bought yet — recognizable (unlike
+   * locked-preview above) but never a substitute for actually buying it.
+   * Same two-path-segment reasoning as locked-preview re: the `:id` route. */
+  @Get(':id/downscaled-preview')
+  async downscaledPinPreview(@Param('id') id: string, @Res() res: Response) {
+    const buffer = await this.pinsService.getDownscaledPinPreview(id);
     res.setHeader('Content-Type', 'image/jpeg');
     res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
     res.setHeader('X-Content-Type-Options', 'nosniff');

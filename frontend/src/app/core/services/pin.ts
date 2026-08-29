@@ -124,12 +124,18 @@ export class PinService {
     token?: string,
     seed?: string,
     category?: string | null,
+    recentSearches?: readonly string[],
   ): Promise<Pin[]> {
     let url = `${this.baseUrl}?page=${page}&limit=${limit}`;
     if (seed) url += `&seed=${seed}`;
     // Lọc ở server: nếu lọc trên mảng đã tải thì infinite scroll không giữ được
     // filter và sẽ kéo cạn feed để nhặt vài tấm khớp danh mục.
     if (category) url += `&category=${encodeURIComponent(category)}`;
+    // Chỉ dùng để ƯU TIÊN thứ tự feed (ảnh liên quan tìm gần đây lên trước),
+    // không phải bộ lọc — xem SearchHistoryService.
+    if (recentSearches && recentSearches.length > 0) {
+      url += `&recentSearches=${encodeURIComponent(recentSearches.join(','))}`;
+    }
     return this.request<Pin[]>(url, token, {}, 'Không thể tải ảnh');
   }
 
@@ -189,6 +195,20 @@ export class PinService {
 
   getPinById(id: string, token?: string): Promise<Pin> {
     return this.request<Pin>(`${this.baseUrl}/${id}`, token, {}, 'Không thể tải chi tiết ảnh');
+  }
+
+  /** Trang "Giá cố định" công khai — duyệt được kể cả chưa đăng nhập. */
+  listFixedPrice(
+    token?: string,
+    skip = 0,
+    take = 24,
+  ): Promise<{ items: Pin[]; total: number; skip: number; take: number }> {
+    return this.request(
+      `${this.baseUrl}/fixed-price?skip=${skip}&take=${take}`,
+      token,
+      {},
+      'Không thể tải danh sách sản phẩm',
+    );
   }
 
   toggleLike(id: string, token: string): Promise<{ liked: boolean; likeCount: number }> {

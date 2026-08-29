@@ -194,6 +194,8 @@ describe('Sidebar interaction behavior', () => {
       'home',
       'create',
       'collage',
+      'auction',
+      'fixed-price',
       'notifications',
       'messages',
       'settings',
@@ -215,7 +217,7 @@ describe('Sidebar interaction behavior', () => {
     expect(collageSvg?.getAttribute('viewBox')).toBe('0 0 18 18');
     expect(collageSvg?.querySelector('[fill-opacity="0.3"]')).toBeNull();
 
-    const notificationsSvg = icons[3].querySelector('svg');
+    const notificationsSvg = icons[5].querySelector('svg');
     expect(notificationsSvg?.getAttribute('viewBox')).toBe('0 0 18 18');
     expect(notificationsSvg?.querySelector('[fill-opacity="0.3"]')).toBeNull();
 
@@ -225,6 +227,8 @@ describe('Sidebar interaction behavior', () => {
     expect(mobileIcons.map((icon) => icon.dataset['icon'])).toEqual([
       'home',
       'create',
+      'auction',
+      'fixed-price',
       'notifications',
       'messages',
       'settings',

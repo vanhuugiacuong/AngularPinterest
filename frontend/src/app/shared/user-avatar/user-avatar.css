@@ -105,7 +105,7 @@
   }
 }
 
-/* Corner tier icon — spark (Plus) / gem (Pro), shown from 24px up. */
+/* Corner tier icon — spark (Plus) / star (Pro), shown from 24px up. */
 .uav-plan-icon {
   position: absolute;
   top: calc(-1 * clamp(1px, calc(var(--uav-size, 36px) * 0.04), 3px));

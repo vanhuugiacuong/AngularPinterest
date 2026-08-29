@@ -79,6 +79,50 @@
       <span id="nf-tooltip-collage" role="tooltip" class="nf-tooltip">Tạo ảnh ghép</span>
     </div>
 
+    <!-- Auction -->
+    <div class="nf-rail-item-shell group">
+      <button
+        type="button"
+        (click)="onAuctionClick()"
+        [class.nf-rail-item--active]="isAuctionsPage()"
+        class="nf-rail-item"
+        [attr.aria-label]="isAuctionLocked() ? 'Đấu giá — cần nâng cấp gói' : 'Đấu giá'"
+        aria-describedby="nf-tooltip-auction"
+        [attr.aria-current]="isAuctionsPage() ? 'page' : null"
+      >
+        <app-sidebar-icon class="nf-rail-icon" icon="auction" />
+        <span class="nf-rail-label">Đấu giá</span>
+        @if (isAuctionLocked()) {
+          <span class="nf-rail-lock-badge" aria-hidden="true">
+            <span class="material-symbols-outlined">lock</span>
+          </span>
+        }
+      </button>
+      <span id="nf-tooltip-auction" role="tooltip" class="nf-tooltip">Đấu giá</span>
+    </div>
+
+    <!-- Fixed price -->
+    <div class="nf-rail-item-shell group">
+      <button
+        type="button"
+        (click)="onFixedPriceClick()"
+        [class.nf-rail-item--active]="isFixedPricePage()"
+        class="nf-rail-item"
+        [attr.aria-label]="isFixedPriceLocked() ? 'Giá cố định — cần nâng cấp gói' : 'Giá cố định'"
+        aria-describedby="nf-tooltip-fixed-price"
+        [attr.aria-current]="isFixedPricePage() ? 'page' : null"
+      >
+        <app-sidebar-icon class="nf-rail-icon" icon="fixed-price" />
+        <span class="nf-rail-label">Giá cố định</span>
+        @if (isFixedPriceLocked()) {
+          <span class="nf-rail-lock-badge" aria-hidden="true">
+            <span class="material-symbols-outlined">lock</span>
+          </span>
+        }
+      </button>
+      <span id="nf-tooltip-fixed-price" role="tooltip" class="nf-tooltip">Giá cố định</span>
+    </div>
+
     <!-- Notifications -->
     <div class="nf-rail-item-shell group">
       <button
@@ -409,6 +453,42 @@
   >
     <app-sidebar-icon icon="create" size="mobile" />
     <span class="text-xs font-medium">Tạo</span>
+  </button>
+
+  <button
+    type="button"
+    (click)="onAuctionClick()"
+    [class.text-accent]="isAuctionsPage()"
+    [class.text-text-muted]="!isAuctionsPage()"
+    class="relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[56px] cursor-pointer border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
+    [attr.aria-label]="isAuctionLocked() ? 'Đấu giá — cần nâng cấp gói' : 'Đấu giá'"
+    [attr.aria-current]="isAuctionsPage() ? 'page' : null"
+  >
+    <app-sidebar-icon icon="auction" size="mobile" />
+    <span class="text-xs font-medium">Đấu giá</span>
+    @if (isAuctionLocked()) {
+      <span class="nf-rail-lock-badge" aria-hidden="true">
+        <span class="material-symbols-outlined">lock</span>
+      </span>
+    }
+  </button>
+
+  <button
+    type="button"
+    (click)="onFixedPriceClick()"
+    [class.text-accent]="isFixedPricePage()"
+    [class.text-text-muted]="!isFixedPricePage()"
+    class="relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[56px] cursor-pointer border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
+    [attr.aria-label]="isFixedPriceLocked() ? 'Giá cố định — cần nâng cấp gói' : 'Giá cố định'"
+    [attr.aria-current]="isFixedPricePage() ? 'page' : null"
+  >
+    <app-sidebar-icon icon="fixed-price" size="mobile" />
+    <span class="text-xs font-medium">Giá cố định</span>
+    @if (isFixedPriceLocked()) {
+      <span class="nf-rail-lock-badge" aria-hidden="true">
+        <span class="material-symbols-outlined">lock</span>
+      </span>
+    }
   </button>
 
   <button

@@ -1,0 +1,55 @@
+.nf-shop-detail-frame {
+  transition: box-shadow 0.25s ease;
+}
+
+.nf-shop-detail-frame:hover {
+  box-shadow: var(--shadow-glow-soft);
+}
+
+.nf-shop-detail-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  background: var(--color-nova-blue);
+  color: white;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.nf-shop-detail-owned {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  background: var(--color-success);
+  color: white;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.nf-shop-price-card {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-nova-blue) 10%, var(--color-surface-elevated)) 0%,
+    var(--color-surface-elevated) 100%
+  );
+}
+
+.nf-shop-seller {
+  transition: background-color 0.15s ease;
+}
+
+.nf-shop-seller:hover {
+  background-color: var(--color-surface-elevated);
+}

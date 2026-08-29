@@ -31,6 +31,10 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
   private static readonly MIN_DURATION_MS = 60 * 60 * 1000; // 1 giờ
   private static readonly MAX_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 ngày
   private static readonly SWEEP_INTERVAL_MS = 60_000;
+  /** Trần số tiền cho mọi ô nhập VND trong hệ thống đấu giá (giá khởi điểm,
+   * bước giá, và giá đặt) — khớp giới hạn hiển thị/nhập ở frontend. Chặn ở
+   * đây vì client-side chỉ là UX, không phải biên giới an toàn thật. */
+  private static readonly MAX_VND_AMOUNT = 9_999_999_999;
 
   private sweepTimer?: NodeJS.Timeout;
 
@@ -69,6 +73,11 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
     if (!Number.isFinite(value) || !Number.isInteger(value) || value < 1000) {
       throw new BadRequestException(
         `${label} phải là số nguyên VND hợp lệ, tối thiểu 1.000đ.`,
+      );
+    }
+    if (value > AuctionsService.MAX_VND_AMOUNT) {
+      throw new BadRequestException(
+        `${label} không được vượt quá ${AuctionsService.MAX_VND_AMOUNT.toLocaleString('vi-VN')}đ.`,
       );
     }
     return value;
@@ -224,6 +233,7 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
           orderBy: { createdAt: 'desc' },
           include: { bidder: { select: PUBLIC_USER_SELECT } },
         },
+        seller: { select: PUBLIC_USER_SELECT },
         purchase: true,
       },
     });
@@ -271,12 +281,15 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
     // above; the actual gate for "does this viewer get the real preview" is
     // still the same PAID ImagePurchase row every other pin-image path
     // checks (a plan-eligible PRO viewer who is simply browsing, not the
-    // winner, must not see the unwatermarked image either).
+    // winner, must not see the unwatermarked image either) — and status
+    // additionally forces the blur outright for SCHEDULED/ENDED, matching
+    // the marketplace listing (see resolveViewablePinImageUrl).
     const pinImageUrl = await resolveSinglePinImageUrl(
       this.prisma,
       auction.pin,
       viewerId,
       true,
+      auction.status,
     );
 
     return {
@@ -285,6 +298,7 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
       pinId: auction.pinId,
       pin: { ...auction.pin, imageUrl: pinImageUrl },
       sellerId: auction.sellerId,
+      seller: auction.seller,
       status: auction.status,
       currency: auction.currency,
       startingPrice: auction.startingPrice.toString(),
@@ -464,6 +478,111 @@ export class AuctionsService implements OnModuleInit, OnModuleDestroy {
       auctionId,
     });
     return this.getAuction(auctionId, sellerId);
+  }
+
+  /** Danh sách công khai cho trang "Đấu giá" riêng — duyệt được không cần
+   * đăng nhập, ảnh áp dụng cùng luật bảo vệ (blur/watermark) như feed chính
+   * qua applyPinImageProtection; chỉ xem CHI TIẾT (getAuction) mới bắt buộc
+   * Pro. Trạng thái dùng chỉ số [status, endsAt] có sẵn nên không cần quét
+   * N+1 ensureAuctionUpToDate — độ trễ tối đa bằng SWEEP_INTERVAL_MS, cùng
+   * cách listSelling/listBidding đã chấp nhận. */
+  async listAuctions(
+    viewerId: string | undefined,
+    query: { status?: string; skip?: number; take?: number },
+  ) {
+    const status: AuctionStatus =
+      query.status === 'scheduled'
+        ? 'SCHEDULED'
+        : query.status === 'ended'
+          ? 'ENDED'
+          : 'ACTIVE';
+    const take = Math.min(Math.max(Math.trunc(query.take ?? 24) || 24, 1), 60);
+    const skip = Math.max(Math.trunc(query.skip ?? 0) || 0, 0);
+
+    const [rows, total] = await Promise.all([
+      this.prisma.auction.findMany({
+        where: { status },
+        orderBy: { endsAt: status === 'ENDED' ? 'desc' : 'asc' },
+        skip,
+        take,
+        include: {
+          pin: {
+            select: {
+              id: true,
+              title: true,
+              imageUrl: true,
+              protectedImageUrl: true,
+              userId: true,
+              isForSale: true,
+              _count: { select: { likes: true } },
+            },
+          },
+          seller: { select: PUBLIC_USER_SELECT },
+          purchase: { select: { status: true } },
+        },
+      }),
+      this.prisma.auction.count({ where: { status } }),
+    ]);
+
+    await applyPinImageProtection(
+      this.prisma,
+      rows.map((r) => r.pin),
+      viewerId,
+    );
+
+    // Thích không cần đăng nhập để thấy số lượt, nhưng chỉ đánh dấu isLiked
+    // khi có viewerId — cùng kiểu 1 query hàng loạt như attachMarketInfoToList
+    // bên PinsService, tránh N+1 theo từng thẻ.
+    const likedIds =
+      viewerId && rows.length > 0
+        ? new Set(
+            (
+              await this.prisma.like.findMany({
+                where: {
+                  userId: viewerId,
+                  pinId: { in: rows.map((r) => r.pin.id) },
+                },
+                select: { pinId: true },
+              })
+            ).map((l) => l.pinId),
+          )
+        : new Set<string>();
+
+    return {
+      items: rows.map((r) => ({
+        id: r.id,
+        pin: {
+          id: r.pin.id,
+          title: r.pin.title,
+          imageUrl: r.pin.imageUrl,
+          likeCount: r.pin._count.likes,
+          isLiked: likedIds.has(r.pin.id),
+        },
+        seller: r.seller,
+        status: r.status,
+        currency: r.currency,
+        startingPrice: r.startingPrice.toString(),
+        currentPrice: r.currentPrice.toString(),
+        minimumIncrement: r.minimumIncrement.toString(),
+        startsAt: r.startsAt.toISOString(),
+        endsAt: r.endsAt.toISOString(),
+        bidCount: r.bidCount,
+        // Khớp đúng luật canSave() ở getAuction/auction-detail.ts: chỉ chủ
+        // phiên, hoặc người thắng đã thanh toán (ENDED, đúng winnerId, PAID),
+        // mới được lưu vào bộ sưu tập ngay từ thẻ lưới — không mở rộng hơn
+        // luật đã thống nhất ở trang chi tiết.
+        canSave:
+          Boolean(viewerId) &&
+          (viewerId === r.sellerId ||
+            (r.status === 'ENDED' &&
+              r.winnerId === viewerId &&
+              r.purchase?.status === 'PAID')),
+      })),
+      total,
+      skip,
+      take,
+      serverNow: new Date().toISOString(),
+    };
   }
 
   async listSelling(sellerId: string) {

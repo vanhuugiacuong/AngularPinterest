@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { AuctionsService } from './auctions.service';
 import { SupabaseAuthGuard } from '../supabase/supabase.guard';
 import { OptionalSupabaseAuthGuard } from '../supabase/optional-supabase.guard';
@@ -12,6 +12,23 @@ export class AuctionsController {
   @UseGuards(SupabaseAuthGuard)
   create(@CurrentUser() user: UserPayload, @Body() body: Record<string, unknown>) {
     return this.auctionsService.createAuction(user.id, body);
+  }
+
+  // Trang "Đấu giá" công khai — duyệt được không cần đăng nhập (giống feed
+  // chính); đặt trước ':id' để không bị route đó nuốt mất.
+  @Get()
+  @UseGuards(OptionalSupabaseAuthGuard)
+  list(
+    @CurrentUser() user: UserPayload | undefined,
+    @Query('status') status?: string,
+    @Query('skip') skip?: string,
+    @Query('take') take?: string,
+  ) {
+    return this.auctionsService.listAuctions(user?.id, {
+      status,
+      skip: skip ? Number(skip) : undefined,
+      take: take ? Number(take) : undefined,
+    });
   }
 
   @Get('me/selling')

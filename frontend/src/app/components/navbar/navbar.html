@@ -54,11 +54,18 @@
         aria-hidden="true"
         >search</span
       >
+      <!-- Native (input) thay vì (ngModelChange): NgModel tự trì hoãn phát
+           onChange trong lúc IME đang soạn thảo (compositionstart/end) để
+           tránh giá trị dở dang — nhưng gõ tiếng Việt có dấu (mèo, chó...)
+           qua Unikey/IME đúng là một phiên soạn thảo liên tục, nên
+           ngModelChange chỉ bắn ra sau khi rời focus, gợi ý luôn trễ một
+           nhịp. (input) là listener riêng, nhận mọi sự kiện input kể cả
+           giữa lúc đang soạn, nên gõ tới đâu gợi ý cập nhật tới đó. -->
       <input
         *ngIf="supabaseService.user()"
         type="search"
         [ngModel]="searchQuery()"
-        (ngModelChange)="onSearchInput($event)"
+        (input)="onSearchInput($any($event.target).value)"
         (focus)="onSearchFocus()"
         (keydown.enter)="onEnterKey()"
         (keydown.arrowdown)="onArrowDown($event)"

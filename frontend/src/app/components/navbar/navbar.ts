@@ -1,4 +1,5 @@
 import {
+  ChangeDetectorRef,
   Component,
   OnDestroy,
   OnInit,
@@ -51,6 +52,7 @@ export class Navbar implements OnInit, OnDestroy {
   public themeService = inject(ThemeService);
   private router = inject(Router);
   private elementRef = inject(ElementRef);
+  private cdr = inject(ChangeDetectorRef);
   private pinService = inject(PinService);
   private userService = inject(UserService);
   private searchHistory = inject(SearchHistoryService);
@@ -145,6 +147,13 @@ export class Navbar implements OnInit, OnDestroy {
 
           this.isSuggesting.set(true);
           this.suggestError.set(null);
+          // App chạy zoneless (không có zone.js) — debounceTime/switchMap của
+          // RxJS lên lịch qua setTimeout thô, ngoài mọi ngữ cảnh Angular theo
+          // dõi được, nên chỉ set() signal ở đây không chắc kích hoạt lại
+          // render (chỉ thấy cập nhật sau khi có sự kiện DOM thật khác, ví dụ
+          // bấm lại vào ô tìm kiếm). markForCheck() báo tường minh cho bộ lập
+          // lịch zoneless chạy một lượt render.
+          this.cdr.markForCheck();
           return from(
             Promise.allSettled([
               this.pinService.searchPins(query, 1, 6),
@@ -165,6 +174,7 @@ export class Navbar implements OnInit, OnDestroy {
         this.isSuggesting.set(false);
         this.activeSuggestionIndex.set(-1);
         this.suggestError.set(failed ? 'Không thể tải gợi ý lúc này.' : null);
+        this.cdr.markForCheck();
       });
   }
 

@@ -67,12 +67,7 @@ export class UsersService {
     },
   >(pins: T[], viewerId?: string): Promise<T[]> {
     if (pins.length === 0) return pins;
-    const viewerPlan = viewerId
-      ? await this.membershipsService
-          .status(viewerId)
-          .then((status) => status.plan)
-      : undefined;
-    return applyPinImageProtection(this.prisma, pins, viewerId, viewerPlan);
+    return applyPinImageProtection(this.prisma, pins, viewerId);
   }
 
   /** Turns an OAuth display name (spaces, accents, any script) into a

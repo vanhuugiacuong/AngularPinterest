@@ -1,0 +1,223 @@
+<div class="min-h-screen bg-bg text-text flex flex-col font-sans relative">
+  <app-navbar></app-navbar>
+
+  <div class="flex-1 pt-16 flex flex-col min-w-0">
+    <main class="flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-7 max-w-[1400px]">
+
+      <!-- Hero -->
+      <header class="nf-auction-hero relative overflow-hidden rounded-panel px-6 py-9 sm:px-10 sm:py-12 flex flex-col gap-3">
+        <div class="nf-auction-hero__glow" aria-hidden="true"></div>
+        <div class="relative flex items-center gap-2">
+          <span class="material-symbols-outlined text-white/90 text-xl" aria-hidden="true">gavel</span>
+          <span class="mono-label text-xs text-white/80 font-extrabold tracking-wider uppercase">NovaFrame Auctions</span>
+        </div>
+        <h1 class="relative text-3xl sm:text-4xl font-extrabold text-white font-display tracking-tight max-w-xl">
+          Đấu giá tác phẩm độc bản
+        </h1>
+        <p class="relative text-sm sm:text-[15px] text-white/85 max-w-lg leading-relaxed">
+          Săn những tác phẩm giới hạn đang được đấu giá trực tiếp trên NovaFrame. Đặt giá an toàn,
+          minh bạch theo thời gian thực — người trả cao nhất khi hết giờ sẽ thắng.
+        </p>
+        <div class="relative flex flex-wrap items-center gap-3 mt-2">
+          <span class="nf-auction-hero__stat">
+            <strong>{{ total() }}</strong> phiên {{ activeTab() === 'ended' ? 'đã kết thúc' : activeTab() === 'scheduled' ? 'sắp diễn ra' : 'đang diễn ra' }}
+          </span>
+          @if (!isPro()) {
+            <button
+              type="button"
+              (click)="router.navigate(['/pricing'])"
+              class="h-9 px-4 rounded-control bg-white text-primary font-bold text-xs cursor-pointer border-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              Nâng cấp Pro để đặt giá
+            </button>
+          }
+        </div>
+      </header>
+
+      <!-- Tabs -->
+      <div role="tablist" aria-label="Lọc phiên đấu giá" class="flex items-center gap-2 border-b border-border overflow-x-auto no-scrollbar">
+        @for (tab of tabs; track tab.key) {
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="activeTab() === tab.key"
+            (click)="selectTab(tab.key)"
+            class="nf-auction-tab"
+            [class.nf-auction-tab--active]="activeTab() === tab.key"
+          >
+            {{ tab.label }}
+          </button>
+        }
+      </div>
+
+      <!-- Loading skeleton -->
+      @if (loading()) {
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          @for (dummy of [1,2,3,4,5,6,7,8,9,10]; track dummy) {
+            <div class="flex flex-col gap-2">
+              <div class="skeleton rounded-frame aspect-square"></div>
+              <div class="skeleton h-3 w-3/4 rounded-control"></div>
+              <div class="skeleton h-3 w-1/2 rounded-control"></div>
+            </div>
+          }
+        </div>
+      } @else if (loadError()) {
+        <div class="flex flex-col items-center justify-center gap-3 py-20 text-center">
+          <span class="material-symbols-outlined text-4xl text-error" aria-hidden="true">error</span>
+          <p class="text-sm text-text-muted max-w-sm">{{ loadError() }}</p>
+        </div>
+      } @else if (items().length === 0) {
+        <div class="flex flex-col items-center justify-center gap-3 py-24 text-center">
+          <span class="material-symbols-outlined text-5xl text-text-muted" aria-hidden="true">gavel</span>
+          <p class="text-sm font-bold text-text">Chưa có phiên đấu giá nào ở mục này</p>
+          <p class="text-xs text-text-muted max-w-sm">
+            Quay lại sau hoặc khám phá các mục khác — phiên mới sẽ xuất hiện ngay khi người bán mở đấu giá.
+          </p>
+        </div>
+      } @else {
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          @for (item of items(); track item.id) {
+            <div class="nf-auction-card group cursor-pointer flex flex-col rounded-frame overflow-hidden bg-surface border border-border shadow-card glow-hover">
+              <div
+                (click)="onCardClick(item)"
+                class="relative aspect-square overflow-hidden bg-surface-elevated"
+              >
+                <img
+                  [src]="item.pin.imageUrl"
+                  [alt]="item.pin.title"
+                  loading="lazy"
+                  class="w-full h-full object-cover block transition-transform duration-500 group-hover:scale-[1.05]"
+                />
+
+                @if (item.status !== 'ENDED') {
+                  <span class="nf-auction-card__countdown mono-label">
+                    <span class="material-symbols-outlined text-[13px] leading-none" aria-hidden="true">schedule</span>
+                    {{ countdownFor(item) }}
+                  </span>
+                } @else {
+                  <span class="nf-auction-card__countdown nf-auction-card__countdown--ended mono-label">Đã kết thúc</span>
+                }
+
+                <span class="nf-auction-card__bids mono-label">
+                  <span class="material-symbols-outlined text-[13px] leading-none" aria-hidden="true">gavel</span>
+                  {{ item.bidCount }}
+                </span>
+
+                <!-- Bottom slide-up action strip — cùng mẫu với thẻ ảnh trang chủ -->
+                <div
+                  (click)="$event.stopPropagation()"
+                  class="nf-pin-save-bar absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 focus-within:translate-y-0 [@media(hover:none)]:translate-y-0 transition-transform duration-300 ease-spring bg-gradient-to-t from-bg/95 via-bg/55 to-transparent pt-9 pb-3 px-3 z-10"
+                >
+                  <span class="nf-pin-save-title">Lưu vào bộ sưu tập</span>
+                  <div class="nf-pin-save-selector relative min-w-0">
+                    <button
+                      type="button"
+                      (click)="toggleBoardDropdown(item, $event)"
+                      [disabled]="!item.canSave"
+                      [title]="item.canSave ? 'Chọn bộ sưu tập' : 'Thắng và thanh toán phiên đấu giá để mở khóa tính năng lưu'"
+                      class="flex items-center gap-1 w-full bg-surface-high/95 border border-border-strong text-text px-2.5 py-1.5 rounded-control text-xs font-bold cursor-pointer min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40 disabled:cursor-not-allowed"
+                      [attr.aria-label]="'Lưu ' + item.pin.title + ' vào bộ sưu tập'"
+                      aria-haspopup="listbox"
+                      [attr.aria-expanded]="activeDropdownPinId() === item.pin.id"
+                    >
+                      <span class="material-symbols-outlined text-[14px] leading-none shrink-0" aria-hidden="true">bookmark_add</span>
+                      <span class="truncate min-w-0">{{ getSelectedBoardName(item.pin.id) }}</span>
+                      <span class="material-symbols-outlined text-[12px] leading-none shrink-0" aria-hidden="true">keyboard_arrow_down</span>
+                    </button>
+                  </div>
+
+                  <div class="nf-pin-save-actions">
+                    <app-like-button
+                      size="compact"
+                      [liked]="item.pin.isLiked === true"
+                      [ariaLabel]="(item.pin.isLiked ? 'Bỏ thích ' : 'Thích ') + item.pin.title"
+                      (toggled)="toggleLike(item, $event)"
+                    ></app-like-button>
+                    <button
+                      (click)="saveItemToBoard(item, $event)"
+                      [disabled]="!item.canSave"
+                      [title]="item.canSave ? 'Lưu vào bộ sưu tập' : 'Thắng và thanh toán phiên đấu giá để mở khóa tính năng lưu'"
+                      class="nf-pin-save-button h-8 bg-gradient-to-r from-nova-blue to-studio-aqua cta-shape text-text-on-accent font-bold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <span class="material-symbols-outlined text-[14px] leading-none" aria-hidden="true">bookmark_add</span>
+                      Lưu
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div (click)="onCardClick(item)" class="flex flex-col gap-2 p-3">
+                <p class="text-xs font-bold text-text truncate">{{ item.pin.title || 'Tác phẩm đấu giá' }}</p>
+                <div class="flex items-center justify-between gap-2 min-w-0">
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    <app-user-avatar
+                      [src]="item.seller.avatarUrl"
+                      [name]="item.seller.username"
+                      [size]="18"
+                      [plan]="item.seller.plan"
+                      [isAdmin]="item.seller.isAdmin"
+                    ></app-user-avatar>
+                    <span class="text-[11px] text-text-muted truncate">{{ item.seller.username }}</span>
+                  </div>
+                  @if (item.pin.likeCount) {
+                    <span class="mono-label flex items-center gap-0.5 shrink-0 text-xs text-text-muted">
+                      <span class="relative inline-flex items-center justify-center text-error">
+                        <span class="material-symbols-outlined text-[12px] leading-none" aria-hidden="true">favorite</span>
+                        <span class="material-symbols-outlined icon-fill text-[12px] leading-none absolute inset-0 flex items-center justify-center" aria-hidden="true" [style.opacity]="item.pin.isLiked ? 1 : 0">favorite</span>
+                      </span>
+                      {{ item.pin.likeCount }}
+                    </span>
+                  }
+                </div>
+                <div class="flex items-end justify-between gap-2 pt-1 border-t border-border/60">
+                  <div class="flex flex-col gap-0.5 min-w-0">
+                    <span class="text-[9px] uppercase font-bold text-text-muted">{{ item.bidCount === 0 ? 'Giá khởi điểm' : 'Giá hiện tại' }}</span>
+                    <span class="text-sm font-extrabold text-primary mono-label truncate">{{ formatNovaToken(vndToNovaToken(item.currentPrice)) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+
+        @if (hasMore()) {
+          <div class="flex justify-center pt-2">
+            <button
+              type="button"
+              (click)="loadMore()"
+              [disabled]="loadingMore()"
+              class="h-11 px-6 rounded-control border border-border bg-surface-elevated hover:bg-surface-high text-text font-bold text-xs cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              {{ loadingMore() ? 'Đang tải...' : 'Xem thêm' }}
+            </button>
+          </div>
+        }
+      }
+    </main>
+  </div>
+
+  <!-- Board-picker dropdown — portal-positioned, cùng mẫu với trang chủ -->
+  @if (activeDropdownItem(); as item) {
+    <div
+      (click)="$event.stopPropagation()"
+      class="fixed w-48 glass-elevated rounded-panel shadow-card border border-border py-2 z-[100] text-left overflow-hidden"
+      [style.left.px]="dropdownAnchor()?.left"
+      [style.top.px]="dropdownAnchor()?.top"
+      [style.transform]="'translateY(-100%) translateY(-8px)'"
+      role="listbox"
+    >
+      <span class="text-xs font-semibold text-text-muted px-3.5 py-1 block select-none">Lưu vào bộ sưu tập</span>
+      <div class="max-h-[140px] overflow-y-auto">
+        @for (b of boards(); track b.id) {
+          <button
+            type="button"
+            (click)="selectBoardForPin(item.pin.id, b, $event)"
+            class="w-full text-left px-3.5 py-2 text-xs font-bold text-text hover:bg-surface-elevated cursor-pointer truncate border-none bg-transparent transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            {{ b.name }}
+          </button>
+        }
+      </div>
+    </div>
+  }
+</div>

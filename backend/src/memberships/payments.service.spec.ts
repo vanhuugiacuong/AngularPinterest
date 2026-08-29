@@ -32,17 +32,68 @@ describe('PaymentsService.handleSepayWebhook', () => {
   const prisma = {
     membershipPayment: { findFirst: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn() },
     imagePurchase: { findFirst: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn() },
-    novaTokenTopUp: { findFirst: jest.fn() },
+    novaTokenTopUp: { findFirst: jest.fn(), findUnique: jest.fn() },
     auditLog: { create: jest.fn() },
   };
   const memberships = { activatePlan: jest.fn() };
   const notifications = { createNotification: jest.fn() };
-  const service = new PaymentsService(prisma as never, memberships as never, notifications as never, {} as never);
+  const novaTokens = { confirmTopUp: jest.fn() };
+  const service = new PaymentsService(prisma as never, memberships as never, notifications as never, novaTokens as never);
 
   beforeEach(() => {
     jest.clearAllMocks();
     prisma.imagePurchase.findFirst.mockResolvedValue(null);
     prisma.novaTokenTopUp.findFirst.mockResolvedValue(null);
+  });
+
+  it('confirms a NovaToken top-up when the reference (NAP-prefixed, not TOKEN) and amount both match', async () => {
+    // Regression test: NovaTokenService.createTopUp() generates "NAP..."
+    // references, but extractPaymentReference()'s regex used to only
+    // recognize TOKEN/NOVA/BUY — every top-up webhook silently fell through
+    // as unmatched before the TOKEN-prefix routing check even ran.
+    prisma.membershipPayment.findFirst.mockResolvedValue(null);
+    prisma.novaTokenTopUp.findUnique.mockResolvedValue({
+      id: 'topup-1',
+      userId: 'user-1',
+      status: 'PENDING',
+      vndAmount: 50000,
+    });
+
+    const result = await service.handleSepayWebhook({
+      id: 'txn-nap-1',
+      content: 'CHUYEN KHOAN NAPABC123XYZ',
+      transferAmount: 50000,
+      transferType: 'in',
+    });
+
+    expect(prisma.novaTokenTopUp.findUnique).toHaveBeenCalledWith({
+      where: { paymentReference: 'NAPABC123XYZ' },
+    });
+    expect(novaTokens.confirmTopUp).toHaveBeenCalledWith(
+      'topup-1',
+      expect.objectContaining({ providerTransactionId: 'txn-nap-1' }),
+    );
+    expect(result).toBeUndefined(); // handleSepayWebhook returns whatever confirmTopUp (mocked, no return) resolves to
+  });
+
+  it('does not confirm a NovaToken top-up when the transferred amount does not match', async () => {
+    prisma.membershipPayment.findFirst.mockResolvedValue(null);
+    prisma.novaTokenTopUp.findUnique.mockResolvedValue({
+      id: 'topup-2',
+      userId: 'user-2',
+      status: 'PENDING',
+      vndAmount: 50000,
+    });
+
+    const result = await service.handleSepayWebhook({
+      id: 'txn-nap-2',
+      content: 'NAPDEF999XYZ',
+      transferAmount: 30000,
+      transferType: 'in',
+    });
+
+    expect(result).toEqual({ ok: true, mismatch: true });
+    expect(novaTokens.confirmTopUp).not.toHaveBeenCalled();
   });
 
   it('is idempotent: a webhook replay with the same providerTransactionId is skipped, not double-processed', async () => {
